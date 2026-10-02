@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: copies of the app's own Material 3 themes with the elevation overlay switched off. -->
+<resources>
+    <style name="AppTheme" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+        <item name="android:windowLightNavigationBar">?attr/isLightTheme</item>
+        <item name="android:windowLightStatusBar">?attr/isLightTheme</item>
+        <item name="alertDialogTheme">@style/Theme.Recorder.AlertDialog</item>
+        <item name="materialAlertDialogTheme">@style/Theme.Recorder.AlertDialog</item>
+        <item name="windowActionModeOverlay">true</item>
+        <item name="elevationOverlayEnabled">false</item>
+    </style>
+    <style name="Theme.Recorder.AlertDialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="android:colorBackground">?attr/colorSurface</item>
+        <item name="dialogCornerRadius">16dp</item>
+        <item name="elevationOverlayEnabled">false</item>
+    </style>
+</resources>

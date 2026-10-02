@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- DayNight without the action bar. -->
+<resources>
+    <style name="Theme.Kompakt" parent="@android:style/Theme.DeviceDefault.DayNight">
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowNoTitle">true</item>
+        <!-- White in light mode, so dark status bar icons. -->
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:statusBarColor">#ffffffff</item>
+    </style>
+</resources>

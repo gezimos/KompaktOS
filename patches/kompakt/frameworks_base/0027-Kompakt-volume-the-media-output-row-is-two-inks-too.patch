@@ -1,0 +1,30 @@
+From 0d5ab58dfc01bebdf22d133ea2b8f8b410a6617a Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Fri, 18 Sep 2026 18:56:29 +0200
+Subject: [PATCH 27/38] Kompakt: volume: the media output row is two inks too
+
+---
+ .../mediaoutput/ui/composable/MediaOutputComponent.kt          | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/volume/panel/component/mediaoutput/ui/composable/MediaOutputComponent.kt b/packages/SystemUI/compose/features/src/com/android/systemui/volume/panel/component/mediaoutput/ui/composable/MediaOutputComponent.kt
+index 43e114363c87..36e1aecfa7ac 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/volume/panel/component/mediaoutput/ui/composable/MediaOutputComponent.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/volume/panel/component/mediaoutput/ui/composable/MediaOutputComponent.kt
+@@ -28,6 +28,7 @@ import androidx.compose.animation.slideInVertically
+ import androidx.compose.animation.slideOutVertically
+ import androidx.compose.animation.togetherWith
+ import androidx.compose.foundation.background
++import androidx.compose.foundation.BorderStroke
+ import androidx.compose.foundation.basicMarquee
+ import androidx.compose.foundation.layout.Arrangement
+ import androidx.compose.foundation.layout.Box
+@@ -103,6 +104,8 @@ class MediaOutputComponent @Inject constructor(private val viewModel: MediaOutpu
+                     MaterialTheme.colorScheme.surfaceContainerHighest
+                 },
+             shape = RoundedCornerShape(28.dp),
++            // Kompakt: the fill is paper, so the bar needs an outline to exist at all.
++            borderStroke = BorderStroke(2.dp, MaterialTheme.colorScheme.onSurface),
+             useModifierBasedImplementation = true,
+             onClick =
+                 if (enabled) {

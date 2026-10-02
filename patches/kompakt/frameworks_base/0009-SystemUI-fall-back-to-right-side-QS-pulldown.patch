@@ -1,0 +1,23 @@
+From ce0d56a4c0eec268abf443bd6826b7597e9f49e5 Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Tue, 8 Sep 2026 15:11:58 +0200
+Subject: [PATCH 09/38] SystemUI: fall back to right-side QS pulldown
+
+---
+ .../android/systemui/shade/QuickSettingsControllerImpl.java  | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/shade/QuickSettingsControllerImpl.java b/packages/SystemUI/src/com/android/systemui/shade/QuickSettingsControllerImpl.java
+index e6082cd88103..0815c3f6538f 100644
+--- a/packages/SystemUI/src/com/android/systemui/shade/QuickSettingsControllerImpl.java
++++ b/packages/SystemUI/src/com/android/systemui/shade/QuickSettingsControllerImpl.java
+@@ -418,7 +418,8 @@ public class QuickSettingsControllerImpl implements QuickSettingsController, Dum
+             public void onChange(boolean selfChange) {
+                 mOneFingerQuickSettingsIntercept = LineageSettings.System.getIntForUser(
+                         mPanelView.getContext().getContentResolver(),
+-                        LineageSettings.System.STATUS_BAR_QUICK_QS_PULLDOWN, 0,
++                        // e-ink: default to right-side pulldown.
++                        LineageSettings.System.STATUS_BAR_QUICK_QS_PULLDOWN, 1,
+                         selectedUserInteractor.getSelectedUserId());
+             }
+         };

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: the top and bottom bar icons. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:color="@color/gray_60" android:state_enabled="true" />
+    <item android:color="@color/kompakt_camera_dim" android:state_enabled="false" />
+</selector>

@@ -1,0 +1,41 @@
+From 660b5450865d7d0b348f1d571225ba855ad4646a Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Fri, 18 Sep 2026 18:56:27 +0200
+Subject: [PATCH 21/38] Kompakt: wm: a property may hide the navigation bar,
+ not conjure one
+
+---
+ .../Shell/src/com/android/wm/shell/common/DisplayLayout.java   | 3 +--
+ services/core/java/com/android/server/wm/DisplayPolicy.java    | 3 +--
+ 2 files changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/libs/WindowManager/Shell/src/com/android/wm/shell/common/DisplayLayout.java b/libs/WindowManager/Shell/src/com/android/wm/shell/common/DisplayLayout.java
+index 9d8e3c3a17ae..373392f4c214 100644
+--- a/libs/WindowManager/Shell/src/com/android/wm/shell/common/DisplayLayout.java
++++ b/libs/WindowManager/Shell/src/com/android/wm/shell/common/DisplayLayout.java
+@@ -465,9 +465,8 @@ public class DisplayLayout {
+             final String navBarOverride = SystemProperties.get("qemu.hw.mainkeys");
+             if ("1".equals(navBarOverride)) {
+                 return false;
+-            } else if ("0".equals(navBarOverride)) {
+-                return true;
+             }
++            // Kompakt: no "0" branch, matching DisplayPolicy. See the comment there.
+             return context.getResources().getBoolean(R.bool.config_showNavigationBar);
+         } else {
+             boolean isUntrustedVirtualDisplay = info.type == Display.TYPE_VIRTUAL
+diff --git a/services/core/java/com/android/server/wm/DisplayPolicy.java b/services/core/java/com/android/server/wm/DisplayPolicy.java
+index 2f85810c8967..ac83ec88b10e 100644
+--- a/services/core/java/com/android/server/wm/DisplayPolicy.java
++++ b/services/core/java/com/android/server/wm/DisplayPolicy.java
+@@ -732,9 +732,8 @@ public class DisplayPolicy {
+             String navBarOverride = SystemProperties.get("qemu.hw.mainkeys");
+             if ("1".equals(navBarOverride)) {
+                 mHasNavigationBar = false;
+-            } else if ("0".equals(navBarOverride)) {
+-                mHasNavigationBar = true;
+             }
++            // Kompakt: no "0" branch.
+         } else {
+             mHasStatusBar = false;
+             mHasNavigationBar = mDisplayContent.isSystemDecorationsSupported();

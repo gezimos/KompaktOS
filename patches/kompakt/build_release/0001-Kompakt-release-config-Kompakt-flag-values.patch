@@ -1,0 +1,24 @@
+From 1c0a5d67fadd745adb144c1813e573f3e3f3c3e0 Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Thu, 17 Sep 2026 21:26:36 +0200
+Subject: [PATCH] Kompakt: release config: Kompakt flag values
+
+---
+ .../scene_container_flag_values.textproto                 | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+ create mode 100644 aconfig/bp4a/com.android.systemui/scene_container_flag_values.textproto
+
+diff --git a/aconfig/bp4a/com.android.systemui/scene_container_flag_values.textproto b/aconfig/bp4a/com.android.systemui/scene_container_flag_values.textproto
+new file mode 100644
+index 000000000..fffed8181
+--- /dev/null
++++ b/aconfig/bp4a/com.android.systemui/scene_container_flag_values.textproto
+@@ -0,0 +1,8 @@
++
++# Kompakt: enable the scene container framework (go/flexiglass).
++flag_value {
++  package: "com.android.systemui"
++  name: "scene_container"
++  state: ENABLED
++  permission: READ_ONLY
++}

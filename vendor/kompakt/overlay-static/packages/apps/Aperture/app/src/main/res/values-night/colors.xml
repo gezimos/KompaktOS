@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: Kompakt night twin, Aperture names its light surface gray_10 and its chrome foreground gray_60 / dark_grey. -->
+<resources>
+    <color name="gray_10">#FF000000</color>
+    <color name="gray_60">#FFFFFFFE</color>
+    <color name="dark_grey">#FFFFFFFE</color>
+    <color name="yellow">#FFFFFFFE</color>
+    <color name="rec_red">#FFFFFFFE</color>
+    <color name="kompakt_camera_dim">#80FFFFFF</color>
+</resources>

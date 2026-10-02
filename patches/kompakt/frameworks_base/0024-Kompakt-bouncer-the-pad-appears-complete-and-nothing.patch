@@ -1,0 +1,375 @@
+From eb3922a4edb5807e39eed14c59ad9dd6452743bf Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Fri, 18 Sep 2026 18:56:28 +0200
+Subject: [PATCH 24/38] Kompakt: bouncer: the pad appears complete, and nothing
+ slides
+
+---
+ .../bouncer/ui/composable/BouncerContent.kt   | 44 +++++++------------
+ .../AmbientIndicationElementProvider.kt       | 24 +---------
+ .../elements/OEMElementProviderModule.kt      | 10 +----
+ .../transitions/FromBouncerTransition.kt      |  8 ++--
+ .../FromLockscreenToBouncerTransition.kt      | 11 ++---
+ .../FromLockscreenToGoneTransition.kt         | 10 ++++-
+ .../FromLockscreenToOverlayTransition.kt      | 18 ++++++--
+ .../transitions/KompaktInstantDistance.kt     |  6 +++
+ .../transitions/ToBouncerTransition.kt        |  3 +-
+ .../ToNotificationsShadeTransition.kt         | 12 ++++-
+ .../ToQuickSettingsShadeTransition.kt         |  7 ++-
+ .../transitions/ToShadeSceneTransition.kt     |  5 ++-
+ .../classifier/DistanceClassifier.java        |  3 +-
+ 13 files changed, 81 insertions(+), 80 deletions(-)
+ create mode 100644 packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/KompaktInstantDistance.kt
+
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/bouncer/ui/composable/BouncerContent.kt b/packages/SystemUI/compose/features/src/com/android/systemui/bouncer/ui/composable/BouncerContent.kt
+index 81500808c154..6e04b4aafdd3 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/bouncer/ui/composable/BouncerContent.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/bouncer/ui/composable/BouncerContent.kt
+@@ -86,6 +86,7 @@ import androidx.compose.ui.res.stringResource
+ import androidx.compose.ui.semantics.Role
+ import androidx.compose.ui.semantics.role
+ import androidx.compose.ui.semantics.semantics
++import androidx.compose.ui.text.style.TextAlign
+ import androidx.compose.ui.text.style.TextOverflow
+ import androidx.compose.ui.unit.Dp
+ import androidx.compose.ui.unit.DpOffset
+@@ -185,22 +186,16 @@ fun ContentScope.BouncerContent(
+                 if (startAppearAnimation) {
+                     0.dp
+                 } else {
+-                    // init to BOUNCER_INITIAL_TRANSLATION before anim begins
+-                    BOUNCER_INITIAL_TRANSLATION
++                    // Kompakt: 0, not BOUNCER_INITIAL_TRANSLATION.
++                    0.dp
+                 },
+             label = "offsetY",
+         )
+ 
+     LaunchedEffect(Unit) {
+-        appearAnimationDelay =
+-            BOUNCER_CONTENTS_PASSIVE_AUTH_DELAY.takeIf { viewModel.shouldDelayBouncerContent() }
+-                ?: 0
+-
+-        // evaluate once when BouncerContent first shows; we don't animate if the
+-        // bouncer showing was initiated from a drag/fling
+-        appearAnimationDuration =
+-            if (!isDraggingToBouncer()) BOUNCER_CONTENTS_ALPHA_IN_ANIMATION_DURATION else 0
+-
++        // Kompakt: reveal immediately, and never gate the reveal on a suspend call.
++        appearAnimationDelay = 0
++        appearAnimationDuration = 0
+         startAppearAnimation = true
+     }
+ 
+@@ -211,13 +206,10 @@ fun ContentScope.BouncerContent(
+         modifier =
+             modifier
+                 .offset {
++                    // Kompakt: no slide while dragging.
+                     val yOffset =
+                         if (isDraggingToBouncer()) {
+-                            ((1 -
+-                                    appearAnimationInterpolator.transform(
+-                                        layoutState.currentTransition!!.progress
+-                                    )) * BOUNCER_INITIAL_TRANSLATION)
+-                                .toPx()
++                            0f
+                         } else {
+                             animatedOffsetY.value
+                         }
+@@ -226,10 +218,8 @@ fun ContentScope.BouncerContent(
+                 .graphicsLayer {
+                     alpha =
+                         if (isDraggingToBouncer()) {
+-                            appearAnimationInterpolator.transform(
+-                                // animate in along with the layout's transition
+-                                layoutState.currentTransition!!.progress
+-                            )
++                            // Kompakt: opaque from the first pixel of the drag.
++                            1f
+                         } else {
+                             // animate in separately from the layout's transition
+                             animatedAlpha
+@@ -304,7 +294,7 @@ private fun StandardLayout(
+         )
+ 
+     FoldAware(
+-        // e-ink: less fixed padding, so four rows of keys fit the 601dp panel.
++        // e-ink: less fixed padding, so four rows of keys fit the 601dp panel.
+         modifier = modifier.padding(top = 24.dp, bottom = 16.dp),
+         viewModel = viewModel,
+         aboveFold = {
+@@ -728,15 +718,17 @@ private fun StatusMessage(viewModel: BouncerMessageViewModel, modifier: Modifier
+         animationSpec = if (message?.isUpdateAnimated == true) tween() else snap(),
+         modifier = modifier.fillMaxWidth(),
+     ) { msg ->
++        // Kompakt: centre wrapped lines too, and keep off the panel edges.
+         Column(
+             horizontalAlignment = Alignment.CenterHorizontally,
+-            modifier = Modifier.fillMaxWidth(),
++            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+         ) {
+             msg?.let {
+                 Text(
+                     text = it.text,
+                     color = MaterialTheme.colorScheme.onSurface,
+                     style = MaterialTheme.typography.titleLargeEmphasized,
++                    textAlign = TextAlign.Center,
+                     overflow = TextOverflow.Ellipsis,
+                 )
+                 Spacer(modifier = Modifier.size(10.dp))
+@@ -744,6 +736,7 @@ private fun StatusMessage(viewModel: BouncerMessageViewModel, modifier: Modifier
+                     text = it.secondaryText ?: "",
+                     color = MaterialTheme.colorScheme.onSurface,
+                     style = MaterialTheme.typography.titleMediumEmphasized,
++                    textAlign = TextAlign.Center,
+                     overflow = TextOverflow.Ellipsis,
+                     maxLines = 2,
+                 )
+@@ -1118,5 +1111,6 @@ object BouncerMotionTestKeys {
+     val swapAnimationEnd = MotionTestValueKey<Boolean>("swapAnimationEnd")
+ }
+ 
+-private const val BOUNCER_CONTENTS_PASSIVE_AUTH_DELAY = 500
++// Kompakt: 0, not 500.
++private const val BOUNCER_CONTENTS_PASSIVE_AUTH_DELAY = 0
+ private const val BOUNCER_CONTENTS_ALPHA_IN_ANIMATION_DURATION = 250
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/AmbientIndicationElementProvider.kt b/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/AmbientIndicationElementProvider.kt
+index 22756b774fdd..0e76e2912a17 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/AmbientIndicationElementProvider.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/AmbientIndicationElementProvider.kt
+@@ -29,7 +29,7 @@ import com.android.systemui.plugins.keyguard.ui.composable.elements.LockscreenSc
+ import com.android.systemui.shade.ShadeDisplayAware
+ import javax.inject.Inject
+ 
+-/** Supplies the ambient indication area; the lockscreen layout needs all six elements. */
++/** Supplies the ambient indication area; the lockscreen layout needs all six elements. */
+ class AmbientIndicationElementProvider
+ @Inject
+ constructor(@ShadeDisplayAware private val context: Context) : OEMElementProvider {
+@@ -60,7 +60,7 @@ constructor(@ShadeDisplayAware private val context: Context) : OEMElementProvide
+ 
+         @Composable
+         override fun LockscreenScope<ElementContentScope>.LockscreenElement() {
+-            // Present for the key, measuring to nothing.
++            // Present for the key, measuring to nothing.
+             Spacer(Modifier.height(0.dp))
+         }
+     }
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/OEMElementProviderModule.kt b/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/OEMElementProviderModule.kt
+index c02c6f0e0fe7..e408aa8801a4 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/OEMElementProviderModule.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/OEMElementProviderModule.kt
+@@ -29,7 +29,7 @@ import dagger.multibindings.Multibinds
+ interface OEMElementProviderModule {
+     @Multibinds fun oemElementProviders(): Set<OEMElementProvider>
+ 
+-    /** Kompakt: contribute the ambient indication area. */
++    /** Kompakt: contribute the ambient indication area. */
+     @Binds
+     @IntoSet
+     fun ambientIndicationElementProvider(
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/FromBouncerTransition.kt b/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/FromBouncerTransition.kt
+index c1b7c07750b1..5a48ba5260d0 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/FromBouncerTransition.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/FromBouncerTransition.kt
+@@ -32,7 +32,9 @@ fun TransitionBuilder.fromBouncerTransition() {
+         fromContentSize.height * TO_BOUNCER_SWIPE_DISTANCE_FRACTION
+     }
+ 
+-    translate(Bouncer.Elements.Content, y = -BOUNCER_INITIAL_TRANSLATION)
+-    fractionRange(end = TO_BOUNCER_FADE_FRACTION) { fade(Bouncer.Elements.Background) }
+-    fractionRange(start = TO_BOUNCER_FADE_FRACTION) { fade(Bouncer.Elements.Content) }
++    // Kompakt: no slide.
++    translate(Bouncer.Elements.Content, y = 0.dp)
++    // Kompakt: hold both opaque until the gesture is all but done.
++    fractionRange(start = 0.95f) { fade(Bouncer.Elements.Background) }
++    fractionRange(start = 0.95f) { fade(Bouncer.Elements.Content) }
+ }
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/FromLockscreenToBouncerTransition.kt b/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/FromLockscreenToBouncerTransition.kt
+index 2ad5a1f8c93c..00d3307d8f1f 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/FromLockscreenToBouncerTransition.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/FromLockscreenToBouncerTransition.kt
+@@ -7,17 +7,18 @@ import com.android.systemui.bouncer.ui.composable.Bouncer
+ import com.android.systemui.plugins.keyguard.ui.composable.elements.LockscreenElementKeys
+ 
+ fun TransitionBuilder.lockscreenToBouncerTransition(durationScale: Double = 1.0) {
+-    lockscreenToOverlayTransition(durationScale = durationScale)
++    lockscreenToOverlayTransition(durationScale = durationScale, holdLockscreen = true)
+     toBouncerTransition()
+ 
+-    fractionRange(end = 0.3f, easing = Easings.PredictiveBack) {
++    // Kompakt: hold these too; see lockscreenToOverlayTransition.
++    fractionRange(start = 0.95f, easing = Easings.PredictiveBack) {
+         fade(LockscreenElementKeys.Region.Upper)
+         fade(LockscreenElementKeys.LockIcon)
+         fade(LockscreenElementKeys.AmbientIndicationArea)
+         fade(LockscreenElementKeys.Region.Lower)
+         fade(LockscreenElementKeys.SettingsMenu)
+         fade(LockscreenElementKeys.BehindScrim)
+-        // Kompakt: no translation.
++        // Kompakt: no translation.
+     }
+ }
+ 
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/FromLockscreenToGoneTransition.kt b/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/FromLockscreenToGoneTransition.kt
+index 18b2c13946b8..0c44922b6d3c 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/FromLockscreenToGoneTransition.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/FromLockscreenToGoneTransition.kt
+@@ -4,11 +4,19 @@ import androidx.compose.animation.core.tween
+ import androidx.compose.ui.unit.dp
+ import com.android.compose.animation.Easings
+ import com.android.compose.animation.scene.TransitionBuilder
++import com.android.compose.animation.scene.UserActionDistance
+ import com.android.systemui.plugins.keyguard.ui.composable.elements.LockscreenElementKeys
+ import com.android.systemui.scene.shared.model.Scenes
+ 
+ fun TransitionBuilder.lockscreenToGoneTransition() {
+-    spec = tween(durationMillis = 500)
++    // Kompakt: 150, not 0 and not 500.
++    spec = tween(durationMillis = 150)
++
++    // Kompakt: a third of the screen, not all of it.
++    distance = UserActionDistance { fromContent, _, _ ->
++        val fromContentSize = checkNotNull(fromContent.targetSize())
++        fromContentSize.height.toFloat() / 3f
++    }
+ 
+     fractionRange(end = 0.3f, easing = Easings.PredictiveBack) {
+         // Fade out all lock screen elements, except the status bar.
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/FromLockscreenToOverlayTransition.kt b/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/FromLockscreenToOverlayTransition.kt
+index 1e82726d01a4..665a74fb885a 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/FromLockscreenToOverlayTransition.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/FromLockscreenToOverlayTransition.kt
+@@ -21,11 +21,21 @@ import com.android.compose.animation.scene.TransitionBuilder
+ import com.android.systemui.plugins.keyguard.ui.composable.elements.LockscreenElementKeys
+ import kotlin.time.Duration.Companion.milliseconds
+ 
+-fun TransitionBuilder.lockscreenToOverlayTransition(durationScale: Double = 1.0) {
++fun TransitionBuilder.lockscreenToOverlayTransition(
++    durationScale: Double = 1.0,
++    holdLockscreen: Boolean = false,
++) {
+     spec = tween(durationMillis = (DefaultDuration * durationScale).inWholeMilliseconds.toInt())
+ 
+-    fractionRange(end = 0.05f) { fade(LockscreenElementKeys.StatusBar) }
+-    fractionRange(end = 0.2f) { fade(LockscreenElementKeys.Root) }
++    if (holdLockscreen) {
++        // Kompakt: the overlay paints an opaque background early; nothing to cross fade.
++        fractionRange(start = 0.95f) { fade(LockscreenElementKeys.StatusBar) }
++        fractionRange(start = 0.95f) { fade(LockscreenElementKeys.Root) }
++    } else {
++        fractionRange(end = 0.05f) { fade(LockscreenElementKeys.StatusBar) }
++        fractionRange(end = 0.2f) { fade(LockscreenElementKeys.Root) }
++    }
+ }
+ 
+-private val DefaultDuration = 500.milliseconds
++// Kompakt: the shade is there when you pull it, not after an expansion.
++private val DefaultDuration = 0.milliseconds
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/KompaktInstantDistance.kt b/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/KompaktInstantDistance.kt
+new file mode 100644
+index 000000000000..01cb1b304404
+--- /dev/null
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/KompaktInstantDistance.kt
+@@ -0,0 +1,6 @@
++package com.android.systemui.scene.ui.composable.transitions
++
++import com.android.compose.animation.scene.UserActionDistance
++
++/** Kompakt: a swipe distance of one pixel. */
++internal val KompaktInstantDistance = UserActionDistance { _, _, _ -> 1f }
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/ToBouncerTransition.kt b/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/ToBouncerTransition.kt
+index fc9a11c7c2f2..2da725274b01 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/ToBouncerTransition.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/ToBouncerTransition.kt
+@@ -32,5 +32,6 @@ fun TransitionBuilder.toBouncerTransition() {
+         fromContentSize.height * TO_BOUNCER_SWIPE_DISTANCE_FRACTION
+     }
+ 
+-    fade(Bouncer.Elements.Background)
++    // Kompakt: the background is a solid drawRect.
++    fractionRange(end = 0.05f) { fade(Bouncer.Elements.Background) }
+ }
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/ToNotificationsShadeTransition.kt b/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/ToNotificationsShadeTransition.kt
+index 2321821b2757..f1bac23f61e4 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/ToNotificationsShadeTransition.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/ToNotificationsShadeTransition.kt
+@@ -37,10 +37,18 @@ fun TransitionBuilder.toNotificationsShadeTransition(
+     // Ensure the clock isn't clipped by the shade outline during the transition from lockscreen.
+     sharedElement(LockscreenElementKeys.Clock.Small, elevateInContent = Overlays.NotificationsShade)
+ 
+-    verticalContainerReveal(NotificationsShade.Elements.Panel, shadeExpansionMotion, revealHaptics)
++    // Kompakt: no spring-driven reveal, and no tracking of the finger.
++    verticalContainerReveal(
++        NotificationsShade.Elements.Panel,
++        shadeExpansionMotion,
++        revealHaptics,
++        useMechanics = false,
++    )
++    distance = KompaktInstantDistance
+ 
+     fractionRange(end = .5f) { fade(OverlayShade.Elements.Scrim) }
+     fractionRange(start = .5f) { fade(NotificationsShade.Elements.StatusBar) }
+ }
+ 
+-private val DefaultDuration = 300.milliseconds
++// Kompakt: the shade is there when you pull it, not after an expansion.
++private val DefaultDuration = 0.milliseconds
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/ToQuickSettingsShadeTransition.kt b/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/ToQuickSettingsShadeTransition.kt
+index 93b18054b3ad..8dfbefc9036e 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/ToQuickSettingsShadeTransition.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/ToQuickSettingsShadeTransition.kt
+@@ -36,8 +36,10 @@ fun TransitionBuilder.toQuickSettingsShadeTransition(
+         container = QuickSettingsShade.Elements.Panel,
+         motionSpec = shadeExpansionMotion,
+         haptics = revealHaptics,
+-        useMechanics = true,
++        // Kompakt: no spring-driven reveal, and no tracking of the finger.
++        useMechanics = false,
+     )
++    distance = KompaktInstantDistance
+ 
+     fractionRange(end = .5f) { fade(OverlayShade.Elements.Scrim) }
+     fractionRange(start = .5f) {
+@@ -46,4 +48,5 @@ fun TransitionBuilder.toQuickSettingsShadeTransition(
+     }
+ }
+ 
+-private val DefaultDuration = 300.milliseconds
++// Kompakt: the shade is there when you pull it, not after an expansion.
++private val DefaultDuration = 0.milliseconds
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/ToShadeSceneTransition.kt b/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/ToShadeSceneTransition.kt
+index a041ab1dc4f6..2b2aaf84cacc 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/ToShadeSceneTransition.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/ToShadeSceneTransition.kt
+@@ -27,6 +27,8 @@ import kotlin.time.Duration.Companion.milliseconds
+ 
+ fun TransitionBuilder.toShadeSceneTransition(durationScale: Double = 1.0) {
+     spec = tween(durationMillis = (DefaultDuration * durationScale).inWholeMilliseconds.toInt())
++    // Kompakt: open or closed, never following the finger.
++    distance = KompaktInstantDistance
+ 
+     fractionRange(start = .58f) {
+         fade(ShadeHeader.Elements.Clock)
+@@ -44,4 +46,5 @@ fun TransitionBuilder.toShadeSceneTransition(durationScale: Double = 1.0) {
+     translate(Notifications.Elements.NotificationScrim, Edge.Top, false)
+ }
+ 
+-private val DefaultDuration = 500.milliseconds
++// Kompakt: the shade is there when you pull it, not after an expansion.
++private val DefaultDuration = 0.milliseconds
+diff --git a/packages/SystemUI/src/com/android/systemui/classifier/DistanceClassifier.java b/packages/SystemUI/src/com/android/systemui/classifier/DistanceClassifier.java
+index 8aaa7d442114..062bcd45aa06 100644
+--- a/packages/SystemUI/src/com/android/systemui/classifier/DistanceClassifier.java
++++ b/packages/SystemUI/src/com/android/systemui/classifier/DistanceClassifier.java
+@@ -52,7 +52,8 @@ class DistanceClassifier extends FalsingClassifier {
+     private static final float HORIZONTAL_SWIPE_THRESHOLD_DISTANCE_IN = 3;
+     private static final float VERTICAL_SWIPE_THRESHOLD_DISTANCE_IN = 3;
+     private static final float VELOCITY_TO_DISTANCE = 30f;
+-    private static final float SCREEN_FRACTION_MAX_DISTANCE = 0.8f;
++    // Kompakt: a quarter of the screen, not four fifths.
++    private static final float SCREEN_FRACTION_MAX_DISTANCE = 0.25f;
+ 
+     private final float mVerticalFlingThresholdPx;
+     private final float mHorizontalFlingThresholdPx;

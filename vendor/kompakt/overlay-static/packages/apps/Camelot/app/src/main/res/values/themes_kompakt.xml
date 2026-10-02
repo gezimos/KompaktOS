@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The grey text and icons in Files. -->
+<resources>
+    <style name="Theme.Camelot" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorOnSurfaceVariant">#ff000000</item>
+        <item name="colorOnSurface">#ff000000</item>
+        <item name="colorOnBackground">#ff000000</item>
+        <item name="android:textColorSecondary">#ff000000</item>
+        <item name="android:textColorTertiary">#ff000000</item>
+        <item name="colorOutline">#ff000000</item>
+        <item name="elevationOverlayEnabled">false</item>
+    </style>
+</resources>

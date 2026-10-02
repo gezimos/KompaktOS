@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: dark status bar icons on the white call screen, or they are white on white. -->
+<resources>
+    <bool name="kompakt_incall_light_bars">true</bool>
+</resources>

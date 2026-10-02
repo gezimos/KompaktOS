@@ -1,0 +1,19 @@
+From 2bf59452ac790dd76bb5bb760f688fd49b682059 Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Tue, 8 Sep 2026 14:15:01 +0200
+Subject: [PATCH 02/12] sepolicy: bind battery cmd types to object_r for Mudita
+ Kompakt
+
+---
+ sepolicy/compat/31.0/31.0.compat.cil | 2 ++
+ 1 file changed, 2 insertions(+)
+ create mode 100644 sepolicy/compat/31.0/31.0.compat.cil
+
+diff --git a/sepolicy/compat/31.0/31.0.compat.cil b/sepolicy/compat/31.0/31.0.compat.cil
+new file mode 100644
+index 0000000..9dfd058
+--- /dev/null
++++ b/sepolicy/compat/31.0/31.0.compat.cil
+@@ -0,0 +1,2 @@
++(roletype object_r proc_battery_cmd)
++(roletype object_r proc_battery_current_cmd)

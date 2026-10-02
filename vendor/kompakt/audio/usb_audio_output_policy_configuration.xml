@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- KompaktOS: USB audio HAL module for playback only; USB input stays on primary. -->
+<module name="usb" halVersion="2.0">
+    <mixPorts>
+        <mixPort name="usb_accessory output" role="source">
+            <profile name="" format="AUDIO_FORMAT_PCM_16_BIT"
+                     samplingRates="44100" channelMasks="AUDIO_CHANNEL_OUT_STEREO"/>
+        </mixPort>
+        <mixPort name="usb_device output" role="source" flags="AUDIO_OUTPUT_FLAG_FAST"/>
+    </mixPorts>
+    <devicePorts>
+        <devicePort tagName="USB Host Out" type="AUDIO_DEVICE_OUT_USB_ACCESSORY" role="sink">
+            <profile name="" format="AUDIO_FORMAT_PCM_16_BIT"
+                     samplingRates="44100" channelMasks="AUDIO_CHANNEL_OUT_STEREO"/>
+        </devicePort>
+        <devicePort tagName="USB Device Out" type="AUDIO_DEVICE_OUT_USB_DEVICE" role="sink"/>
+        <devicePort tagName="USB Headset Out" type="AUDIO_DEVICE_OUT_USB_HEADSET" role="sink"/>
+    </devicePorts>
+    <routes>
+        <route type="mix" sink="USB Host Out" sources="usb_accessory output"/>
+        <route type="mix" sink="USB Device Out" sources="usb_device output"/>
+        <route type="mix" sink="USB Headset Out" sources="usb_device output"/>
+    </routes>
+</module>

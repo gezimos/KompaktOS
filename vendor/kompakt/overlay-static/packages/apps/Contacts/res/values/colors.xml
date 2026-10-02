@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Contacts in black and white. -->
+<resources>
+    <!-- The header. White, with the black hairline supplied by the style. -->
+    <color name="action_bar_background">#ffffffff</color>
+    <color name="primary_color">#ffffffff</color>
+    <color name="primary_color_dark">#ffffffff</color>
+
+    <!-- Drawn on that header. Both were #ffffff to sit on a black bar. -->
+    <color name="actionbar_icon_color">#ff000000</color>
+    <color name="actionbar_text_color">#ff000000</color>
+    <color name="action_bar_button_text_color">#ff000000</color>
+
+    <!-- The group header and the tab strip, same reasoning as the action bar. -->
+    <color name="group_primary_color">#ffffffff</color>
+    <color name="group_primary_color_dark">#ffffffff</color>
+    <!-- Text, not a background. -->
+    <color name="people_app_theme_color">#ff000000</color>
+    <color name="dialtacts_theme_color">#ff000000</color>
+
+    <!-- The floating action button. -->
+    <color name="fab_color">#ffffffff</color>
+    <color name="contacts_accent_color">#ff000000</color>
+
+    <!-- Page backgrounds. -->
+    <color name="background_primary">#ffffffff</color>
+    <color name="contact_all_list_background_color">#ffffffff</color>
+
+    <!-- Subheader text in ink: mid grey is the worst case for a sixteen level panel. -->
+    <color name="quickcontact_entry_header_text_color">#ff000000</color>
+    <color name="quickcontact_entry_sub_header_text_color">#ff000000</color>
+
+    <!-- The empty list ground. -->
+    <color name="empty_state_background">@color/kompakt_ground</color>
+    <!-- Kompakt: opaque. Stock is #89000000, 54% alpha, which measured (118,118,118) behind "Labels" and "Accounts" in the. -->
+    <color name="quantum_black_secondary_text">#ff000000</color>
+    <color name="quantum_black_text">#ff000000</color>
+    <!-- Kompakt: the editor photo band, inverted from the small list tiles -->
+    <color name="kompakt_editor_photo_bg">#fffffffe</color>
+    <color name="kompakt_editor_photo_fg">#ff000000</color>
+    <!-- Kompakt: what you write with, and what you write on. -->
+    <color name="kompakt_ink">#FF000000</color>
+    <color name="kompakt_ground">#FFFFFFFE</color>
+</resources>

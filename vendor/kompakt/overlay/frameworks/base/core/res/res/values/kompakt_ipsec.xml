@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: IPsec algorithms for Wi Fi calling; vendor API level 30 leaves them off. -->
+<resources>
+    <string-array name="config_optionalIpSecAlgorithms" translatable="false">
+        <item>rfc3686(ctr(aes))</item>
+        <item>xcbc(aes)</item>
+        <item>cmac(aes)</item>
+        <item>rfc7539esp(chacha20,poly1305)</item>
+    </string-array>
+</resources>

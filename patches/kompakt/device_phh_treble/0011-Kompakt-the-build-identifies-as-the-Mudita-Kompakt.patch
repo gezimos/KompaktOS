@@ -1,0 +1,56 @@
+From 9051c30cf42193ec7986a21c6ae35dda757609e8 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sat, 26 Sep 2026 02:53:11 +0200
+Subject: [PATCH 11/12] Kompakt: the build identifies as the Mudita Kompakt
+
+---
+ lineage_arm64_bgN4.mk | 8 ++++++--
+ lineage_arm64_bvN4.mk | 8 ++++++--
+ 2 files changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/lineage_arm64_bgN4.mk b/lineage_arm64_bgN4.mk
+index 20e52c5..c93cc22 100644
+--- a/lineage_arm64_bgN4.mk
++++ b/lineage_arm64_bgN4.mk
+@@ -6,8 +6,8 @@ $(call inherit-product-if-exists, vendor/gapps/arm64/arm64-vendor.mk)
+ $(call inherit-product, device/phh/treble/lineage.mk)
+ 
+ PRODUCT_NAME := lineage_arm64_bgN4
+-PRODUCT_BRAND := google
+-PRODUCT_MODEL := Generic System
++PRODUCT_BRAND := Mudita
++PRODUCT_MODEL := Kompakt
+ 
+ # Overwrite the inherited "emulator" characteristics
+ PRODUCT_CHARACTERISTICS := device
+@@ -18,3 +18,7 @@ LINEAGE_BUILD := GSI
+ #EXT4
+ LINEAGE_EXTRAVERSION := -EXT4
+ PRODUCT_EXTRA_VNDK_VERSIONS += 28 29
++PRODUCT_SYSTEM_BRAND := Mudita
++PRODUCT_SYSTEM_MODEL := Kompakt
++PRODUCT_MANUFACTURER := Mudita
++PRODUCT_SYSTEM_MANUFACTURER := Mudita
+diff --git a/lineage_arm64_bvN4.mk b/lineage_arm64_bvN4.mk
+index 1990ecb..91c78e4 100644
+--- a/lineage_arm64_bvN4.mk
++++ b/lineage_arm64_bvN4.mk
+@@ -6,8 +6,8 @@ $(call inherit-product, device/phh/treble/base.mk)
+ $(call inherit-product, device/phh/treble/lineage.mk)
+ 
+ PRODUCT_NAME := lineage_arm64_bvN4
+-PRODUCT_BRAND := google
+-PRODUCT_MODEL := Generic System
++PRODUCT_BRAND := Mudita
++PRODUCT_MODEL := Kompakt
+ 
+ # Overwrite the inherited "emulator" characteristics
+ PRODUCT_CHARACTERISTICS := device
+@@ -18,3 +18,7 @@ LINEAGE_BUILD := GSI
+ #EXT4
+ LINEAGE_EXTRAVERSION := -EXT4
+ PRODUCT_EXTRA_VNDK_VERSIONS += 28 29
++PRODUCT_SYSTEM_BRAND := Mudita
++PRODUCT_SYSTEM_MODEL := Kompakt
++PRODUCT_MANUFACTURER := Mudita
++PRODUCT_SYSTEM_MANUFACTURER := Mudita

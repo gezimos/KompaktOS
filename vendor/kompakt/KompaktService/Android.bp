@@ -1,0 +1,81 @@
+// Kompakt: KompaktService: the userspace half of the Kompakt's hardware that a GSI drops.
+
+// The raw-mode open for /dev/ttyGS0.
+cc_library_shared {
+    name: "libkompaktserial",
+    srcs: ["jni/tty.c"],
+    header_libs: ["jni_headers"],
+    shared_libs: ["liblog"],
+    cflags: ["-Wall", "-Werror"],
+}
+
+// A uinput device with two buttons for the fingerprint sensor. See jni/buttons.c.
+cc_library_shared {
+    name: "libkompaktbuttons",
+    srcs: ["jni/buttons.c"],
+    header_libs: ["jni_headers"],
+    shared_libs: ["liblog"],
+    cflags: ["-Wall", "-Werror"],
+}
+
+android_app {
+    name: "KompaktService",
+
+    jni_libs: ["libkompaktserial", "libkompaktbuttons"],
+    // Inside the APK, so an update installed over the system copy carries them.
+    use_embedded_native_libs: true,
+
+    srcs: ["src/**/*.kt"],
+    resource_dirs: ["res"],
+    manifest: "AndroidManifest.xml",
+
+    // Static, as LineageParts does: no shared library to link for org.lineageos.platform.
+    static_libs: ["org.lineageos.platform.internal"],
+
+    // uid system plus the sysfs writes below both need the platform signature.
+    certificate: "platform",
+    privileged: true,
+    platform_apis: true,
+
+    optimize: {
+        enabled: false,
+    },
+
+    required: [
+        "privapp_whitelist_com.kompakt.service.xml",
+        "default-permissions_com.kompakt.service.xml",
+        "kompakt_service.rc",
+        "initial-package-state_com.kompakt.service.xml",
+    ],
+}
+
+// Hands us the two /sys/einkinfo nodes the vendor init leaves root owned.
+prebuilt_etc {
+    name: "kompakt_service.rc",
+    sub_dir: "init",
+    src: "kompakt_service.rc",
+    filename_from_src: true,
+}
+
+// Grants the runtime permissions the app cannot ask for. See the file.
+prebuilt_etc {
+    name: "default-permissions_com.kompakt.service.xml",
+    sub_dir: "default-permissions",
+    src: "default-permissions_com.kompakt.service.xml",
+    filename_from_src: true,
+}
+
+prebuilt_etc {
+    name: "privapp_whitelist_com.kompakt.service.xml",
+    sub_dir: "permissions",
+    src: "privapp_whitelist_com.kompakt.service.xml",
+    filename_from_src: true,
+}
+
+// Android 16 starts new system apps stopped on a fresh /data, which blocks BOOT_COMPLETED.
+prebuilt_etc {
+    name: "initial-package-state_com.kompakt.service.xml",
+    sub_dir: "sysconfig",
+    src: "initial-package-state_com.kompakt.service.xml",
+    filename_from_src: true,
+}

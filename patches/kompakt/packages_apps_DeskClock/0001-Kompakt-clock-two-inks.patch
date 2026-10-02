@@ -1,0 +1,50 @@
+From d8baefbf690e25ca46703dd2d9de892539482e35 Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Thu, 17 Sep 2026 21:26:35 +0200
+Subject: [PATCH] Kompakt: clock: two inks
+
+---
+ src/com/android/deskclock/DeskClock.java              | 18 ++++++++++++++++++
+ .../alarms/dataadapter/AlarmItemViewHolder.java       |  3 ++-
+ 2 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/src/com/android/deskclock/DeskClock.java b/src/com/android/deskclock/DeskClock.java
+index d1e95ad6a..8d00ff4c1 100644
+--- a/src/com/android/deskclock/DeskClock.java
++++ b/src/com/android/deskclock/DeskClock.java
+@@ -147,6 +147,21 @@ public class DeskClock extends BaseActivity
+         setContentView(R.layout.desk_clock);
+         mSnackbarAnchor = findViewById(R.id.content);
+ 
++        // Kompakt: dark system bar icons from code, in light mode only.
++        final android.view.WindowInsetsController kompaktBars =
++                getWindow().getInsetsController();
++        if (kompaktBars != null) {
++            final int light =
++                    android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
++                            | android.view.WindowInsetsController
++                                    .APPEARANCE_LIGHT_NAVIGATION_BARS;
++            final boolean kompaktNight =
++                    (getResources().getConfiguration().uiMode
++                            & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
++                            == android.content.res.Configuration.UI_MODE_NIGHT_YES;
++            kompaktBars.setSystemBarsAppearance(kompaktNight ? 0 : light, light);
++        }
++
+         checkPermissions();
+ 
+         // Configure the toolbar.
+diff --git a/src/com/android/deskclock/alarms/dataadapter/AlarmItemViewHolder.java b/src/com/android/deskclock/alarms/dataadapter/AlarmItemViewHolder.java
+index e7a4fc85f..eb59f18be 100644
+--- a/src/com/android/deskclock/alarms/dataadapter/AlarmItemViewHolder.java
++++ b/src/com/android/deskclock/alarms/dataadapter/AlarmItemViewHolder.java
+@@ -46,7 +46,8 @@ public abstract class AlarmItemViewHolder extends ItemAdapter.ItemViewHolder<Ala
+         implements ItemAnimator.OnAnimateChangeListener {
+ 
+     public static final float CLOCK_ENABLED_ALPHA = 1f;
+-    public static final float CLOCK_DISABLED_ALPHA = 0.69f;
++    // Kompakt: 0.69 alpha is a mid grey on e-ink; a disabled alarm shows it by its switch.
++    public static final float CLOCK_DISABLED_ALPHA = 1f;
+ 
+     public static final float ANIM_STANDARD_DELAY_MULTIPLIER = 1f / 6f;
+     public static final float ANIM_LONG_DURATION_MULTIPLIER = 2f / 3f;

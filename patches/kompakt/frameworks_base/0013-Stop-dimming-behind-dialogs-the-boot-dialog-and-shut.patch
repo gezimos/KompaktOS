@@ -1,0 +1,55 @@
+From 6599fb2d7e4a4cf6f8352810ac662501d03ab86a Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Wed, 9 Sep 2026 17:44:35 +0200
+Subject: [PATCH 13/38] Stop dimming behind dialogs, the boot dialog and
+ shutdown
+
+---
+ .../android/internal/policy/PhoneWindow.java  | 19 +++++++++++++++++--
+ .../systemui/globalactions/ShutdownUi.java    | 12 ++++++++++++
+ .../server/policy/PhoneWindowManager.java     |  8 +++++++-
+ 3 files changed, 36 insertions(+), 3 deletions(-)
+
+diff --git a/core/java/com/android/internal/policy/PhoneWindow.java b/core/java/com/android/internal/policy/PhoneWindow.java
+index 7cb7035f0735..c4dfa533d835 100644
+--- a/core/java/com/android/internal/policy/PhoneWindow.java
++++ b/core/java/com/android/internal/policy/PhoneWindow.java
+@@ -2753,8 +2753,8 @@ public class PhoneWindow extends Window implements MenuBuilder.Callback {
+                 params.flags |= WindowManager.LayoutParams.FLAG_DIM_BEHIND;
+             }
+             if (!haveDimAmount()) {
+-                params.dimAmount = a.getFloat(
+-                        android.R.styleable.Window_backgroundDimAmount, 0.5f);
++                // e-ink: no dim behind dialogs; an explicit dimAmount is still honoured.
++                params.dimAmount = 0f;
+             }
+         }
+ 
+diff --git a/packages/SystemUI/src/com/android/systemui/globalactions/ShutdownUi.java b/packages/SystemUI/src/com/android/systemui/globalactions/ShutdownUi.java
+index 8a948d917d75..840a298f9117 100644
+--- a/packages/SystemUI/src/com/android/systemui/globalactions/ShutdownUi.java
++++ b/packages/SystemUI/src/com/android/systemui/globalactions/ShutdownUi.java
+@@ -74,6 +74,9 @@ public class ShutdownUi {
+         float backgroundAlpha = mContext.getResources().getFloat(
+                 com.android.systemui.res.R.dimen.shutdown_scrim_behind_alpha);
+         background.setAlpha((int) (backgroundAlpha * 255));
++        // e-ink: the shutdown screen takes the theme background, not a black scrim.
++        background.setColor(com.android.settingslib.Utils.getColorAttrDefaultColor(
++                mContext, android.R.attr.colorBackground), /* animated= */ false);
+ 
+         // Window initialization
+         Window window = d.getWindow();
+diff --git a/services/core/java/com/android/server/policy/PhoneWindowManager.java b/services/core/java/com/android/server/policy/PhoneWindowManager.java
+index 69fefe33bfa9..46db39bd2d1c 100644
+--- a/services/core/java/com/android/server/policy/PhoneWindowManager.java
++++ b/services/core/java/com/android/server/policy/PhoneWindowManager.java
+@@ -6840,7 +6840,8 @@ public class PhoneWindowManager implements WindowManagerPolicy {
+                     mBootMsgDialog.getWindow().addFlags(
+                             WindowManager.LayoutParams.FLAG_DIM_BEHIND
+                             | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN);
+-                    mBootMsgDialog.getWindow().setDimAmount(1);
++                    // e-ink: no dim behind the boot dialog.
++                    mBootMsgDialog.getWindow().setDimAmount(0);
+                     WindowManager.LayoutParams lp = mBootMsgDialog.getWindow().getAttributes();
+                     lp.screenOrientation = ActivityInfo.SCREEN_ORIENTATION_NOSENSOR;
+                     lp.setFitInsetsTypes(0 /* types */);

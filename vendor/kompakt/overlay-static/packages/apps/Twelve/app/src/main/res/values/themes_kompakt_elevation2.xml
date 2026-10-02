@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: the app declares these themes as empty self closing tags; here they are again with the elevation overlay. -->
+<resources>
+    <style name="BaseTheme.Twelve.Dialog" parent="Theme.Material3Expressive.Light.Dialog.Alert">
+        <item name="elevationOverlayEnabled">false</item>
+    </style>
+</resources>

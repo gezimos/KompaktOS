@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: two inks. -->
+<resources>
+
+    <!-- Used as the tint of confirmed_phone_type_icon, inside a circle that is tinted white. -->
+    <color name="emergency_shortcut_confirm_button_background_color">#FF000000</color>
+    <color name="emergency_shortcut_confirm_phone_type_icon_color">#FF000000</color>
+
+    <!-- The phone type icon on the unconfirmed button. -->
+    <color name="emergency_shortcut_phone_type_icon_color">#FF000000</color>
+
+</resources>

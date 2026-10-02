@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: two inks. -->
+<resources>
+
+    <style name="AppThemeEmergency" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="android:preferenceCategoryStyle">@style/AppTheme.PreferenceCategoryStyle</item>
+        <item name="colorPrimaryDark">@color/emergency_primary_dark</item>
+        <item name="colorPrimary">@color/emergency_primary</item>
+        <item name="textColorActionBar">@color/tab_text_color</item>
+        <item name="tabIndicatorColor">@color/emergency_accent</item>
+        <item name="preferenceTheme">@style/PreferenceTheme</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+
+</resources>

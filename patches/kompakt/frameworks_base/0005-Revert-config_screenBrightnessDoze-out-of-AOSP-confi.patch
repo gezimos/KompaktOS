@@ -1,0 +1,23 @@
+From ac77e53d40e5d6a1817664baf96efb422ea41e5e Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Tue, 8 Sep 2026 14:35:15 +0200
+Subject: [PATCH 05/38] Revert config_screenBrightnessDoze out of AOSP
+ config.xml
+
+---
+ core/res/res/values/config.xml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/core/res/res/values/config.xml b/core/res/res/values/config.xml
+index 5fa02194d1d0..fbe4c3280e49 100644
+--- a/core/res/res/values/config.xml
++++ b/core/res/res/values/config.xml
+@@ -1617,7 +1617,7 @@
+     <!-- Screen brightness used to dim the screen while dozing in a very low power state.
+          May be less than the minimum allowed brightness setting
+          that can be set by the user. -->
+-    <integer name="config_screenBrightnessDoze">0</integer>
++    <integer name="config_screenBrightnessDoze">1</integer>
+     <item name="config_screenBrightnessDozeFloat" format="float" type="dimen">0.0</item>
+ 
+     <!-- Whether or not to skip the initial brightness ramps when the display transitions to

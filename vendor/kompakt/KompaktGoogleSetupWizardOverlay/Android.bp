@@ -1,0 +1,9 @@
+// Light ink for Google's prebuilt setup wizard in dark mode. Unused on Vanilla.
+runtime_resource_overlay {
+    name: "KompaktGoogleSetupWizardOverlay",
+    product_specific: true,
+    sdk_version: "current",
+    // Without this the overlay builds for 36 and aapt2 strips the -v31 and -v34
+    // qualifiers; a bare value then loses to the wizard's own v34 one.
+    min_sdk_version: "30",
+}

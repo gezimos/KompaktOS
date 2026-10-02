@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The dark ripple in the URL bar. -->
+<resources>
+    <style name="Theme.Jelly" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:colorControlHighlight">#14000000</item>
+        <item name="colorControlHighlight">#14000000</item>
+        <item name="elevationOverlayEnabled">false</item>
+        <!-- Kompakt: the selected URL was a translucent black wash, dithered on this panel. -->
+        <item name="android:textColorHighlight">#ffd4d4d4</item>
+    </style>
+</resources>

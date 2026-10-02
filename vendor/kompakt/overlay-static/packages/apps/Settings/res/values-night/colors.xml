@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Kompakt: the disc is the page ground rather than transparent. -->
+
+    <!-- Kompakt: night inverse of the search bar pair. -->
+    <color name="kompakt_search_bar_ground">#ff000000</color>
+    <color name="kompakt_search_bar_ink">#fffffffe</color>
+
+    <!-- Kompakt: night inverse of the FallbackHome pair. -->
+    <color name="kompakt_fallback_home_paper">#ff000000</color>
+    <color name="kompakt_fallback_home_ink">#fffffffe</color>
+
+    <!-- Kompakt: homepage icons are a plain glyph, no coloured disc. -->
+    <color name="homepage_blue_variant_bg">#ff000000</color>
+    <color name="homepage_blue_bg">#ff000000</color>
+    <color name="homepage_pink_bg">#ff000000</color>
+    <color name="homepage_orange_bg">#ff000000</color>
+    <color name="homepage_yellow_bg">#ff000000</color>
+    <color name="homepage_green_bg">#ff000000</color>
+    <color name="homepage_grey_bg">#ff000000</color>
+    <color name="homepage_cyan_bg">#ff000000</color>
+    <color name="homepage_red_bg">#ff000000</color>
+    <color name="homepage_purple_bg">#ff000000</color>
+    <color name="homepage_blue_variant_fg">#fffffffe</color>
+    <color name="homepage_blue_fg">#fffffffe</color>
+    <color name="homepage_pink_fg">#fffffffe</color>
+    <color name="homepage_orange_fg">#fffffffe</color>
+    <color name="homepage_yellow_fg">#fffffffe</color>
+    <color name="homepage_green_fg">#fffffffe</color>
+    <color name="homepage_grey_fg">#fffffffe</color>
+    <color name="homepage_cyan_fg">#fffffffe</color>
+    <color name="homepage_red_fg">#fffffffe</color>
+    <color name="homepage_purple_fg">#fffffffe</color>
+    <color name="homepage_generic_icon_background">#ff000000</color>
+</resources>

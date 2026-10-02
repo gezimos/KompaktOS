@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Kompakt: page dots get an ink ring so the unselected ones exist on the ground. -->
+    <dimen name="default_circle_indicator_stroke_width">1dp</dimen>
+</resources>

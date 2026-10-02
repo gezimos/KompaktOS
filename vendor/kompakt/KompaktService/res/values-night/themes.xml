@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Theme.Kompakt again, for night. -->
+    <style name="Theme.Kompakt" parent="@android:style/Theme.DeviceDefault.DayNight">
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowNoTitle">true</item>
+        <!-- Black in dark mode, so light status bar icons. -->
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:statusBarColor">#ff000000</item>
+        <item name="android:windowBackground">@android:color/black</item>
+    </style>
+
+    <style name="Theme.SimMode" parent="@android:style/Theme.DeviceDefault.Dialog.Alert" />
+</resources>

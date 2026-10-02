@@ -1,0 +1,40 @@
+From 08305470cf284cb96271756e56ef3f028c5bc6e9 Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Tue, 8 Sep 2026 14:18:04 +0200
+Subject: [PATCH 01/38] SystemUI: remove the lockscreen scrim for e-ink
+
+---
+ .../android/systemui/statusbar/phone/ScrimController.java   | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimController.java b/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimController.java
+index 0d953a3f5cac..0c36fc0044aa 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimController.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimController.java
+@@ -212,7 +212,7 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
+     /**
+      * Default alpha value for most scrims.
+      */
+-    protected static final float KEYGUARD_SCRIM_ALPHA = 0.2f;
++    protected static final float KEYGUARD_SCRIM_ALPHA = 0f;
+ 
+     /**
+      * The default scrim under the shade and dialogs.
+@@ -410,7 +410,7 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
+         mWindowRootViewBlurInteractor = windowRootViewBlurInteractor;
+ 
+         mKeyguardStateController = keyguardStateController;
+-        mDarkenWhileDragging = !mKeyguardStateController.canDismissLockScreen();
++        mDarkenWhileDragging = false;
+         mKeyguardUpdateMonitor = keyguardUpdateMonitor;
+         mKeyguardVisibilityCallback = new KeyguardVisibilityCallback();
+         mHandler = handler;
+@@ -782,7 +782,7 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
+     }
+ 
+     public void onTrackingStarted() {
+-        mDarkenWhileDragging = !mKeyguardStateController.canDismissLockScreen();
++        mDarkenWhileDragging = false;
+         if (!mKeyguardUnlockAnimationController.isPlayingCannedUnlockAnimation()) {
+             mAnimatingPanelExpansionOnUnlock = false;
+         }

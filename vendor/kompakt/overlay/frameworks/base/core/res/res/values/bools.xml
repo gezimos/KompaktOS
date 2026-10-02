@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- No on screen navigation bar: the device has hardware keys. -->
+    <bool name="config_showNavigationBar">false</bool>
+    <bool name="config_supportSystemNavigationKeys">false</bool>
+
+    <!-- Force light. -->
+    <bool name="config_enableNightMode">false</bool>
+
+    <!-- Kill transition animations at the framework rather than through the three developer options scales. -->
+    <bool name="config_disableTransitionAnimation">true</bool>
+
+    <!-- Make AOD available. -->
+    <bool name="config_dozeAlwaysOnDisplayAvailable">true</bool>
+
+    <!-- Kompakt: AOD available but off until the user turns it on. -->
+    <bool name="config_dozeAlwaysOnEnabled">false</bool>
+    <!-- Software camera block, so the offline switch can use it. -->
+    <bool name="config_supportsCamToggle">true</bool>
+
+    <!-- Kompakt: true. Settings gates its "Notification lights" row on this, so
+         false hides the feature rather than protecting it. -->
+    <bool name="config_intrusiveNotificationLed">true</bool>
+
+    <!-- KompaktService owns /sys/class/leds; keeps the framework off the lights
+         HAL, which throws. Needs patch 0014; see the notification LED doc in KompaktService. -->
+    <bool name="config_notificationLedHandledExternally">true</bool>
+
+    <!-- No media player in quick settings. -->
+    <bool name="config_quickSettingsShowMediaPlayer">false</bool>
+
+    <!-- Do not wake the panel for a notification. -->
+    <bool name="config_pulseOnNotificationsAvailable">false</bool>
+
+    <!-- Kompakt: true. -->
+    <bool name="config_defaultBatteryPercentageSetting">true</bool>
+    <!-- Kompakt: no ColorFade. -->
+    <bool name="config_displayColorFadeDisabled">true</bool>
+    <!-- The headset jack (accdet) reports through an input device, as on stock. -->
+    <bool name="config_useDevInputEventForAudioJack">true</bool>
+</resources>

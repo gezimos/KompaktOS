@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copy of packages/apps/Settings/res/layout/homepage_preference_expressive.xml with one change: the summary is. -->
+<!--
+  Copyright (C) 2025 The Android Open Source Project
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+  -->
+
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingStart="?android:attr/listPreferredItemPaddingStart"
+    android:paddingEnd="?android:attr/listPreferredItemPaddingEnd"
+    android:minHeight="72dp"
+    android:gravity="center_vertical"
+    android:background="?android:attr/selectableItemBackground"
+    android:clipToPadding="false"
+    android:baselineAligned="false">
+
+    <LinearLayout
+        android:id="@+id/icon_frame"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:minWidth="40dp"
+        android:minHeight="40dp"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:paddingStart="16dp">
+
+        <androidx.preference.internal.PreferenceImageView
+            android:id="@android:id/icon"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:scaleType="centerInside"/>
+
+    </LinearLayout>
+
+    <RelativeLayout
+        android:id="@+id/text_frame"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:paddingTop="16dp"
+        android:paddingBottom="16dp"
+        android:paddingStart="@dimen/homepage_preference_text_padding_start_expressive"
+        android:paddingEnd="16dp">
+
+        <TextView
+            android:id="@android:id/title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="start"
+            android:textAlignment="viewStart"
+            android:singleLine="true"
+            android:maxLines="1"
+            android:textAppearance="?android:attr/textAppearanceListItem"
+            android:textColor="@color/settingslib_text_color_primary"
+            android:ellipsize="end"/>
+
+        <TextView
+            android:id="@android:id/summary"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@android:id/title"
+            android:layout_alignStart="@android:id/title"
+            android:layout_gravity="start"
+            android:textAlignment="viewStart"
+            android:textAppearance="?android:attr/textAppearanceSmall"
+            android:textColor="@color/settingslib_text_color_secondary"
+            android:maxLines="1"
+            android:ellipsize="end"
+            style="@style/PreferenceSummaryTextStyle"/>
+    </RelativeLayout>
+
+    <FrameLayout
+        android:id="@+id/alert_frame"
+        android:minHeight="40dp"
+        android:minWidth="40dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        android:layout_gravity="center|end"
+        android:layout_marginEnd="16dp">
+
+        <ImageView
+            android:id="@+id/alert_unnumbered"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:scaleType="fitCenter"
+            android:layout_gravity="center"
+            android:src="@drawable/circle"
+            android:contentDescription="@null"
+            android:tint="@color/settingslib_materialColorPrimary"/>
+
+        <FrameLayout
+            android:id="@+id/alert_numbered_frame"
+            android:minHeight="24dp"
+            android:minWidth="24dp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center">
+
+            <ImageView
+                android:id="@+id/alert_number_bg"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="fitCenter"
+                android:layout_gravity="center"
+                android:src="@drawable/circle"
+                android:contentDescription="@null"
+                android:tint="@color/settingslib_materialColorSecondaryContainer"/>
+
+            <TextView
+                android:id="@+id/alert_number_fg"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:textColor="@color/settingslib_materialColorOnSecondaryContainer"
+                style="@style/TextAppearance.SettingsLib.TitleMedium" />
+        </FrameLayout>
+
+    </FrameLayout>
+</LinearLayout>

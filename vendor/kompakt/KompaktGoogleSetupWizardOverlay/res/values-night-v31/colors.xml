@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dark mode links: accent1_300 is black here. -->
+<resources>
+    <color name="sud_system_hyperlink_text">@android:color/system_accent1_100</color>
+</resources>

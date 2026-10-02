@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Kompakt: the sensor is in the power button, on the side. -->
+    <bool name="config_is_side_fps">true</bool>
+</resources>

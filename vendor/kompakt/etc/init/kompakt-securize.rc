@@ -1,0 +1,6 @@
+# Disables phh securize; the kompakt- prefix must sort before vndk-.
+on post-fs
+    write /metadata/securize_disable 1
+
+on post-fs-data
+    write /metadata/securize_disable 1

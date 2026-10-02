@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: two inks. -->
+<resources>
+
+    <style name="PhoneNumberTapHintAppearance"
+           parent="@android:style/TextAppearance.Material.Subhead">
+        <item name="android:textColor">#FF000000</item>
+        <item name="android:textSize">@dimen/emergency_shortcut_tap_hint_text_size</item>
+    </style>
+
+</resources>

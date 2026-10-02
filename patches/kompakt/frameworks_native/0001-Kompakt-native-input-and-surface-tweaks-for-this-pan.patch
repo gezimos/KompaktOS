@@ -1,0 +1,36 @@
+From 1db601bcdbf6c6f800b15c3be748995a95acf930 Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Thu, 17 Sep 2026 21:26:34 +0200
+Subject: [PATCH] Kompakt: native: input and surface tweaks for this panel
+
+---
+ .../inputflinger/dispatcher/InputDispatcher.cpp   | 15 +++++++--------
+ 1 file changed, 7 insertions(+), 8 deletions(-)
+
+diff --git a/services/inputflinger/dispatcher/InputDispatcher.cpp b/services/inputflinger/dispatcher/InputDispatcher.cpp
+index b8d9807d7b..ac36023dd4 100644
+--- a/services/inputflinger/dispatcher/InputDispatcher.cpp
++++ b/services/inputflinger/dispatcher/InputDispatcher.cpp
+@@ -693,15 +693,14 @@ std::vector<TouchedWindow> getHoveringWindowsLocked(const TouchState* oldState,
+         } else {
+             // This pointer was already sent to the window. Use ACTION_HOVER_MOVE.
+             if (CC_UNLIKELY(maskedAction != AMOTION_EVENT_ACTION_HOVER_MOVE)) {
+-                android::base::LogSeverity severity = android::base::LogSeverity::FATAL;
+-                if (!input_flags::a11y_crash_on_inconsistent_event_stream() &&
+-                    entry.flags.test(MotionFlag::IS_ACCESSIBILITY_EVENT)) {
+-                    // The Accessibility injected touch exploration event stream
+-                    // has known inconsistencies, so log ERROR instead of
+-                    // crashing the device with FATAL.
+-                    severity = android::base::LogSeverity::ERROR;
++                // Kompakt: report, do not abort.
++                android::base::LogSeverity severity = android::base::LogSeverity::ERROR;
++                // The dispatcher state is large and this can repeat, so once.
++                static bool kompaktDumpedHoverInconsistency = false;
++                if (!kompaktDumpedHoverInconsistency) {
++                    kompaktDumpedHoverInconsistency = true;
++                    dump();
+                 }
+-                dump();
+                 LOG(severity) << "Expected ACTION_HOVER_MOVE instead of " << entry.getDescription();
+             }
+             touchedWindow.dispatchMode = InputTarget::DispatchMode::AS_IS;

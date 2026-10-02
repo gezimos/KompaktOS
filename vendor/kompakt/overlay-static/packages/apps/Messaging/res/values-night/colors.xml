@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: Kompakt night: black ground, white ink. -->
+<resources>
+    <color name="action_bar_background_color">#ff000000</color>
+    <color name="action_bar_background_color_dark">#ff000000</color>
+    <color name="action_bar_title_text_color">#fffffffe</color>
+    <color name="archived_conversation_action_bar_background_color">#ff000000</color>
+    <color name="archived_conversation_action_bar_background_color_dark">#ff000000</color>
+    <color name="attachment_bg_color">#ff000000</color>
+    <color name="attachment_preview_more_items_text_background">#44ffffff</color>
+    <color name="audio_attachment_timer_text_color">#fffffffe</color>
+    <color name="audio_picker_hint_text_color">@color/kompakt_ink</color>
+    <color name="audio_picker_level_primary_color">#29ffffff</color>
+    <color name="audio_picker_timer_text_color">#fffffffe</color>
+    <color name="audio_record_control_button_stroke">#30ffffff</color>
+    <color name="background_item_pressed">#67ffffff</color>
+    <color name="chips_background_color">@color/kompakt_ground</color>
+    <color name="chips_dropdown_background_activated">#fffffffe</color>
+    <color name="chips_dropdown_background_pressed">#ff000000</color>
+    <color name="compose_contact_divider">#44ffffff</color>
+    <color name="compose_contact_faint_text">@color/kompakt_ink</color>
+    <color name="compose_contact_text">#fffffffe</color>
+    <color name="compose_message_send_color_pressed">#fffffffe</color>
+    <color name="compose_send_text_background_color">#ff000000</color>
+    <color name="compose_send_text_color">#fffffffe</color>
+    <color name="contact_avatar_pressed_color">#40ffffff</color>
+    <color name="contact_list_text_primary">#fffffffe</color>
+    <color name="contact_list_text_secondary">#fffffffe</color>
+    <color name="contact_picker_background">#ff000000</color>
+    <color name="contact_picker_hint_text_color">@color/kompakt_ink</color>
+    <color name="contact_picker_tab_pressed">#00000000</color>
+    <color name="contact_picker_tab_underline">#fffffffe</color>
+    <color name="contextual_action_bar_background_color">#ff000000</color>
+    <color name="conversation_compose_divider_start">#fffffffe</color>
+    <color name="conversation_edge_effect">#fffffffe</color>
+    <color name="conversation_list_details">#fffffffe</color>
+    <color name="conversation_list_error">#fffffffe</color>
+    <color name="conversation_list_item_read">#fffffffe</color>
+    <color name="conversation_list_item_unread">#fffffffe</color>
+    <color name="conversation_list_name">#fffffffe</color>
+    <color name="fab_color">#fffffffe</color>
+    <color name="fab_fg_color">#ff000000</color>
+    <color name="fastscroll_preview_text_color">#ff000000</color>
+    <color name="fastscroll_thumb_color">#42ffffff</color>
+    <color name="fastscroll_track_color">#1effffff</color>
+    <color name="group_mms_setting_text_color">#fffffffe</color>
+    <color name="kompakt_ground">#ff000000</color>
+    <color name="kompakt_ink">#fffffffe</color>
+    <color name="letter_tile_font_color">#fffffffe</color>
+    <color name="lineage_accent">#fffffffe</color>
+    <color name="list_empty_text">#fffffffe</color>
+    <color name="message_body_size_text_color">#fffffffe</color>
+    <color name="message_bubble_color_incoming">#ff000000</color>
+    <color name="message_bubble_color_outgoing">#ff000000</color>
+    <color name="message_bubble_color_selected">#fffffffe</color>
+    <color name="message_download_failed_status_text">#fffffffe</color>
+    <color name="message_download_failed_timestamp_text">#fffffffe</color>
+    <color name="message_error_bubble_color_incoming">#ff000000</color>
+    <color name="message_failed_timestamp_text">#fffffffe</color>
+    <color name="message_info_text_incoming_download_failed">#fffffffe</color>
+    <color name="message_text">#fffffffe</color>
+    <color name="message_text_color_incoming">#fffffffe</color>
+    <color name="message_text_color_incoming_download_failed">#fffffffe</color>
+    <color name="message_text_color_outgoing">#fffffffe</color>
+    <color name="message_title_text">#fffffffe</color>
+    <color name="mms_indicator_color">#fffffffe</color>
+    <color name="navigation_bar_bg">#ff000000</color>
+    <color name="open_conversation_animation_background_shadow">#40ffffff</color>
+    <color name="participant_list_text_primary">#fffffffe</color>
+    <color name="people_and_options_header_text">#fffffffe</color>
+    <color name="people_and_options_list_divider">#fffffffe</color>
+    <color name="primary_color">#fffffffe</color>
+    <color name="ripple_material_light">#40ffffff</color>
+    <color name="search_view_text_cursor">#fffffffe</color>
+    <color name="settings_list_text_primary">#fffffffe</color>
+    <color name="settings_list_text_secondary">#fffffffe</color>
+    <color name="sim_selector_background_end">#ff000000</color>
+    <color name="sim_selector_background_start">#ff000000</color>
+    <color name="sim_selector_text_primary">#fffffffe</color>
+    <color name="sim_selector_text_secondary">#fffffffe</color>
+    <color name="subject_editor_bubble">#ff000000</color>
+    <color name="timestamp_text_failed">#fffffffe</color>
+    <color name="timestamp_text_incoming">#fffffffe</color>
+    <color name="timestamp_text_outgoing">#fffffffe</color>
+    <color name="translucent_white">#80000000</color>
+    <color name="wearable_notification_participants_count">#fffffffe</color>
+    <color name="widget_background_color">#ff000000</color>
+    <color name="widget_outgoing_text_color">#fffffffe</color>
+    <color name="widget_text_color">#fffffffe</color>
+    <color name="window_background">#ff000000</color>
+    <array name="letter_tile_colors">
+        <item>#ff000000</item>
+        <item>#ff000000</item>
+        <item>#ff000000</item>
+        <item>#ff000000</item>
+        <item>#ff000000</item>
+        <item>#ff000000</item>
+        <item>#ff000000</item>
+        <item>#ff000000</item>
+        <item>#ff000000</item>
+        <item>#ff000000</item>
+        <item>#ff000000</item>
+        <item>#ff000000</item>
+    </array>
+    <!-- Kompakt: a selected bubble is filled with the ink, so its text is the ground. -->
+    <color name="message_text_color_selected">#fffffffe</color>
+    <!-- Kompakt: one opaque tint for every icon on an action bar. -->
+    <color name="action_bar_icon_tint">#fffffffe</color>
+    <color name="compose_notification_bar_background">@color/action_bar_background_color</color>
+    <!-- Grey at the ink end, mirroring the light one. -->
+    <color name="text_highlight_color">#ff3a3a3a</color>
+    <color name="message_action_timestamp_text">#ff000000</color>
+    <color name="message_action_status_text">#ff000000</color>
+    <color name="message_action_info_text">#ff000000</color>
+    <color name="kompakt_select_handle">#fffffffe</color>
+    <color name="kompakt_select_handle_ring">#ff000000</color>
+</resources>

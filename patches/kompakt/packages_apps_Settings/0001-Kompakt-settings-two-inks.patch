@@ -1,0 +1,727 @@
+From 7010f95b53ef330a16ed23c19c84754f29a1529d Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Thu, 17 Sep 2026 21:26:35 +0200
+Subject: [PATCH] Kompakt: settings: two inks
+
+---
+ .../settings/SettingsPreferenceFragment.java  |  13 ++
+ .../ManageApplications.java                   |   1 -
+ .../network/NetworkCellularGroupProvider.kt   |   2 +
+ .../settings/spa/network/SimsSection.kt       |  71 ++++++++-
+ .../system/ShadePanelsPreferenceController.kt |   3 +-
+ .../settings/widget/RingProgressBar.java      |  24 +++
+ src/com/kompakt/eink/PageGestureListener.java |  84 ++++++++++
+ .../kompakt/eink/PagedNestedScrollView.java   | 149 ++++++++++++++++++
+ src/com/kompakt/eink/PagedScroll.java         | 133 ++++++++++++++++
+ src/com/kompakt/eink/SwitchOnlyTouch.java     | 111 +++++++++++++
+ 10 files changed, 584 insertions(+), 7 deletions(-)
+ create mode 100755 src/com/kompakt/eink/PageGestureListener.java
+ create mode 100755 src/com/kompakt/eink/PagedNestedScrollView.java
+ create mode 100755 src/com/kompakt/eink/PagedScroll.java
+ create mode 100644 src/com/kompakt/eink/SwitchOnlyTouch.java
+
+diff --git a/src/com/android/settings/SettingsPreferenceFragment.java b/src/com/android/settings/SettingsPreferenceFragment.java
+index ab9eeb20846..e33c7060915 100644
+--- a/src/com/android/settings/SettingsPreferenceFragment.java
++++ b/src/com/android/settings/SettingsPreferenceFragment.java
+@@ -135,6 +135,19 @@ public abstract class SettingsPreferenceFragment extends InstrumentedPreferenceF
+ 
+     private @Nullable UserRestrictionBindingHelper mUserRestrictionBindingHelper;
+ 
++
++    /** e-ink: page the preference list instead of scrolling it. */
++    @Override
++    @NonNull
++    public RecyclerView onCreateRecyclerView(@NonNull LayoutInflater inflater,
++            @NonNull ViewGroup parent, @Nullable Bundle savedInstanceState) {
++        final RecyclerView recyclerView =
++                super.onCreateRecyclerView(inflater, parent, savedInstanceState);
++        // Kompakt: page the list instead of scrolling it.
++        com.kompakt.eink.PagedScroll.attach(recyclerView);
++        return recyclerView;
++    }
++
+     @Override
+     public void onAttach(Context context) {
+         if (shouldSkipForInitialSUW() && !WizardManagerHelper.isDeviceProvisioned(getContext())) {
+diff --git a/src/com/android/settings/applications/manageapplications/ManageApplications.java b/src/com/android/settings/applications/manageapplications/ManageApplications.java
+index 9e1cb8d067c..a39a207572d 100644
+--- a/src/com/android/settings/applications/manageapplications/ManageApplications.java
++++ b/src/com/android/settings/applications/manageapplications/ManageApplications.java
+@@ -463,7 +463,6 @@ public class ManageApplications extends InstrumentedFragment
+             emptyViewIcon.setColorFilter(iconTint, PorterDuff.Mode.SRC_IN);
+         }
+         mRecyclerView = mRootView.findViewById(R.id.apps_list);
+-
+         mApplications = new ApplicationsAdapter(mApplicationsState, this, mFilter,
+                 savedInstanceState);
+         if (savedInstanceState != null) {
+diff --git a/src/com/android/settings/spa/network/NetworkCellularGroupProvider.kt b/src/com/android/settings/spa/network/NetworkCellularGroupProvider.kt
+index 2d92c414c21..1682820b14c 100644
+--- a/src/com/android/settings/spa/network/NetworkCellularGroupProvider.kt
++++ b/src/com/android/settings/spa/network/NetworkCellularGroupProvider.kt
+@@ -18,6 +18,7 @@ package com.android.settings.spa.network
+ 
+ import android.app.settings.SettingsEnums
+ import android.content.Context
++import android.content.Intent
+ import android.content.IntentFilter
+ import android.os.Bundle
+ import android.telephony.SubscriptionInfo
+@@ -215,6 +216,7 @@ open class NetworkCellularGroupProvider : SettingsPageProvider, SearchablePage {
+     }
+ }
+ 
++/** Kompakt: slot 2 is one line muxed between the SIM tray and the eUICC. */
+ @Composable
+ fun MobileDataSectionImpl(mobileDataSelectedId: Int, nonDds: Int) {
+     Category(title = stringResource(id = R.string.mobile_data_settings_title)) {
+diff --git a/src/com/android/settings/spa/network/SimsSection.kt b/src/com/android/settings/spa/network/SimsSection.kt
+index d98129f6ab2..2ff3c9b6bc7 100644
+--- a/src/com/android/settings/spa/network/SimsSection.kt
++++ b/src/com/android/settings/spa/network/SimsSection.kt
+@@ -46,6 +46,7 @@ import com.android.settings.network.telephony.SubscriptionRepository
+ import com.android.settings.network.telephony.euicc.EuiccRepository
+ import com.android.settings.network.telephony.phoneNumberFlow
+ import com.android.settingslib.spa.widget.preference.PreferenceModel
++import com.android.settingslib.spa.widget.preference.SwitchPreference
+ import com.android.settingslib.spa.widget.preference.SwitchPreferenceModel
+ import com.android.settingslib.spa.widget.ui.Category
+ import com.android.settingslib.spa.widget.ui.SettingsIcon
+@@ -63,9 +64,65 @@ fun SimsSection(subscriptionInfoList: List<SubscriptionInfo>) {
+         }
+ 
+         AddSim()
++
++        KompaktSimSlotSwitch(subscriptionInfoList)
+     }
+ }
+ 
++/** Slot 2 on the Kompakt is one physical line, muxed between tray and eUICC. */
++private const val KOMPAKT_MUXED_SLOT = 1
++
++/** The mux itself. */
++private const val KOMPAKT_MUX_NODE =
++    "/sys/devices/virtual/nvrom_class/nvrom_write/nvrom_write"
++
++private fun kompaktSlotIsEsim(): Boolean =
++    try {
++        java.io.File(KOMPAKT_MUX_NODE).readText().trim().startsWith("****esim***")
++    } catch (t: Throwable) {
++        false
++    }
++
++/** Switches slot 2 between the SIM tray and the eUICC. */
++@Composable
++private fun KompaktSimSlotSwitch(subscriptionInfoList: List<SubscriptionInfo>) {
++    val context = LocalContext.current
++    val traySimOn = subscriptionInfoList.any {
++        it.simSlotIndex == KOMPAKT_MUXED_SLOT &&
++            !it.isEmbedded &&
++            it.areUiccApplicationsEnabled()
++    }
++    SwitchPreference(
++        object : SwitchPreferenceModel {
++            override val title = "SIM 2 slot as eSIM"
++            override val summary = {
++                (when {
++                    traySimOn -> "Turn SIM 2 off first"
++                    kompaktSlotIsEsim() -> "Slot 2 is using the eSIM"
++                    else -> "Slot 2 is using the SIM tray"
++                }) as CharSequence
++            }
++            override val checked = { kompaktSlotIsEsim() }
++            override val changeable = { !traySimOn }
++            override val onCheckedChange: (Boolean) -> Unit = {
++                context.startActivity(
++                    Intent("com.kompakt.service.action.SIM_MODE")
++                        .setPackage("com.kompakt.service")
++                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
++                )
++            }
++        }
++    )
++}
++
++/** Kompakt: "SIM 1" or "SIM 2" for a subscription, or null when it is not in a slot. */
++private fun kompaktSlotLabel(subInfo: SubscriptionInfo): String? =
++    when (subInfo.simSlotIndex) {
++        0 -> "SIM 1"
++        KOMPAKT_MUXED_SLOT -> "SIM 2"
++        else -> null
++    }
++
+ @Composable
+ private fun SimPreference(subInfo: SubscriptionInfo) {
+     val context = LocalContext.current
+@@ -92,11 +149,15 @@ private fun SimPreference(subInfo: SubscriptionInfo) {
+         model = object : SwitchPreferenceModel {
+             override val title = subInfo.displayName.toString()
+             override val summary = {
+-                if (isConvertedPsim) {
+-                    context.getString(R.string.sim_category_converted_sim)
+-                } else {
+-                    phoneNumber.value ?: ""
+-                }
++                // Slot first: it is always known, where the number is often blank.
++                val detail =
++                    if (isConvertedPsim) {
++                        context.getString(R.string.sim_category_converted_sim)
++                    } else {
++                        phoneNumber.value ?: ""
++                    }
++                listOfNotNull(kompaktSlotLabel(subInfo), detail.ifEmpty { null })
++                    .joinToString("  \u2022  ")
+             }
+             override val icon = @Composable { SimIcon(subInfo.isEmbedded) }
+             override val changeable = {
+diff --git a/src/com/android/settings/system/ShadePanelsPreferenceController.kt b/src/com/android/settings/system/ShadePanelsPreferenceController.kt
+index f62ac07e8d5..82f4d5010db 100644
+--- a/src/com/android/settings/system/ShadePanelsPreferenceController.kt
++++ b/src/com/android/settings/system/ShadePanelsPreferenceController.kt
+@@ -36,7 +36,8 @@ class ShadePanelsPreferenceController(
+     key: String
+ ) : BasePreferenceController(context, key) {
+ 
+-    override fun getAvailabilityStatus(): Int = getDualShadeAvailability(mContext)
++    // Kompakt: the shade is always dual on this device.
++    override fun getAvailabilityStatus(): Int = UNSUPPORTED_ON_DEVICE
+ 
+     override fun getSummary(): CharSequence? {
+         if (getAvailabilityStatus() != AVAILABLE) {
+diff --git a/src/com/android/settings/widget/RingProgressBar.java b/src/com/android/settings/widget/RingProgressBar.java
+index 605e4e91c93..ba8f1e5daf1 100644
+--- a/src/com/android/settings/widget/RingProgressBar.java
++++ b/src/com/android/settings/widget/RingProgressBar.java
+@@ -46,6 +46,30 @@ public class RingProgressBar extends ProgressBar {
+         super(context, attrs, defStyleAttr, defStyleRes);
+     }
+ 
++    /** Kompakt: fill the fingerprint behind the ring as far as the ring has got. */
++    @Override
++    public synchronized void setProgress(int progress) {
++        super.setProgress(progress);
++        kompaktFill();
++    }
++
++    @Override
++    public void setProgress(int progress, boolean animate) {
++        super.setProgress(progress, animate);
++        kompaktFill();
++    }
++
++    private void kompaktFill() {
++        final android.graphics.drawable.Drawable bg = getBackground();
++        if (!(bg instanceof android.graphics.drawable.LayerDrawable)) return;
++        final android.graphics.drawable.Drawable fill =
++                ((android.graphics.drawable.LayerDrawable) bg)
++                        .findDrawableByLayerId(R.id.kompakt_fingerprint_fill);
++        if (fill == null) return;
++        final int max = getMax();
++        fill.setLevel(max > 0 ? (int) (10000L * getProgress() / max) : 0);
++    }
++
+     @Override
+     protected synchronized void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+diff --git a/src/com/kompakt/eink/PageGestureListener.java b/src/com/kompakt/eink/PageGestureListener.java
+new file mode 100755
+index 00000000000..6047f87ef3e
+--- /dev/null
++++ b/src/com/kompakt/eink/PageGestureListener.java
+@@ -0,0 +1,84 @@
++package com.kompakt.eink;
++
++import android.content.Context;
++import android.view.GestureDetector;
++import android.view.MotionEvent;
++
++/** Turns touch into page moves, matching inkOS (ui/compose/GestureHelper.kt). */
++final class PageGestureListener extends GestureDetector.SimpleOnGestureListener {
++
++    /** What to do with a page move; delta is +1 (down/forward) or -1 (up/back). */
++    interface Pager {
++        boolean page(int delta);
++    }
++
++    /** Drag distance before a page turns. */
++    private static final float THRESHOLD_DP = 56f;
++    private static final long COOLDOWN_MS = 200L;
++
++    /** Minimum vertical fling speed, dp/s. */
++    private static final float MIN_FLING_DP_PER_S = 600f;
++
++    /** How many pages the hardest flick may cover. */
++    private static final int MAX_FLING_PAGES = 5;
++
++    private final Pager pager;
++    private final float thresholdPx;
++    private final float minFlingPxPerS;
++
++    private float lastPageMoveY;
++    private long lastPageMoveTime;
++    /** inkOS's scrollPageMoveTriggered: did this gesture already page while dragging? */
++    private boolean pagedDuringDrag;
++
++    PageGestureListener(Context context, Pager pager) {
++        this.pager = pager;
++        final float density = context.getResources().getDisplayMetrics().density;
++        this.thresholdPx = Math.max(8f, THRESHOLD_DP * density);
++        this.minFlingPxPerS = MIN_FLING_DP_PER_S * density;
++    }
++
++    @Override
++    public boolean onDown(MotionEvent e) {
++        // Measure the next drag from here, not from the previous gesture.
++        lastPageMoveY = e.getY();
++        pagedDuringDrag = false;
++        return true;
++    }
++
++    @Override
++    public boolean onScroll(MotionEvent down, MotionEvent now, float dx, float dy) {
++        if (down == null) return false;
++
++        // Vertical-dominant only.
++        if (Math.abs(now.getX() - down.getX()) > Math.abs(now.getY() - down.getY())) return false;
++
++        final float travelled = now.getY() - lastPageMoveY;
++        if (Math.abs(travelled) <= thresholdPx) return false;
++
++        final long t = android.os.SystemClock.uptimeMillis();
++        if (t - lastPageMoveTime < COOLDOWN_MS) return false;
++
++        // Dragging content up (negative) means "go down a page".
++        if (!pager.page(travelled < 0 ? 1 : -1)) return false;
++        lastPageMoveTime = t;
++        lastPageMoveY = now.getY();
++        pagedDuringDrag = true;
++        return true;
++    }
++
++    @Override
++    public boolean onFling(MotionEvent down, MotionEvent up, float vx, float vy) {
++        // A drag that already paged must not page again on lift.
++        if (pagedDuringDrag) return false;
++        // Vertical-dominant, and fast enough to be a deliberate flick.
++        if (Math.abs(vy) < Math.abs(vx)) return false;
++        if (Math.abs(vy) < minFlingPxPerS) return false;
++        // ...and far enough.
++        if (down != null && up != null
++                && Math.abs(up.getY() - down.getY()) < thresholdPx) return false;
++        final int pages = Math.max(1,
++                Math.min(MAX_FLING_PAGES, (int) (Math.abs(vy) / minFlingPxPerS)));
++        return pager.page(vy < 0 ? pages : -pages);
++    }
++}
+diff --git a/src/com/kompakt/eink/PagedNestedScrollView.java b/src/com/kompakt/eink/PagedNestedScrollView.java
+new file mode 100755
+index 00000000000..600b1ca936d
+--- /dev/null
++++ b/src/com/kompakt/eink/PagedNestedScrollView.java
+@@ -0,0 +1,149 @@
++package com.kompakt.eink;
++
++import android.content.Context;
++import android.util.AttributeSet;
++import android.view.GestureDetector;
++import android.view.MotionEvent;
++import android.view.View;
++import android.view.ViewGroup;
++import android.view.ViewParent;
++
++import androidx.core.widget.NestedScrollView;
++import androidx.recyclerview.widget.RecyclerView;
++
++/** Paged scrolling for the Settings HOMEPAGE. */
++public class PagedNestedScrollView extends NestedScrollView {
++
++    /** Enough pages for any settings screen; the table is rebuilt per move. */
++    private static final int MAX_PAGES = 256;
++
++    /** inkOS overlapFraction: pages overlap 20% so a jump keeps some context. */
++
++    private final GestureDetector detector;
++
++    public PagedNestedScrollView(Context context) {
++        this(context, null);
++    }
++
++    public PagedNestedScrollView(Context context, AttributeSet attrs) {
++        this(context, attrs, 0);
++    }
++
++    public PagedNestedScrollView(Context context, AttributeSet attrs, int defStyleAttr) {
++        super(context, attrs, defStyleAttr);
++        // fling = one page; dragging keeps paging as the finger travels (inkOS behaviour)
++        detector = new GestureDetector(context,
++                new PageGestureListener(context, new PageGestureListener.Pager() {
++                    @Override
++                    public boolean page(int delta) {
++                        return PagedNestedScrollView.this.page(delta);
++                    }
++                }));
++    }
++
++    /** The superclass decides when a gesture becomes a drag, which keeps taps working. */
++    @Override
++    public boolean onInterceptTouchEvent(MotionEvent ev) {
++        boolean intercepted = super.onInterceptTouchEvent(ev);
++        detector.onTouchEvent(ev);
++        return intercepted;
++    }
++
++    /** Deliberately does NOT call super: that is what suppresses the smooth scroll. */
++    @Override
++    public boolean onTouchEvent(MotionEvent ev) {
++        detector.onTouchEvent(ev);
++        return true;
++    }
++
++    /** Which page is on screen. */
++    private int currentPage = 0;
++
++    /** Move by whole viewports, from an absolute page number. */
++    private boolean page(int delta) {
++        final int viewport = getHeight();
++        if (viewport <= 0) return false;
++
++        final View content = getChildCount() > 0 ? getChildAt(0) : null;
++        final int maxScroll = content == null
++                ? 0 : Math.max(0, content.getHeight() - viewport);
++        if (maxScroll <= 0) return false;
++
++        final int[] starts = pageStarts(viewport, maxScroll);
++
++        // Which page is on screen is a question about the scroll position, not something to remember.
++        int index = 0;
++        int nearest = Integer.MAX_VALUE;
++        for (int i = 0; i < starts.length; i++) {
++            final int d = Math.abs(getScrollY() - starts[i]);
++            if (d < nearest) { nearest = d; index = i; }
++        }
++
++        int target = index + delta;
++        if (target < 0) target = 0;
++        if (target > starts.length - 1) target = starts.length - 1;
++
++        final int y = starts[target];
++        if (y == getScrollY() && target == index) return false;
++        currentPage = target;
++        scrollTo(0, y);
++        return true;
++    }
++
++    /** Where each page starts, walked from the rows themselves. */
++    private int[] pageStarts(int viewport, int maxScroll) {
++        final RecyclerView rv = findRecyclerView(getChildCount() > 0 ? getChildAt(0) : null);
++        final int rows = rv == null ? 0 : rv.getChildCount();
++        final int[] out = new int[MAX_PAGES];
++        int count = 1;
++        out[0] = 0;
++        if (rows == 0) {
++            // Nothing to align to; fall back to whole viewports rather than not paging.
++            while (count < MAX_PAGES && out[count - 1] < maxScroll) {
++                out[count] = Math.min(count * viewport, maxScroll);
++                count++;
++            }
++            return java.util.Arrays.copyOf(out, count);
++        }
++        final int base = topInContent(rv);
++        while (count < MAX_PAGES && out[count - 1] < maxScroll) {
++            final int limit = out[count - 1] + viewport;
++            // The topmost row that does not finish above the bottom edge.
++            int next = Integer.MAX_VALUE;
++            for (int i = 0; i < rows; i++) {
++                final View row = rv.getChildAt(i);
++                final int top = base + row.getTop();
++                if (base + row.getBottom() > limit && top < next) next = top;
++            }
++            // No such row: the rest of the content fits, so the last page is the bottom.
++            if (next == Integer.MAX_VALUE) next = maxScroll;
++            // A row taller than the whole page would stand still forever.
++            if (next <= out[count - 1]) next = limit;
++            out[count++] = Math.min(next, maxScroll);
++        }
++        return java.util.Arrays.copyOf(out, count);
++    }
++
++    /** Offset of a descendant within the scrolling content, ignoring the scroll itself. */
++    private int topInContent(View v) {
++        int top = 0;
++        View at = v;
++        while (at != null && at != this) {
++            top += at.getTop();
++            final ViewParent parent = at.getParent();
++            at = (parent instanceof View) ? (View) parent : null;
++        }
++        return top;
++    }
++
++    private static RecyclerView findRecyclerView(View v) {
++        if (v instanceof RecyclerView) return (RecyclerView) v;
++        if (!(v instanceof ViewGroup)) return null;
++        final ViewGroup g = (ViewGroup) v;
++        for (int i = 0; i < g.getChildCount(); i++) {
++            final RecyclerView found = findRecyclerView(g.getChildAt(i));
++            if (found != null) return found;
++        }
++        return null;
++    }
++}
+diff --git a/src/com/kompakt/eink/PagedScroll.java b/src/com/kompakt/eink/PagedScroll.java
+new file mode 100755
+index 00000000000..ffa50991f6f
+--- /dev/null
++++ b/src/com/kompakt/eink/PagedScroll.java
+@@ -0,0 +1,133 @@
++package com.kompakt.eink;
++
++import android.view.GestureDetector;
++import android.view.MotionEvent;
++import android.view.View;
++
++import androidx.annotation.NonNull;
++import androidx.recyclerview.widget.LinearLayoutManager;
++import androidx.recyclerview.widget.RecyclerView;
++
++/** Paged scrolling for Settings, modelled on inkOS (ui/SettingsFragment.kt:448-508). */
++public final class PagedScroll {
++
++    private PagedScroll() {}
++
++    public static void attach(final RecyclerView rv) {
++        if (rv == null) return;
++        // Kompakt: rows scrolled past the top must not draw above the list.
++        rv.setOutlineProvider(android.view.ViewOutlineProvider.BOUNDS);
++        rv.setClipToOutline(true);
++
++        final PagedLayoutManager lm = new PagedLayoutManager(rv.getContext());
++        rv.setLayoutManager(lm);
++
++        // fling = one page; dragging keeps paging as the finger travels (inkOS behaviour)
++        final GestureDetector detector = new GestureDetector(rv.getContext(),
++                new PageGestureListener(rv.getContext(), new PageGestureListener.Pager() {
++                    @Override
++                    public boolean page(int delta) {
++                        return PagedScroll.page(rv, lm, delta);
++                    }
++                }));
++
++        rv.addOnItemTouchListener(new RecyclerView.OnItemTouchListener() {
++            @Override
++            public boolean onInterceptTouchEvent(@NonNull RecyclerView r, @NonNull MotionEvent e) {
++                detector.onTouchEvent(e);
++                return false; // let taps through to the preferences themselves
++            }
++
++            @Override
++            public void onTouchEvent(@NonNull RecyclerView r, @NonNull MotionEvent e) {
++            }
++
++            @Override
++            public void onRequestDisallowInterceptTouchEvent(boolean disallow) {
++            }
++        });
++    }
++
++    /** Move by whole pages, in pixels, measured off the rows that are on screen. */
++    private static boolean page(RecyclerView rv, PagedLayoutManager lm, int delta) {
++        if (delta == 0) return false;
++        final int viewport = rv.getHeight() - rv.getPaddingTop() - rv.getPaddingBottom();
++        if (viewport <= 0) return false;
++
++        // scrollBy() is a no-op while the LayoutManager refuses vertical scrolling, so open the gate.
++        lm.allowProgrammaticScroll = true;
++        try {
++            final long before = mark(rv, lm);
++            for (int i = Math.abs(delta); i > 0; i--) {
++                if (delta > 0) {
++                    forward(rv, lm, viewport);
++                } else {
++                    rv.scrollBy(0, -viewport);
++                    snapTopRowWhole(rv, lm);
++                }
++            }
++            // Ask the screen whether anything moved; at either end nothing does.
++            return mark(rv, lm) != before;
++        } finally {
++            lm.allowProgrammaticScroll = false;
++        }
++    }
++
++    /** Forward one page: to the top of the first row the bottom edge cuts. */
++    private static void forward(RecyclerView rv, PagedLayoutManager lm, int viewport) {
++        final int topEdge = rv.getPaddingTop();
++        final int bottomEdge = rv.getHeight() - rv.getPaddingBottom();
++
++        // Child order is not guaranteed, so take the smallest qualifying top rather than the first one found.
++        int next = Integer.MAX_VALUE;
++        for (int i = 0, n = lm.getChildCount(); i < n; i++) {
++            final View row = lm.getChildAt(i);
++            if (row == null) continue;
++            if (lm.getDecoratedBottom(row) > bottomEdge && lm.getDecoratedTop(row) < next) {
++                next = lm.getDecoratedTop(row);
++            }
++        }
++
++        int dy = (next == Integer.MAX_VALUE) ? viewport : next - topEdge;
++        // A row taller than the whole page would stand still forever.
++        if (dy <= 0) dy = viewport;
++        rv.scrollBy(0, dy);
++    }
++
++    /** Pull the row under the top edge down until it is whole. */
++    private static void snapTopRowWhole(RecyclerView rv, PagedLayoutManager lm) {
++        final int topEdge = rv.getPaddingTop();
++        for (int i = 0, n = lm.getChildCount(); i < n; i++) {
++            final View row = lm.getChildAt(i);
++            if (row == null) continue;
++            if (lm.getDecoratedTop(row) <= topEdge && lm.getDecoratedBottom(row) > topEdge) {
++                final int dy = lm.getDecoratedTop(row) - topEdge;
++                if (dy < 0) rv.scrollBy(0, dy);
++                return;
++            }
++        }
++    }
++
++    /** Where the list is, exactly: which row is at the top and how far into it we are. */
++    private static long mark(RecyclerView rv, PagedLayoutManager lm) {
++        final int first = lm.findFirstVisibleItemPosition();
++        if (first == RecyclerView.NO_POSITION) return Long.MIN_VALUE;
++        final View row = lm.findViewByPosition(first);
++        final int top = (row == null) ? 0 : lm.getDecoratedTop(row);
++        return ((long) first << 32) | (top & 0xffffffffL);
++    }
++
++    /** Reports "cannot scroll vertically" to touch handling, which is what stops the finger dragging the list at all. */
++    static final class PagedLayoutManager extends LinearLayoutManager {
++        boolean allowProgrammaticScroll = false;
++
++        PagedLayoutManager(android.content.Context context) {
++            super(context);
++        }
++
++        @Override
++        public boolean canScrollVertically() {
++            return allowProgrammaticScroll;
++        }
++    }
++}
+diff --git a/src/com/kompakt/eink/SwitchOnlyTouch.java b/src/com/kompakt/eink/SwitchOnlyTouch.java
+new file mode 100644
+index 00000000000..4d4ff131a75
+--- /dev/null
++++ b/src/com/kompakt/eink/SwitchOnlyTouch.java
+@@ -0,0 +1,111 @@
++package com.kompakt.eink;
++
++import android.graphics.Rect;
++import android.view.MotionEvent;
++import android.view.View;
++import android.view.ViewGroup;
++import android.view.ViewParent;
++import android.widget.CompoundButton;
++
++import androidx.recyclerview.widget.RecyclerView;
++
++/** A preference row with a switch toggles only from the switch. */
++public final class SwitchOnlyTouch {
++
++    private SwitchOnlyTouch() {}
++
++    public static void attach(final RecyclerView rv) {
++        if (rv == null) return;
++        rv.addOnChildAttachStateChangeListener(new RecyclerView.OnChildAttachStateChangeListener() {
++            @Override
++            public void onChildViewAttachedToWindow(@androidx.annotation.NonNull View view) {
++                apply(view);
++            }
++
++            @Override
++            public void onChildViewDetachedFromWindow(@androidx.annotation.NonNull View view) {
++            }
++        });
++    }
++
++    private static void apply(final View row) {
++        final CompoundButton control = findControl(row);
++        if (control == null || isMainSwitch(control, row)) {
++            // Rows are recycled, so a row that no longer has a switch has to be handed back its own touch handling.
++            row.setOnTouchListener(null);
++            return;
++        }
++        final View target = widgetFrame(control, row);
++        row.setOnTouchListener(new View.OnTouchListener() {
++            private boolean pass;
++
++            @Override
++            public boolean onTouch(View v, MotionEvent e) {
++                if (e.getActionMasked() == MotionEvent.ACTION_DOWN) {
++                    pass = hits(target, row, e);
++                }
++                // true swallows the gesture: the row never sees a down, so it never clicks.
++                return !pass;
++            }
++        });
++    }
++
++    private static boolean hits(View target, View row, MotionEvent e) {
++        if (target == null) return true;
++        final Rect r = new Rect();
++        target.getHitRect(r);
++        ViewParent parent = target.getParent();
++        while (parent instanceof View && parent != row) {
++            final View p = (View) parent;
++            r.offset(p.getLeft(), p.getTop());
++            parent = p.getParent();
++        }
++        // Horizontal position is the whole point; vertical aim is not.
++        r.top = 0;
++        r.bottom = row.getHeight();
++        return r.contains((int) e.getX(), (int) e.getY());
++    }
++
++    private static CompoundButton findControl(View v) {
++        if (v instanceof CompoundButton) return (CompoundButton) v;
++        if (!(v instanceof ViewGroup)) return null;
++        final ViewGroup g = (ViewGroup) v;
++        for (int i = 0; i < g.getChildCount(); i++) {
++            final CompoundButton found = findControl(g.getChildAt(i));
++            if (found != null) return found;
++        }
++        return null;
++    }
++
++    /** The widget frame the control sits in, which is the region a user aims at. */
++    private static View widgetFrame(View control, View row) {
++        View at = control;
++        while (at != null && at != row) {
++            if (at.getId() == android.R.id.widget_frame) return at;
++            final ViewParent parent = at.getParent();
++            at = (parent instanceof View) ? (View) parent : null;
++        }
++        return control;
++    }
++
++    /** True for the full-width switch banner, where the row is the control. */
++    private static boolean isMainSwitch(View control, View row) {
++        View at = control;
++        while (at != null) {
++            final int id = at.getId();
++            if (id != View.NO_ID) {
++                try {
++                    if (at.getResources().getResourceEntryName(id).contains("main_switch")) {
++                        return true;
++                    }
++                } catch (android.content.res.Resources.NotFoundException ignored) {
++                    // an id with no name is not one of ours to recognise
++                }
++            }
++            if (at == row) break;
++            final ViewParent parent = at.getParent();
++            at = (parent instanceof View) ? (View) parent : null;
++        }
++        return false;
++    }
++}

@@ -1,0 +1,300 @@
+From c09a4a3533880db2500959d8e755b51185bd116a Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Thu, 17 Sep 2026 21:26:35 +0200
+Subject: [PATCH] Kompakt: dialer: two inks
+
+---
+ .../dialer/app/res/values-night/colors.xml     |  2 +-
+ .../android/dialer/app/res/values/colors.xml   |  2 +-
+ .../calllogutils/res/values-night/colors.xml   |  6 ++++++
+ .../dialer/calllogutils/res/values/colors.xml  |  6 +++---
+ .../main/impl/bottomnav/BottomNavItem.java     |  7 +++++--
+ .../main/impl/res/layout/main_activity.xml     |  2 +-
+ .../base/res/values/theme_dialer_dark.xml      |  8 ++++----
+ .../base/res/values/theme_dialer_light.xml     | 10 +++++-----
+ .../theme/common/res/values-night/colors.xml   | 12 +++++++++---
+ .../dialer/theme/common/res/values/colors.xml  | 18 +++++++++---------
+ .../res/values-night/colors_dialer_light.xml   | 18 +++++++++++++-----
+ .../hidden/res/values/colors_dialer_dark.xml   |  8 +++++---
+ .../hidden/res/values/colors_dialer_light.xml  |  5 ++++-
+ 13 files changed, 66 insertions(+), 38 deletions(-)
+ create mode 100644 java/com/android/dialer/calllogutils/res/values-night/colors.xml
+
+diff --git a/java/com/android/dialer/app/res/values-night/colors.xml b/java/com/android/dialer/app/res/values-night/colors.xml
+index 01b176cea..32e9b2ea9 100644
+--- a/java/com/android/dialer/app/res/values-night/colors.xml
++++ b/java/com/android/dialer/app/res/values-night/colors.xml
+@@ -16,6 +16,6 @@
+ 
+ <resources>
+   <color name="nav_item">@android:color/system_neutral1_300</color>
+-  <color name="dialer_pill_color">@android:color/system_accent2_700</color>
++  <color name="dialer_pill_color">#fffffffe</color>
+   <color name="dialer_fab_icon_color">#ff000000</color>
+ </resources>
+diff --git a/java/com/android/dialer/app/res/values/colors.xml b/java/com/android/dialer/app/res/values/colors.xml
+index 45aba5568..587cbd083 100644
+--- a/java/com/android/dialer/app/res/values/colors.xml
++++ b/java/com/android/dialer/app/res/values/colors.xml
+@@ -23,7 +23,7 @@
+   <color name="remove_highlighted_text_color">#FF3F3B</color>
+ 
+   <color name="nav_item">@android:color/system_neutral1_600</color>
+-  <color name="dialer_pill_color">@android:color/system_accent2_200</color>
++  <color name="dialer_pill_color">#ff000000</color>
+   <color name="dialer_fab_icon_color">#ffffffff</color>
+ 
+   <!-- Material next state on color-->
+diff --git a/java/com/android/dialer/calllogutils/res/values-night/colors.xml b/java/com/android/dialer/calllogutils/res/values-night/colors.xml
+new file mode 100644
+index 000000000..d09575672
+--- /dev/null
++++ b/java/com/android/dialer/calllogutils/res/values-night/colors.xml
+@@ -0,0 +1,6 @@
++<?xml version="1.0" encoding="utf-8"?>
++<resources>
++  <color name="missed_call">#fffffffe</color>
++  <color name="answered_incoming_call">#fffffffe</color>
++  <color name="answered_outgoing_call">#fffffffe</color>
++</resources>
+diff --git a/java/com/android/dialer/calllogutils/res/values/colors.xml b/java/com/android/dialer/calllogutils/res/values/colors.xml
+index 40a522b56..685b184e6 100644
+--- a/java/com/android/dialer/calllogutils/res/values/colors.xml
++++ b/java/com/android/dialer/calllogutils/res/values/colors.xml
+@@ -16,11 +16,11 @@
+  -->
+ <resources>
+   <!-- Color for missed call icons. -->
+-  <color name="missed_call">#C53929</color>
++  <color name="missed_call">#ff000000</color>
+   <!-- Color for answered call icons. -->
+-  <color name="answered_incoming_call">#00a8ff</color>
++  <color name="answered_incoming_call">#ff000000</color>
+   <!-- Color for outgoing call icons. -->
+-  <color name="answered_outgoing_call">#00c853</color>
++  <color name="answered_outgoing_call">#ff000000</color>
+   <!-- Color for blocked call icons. -->
+   <color name="blocked_call">@color/dialer_secondary_text_color</color>
+ </resources>
+diff --git a/java/com/android/dialer/main/impl/bottomnav/BottomNavItem.java b/java/com/android/dialer/main/impl/bottomnav/BottomNavItem.java
+index 7cc457a0a..cefbdc96c 100644
+--- a/java/com/android/dialer/main/impl/bottomnav/BottomNavItem.java
++++ b/java/com/android/dialer/main/impl/bottomnav/BottomNavItem.java
+@@ -77,7 +77,8 @@ final class BottomNavItem extends LinearLayout {
+   public void setSelected(boolean selected) {
+     super.setSelected(selected);
+     int colorId = selected
+-            ? DialerUtils.resolveColor(getContext(), android.R.attr.textColorPrimary)
++            // Kompakt: the selected item sits on an ink pill, so it takes the inverse text colour.
++            ? DialerUtils.resolveColor(getContext(), android.R.attr.textColorPrimaryInverse)
+             : DialerUtils.resolveColor(getContext(), android.R.attr.textColorSecondary);
+     image.setImageResource(selected ? drawableResSelected : drawableRes);
+     image.setImageTintList(ColorStateList.valueOf(colorId));
+@@ -217,7 +218,9 @@ final class BottomNavItem extends LinearLayout {
+             @NonNull View indicator) {
+       indicator.setScaleX(calculateScaleX(progress, targetValue));
+       indicator.setScaleY(calculateScaleY(progress, targetValue));
+-      indicator.setAlpha(calculateAlpha(progress, targetValue));
++      // Kompakt: no partial alpha on e-ink; the pill is either there or not.
++      indicator.setAlpha(1F);
++      indicator.setVisibility(progress < 0.5F ? View.INVISIBLE : View.VISIBLE);
+     }
+   }
+ }
+diff --git a/java/com/android/dialer/main/impl/res/layout/main_activity.xml b/java/com/android/dialer/main/impl/res/layout/main_activity.xml
+index 1f6ecfa79..597c8aa07 100644
+--- a/java/com/android/dialer/main/impl/res/layout/main_activity.xml
++++ b/java/com/android/dialer/main/impl/res/layout/main_activity.xml
+@@ -75,7 +75,7 @@
+       android:id="@+id/dialpad_fragment_container"
+       android:layout_width="match_parent"
+       android:layout_height="match_parent"
+-      android:elevation="10dp"/>
++      android:elevation="0dp"/>
+ 
+   <!-- TODO(calderwoodra): investigate what this is for and why we want it. -->
+   <!-- Host container for the contact tile drag shadow -->
+diff --git a/java/com/android/dialer/theme/base/res/values/theme_dialer_dark.xml b/java/com/android/dialer/theme/base/res/values/theme_dialer_dark.xml
+index 1e92e3c95..570769015 100644
+--- a/java/com/android/dialer/theme/base/res/values/theme_dialer_dark.xml
++++ b/java/com/android/dialer/theme/base/res/values/theme_dialer_dark.xml
+@@ -25,8 +25,8 @@
+   <!-- Activities and Applications should inherit from one of the themes above. -->
+   <style name="Dialer.Dark.ThemeBase">
+     <!-- These values should be used to color all backgrounds. -->
+-    <item name="android:colorBackground">@android:color/system_neutral1_900</item>
+-    <item name="android:colorBackgroundFloating">@android:color/system_neutral1_800</item>
++    <item name="android:colorBackground">@color/dialer_background_color</item>
++    <item name="android:colorBackgroundFloating">@color/dialer_background_floating</item>
+ 
+     <!-- These values should be used to set text color. -->
+     <!-- swap text colors. -->
+@@ -34,7 +34,7 @@
+     <item name="android:textColorSecondary">@color/dialer_dark_secondary_text_color</item>
+     <item name="android:textColorPrimaryInverse">@color/dialer_primary_text_color</item>
+     <item name="android:textColorSecondaryInverse">@color/dialer_secondary_text_color</item>
+-    <item name="android:textColorHint">@color/google_grey_600</item>
++    <item name="android:textColorHint">@color/dialer_text_hint_color</item>
+ 
+     <!-- These will be automatically used to color most Appcompat/Material widgets. -->
+     <item name="android:colorPrimary">@color/dialer_dark_theme_color</item>
+@@ -52,6 +52,6 @@
+     <item name="colorIconSecondary">?android:attr/textColorSecondary</item>
+     <item name="colorTextOnUnthemedDarkBackground">@android:color/system_neutral1_0</item>
+     <item name="colorIconOnUnthemedDarkBackground">@android:color/system_neutral1_0</item>
+-    <item name="colorCallNotificationBackground">@android:color/system_accent2_700</item>
++    <item name="colorCallNotificationBackground">@color/dialer_background_color</item>
+   </style>
+ </resources>
+diff --git a/java/com/android/dialer/theme/base/res/values/theme_dialer_light.xml b/java/com/android/dialer/theme/base/res/values/theme_dialer_light.xml
+index b9ea10c95..c17355fde 100644
+--- a/java/com/android/dialer/theme/base/res/values/theme_dialer_light.xml
++++ b/java/com/android/dialer/theme/base/res/values/theme_dialer_light.xml
+@@ -53,9 +53,9 @@
+     <!-- These values should be used to set text color. -->
+     <item name="android:textColorPrimary">@color/dialer_primary_text_color</item>
+     <item name="android:textColorSecondary">@color/dialer_secondary_text_color</item>
+-    <item name="android:textColorPrimaryInverse">@color/google_grey_300</item>
+-    <item name="android:textColorSecondaryInverse">@color/google_grey_400</item>
+-    <item name="android:textColorHint">@color/google_grey_600</item>
++    <item name="android:textColorPrimaryInverse">#fffffffe</item>
++    <item name="android:textColorSecondaryInverse">#fffffffe</item>
++    <item name="android:textColorHint">@color/dialer_text_hint_color</item>
+ 
+     <!-- These will be automatically used to color most Appcompat/Material widgets. -->
+     <item name="android:colorPrimary">@color/dialer_primary_color</item>
+@@ -69,8 +69,8 @@
+     <item name="colorControlActivated">?android:attr/colorAccent</item>
+ 
+     <!-- Dialer specific attributes. -->
+-    <item name="colorIcon">@color/google_grey_700</item>
+-    <item name="colorIconSecondary">@color/google_grey_400</item>
++    <item name="colorIcon">?android:attr/textColorPrimary</item>
++    <item name="colorIconSecondary">?android:attr/textColorPrimary</item>
+     <item name="colorTextOnUnthemedDarkBackground">@android:color/system_neutral1_0</item>
+     <item name="colorIconOnUnthemedDarkBackground">@android:color/system_neutral1_0</item>
+     <item name="colorCallNotificationBackground">@android:color/system_accent2_200</item>
+diff --git a/java/com/android/dialer/theme/common/res/values-night/colors.xml b/java/com/android/dialer/theme/common/res/values-night/colors.xml
+index 41b308d20..f734fd2a8 100644
+--- a/java/com/android/dialer/theme/common/res/values-night/colors.xml
++++ b/java/com/android/dialer/theme/common/res/values-night/colors.xml
+@@ -16,9 +16,15 @@
+   -->
+ <!-- The colors in this file aren't configured at the theme level. -->
+ <resources>
+-  <color name="dialer_call_green">#3ee0a0</color>
+-  <color name="dialer_end_call_button_color">#e46962</color>
+-  <color name="dialer_link_color">#b5c4ff</color>
++  <color name="dialer_call_green">#fffffffe</color>
++  <color name="dialer_end_call_button_color">#fffffffe</color>
++  <color name="dialer_link_color">#fffffffe</color>
+   <color name="dialer_snackbar_action_text_color">@android:color/system_accent1_600</color>
+   <color name="dialer_call_icon_color">@android:color/black</color>
++  <color name="dialer_divider_line_color">#fffffffe</color>
++  <color name="dialer_red">#fffffffe</color>
++  <color name="notification_action_accept">#fffffffe</color>
++  <color name="notification_action_dismiss">#fffffffe</color>
++  <color name="notification_action_answer_video">#fffffffe</color>
++  <color name="blue_grey_100">#ff000000</color>
+ </resources>
+diff --git a/java/com/android/dialer/theme/common/res/values/colors.xml b/java/com/android/dialer/theme/common/res/values/colors.xml
+index 2e9e3b631..3263ffe5c 100644
+--- a/java/com/android/dialer/theme/common/res/values/colors.xml
++++ b/java/com/android/dialer/theme/common/res/values/colors.xml
+@@ -16,22 +16,22 @@
+   -->
+ <!-- The colors in this file aren't configured at the theme level. -->
+ <resources>
+-  <color name="dialer_call_green">#006c49</color>
+-  <color name="dialer_end_call_button_color">#dc362e</color>
+-  <color name="dialer_divider_line_color">#D8D8D8</color>
+-  <color name="dialer_link_color">#2A56C6</color>
++  <color name="dialer_call_green">#ff000000</color>
++  <color name="dialer_end_call_button_color">#ff000000</color>
++  <color name="dialer_divider_line_color">#ff000000</color>
++  <color name="dialer_link_color">#ff000000</color>
+   <color name="dialer_snackbar_action_text_color">@android:color/system_accent1_600</color>
+   <color name="dialer_call_icon_color">@android:color/white</color>
+ 
+   <!-- Colors for the notification actions -->
+-  <color name="notification_action_accept">#097138</color>
+-  <color name="notification_action_dismiss">#A52714</color>
+-  <color name="notification_action_answer_video">#097138</color>
++  <color name="notification_action_accept">#ff000000</color>
++  <color name="notification_action_dismiss">#ff000000</color>
++  <color name="notification_action_answer_video">#ff000000</color>
+ 
+-  <color name="dialer_red">#C53929</color>
++  <color name="dialer_red">#ff000000</color>
+ 
+   <!-- Legacy -->
+-  <color name="blue_grey_100">#CFD8DC</color>
++  <color name="blue_grey_100">#fffffffe</color>
+ 
+   <color name="cardBackgroundColor">@android:color/system_neutral1_50</color>
+ </resources>
+diff --git a/java/com/android/dialer/theme/hidden/res/values-night/colors_dialer_light.xml b/java/com/android/dialer/theme/hidden/res/values-night/colors_dialer_light.xml
+index 99fda0728..599044040 100644
+--- a/java/com/android/dialer/theme/hidden/res/values-night/colors_dialer_light.xml
++++ b/java/com/android/dialer/theme/hidden/res/values-night/colors_dialer_light.xml
+@@ -16,9 +16,17 @@
+ <resources>
+     <!-- Essential theme colors -->
+     <color name="dialer_theme_color_dark">@color/dialer_background_color</color>
+-    <color name="dialer_background_color">@android:color/system_neutral1_900</color>
+-    <color name="dialer_background_floating">@android:color/system_neutral1_800</color>
+-    <color name="dialer_search_bar_color">@android:color/system_neutral1_800</color>
+-    <color name="rounded_dialpad_bg_color">@android:color/system_neutral1_800</color>
+-    <color name="dialer_theme_color_light">@android:color/system_accent1_100</color>
++    <color name="dialer_background_color">#ff000000</color>
++    <color name="dialer_background_floating">#ff000000</color>
++    <color name="dialer_search_bar_color">#ff000000</color>
++    <color name="rounded_dialpad_bg_color">#ff000000</color>
++    <color name="dialer_theme_color_light">#fffffffe</color>
++  <color name="dialer_theme_color">#fffffffe</color>
++  <color name="dialer_primary_color">#ff000000</color>
++  <color name="dialer_ripple_color">#1fffffff</color>
++  <color name="searchbar_icon_color">#fffffffe</color>
++  <color name="dialer_primary_text_color">#fffffffe</color>
++  <color name="dialer_secondary_text_color">#fffffffe</color>
++  <color name="dialer_text_hint_color">#61ffffff</color>
++  <color name="dialer_theme_color_20pct">#33ffffff</color>
+ </resources>
+diff --git a/java/com/android/dialer/theme/hidden/res/values/colors_dialer_dark.xml b/java/com/android/dialer/theme/hidden/res/values/colors_dialer_dark.xml
+index 41c5fd1c5..838f50112 100644
+--- a/java/com/android/dialer/theme/hidden/res/values/colors_dialer_dark.xml
++++ b/java/com/android/dialer/theme/hidden/res/values/colors_dialer_dark.xml
+@@ -15,7 +15,9 @@
+   -->
+ <resources>
+   <!-- Essential theme colors -->
+-  <color name="dialer_dark_theme_color">#5195EA</color>
+-  <color name="dialer_dark_theme_color_20pct">#335195EA</color>
+-  <color name="dialer_dark_theme_color_dark">#2374CE</color>
++  <color name="dialer_dark_theme_color">#fffffffe</color>
++  <color name="dialer_dark_theme_color_20pct">#33ffffff</color>
++  <color name="dialer_dark_theme_color_dark">#ff000000</color>
++  <color name="dialer_dark_primary_text_color">#fffffffe</color>
++  <color name="dialer_dark_secondary_text_color">#fffffffe</color>
+ </resources>
+diff --git a/java/com/android/dialer/theme/hidden/res/values/colors_dialer_light.xml b/java/com/android/dialer/theme/hidden/res/values/colors_dialer_light.xml
+index c894da3ff..a3b44fc77 100644
+--- a/java/com/android/dialer/theme/hidden/res/values/colors_dialer_light.xml
++++ b/java/com/android/dialer/theme/hidden/res/values/colors_dialer_light.xml
+@@ -16,7 +16,7 @@
+ <resources>
+   <!-- Essential theme colors -->
+   <color name="dialer_theme_color">@android:color/system_accent1_600</color>
+-  <color name="dialer_theme_color_20pct">#332A56C6</color>
++  <color name="dialer_theme_color_20pct">#33000000</color>
+   <color name="dialer_theme_color_dark">@color/dialer_background_color</color>
+   <color name="dialer_primary_color">@android:color/system_neutral2_50</color>
+   <color name="dialer_ripple_color">#1f000000</color>
+@@ -26,4 +26,7 @@
+   <color name="rounded_dialpad_bg_color">@android:color/system_neutral1_100</color>
+   <color name="searchbar_icon_color">@android:color/system_neutral1_900</color>
+   <color name="dialer_theme_color_light">@android:color/system_accent1_600</color>
++  <color name="dialer_primary_text_color">#ff000000</color>
++  <color name="dialer_secondary_text_color">#ff000000</color>
++  <color name="dialer_text_hint_color">#61000000</color>
+ </resources>

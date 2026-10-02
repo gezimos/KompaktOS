@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Settings homepage search bar, e ink. -->
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    style="@style/SearchBarStyle_v2"
+    app:strokeWidth="2dp"
+    app:strokeColor="@color/kompakt_search_bar_ink"
+    app:cardBackgroundColor="@color/kompakt_search_bar_ground"
+    app:cardElevation="0dp"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:id="@+id/search_action_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="48dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        android:focusedByDefault="true"
+        android:background="@null">
+
+        <ImageView
+            android:id="@+id/imageView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:importantForAccessibility="no"
+            android:tint="@color/kompakt_search_bar_ink"
+            android:src="@drawable/ic_homepage_search" />
+        <TextView
+            android:id="@+id/search_bar_title"
+            style="@style/TextAppearance.SearchBar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:paddingEnd="8dp"
+            android:textColor="@color/kompakt_search_bar_ink"
+            android:text="@string/homepage_search"/>
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

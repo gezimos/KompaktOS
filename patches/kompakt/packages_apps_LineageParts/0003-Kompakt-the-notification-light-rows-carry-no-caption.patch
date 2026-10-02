@@ -1,0 +1,31 @@
+From f9a46b9c35124a90ba48e060e93dfb63c089a786 Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Fri, 25 Sep 2026 20:16:30 +0200
+Subject: [PATCH] Kompakt: the notification light rows carry no caption
+
+---
+ .../notificationlight/ApplicationLightPreference.java    | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/org/lineageos/lineageparts/notificationlight/ApplicationLightPreference.java b/src/org/lineageos/lineageparts/notificationlight/ApplicationLightPreference.java
+index 757840e..f666685 100644
+--- a/src/org/lineageos/lineageparts/notificationlight/ApplicationLightPreference.java
++++ b/src/org/lineageos/lineageparts/notificationlight/ApplicationLightPreference.java
+@@ -153,7 +153,13 @@ public class ApplicationLightPreference extends CustomDialogPreference<LightSett
+                     0xFF000000 + imageColor));
+         }
+         if (mOnValueView != null) {
+-            mOnValueView.setText(mapLengthValue(mOnValue));
++            // Kompakt: a TOGGLE LED has one way to light, so no caption.
++            if (mOnOffType == OnOffType.TOGGLE) {
++                mOnValueView.setVisibility(View.GONE);
++            } else {
++                mOnValueView.setVisibility(View.VISIBLE);
++                mOnValueView.setText(mapLengthValue(mOnValue));
++            }
+         }
+         if (mOffValueView != null) {
+             if (mOnValue == 1 || mOnOffType != OnOffType.PULSE) {
+-- 
+2.43.0
+

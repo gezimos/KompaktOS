@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Jelly is nearly monochrome already; this is the one colour it defines and the ripple it inherits. -->
+<resources>
+    <color name="colorDelete">#ff000000</color>
+</resources>

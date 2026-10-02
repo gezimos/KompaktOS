@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     SPDX-FileCopyrightText: The Android Open Source Project
+     SPDX-License-Identifier: Apache-2.0
+-->
+<!-- Kompakt: a literal colour, because a theme attribute cannot work here. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="32dp"
+    android:height="26dp"
+    android:viewportWidth="48"
+    android:viewportHeight="39">
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M3,30L45,30L45,33L3,33L3,30Z"/>
+</vector>

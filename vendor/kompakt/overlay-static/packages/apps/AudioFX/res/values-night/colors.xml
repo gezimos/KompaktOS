@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: Kompakt night: the inverse of the day overlay colours. -->
+<resources>
+    <color name="knob_container_background">#ff000000</color>
+    <color name="white">#fffffffe</color>
+    <color name="band_bar_color_selected">#fffffffe</color>
+    <color name="highlight">#fffffffe</color>
+    <color name="disabled_eq">#ff000000</color>
+    <color name="radial_knob_arc_bg">#fffffffe</color>
+    <color name="radial_knob_arc_bg_disabled">#fffffffe</color>
+    <color name="preset_custom">#ff000000</color>
+    <color name="preset_normal">#ff000000</color>
+    <color name="preset_classical">#ff000000</color>
+    <color name="preset_dance">#ff000000</color>
+    <color name="preset_flat">#ff000000</color>
+    <color name="preset_folk">#ff000000</color>
+    <color name="preset_metal">#ff000000</color>
+    <color name="preset_hiphop">#ff000000</color>
+    <color name="preset_jazz">#ff000000</color>
+    <color name="preset_pop">#ff000000</color>
+    <color name="preset_rock">#ff000000</color>
+    <color name="preset_electronic">#ff000000</color>
+    <color name="preset_small_speakers">#ff000000</color>
+    <color name="eq_ink">#fffffffe</color>
+    <color name="default_circle_indicator_fill_color">#fffffffe</color>
+    <color name="default_circle_indicator_page_color">#ff000000</color>
+    <color name="default_circle_indicator_stroke_color">#fffffffe</color>
+    <!-- Kompakt: night twin, black canvas, white paint. -->
+    <!-- Kompakt night twin. -->
+</resources>

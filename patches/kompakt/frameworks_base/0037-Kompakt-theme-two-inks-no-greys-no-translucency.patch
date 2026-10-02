@@ -1,0 +1,2455 @@
+From 837242d6c80e540175f31622124c5cbb7925d564 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sat, 26 Sep 2026 02:52:46 +0200
+Subject: [PATCH 37/38] Kompakt: theme: two inks, no greys, no translucency
+
+---
+ core/java/android/widget/Editor.java          |  11 +-
+ core/res/AndroidManifest.xml                  |   4 +
+ .../drawable/kompakt_activated_outline.xml    |  17 +++
+ core/res/res/layout/resolve_list_item.xml     |   2 +-
+ .../SplashscreenContentDrawer.java            |  35 +++++-
+ .../collapsingtoolbar/EdgeToEdgeUtils.java    |   3 +-
+ .../settingslib_switch_bar_bg_on.xml          |   2 +
+ .../settingslib_expressive_switch_bar_bg.xml  |   2 +
+ packages/SystemUI/AndroidManifest.xml         |  13 ++
+ .../ui/composable/Notifications.kt            |  38 +-----
+ .../composable/NotificationsShadeOverlay.kt   |   5 -
+ .../qs/footer/ui/compose/FooterActions.kt     |  15 +--
+ .../composable/QuickSettingsShadeOverlay.kt   |  15 +--
+ .../shade/ui/composable/OverlayShade.kt       |   5 -
+ .../shade/ui/composable/ShadeHeader.kt        |   8 +-
+ .../shade/ui/composable/ShadeHighlightChip.kt |  17 +--
+ .../shade/ui/composable/ShadeScene.kt         |   3 -
+ .../volume/ui/composable/VolumeSlider.kt      |  50 ++------
+ .../shared/clocks/DefaultClockController.kt   |  26 +++-
+ .../color/connected_network_primary_color.xml |   3 +-
+ .../drawable/connected_display_dialog_bg.xml  |   3 +
+ .../res/drawable/contextual_edu_dialog_bg.xml |   1 +
+ .../drawable/controls_panel_background.xml    |   5 +-
+ .../res/drawable/controls_popup_bg.xml        |   3 +
+ .../res/drawable/global_actions_popup_bg.xml  |   3 +
+ ...eyguard_settings_popup_menu_background.xml |   2 +
+ .../kompakt_internet_row_connected.xml        |  17 +++
+ .../res/drawable/kompakt_offline_card_bar.xml |   8 ++
+ .../res/drawable/kompakt_offline_card_bg.xml  |  14 +++
+ .../res/drawable/kompakt_stat_sys_offline.xml |  11 ++
+ .../media_output_dialog_background.xml        |   3 +
+ ...utput_dialog_background_reduced_radius.xml |   3 +
+ .../res/drawable/notification_material_bg.xml |   2 +-
+ .../SystemUI/res/drawable/qs_dialog_bg.xml    |   3 +
+ ...ecord_options_spinner_popup_background.xml |   2 +
+ .../res/drawable/settingslib_entry_bg_on.xml  |  28 ++---
+ .../res/drawable/volume_dialog_background.xml |   1 +
+ .../volume_dialog_ringer_background.xml       |   1 +
+ .../layout/internet_connectivity_details.xml  |   4 +-
+ .../layout/internet_connectivity_dialog.xml   |   4 +-
+ .../res/layout/kompakt_offline_card.xml       |  61 ++++++++++
+ packages/SystemUI/res/values/colors.xml       |   3 +-
+ packages/SystemUI/res/values/config.xml       |   6 +-
+ packages/SystemUI/res/values/dimens.xml       |   2 +
+ .../SystemUI/res/values/kompakt_offline.xml   |   9 ++
+ .../SystemUI/res/values/kompakt_wallpaper.xml |   5 +
+ packages/SystemUI/res/values/styles.xml       |  12 +-
+ .../res/xml/kompakt_paper_wallpaper.xml       |   6 +
+ .../statusbar/phone/BarTransitions.java       |  20 +++-
+ .../com/android/keyguard/NumPadAnimator.java  |  16 +--
+ .../android/keyguard/PasswordTextView.java    |  10 --
+ .../brightness/ui/compose/BrightnessSlider.kt |  91 ++++----------
+ .../classifier/FalsingDataProvider.java       |   8 +-
+ .../GlobalActionsDialogLite.java              |  14 +--
+ .../systemui/globalactions/ShutdownUi.java    |  11 +-
+ .../LockscreenBehindScrimViewModel.kt         |   8 +-
+ .../com/android/systemui/qs/QuickQSPanel.java |   5 +-
+ .../qs/composefragment/QSFragmentCompose.kt   |  13 +-
+ .../repository/DefaultLargeTilesRepository.kt |   3 +-
+ .../panels/ui/compose/PaginatedGridLayout.kt  |   6 +-
+ .../panels/ui/compose/QuickQuickSettings.kt   |  12 --
+ .../ui/compose/infinitegrid/CommonTile.kt     |   7 +-
+ .../ui/compose/infinitegrid/EditTile.kt       |  35 +++---
+ .../compose/infinitegrid/KompaktTileIcons.kt  |  41 +------
+ .../qs/panels/ui/compose/infinitegrid/Tile.kt |  96 +++++----------
+ .../panels/ui/compose/selection/Selection.kt  |  10 ++
+ .../viewmodel/EditTopBarActionsViewModel.kt   |   3 +-
+ .../pipeline/dagger/BaseAutoAddableModule.kt  |   6 +-
+ .../NotificationPanelViewController.java      |  10 --
+ .../shade/QuickSettingsControllerImpl.java    |   4 +-
+ .../domain/interactor/ShadeModeInteractor.kt  |  23 +---
+ .../statusbar/core/StatusBarOrchestrator.kt   |   6 +-
+ .../CentralSurfacesDependenciesModule.java    |   7 +-
+ .../row/ExpandableNotificationRow.java        |   6 +-
+ .../statusbar/phone/CentralSurfacesImpl.java  |   2 +
+ .../statusbar/phone/KompaktOfflineCard.java   | 112 ++++++++++++++++++
+ .../statusbar/phone/KompaktStatusSlots.java   |  37 ++++++
+ .../statusbar/phone/PhoneStatusBarPolicy.java |  46 +++++++
+ .../phone/PhoneStatusBarViewController.kt     |  10 ++
+ .../SystemStatusIconsModule.kt                |   6 +-
+ .../android/systemui/wallpapers/KompaktInk.kt |  91 ++++++++++++++
+ .../wallpapers/KompaktPaperWallpaper.kt       |  81 +++++++++++++
+ 82 files changed, 829 insertions(+), 523 deletions(-)
+ create mode 100644 core/res/res/drawable/kompakt_activated_outline.xml
+ create mode 100644 packages/SystemUI/res/drawable/kompakt_internet_row_connected.xml
+ create mode 100644 packages/SystemUI/res/drawable/kompakt_offline_card_bar.xml
+ create mode 100644 packages/SystemUI/res/drawable/kompakt_offline_card_bg.xml
+ create mode 100644 packages/SystemUI/res/drawable/kompakt_stat_sys_offline.xml
+ create mode 100644 packages/SystemUI/res/layout/kompakt_offline_card.xml
+ create mode 100644 packages/SystemUI/res/values/kompakt_offline.xml
+ create mode 100644 packages/SystemUI/res/values/kompakt_wallpaper.xml
+ create mode 100644 packages/SystemUI/res/xml/kompakt_paper_wallpaper.xml
+ create mode 100644 packages/SystemUI/src/com/android/systemui/statusbar/phone/KompaktOfflineCard.java
+ create mode 100644 packages/SystemUI/src/com/android/systemui/statusbar/phone/KompaktStatusSlots.java
+ create mode 100644 packages/SystemUI/src/com/android/systemui/wallpapers/KompaktInk.kt
+ create mode 100644 packages/SystemUI/src/com/android/systemui/wallpapers/KompaktPaperWallpaper.kt
+
+diff --git a/core/java/android/widget/Editor.java b/core/java/android/widget/Editor.java
+index aa3abd53da86..900438bf5602 100644
+--- a/core/java/android/widget/Editor.java
++++ b/core/java/android/widget/Editor.java
+@@ -2975,7 +2975,7 @@ public class Editor {
+      * @return True when the TextView isFocused and has a valid zero-length selection (cursor).
+      */
+     private boolean shouldBlink() {
+-        // e-ink: a zero blink interval stops the blink runnable; the caret stays drawn.
++        // e-ink: a zero blink interval stops the blink runnable; the caret stays drawn.
+         if (mBlinkInterval == ViewConfiguration.NO_BLINK_TEXT_CURSOR_BLINK_INTERVAL_MS) {
+             return false;
+         }
+diff --git a/core/res/AndroidManifest.xml b/core/res/AndroidManifest.xml
+index 769c3d3110df..1663c95776d2 100644
+--- a/core/res/AndroidManifest.xml
++++ b/core/res/AndroidManifest.xml
+@@ -28,6 +28,10 @@
+ 
+     <protected-broadcast android:name="android.intent.action.SCREEN_OFF" />
+     <protected-broadcast android:name="android.intent.action.SCREEN_ON" />
++    <!-- Kompakt: the Offline+ switch. Only the system may claim it moved. -->
++    <protected-broadcast android:name="android.intent.action.HWSWITCH_LOCK" />
++    <protected-broadcast android:name="android.intent.action.ACTION_HWSWITCH_LOCKED" />
++    <protected-broadcast android:name="android.intent.action.ACTION_HWSWITCH_UNLOCKED" />
+     <protected-broadcast android:name="android.intent.action.USER_PRESENT" />
+     <protected-broadcast android:name="android.intent.action.TIME_SET" />
+     <protected-broadcast android:name="android.intent.action.TIME_TICK" />
+diff --git a/core/res/res/drawable/kompakt_activated_outline.xml b/core/res/res/drawable/kompakt_activated_outline.xml
+new file mode 100644
+index 000000000000..1e040e8e1d66
+--- /dev/null
++++ b/core/res/res/drawable/kompakt_activated_outline.xml
+@@ -0,0 +1,17 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Kompakt: a selected row is outlined, not filled. -->
++<selector xmlns:android="http://schemas.android.com/apk/res/android">
++    <item android:state_activated="true">
++        <inset
++            android:insetLeft="6dp"
++            android:insetRight="6dp"
++            android:insetTop="2dp"
++            android:insetBottom="2dp">
++            <shape android:shape="rectangle">
++                <stroke android:width="2dp" android:color="?android:attr/textColorPrimary"/>
++                <corners android:radius="8dp"/>
++            </shape>
++        </inset>
++    </item>
++    <item android:drawable="@android:color/transparent"/>
++</selector>
+diff --git a/core/res/res/layout/resolve_list_item.xml b/core/res/res/layout/resolve_list_item.xml
+index 86f028c174fe..8668ed412a49 100644
+--- a/core/res/res/layout/resolve_list_item.xml
++++ b/core/res/res/layout/resolve_list_item.xml
+@@ -22,7 +22,7 @@
+               android:layout_height="wrap_content"
+               android:layout_width="match_parent"
+               android:minHeight="?attr/listPreferredItemHeightSmall"
+-              android:background="?attr/activatedBackgroundIndicator">
++              android:background="@drawable/kompakt_activated_outline">
+ 
+     <!-- Activity icon when presenting dialog
+          Size will be filled in by ResolverActivity -->
+diff --git a/libs/WindowManager/Shell/src/com/android/wm/shell/startingsurface/SplashscreenContentDrawer.java b/libs/WindowManager/Shell/src/com/android/wm/shell/startingsurface/SplashscreenContentDrawer.java
+index b4bb16d08af5..4015435aa9cc 100644
+--- a/libs/WindowManager/Shell/src/com/android/wm/shell/startingsurface/SplashscreenContentDrawer.java
++++ b/libs/WindowManager/Shell/src/com/android/wm/shell/startingsurface/SplashscreenContentDrawer.java
+@@ -45,6 +45,8 @@ import android.content.res.TypedArray;
+ import android.graphics.Bitmap;
+ import android.graphics.Canvas;
+ import android.graphics.Color;
++import android.graphics.ColorMatrix;
++import android.graphics.ColorMatrixColorFilter;
+ import android.graphics.Rect;
+ import android.graphics.drawable.AdaptiveIconDrawable;
+ import android.graphics.drawable.BitmapDrawable;
+@@ -591,10 +593,34 @@ public class SplashscreenContentDrawer {
+         }
+ 
+         SplashViewBuilder setWindowBGColor(@ColorInt int background) {
+-            mThemeColor = background;
++            // Kompakt: the splash is paper, black in dark mode and white in light.
++            mThemeColor = kompaktNight() ? Color.BLACK : Color.WHITE;
+             return this;
+         }
+ 
++        private boolean kompaktNight() {
++            return (mContext.getResources().getConfiguration().uiMode
++                    & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
++        }
++
++        // Kompakt: the themed icon in ink when the app has one, else the icon in greys.
++        private Drawable kompaktIcon(Drawable icon) {
++            if (icon instanceof AdaptiveIconDrawable) {
++                final Drawable mono = ((AdaptiveIconDrawable) icon).getMonochrome();
++                if (mono != null) {
++                    final Drawable ink = mono.mutate();
++                    ink.setTint(kompaktNight() ? Color.WHITE : Color.BLACK);
++                    return new AdaptiveIconDrawable(new ColorDrawable(mThemeColor), ink);
++                }
++            }
++            if (icon == null) return null;
++            final ColorMatrix grey = new ColorMatrix();
++            grey.setSaturation(0f);
++            final Drawable out = icon.mutate();
++            out.setColorFilter(new ColorMatrixColorFilter(grey));
++            return out;
++        }
++
+         SplashViewBuilder overlayDrawable(Drawable overlay) {
+             mOverlayDrawable = overlay;
+             return this;
+@@ -624,13 +650,14 @@ public class SplashscreenContentDrawer {
+ 
+         SplashScreenView build() {
+             Drawable iconDrawable;
++            mTmpAttrs.mIconBgColor = Color.TRANSPARENT;
+             if (mSuggestType == STARTING_WINDOW_TYPE_SOLID_COLOR_SPLASH_SCREEN
+                     || mSuggestType == STARTING_WINDOW_TYPE_LEGACY_SPLASH_SCREEN) {
+                 // empty or legacy splash screen case
+                 mFinalIconSize = 0;
+             } else if (mTmpAttrs.mSplashScreenIcon != null) {
+                 // Using the windowSplashScreenAnimatedIcon attribute
+-                iconDrawable = mTmpAttrs.mSplashScreenIcon;
++                iconDrawable = kompaktIcon(mTmpAttrs.mSplashScreenIcon);
+ 
+                 // There is no background below the icon, so scale the icon up
+                 if (mTmpAttrs.mIconBgColor == Color.TRANSPARENT
+@@ -644,8 +671,8 @@ public class SplashscreenContentDrawer {
+                 final int scaledIconDpi =
+                         (int) (0.5f + iconScale * densityDpi * mNoBackgroundScale);
+                 Trace.traceBegin(TRACE_TAG_WINDOW_MANAGER, "getIcon");
+-                iconDrawable = mHighResIconProvider.getIcon(
+-                        mActivityInfo, densityDpi, scaledIconDpi);
++                iconDrawable = kompaktIcon(mHighResIconProvider.getIcon(
++                        mActivityInfo, densityDpi, scaledIconDpi));
+                 Trace.traceEnd(TRACE_TAG_WINDOW_MANAGER);
+                 if (!processAdaptiveIcon(iconDrawable)) {
+                     ProtoLog.v(ShellProtoLogGroup.WM_SHELL_STARTING_WINDOW,
+diff --git a/packages/SettingsLib/CollapsingToolbarBaseActivity/src/com/android/settingslib/collapsingtoolbar/EdgeToEdgeUtils.java b/packages/SettingsLib/CollapsingToolbarBaseActivity/src/com/android/settingslib/collapsingtoolbar/EdgeToEdgeUtils.java
+index c9dc0644ce55..8146a99827b1 100644
+--- a/packages/SettingsLib/CollapsingToolbarBaseActivity/src/com/android/settingslib/collapsingtoolbar/EdgeToEdgeUtils.java
++++ b/packages/SettingsLib/CollapsingToolbarBaseActivity/src/com/android/settingslib/collapsingtoolbar/EdgeToEdgeUtils.java
+@@ -60,7 +60,8 @@ public class EdgeToEdgeUtils {
+                             .getInsets(WindowInsetsCompat.Type.statusBars()).top;
+                     // Apply the insets paddings to the view.
+                     v.setPadding(insets.left, statusBarHeight, insets.right, insets.bottom);
+-                    ((ViewGroup)v).setClipToPadding(false);
++                    // Kompakt: clip to the padding, or rows scrolled past the top are drawn in the status bar strip.
++                    ((ViewGroup)v).setClipToPadding(true);
+                     ((ViewGroup)v).setClipChildren(false);
+ 
+                     // Return CONSUMED if you don't want the window insets to keep being
+diff --git a/packages/SettingsLib/MainSwitchPreference/res/drawable-v31/settingslib_switch_bar_bg_on.xml b/packages/SettingsLib/MainSwitchPreference/res/drawable-v31/settingslib_switch_bar_bg_on.xml
+index 250188b892f4..afcdd358f3a2 100644
+--- a/packages/SettingsLib/MainSwitchPreference/res/drawable-v31/settingslib_switch_bar_bg_on.xml
++++ b/packages/SettingsLib/MainSwitchPreference/res/drawable-v31/settingslib_switch_bar_bg_on.xml
+@@ -1,4 +1,5 @@
+ <?xml version="1.0" encoding="utf-8"?>
++<!-- Kompakt: outlined, because the fill is now the ground. -->
+ <!--
+   Copyright (C) 2021 The Android Open Source Project
+ 
+@@ -20,6 +21,7 @@
+     <item>
+         <shape android:shape="rectangle">
+             <solid android:color="@color/settingslib_state_on_color"/>
++            <stroke android:width="2dp" android:color="@*android:color/system_on_surface_light" />
+             <corners android:radius="@dimen/settingslib_switch_bar_radius"/>
+         </shape>
+     </item>
+diff --git a/packages/SettingsLib/MainSwitchPreference/res/drawable-v36/settingslib_expressive_switch_bar_bg.xml b/packages/SettingsLib/MainSwitchPreference/res/drawable-v36/settingslib_expressive_switch_bar_bg.xml
+index bef623bb5d06..27d9c330ad43 100644
+--- a/packages/SettingsLib/MainSwitchPreference/res/drawable-v36/settingslib_expressive_switch_bar_bg.xml
++++ b/packages/SettingsLib/MainSwitchPreference/res/drawable-v36/settingslib_expressive_switch_bar_bg.xml
+@@ -1,4 +1,5 @@
+ <?xml version="1.0" encoding="utf-8"?>
++<!-- Kompakt: outlined, because the fill is now the ground. -->
+ <!--
+   Copyright (C) 2024 The Android Open Source Project
+ 
+@@ -20,6 +21,7 @@
+     <item>
+         <shape android:shape="rectangle">
+             <solid android:color="@color/settingslib_expressive_color_main_switch_bar_bg"/>
++            <stroke android:width="2dp" android:color="@*android:color/system_on_surface_light" />
+             <corners android:radius="@dimen/settingslib_expressive_radius_extralarge3"/>
+         </shape>
+     </item>
+diff --git a/packages/SystemUI/AndroidManifest.xml b/packages/SystemUI/AndroidManifest.xml
+index 5cc3fbf30900..be3f31e422a0 100644
+--- a/packages/SystemUI/AndroidManifest.xml
++++ b/packages/SystemUI/AndroidManifest.xml
+@@ -565,6 +565,19 @@
+                 android:permission="android.permission.BIND_WALLPAPER"
+                 android:exported="true" />
+ 
++        <!-- Kompakt: the default wallpaper, white or black with the ui mode. -->
++        <service android:name=".wallpapers.KompaktPaperWallpaper"
++            android:label="@string/kompakt_paper_wallpaper"
++            android:singleUser="true"
++            android:permission="android.permission.BIND_WALLPAPER"
++            android:exported="true">
++            <intent-filter>
++                <action android:name="android.service.wallpaper.WallpaperService" />
++            </intent-filter>
++            <meta-data android:name="android.service.wallpaper"
++                android:resource="@xml/kompakt_paper_wallpaper" />
++        </service>
++
+         <service android:name=".wallpapers.GradientColorWallpaper"
+             android:singleUser="true"
+             android:permission="android.permission.BIND_WALLPAPER"
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/notifications/ui/composable/Notifications.kt b/packages/SystemUI/compose/features/src/com/android/systemui/notifications/ui/composable/Notifications.kt
+index 4f32a353e234..ca59629a08a7 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/notifications/ui/composable/Notifications.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/notifications/ui/composable/Notifications.kt
+@@ -842,7 +827,7 @@ private fun ContentScope.NotificationPlaceholder(
+     useStackBounds: () -> Boolean,
+     modifier: Modifier = Modifier,
+ ) {
+-    // Kompakt: remember the last position and apply it once useStackBounds is true.
++    // Kompakt: remember the last position and apply it once useStackBounds is true.
+     var lastStackTop: Float? by remember { mutableStateOf(null) }
+     val useBoundsNow = useStackBounds()
+     LaunchedEffect(useBoundsNow, lastStackTop) {
+@@ -882,8 +867,7 @@ private fun ContentScope.NotificationPlaceholder(
+                     val useBounds = useStackBounds()
+                     // NOTE: positionInWindow.y scrolls off screen, but boundsInWindow.top won't
+                     val positionInWindow = coordinates.positionInWindow()
+-                    // Kompakt: kept even when it cannot be used yet, so the effect
+-                    // above can apply it once useStackBounds turns true.
++                    // Kompakt: kept even when it cannot be used yet, so the effect above can apply it once useStackBounds turns true.
+                     lastStackTop = positionInWindow.y
+                     if (useBounds) {
+                         debugLog(viewModel) {
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/qs/footer/ui/compose/FooterActions.kt b/packages/SystemUI/compose/features/src/com/android/systemui/qs/footer/ui/compose/FooterActions.kt
+index 3a28f798e7ec..edaf2dafb27b 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/qs/footer/ui/compose/FooterActions.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/qs/footer/ui/compose/FooterActions.kt
+@@ -387,13 +387,13 @@ private fun IconButton(
+     useModifierBasedExpandable: Boolean,
+     modifier: Modifier = Modifier,
+ ) {
+-    // Kompakt: outline, never invert.
++    // Kompakt: outline, never invert.
+     val face = MaterialTheme.colorScheme.surface
+     val ink = MaterialTheme.colorScheme.onSurface
+     CircleExpandable(
+         color = face,
+         contentColor = ink,
+-        borderStroke = BorderStroke(1.dp, ink),
++        borderStroke = BorderStroke(2.dp, ink),
+         onClick = model.onClick,
+         modifier = modifier,
+         useModifierBasedImplementation = useModifierBasedExpandable,
+@@ -715,7 +715,8 @@ private object FooterActionsDefaults {
+         TextButtonColors(
+             content = MaterialTheme.colorScheme.onSurface,
+             background = LocalAndroidColorScheme.current.surfaceEffect1,
+-            border = null,
++            // Kompakt: a border, so the footer buttons show in the split shade.
++            border = BorderStroke(2.dp, MaterialTheme.colorScheme.onSurface),
+         )
+ 
+     @Composable
+@@ -724,7 +725,7 @@ private object FooterActionsDefaults {
+         TextButtonColors(
+             content = colorAttr(R.attr.onShadeInactiveVariant),
+             background = colorAttr(R.attr.underSurface),
+-            border = BorderStroke(1.dp, colorAttr(R.attr.shadeInactive)),
++            border = BorderStroke(2.dp, colorAttr(R.attr.shadeInactive)),
+         )
+ 
+     @Composable
+@@ -733,6 +734,6 @@ private object FooterActionsDefaults {
+         TextButtonColors(
+             content = colorAttr(R.attr.onShadeInactiveVariant),
+             background = colorAttr(R.attr.shadeInactive),
+-            border = null,
++            border = BorderStroke(2.dp, colorAttr(R.attr.onShadeInactiveVariant)),
+         )
+ }
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/qs/ui/composable/QuickSettingsShadeOverlay.kt b/packages/SystemUI/compose/features/src/com/android/systemui/qs/ui/composable/QuickSettingsShadeOverlay.kt
+index c240400874cd..88e15d0a18b5 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/qs/ui/composable/QuickSettingsShadeOverlay.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/qs/ui/composable/QuickSettingsShadeOverlay.kt
+@@ -353,9 +353,9 @@ private fun ContentScope.QuickSettingsLayout(
+                 ),
+     ) {
+         // Kompakt: no carrier header row.
+         VerticalSeparator(QuickSettingsShade.Dimensions.Padding)
+ 
+-        // weight(1f): the toolbar sits on the bottom edge.
++        // weight(1f): the toolbar sits on the bottom edge.
+         Column(
+             modifier =
+                 Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState())
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/ShadeHeader.kt b/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/ShadeHeader.kt
+index 605e2dbc30e5..b535e775a28b 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/ShadeHeader.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/ShadeHeader.kt
+@@ -80,6 +80,7 @@ import com.android.compose.modifiers.thenIf
+ import com.android.internal.policy.SystemBarUtils
+ import com.android.settingslib.Utils
+ import com.android.systemui.battery.BatteryMeterView
++import com.android.systemui.statusbar.phone.domain.interactor.IsAreaDark
+ import com.android.systemui.battery.BatteryMeterViewController
+ import com.android.systemui.common.ui.compose.windowinsets.CutoutLocation
+ import com.android.systemui.common.ui.compose.windowinsets.LocalDisplayCutout
+@@ -363,7 +364,7 @@ fun ContentScope.OverlayShadeHeader(
+                     modifier =
+                         Modifier.align(Alignment.CenterStart)
+                             .bouncy(
+-                                // Kompakt: never bounce.
++                                // Kompakt: never bounce.
+                                 isEnabled = false,
+                                 onBoundsChange = { bounds ->
+                                     viewModel.onDualShadeEducationElementBoundsChange(
+@@ -573,9 +574,11 @@ private fun BatteryInfo(
+     textColor: Color = MaterialTheme.colorScheme.onSurface,
+ ) {
+     if (NewStatusBarIcons.isEnabled) {
++        // Kompakt: the shade's own theme, not the status bar's.
++        val kompaktDarkTheme = isSystemInDarkTheme()
+         BatteryWithEstimate(
+             viewModelFactory = viewModel.batteryViewModelFactory,
+-            isDarkProvider = { viewModel.isShadeAreaDark },
++            isDarkProvider = { IsAreaDark { kompaktDarkTheme } },
+             showIcon = showIcon,
+             showEstimate = useExpandedFormat,
+             textColor = textColor,
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/ShadeHighlightChip.kt b/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/ShadeHighlightChip.kt
+index 23a854ff0555..2f65334e5375 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/ShadeHighlightChip.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/ShadeHighlightChip.kt
+@@ -51,7 +51,7 @@ sealed interface ChipHighlightModel {
+         @Composable @ReadOnlyComposable get
+ 
+     data object Weak : ChipHighlightModel {
+-        // Kompakt: no fill; partial alpha dithers.
++        // Kompakt: no fill; partial alpha dithers.
+         override val backgroundColor: Color
+             @Composable get() = Color.Transparent
+ 
+@@ -65,11 +65,11 @@ sealed interface ChipHighlightModel {
+     }
+ 
+     data object Strong : ChipHighlightModel {
+-        // Kompakt: no fill.
++        // Kompakt: no fill, for the same reason as Weak.
+         override val backgroundColor: Color
+             @Composable get() = Color.Transparent
+ 
+         // Kompakt: onSurface, not onSecondary, which is white with no fill.
+         override val foregroundColor: Color
+             @Composable get() = MaterialTheme.colorScheme.onSurface
+ 
+@@ -92,7 +92,7 @@ sealed interface ChipHighlightModel {
+         override val foregroundColor: Color
+             @Composable get() = MaterialTheme.colorScheme.onSurface
+ 
+-        // Kompakt: no hover fill.
++        // Kompakt: no hover fill.
+         override val onHoveredBackgroundColor: Color
+             @Composable get() = Color.Transparent
+     }
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/volume/panel/component/volume/ui/composable/VolumeSlider.kt b/packages/SystemUI/compose/features/src/com/android/systemui/volume/panel/component/volume/ui/composable/VolumeSlider.kt
+index 6e3567ca43d2..41d2d17e0fce 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/volume/panel/component/volume/ui/composable/VolumeSlider.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/volume/panel/component/volume/ui/composable/VolumeSlider.kt
+@@ -23,6 +23,7 @@ import androidx.compose.animation.core.tween
+ import androidx.compose.animation.fadeIn
+ import androidx.compose.animation.fadeOut
+ import androidx.compose.foundation.basicMarquee
++import androidx.compose.foundation.border
+ import androidx.compose.foundation.clickable
+ import androidx.compose.foundation.gestures.Orientation
+ import androidx.compose.foundation.interaction.MutableInteractionSource
+@@ -166,46 +167,11 @@ fun VolumeSlider(
+                             colors = materialSliderColors,
+                             isEnabled = state.isEnabled,
+                             trackSize = dimensions.trackHeight,
+-                            activeTrackEndIcon =
+-                                state.icon?.let { icon ->
+-                                    { iconsState ->
+-                                        SliderIcon(
+-                                            icon = {
+-                                                Icon(
+-                                                    icon = icon,
+-                                                    tint = null,
+-                                                    modifier =
+-                                                        Modifier.size(24.dp)
+-                                                            .testTag(
+-                                                                VolumeSlidersMotionTestKeys
+-                                                                    .ACTIVE_ICON_TAG
+-                                                            ),
+-                                                )
+-                                            },
+-                                            isVisible = !iconsState.isInactiveTrackEndIconVisible,
+-                                        )
+-                                    }
+-                                },
+-                            inactiveTrackEndIcon =
+-                                state.icon?.let { icon ->
+-                                    { iconsState ->
+-                                        SliderIcon(
+-                                            icon = {
+-                                                Icon(
+-                                                    icon = icon,
+-                                                    tint = null,
+-                                                    modifier =
+-                                                        Modifier.size(24.dp)
+-                                                            .testTag(
+-                                                                VolumeSlidersMotionTestKeys
+-                                                                    .INACTIVE_ICON_TAG
+-                                                            ),
+-                                                )
+-                                            },
+-                                            isVisible = iconsState.isInactiveTrackEndIconVisible,
+-                                        )
+-                                    }
+-                                },
++                            // Kompakt: a thin square bar, outlined so the empty part shows; no icons inside it.
++                            trackCornerSize = 0.dp,
++                            trackInsideCornerSize = 0.dp,
++                            thumbTrackGapSize = 0.dp,
++                            modifier = Modifier.border(1.dp, MaterialTheme.colorScheme.onSurface),
+                         )
+                     },
+                     thumb = { sliderState, interactionSource ->
+@@ -453,9 +419,9 @@ data class VolumeSliderDimensions(
+ ) {
+     companion object {
+         val Defaults = VolumeSliderDimensions(
+-            thumbHeight = 52.dp,
++            thumbHeight = 28.dp,
+             thumbWidth = 4.dp,
+-            trackHeight = 40.dp,
++            trackHeight = 12.dp,
+             verticalPadding = 4.dp
+         )
+     }
+diff --git a/packages/SystemUI/customization/src/com/android/systemui/shared/clocks/DefaultClockController.kt b/packages/SystemUI/customization/src/com/android/systemui/shared/clocks/DefaultClockController.kt
+index 7b4673f9a44b..67f173aa3f30 100644
+--- a/packages/SystemUI/customization/src/com/android/systemui/shared/clocks/DefaultClockController.kt
++++ b/packages/SystemUI/customization/src/com/android/systemui/shared/clocks/DefaultClockController.kt
+@@ -178,7 +178,31 @@ class DefaultClockController(
+         open fun recomputePadding(targetRegion: Rect?) {}
+ 
+         private fun getAodColor(): Int {
+-            return DOZE_COLOR
++            // Kompakt: the ink of the lock wallpaper, which AOD shows.
++            val colors =
++                try {
++                    val wm = ctx.getSystemService(android.app.WallpaperManager::class.java)
++                    wm?.getWallpaperColors(android.app.WallpaperManager.FLAG_LOCK)
++                        ?: wm?.getWallpaperColors(android.app.WallpaperManager.FLAG_SYSTEM)
++                } catch (t: Throwable) {
++                    null
++                }
++            val dark =
++                if (colors != null) {
++                    val hints = colors.colorHints
++                    when {
++                        (hints and
++                            android.app.WallpaperColors.HINT_SUPPORTS_DARK_TEXT) != 0 -> false
++                        (hints and
++                            android.app.WallpaperColors.HINT_SUPPORTS_DARK_THEME) != 0 -> true
++                        else -> colors.primaryColor.luminance() < 0.5f
++                    }
++                } else {
++                    (ctx.resources.configuration.uiMode and
++                        android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
++                        android.content.res.Configuration.UI_MODE_NIGHT_YES
++                }
++            return if (dark) Color.WHITE else DOZE_COLOR
+         }
+     }
+ 
+diff --git a/packages/SystemUI/res/color/connected_network_primary_color.xml b/packages/SystemUI/res/color/connected_network_primary_color.xml
+index 920047a705e8..8e0d62261041 100644
+--- a/packages/SystemUI/res/color/connected_network_primary_color.xml
++++ b/packages/SystemUI/res/color/connected_network_primary_color.xml
+@@ -14,7 +14,8 @@
+   ~ limitations under the License.
+   -->
+ 
++<!-- Kompakt: the ink, not the ground. -->
+ <selector xmlns:android="http://schemas.android.com/apk/res/android"
+     xmlns:androidprv="http://schemas.android.com/apk/prv/res/android">
+-    <item android:color="@androidprv:color/materialColorOnPrimaryContainer" />
++    <item android:color="@androidprv:color/materialColorOnSurface" />
+ </selector>
+\ No newline at end of file
+diff --git a/packages/SystemUI/res/drawable/connected_display_dialog_bg.xml b/packages/SystemUI/res/drawable/connected_display_dialog_bg.xml
+index 2dce37d11337..fc6a8c527ea3 100644
+--- a/packages/SystemUI/res/drawable/connected_display_dialog_bg.xml
++++ b/packages/SystemUI/res/drawable/connected_display_dialog_bg.xml
+@@ -1,4 +1,5 @@
+ <?xml version="1.0" encoding="utf-8"?>
++<!-- Kompakt: a dialog needs an edge. -->
+ <!-- Copyright (C) 2023 The Android Open Source Project
+ 
+      Licensed under the Apache License, Version 2.0 (the "License");
+@@ -15,9 +16,11 @@
+ -->
+ 
+ <shape xmlns:android="http://schemas.android.com/apk/res/android"
++    xmlns:androidprv="http://schemas.android.com/apk/prv/res/android"
+     android:shape="rectangle">
+     <corners
+         android:topLeftRadius="28dp"
+         android:topRightRadius="28dp"/>
+     <solid android:color="?android:attr/colorBackground" />
++    <stroke android:width="@dimen/kompakt_dialog_outline_width" android:color="@androidprv:color/materialColorOnSurface" />
+ </shape>
+\ No newline at end of file
+diff --git a/packages/SystemUI/res/drawable/contextual_edu_dialog_bg.xml b/packages/SystemUI/res/drawable/contextual_edu_dialog_bg.xml
+index b8911637f300..6a3da39196fd 100644
+--- a/packages/SystemUI/res/drawable/contextual_edu_dialog_bg.xml
++++ b/packages/SystemUI/res/drawable/contextual_edu_dialog_bg.xml
+@@ -20,5 +20,6 @@
+     <shape>
+         <corners android:radius="28dp" />
+         <solid android:color="@androidprv:color/materialColorTertiaryFixed" />
++        <stroke android:width="@dimen/kompakt_dialog_outline_width" android:color="@androidprv:color/materialColorOnSurface" />
+     </shape>
+ </inset>
+\ No newline at end of file
+diff --git a/packages/SystemUI/res/drawable/controls_panel_background.xml b/packages/SystemUI/res/drawable/controls_panel_background.xml
+index fc108a5e1e06..e997e14666d0 100644
+--- a/packages/SystemUI/res/drawable/controls_panel_background.xml
++++ b/packages/SystemUI/res/drawable/controls_panel_background.xml
+@@ -1,4 +1,5 @@
+ <?xml version="1.0" encoding="utf-8"?>
++<!-- Kompakt: a dialog needs an edge. -->
+ <!--
+   ~ Copyright (C) 2022 The Android Open Source Project
+   ~
+@@ -16,7 +17,9 @@
+   ~
+   -->
+ 
+-<shape xmlns:android="http://schemas.android.com/apk/res/android">
++<shape xmlns:android="http://schemas.android.com/apk/res/android"
++    xmlns:androidprv="http://schemas.android.com/apk/prv/res/android">
+     <solid android:color="#1F1F1F" />
++    <stroke android:width="@dimen/kompakt_dialog_outline_width" android:color="@androidprv:color/materialColorOnSurface" />
+     <corners android:radius="@dimen/controls_panel_corner_radius" />
+ </shape>
+\ No newline at end of file
+diff --git a/packages/SystemUI/res/drawable/controls_popup_bg.xml b/packages/SystemUI/res/drawable/controls_popup_bg.xml
+index 34dd6e5f70d9..12b13eeabe8f 100644
+--- a/packages/SystemUI/res/drawable/controls_popup_bg.xml
++++ b/packages/SystemUI/res/drawable/controls_popup_bg.xml
+@@ -1,4 +1,5 @@
+ <?xml version="1.0" encoding="utf-8"?>
++<!-- Kompakt: a dialog needs an edge. -->
+ <!--
+   ~ Copyright (C) 2023 The Android Open Source Project
+   ~
+@@ -16,7 +17,9 @@
+   -->
+ 
+ <shape xmlns:android="http://schemas.android.com/apk/res/android"
++    xmlns:androidprv="http://schemas.android.com/apk/prv/res/android"
+     android:shape="rectangle">
+     <solid android:color="@color/transparent" />
++    <stroke android:width="@dimen/kompakt_dialog_outline_width" android:color="@androidprv:color/materialColorOnSurface" />
+     <corners android:radius="@dimen/control_popup_corner_radius" />
+ </shape>
+diff --git a/packages/SystemUI/res/drawable/global_actions_popup_bg.xml b/packages/SystemUI/res/drawable/global_actions_popup_bg.xml
+index fc781a065527..ea16f552dab7 100644
+--- a/packages/SystemUI/res/drawable/global_actions_popup_bg.xml
++++ b/packages/SystemUI/res/drawable/global_actions_popup_bg.xml
+@@ -1,4 +1,5 @@
+ <?xml version="1.0" encoding="utf-8"?>
++<!-- Kompakt: a dialog needs an edge. -->
+ <!--
+   ~ Copyright (C) 2021 The Android Open Source Project
+   ~
+@@ -15,8 +16,10 @@
+   ~ limitations under the License
+   -->
+ <shape xmlns:android="http://schemas.android.com/apk/res/android"
++    xmlns:androidprv="http://schemas.android.com/apk/prv/res/android"
+        android:shape="rectangle">
+     <solid android:color="?android:attr/colorBackgroundFloating" />
++    <stroke android:width="@dimen/kompakt_dialog_outline_width" android:color="@androidprv:color/materialColorOnSurface" />
+     <corners
+         android:bottomLeftRadius="?android:attr/dialogCornerRadius"
+         android:topLeftRadius="?android:attr/dialogCornerRadius"
+diff --git a/packages/SystemUI/res/drawable/keyguard_settings_popup_menu_background.xml b/packages/SystemUI/res/drawable/keyguard_settings_popup_menu_background.xml
+index fab0cc204e87..b9f6e55841b9 100644
+--- a/packages/SystemUI/res/drawable/keyguard_settings_popup_menu_background.xml
++++ b/packages/SystemUI/res/drawable/keyguard_settings_popup_menu_background.xml
+@@ -21,12 +21,14 @@
+     <item android:id="@android:id/mask">
+         <shape android:shape="rectangle">
+             <solid android:color="@android:color/white"/>
++            <stroke android:width="@dimen/kompakt_dialog_outline_width" android:color="@androidprv:color/materialColorOnSurface" />
+             <corners android:radius="@dimen/keyguard_affordance_fixed_radius" />
+         </shape>
+     </item>
+     <item>
+         <shape android:shape="rectangle">
+             <solid android:color="@androidprv:color/materialColorSecondaryFixed" />
++            <stroke android:width="@dimen/kompakt_dialog_outline_width" android:color="@androidprv:color/materialColorOnSurface" />
+             <corners android:radius="@dimen/keyguard_affordance_fixed_radius" />
+         </shape>
+     </item>
+diff --git a/packages/SystemUI/res/drawable/kompakt_internet_row_connected.xml b/packages/SystemUI/res/drawable/kompakt_internet_row_connected.xml
+new file mode 100644
+index 000000000000..6595b836d902
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/kompakt_internet_row_connected.xml
+@@ -0,0 +1,17 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!--
++     SPDX-FileCopyrightText: The Android Open Source Project
++     SPDX-License-Identifier: Apache-2.0
++-->
++<!-- Kompakt: the connected network row, outlined instead of filled. -->
++<ripple xmlns:android="http://schemas.android.com/apk/res/android"
++    xmlns:androidprv="http://schemas.android.com/apk/prv/res/android"
++    android:color="?android:attr/colorControlHighlight">
++    <item>
++        <shape android:shape="rectangle">
++            <solid android:color="@androidprv:color/materialColorSurface"/>
++            <stroke android:width="2dp" android:color="@androidprv:color/materialColorOnSurface"/>
++            <corners android:radius="@dimen/settingslib_entry_bg_radius"/>
++        </shape>
++    </item>
++</ripple>
+diff --git a/packages/SystemUI/res/drawable/kompakt_offline_card_bar.xml b/packages/SystemUI/res/drawable/kompakt_offline_card_bar.xml
+new file mode 100644
+index 000000000000..bfa1e527cdd6
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/kompakt_offline_card_bar.xml
+@@ -0,0 +1,8 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Kompakt: the offline switch. -->
++<shape xmlns:android="http://schemas.android.com/apk/res/android"
++    android:shape="rectangle">
++    <solid android:color="#FF000000"/>
++    <corners android:radius="2dp"/>
++    <size android:width="4dp" android:height="20dp"/>
++</shape>
+diff --git a/packages/SystemUI/res/drawable/kompakt_offline_card_bg.xml b/packages/SystemUI/res/drawable/kompakt_offline_card_bg.xml
+new file mode 100644
+index 000000000000..f33e3f09c8e8
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/kompakt_offline_card_bg.xml
+@@ -0,0 +1,14 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Kompakt: the offline switch. -->
++<inset xmlns:android="http://schemas.android.com/apk/res/android"
++    android:insetLeft="-2dp">
++    <shape android:shape="rectangle">
++        <solid android:color="#FFFFFFFF"/>
++        <stroke android:width="2dp" android:color="#FF000000"/>
++        <corners
++            android:topLeftRadius="0dp"
++            android:bottomLeftRadius="0dp"
++            android:topRightRadius="12dp"
++            android:bottomRightRadius="12dp"/>
++    </shape>
++</inset>
+diff --git a/packages/SystemUI/res/drawable/kompakt_stat_sys_offline.xml b/packages/SystemUI/res/drawable/kompakt_stat_sys_offline.xml
+new file mode 100644
+index 000000000000..2a980d1fdcb0
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/kompakt_stat_sys_offline.xml
+@@ -0,0 +1,11 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Kompakt: the offline switch. -->
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++    <path
++        android:fillColor="#FFFFFFFF"
++        android:pathData="M24,15c0,-2.64 -2.05,-4.78 -4.65,-4.96C18.67,6.59 15.64,4 12,4c-1.33,0 -2.57,0.36 -3.65,0.97l1.49,1.49C10.51,6.17 11.23,6 12,6c3.04,0 5.5,2.46 5.5,5.5v0.5H19c1.66,0 3,1.34 3,3 0,0.99 -0.48,1.85 -1.21,2.4l1.41,1.41c1.09,-0.92 1.8,-2.27 1.8,-3.81zM3.71,4.56c-0.39,0.39 -0.39,1.02 0,1.41l2.06,2.06h-0.42c-3.28,0.35 -5.76,3.34 -5.29,6.79C0.46,17.84 3.19,20 6.22,20h11.51l1.29,1.29c0.39,0.39 1.02,0.39 1.41,0 0.39,-0.39 0.39,-1.02 0,-1.41L5.12,4.56c-0.39,-0.39 -1.02,-0.39 -1.41,0zM6,18c-2.21,0 -4,-1.79 -4,-4s1.79,-4 4,-4h1.73l8,8H6z"/>
++</vector>
+diff --git a/packages/SystemUI/res/drawable/media_output_dialog_background.xml b/packages/SystemUI/res/drawable/media_output_dialog_background.xml
+index 40bfd83038af..05eb03af4005 100644
+--- a/packages/SystemUI/res/drawable/media_output_dialog_background.xml
++++ b/packages/SystemUI/res/drawable/media_output_dialog_background.xml
+@@ -1,3 +1,4 @@
++<!-- Kompakt: a dialog needs an edge. -->
+ <!--
+   ~ Copyright (C) 2021 The Android Open Source Project
+   ~
+@@ -15,8 +16,10 @@
+   -->
+ 
+ <shape xmlns:android="http://schemas.android.com/apk/res/android"
++    xmlns:androidprv="http://schemas.android.com/apk/prv/res/android"
+        android:shape="rectangle">
+     <corners
+         android:radius="28dp"/>
+     <solid android:color="@color/media_dialog_background" />
++    <stroke android:width="@dimen/kompakt_dialog_outline_width" android:color="@androidprv:color/materialColorOnSurface" />
+ </shape>
+\ No newline at end of file
+diff --git a/packages/SystemUI/res/drawable/media_output_dialog_background_reduced_radius.xml b/packages/SystemUI/res/drawable/media_output_dialog_background_reduced_radius.xml
+index f78212b44828..d552ab5ea8cf 100644
+--- a/packages/SystemUI/res/drawable/media_output_dialog_background_reduced_radius.xml
++++ b/packages/SystemUI/res/drawable/media_output_dialog_background_reduced_radius.xml
+@@ -1,3 +1,4 @@
++<!-- Kompakt: a dialog needs an edge. -->
+ <!--
+   ~ Copyright (C) 2025 The Android Open Source Project
+   ~
+@@ -14,7 +15,9 @@
+   ~ limitations under the License.
+   -->
+ <shape xmlns:android="http://schemas.android.com/apk/res/android"
++    xmlns:androidprv="http://schemas.android.com/apk/prv/res/android"
+     android:shape="rectangle">
+     <corners android:radius="@dimen/media_output_dialog_corner_radius" />
+     <solid android:color="@color/media_dialog_surface_container" />
++    <stroke android:width="@dimen/kompakt_dialog_outline_width" android:color="@androidprv:color/materialColorOnSurface" />
+ </shape>
+\ No newline at end of file
+diff --git a/packages/SystemUI/res/drawable/notification_material_bg.xml b/packages/SystemUI/res/drawable/notification_material_bg.xml
+index 1a1c17cb8042..e0772187f6ba 100644
+--- a/packages/SystemUI/res/drawable/notification_material_bg.xml
++++ b/packages/SystemUI/res/drawable/notification_material_bg.xml
+@@ -21,7 +21,7 @@
+     <item>
+         <shape>
+             <solid android:color="@androidprv:color/materialColorSurfaceContainerHigh" />
+-            <stroke android:width="2.0px" android:color="#ff000000" />
++            <stroke android:width="2.0px" android:color="@color/kompakt_notification_outline" />
+         </shape>
+     </item>
+     <item>
+diff --git a/packages/SystemUI/res/drawable/qs_dialog_bg.xml b/packages/SystemUI/res/drawable/qs_dialog_bg.xml
+index b307781c6ac4..628733991db1 100644
+--- a/packages/SystemUI/res/drawable/qs_dialog_bg.xml
++++ b/packages/SystemUI/res/drawable/qs_dialog_bg.xml
+@@ -1,4 +1,5 @@
+ <?xml version="1.0" encoding="utf-8"?>
++<!-- Kompakt: a dialog needs an edge. -->
+ <!--
+   ~ Copyright (C) 2021 The Android Open Source Project
+   ~
+@@ -16,7 +17,9 @@
+   -->
+ 
+ <shape xmlns:android="http://schemas.android.com/apk/res/android"
++    xmlns:androidprv="http://schemas.android.com/apk/prv/res/android"
+        android:shape="rectangle">
+     <solid android:color="?android:attr/colorBackground" />
++    <stroke android:width="@dimen/kompakt_dialog_outline_width" android:color="@androidprv:color/materialColorOnSurface" />
+     <corners android:radius="?android:attr/dialogCornerRadius" />
+ </shape>
+\ No newline at end of file
+diff --git a/packages/SystemUI/res/drawable/screenrecord_options_spinner_popup_background.xml b/packages/SystemUI/res/drawable/screenrecord_options_spinner_popup_background.xml
+index 323cb77eb37f..79383766b19f 100644
+--- a/packages/SystemUI/res/drawable/screenrecord_options_spinner_popup_background.xml
++++ b/packages/SystemUI/res/drawable/screenrecord_options_spinner_popup_background.xml
+@@ -1,3 +1,4 @@
++<!-- Kompakt: a dialog needs an edge. -->
+ <!--
+   ~ Copyright (C) 2022 The Android Open Source Project
+   ~
+@@ -18,4 +19,5 @@
+         android:shape="rectangle">
+     <corners android:radius="@dimen/screenrecord_spinner_background_radius"/>
+     <solid android:color="@androidprv:color/materialColorSurfaceContainer" />
++    <stroke android:width="@dimen/kompakt_dialog_outline_width" android:color="@androidprv:color/materialColorOnSurface" />
+ </shape>
+\ No newline at end of file
+diff --git a/packages/SystemUI/res/drawable/settingslib_entry_bg_on.xml b/packages/SystemUI/res/drawable/settingslib_entry_bg_on.xml
+index dc1b7a3bd4c9..a789d19a82fe 100644
+--- a/packages/SystemUI/res/drawable/settingslib_entry_bg_on.xml
++++ b/packages/SystemUI/res/drawable/settingslib_entry_bg_on.xml
+@@ -1,26 +1,19 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <!--
+-  Copyright (C) 2025 The Android Open Source Project
+-
+-  Licensed under the Apache License, Version 2.0 (the "License");
+-  you may not use this file except in compliance with the License.
+-  You may obtain a copy of the License at
+-
+-       http://www.apache.org/licenses/LICENSE-2.0
+-
+-  Unless required by applicable law or agreed to in writing, software
+-  distributed under the License is distributed on an "AS IS" BASIS,
+-  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-  See the License for the specific language governing permissions and
+-  limitations under the License.
+-  -->
++     SPDX-FileCopyrightText: The Android Open Source Project
++     SPDX-License-Identifier: Apache-2.0
++-->
++<!--
++     Kompakt: the connected entry is outlined, not filled.
+ 
++-->
+ <ripple xmlns:android="http://schemas.android.com/apk/res/android"
+     xmlns:androidprv="http://schemas.android.com/apk/prv/res/android"
+     android:color="?android:attr/colorControlHighlight">
+     <item>
+         <shape android:shape="rectangle">
+-            <solid android:color="@androidprv:color/materialColorPrimary"/>
++            <solid android:color="@androidprv:color/materialColorSurface"/>
++            <stroke android:width="2dp" android:color="@androidprv:color/materialColorOnSurface"/>
+             <corners android:radius="@dimen/settingslib_entry_bg_radius"/>
+         </shape>
+     </item>
+diff --git a/packages/SystemUI/res/drawable/volume_dialog_background.xml b/packages/SystemUI/res/drawable/volume_dialog_background.xml
+index cd0e2c076cef..e1660d0e18a5 100644
+--- a/packages/SystemUI/res/drawable/volume_dialog_background.xml
++++ b/packages/SystemUI/res/drawable/volume_dialog_background.xml
+@@ -19,4 +19,5 @@
+     android:shape="rectangle">
+     <corners android:radius="@dimen/volume_dialog_background_corner_radius"/>
+     <solid android:color="@androidprv:color/materialColorSurface" />
++    <stroke android:width="@dimen/kompakt_dialog_outline_width" android:color="@androidprv:color/materialColorOnSurface" />
+ </shape>
+diff --git a/packages/SystemUI/res/drawable/volume_dialog_ringer_background.xml b/packages/SystemUI/res/drawable/volume_dialog_ringer_background.xml
+index 6a706f739267..370b70522568 100644
+--- a/packages/SystemUI/res/drawable/volume_dialog_ringer_background.xml
++++ b/packages/SystemUI/res/drawable/volume_dialog_ringer_background.xml
+@@ -19,4 +19,5 @@
+     android:shape="rectangle">
+     <corners android:radius="@dimen/volume_dialog_background_corner_radius"/>
+     <solid android:color="@androidprv:color/materialColorSurface" />
++    <stroke android:width="@dimen/kompakt_dialog_outline_width" android:color="@androidprv:color/materialColorOnSurface" />
+ </shape>
+\ No newline at end of file
+diff --git a/packages/SystemUI/res/layout/internet_connectivity_details.xml b/packages/SystemUI/res/layout/internet_connectivity_details.xml
+index 4c499e91a8e5..a9e411a81e43 100644
+--- a/packages/SystemUI/res/layout/internet_connectivity_details.xml
++++ b/packages/SystemUI/res/layout/internet_connectivity_details.xml
+@@ -66,7 +66,7 @@
+                     android:baselineAligned="false"
+                     android:layout_height="@dimen/tile_details_toggle_row_height"
+                     style="@style/InternetDialog.Network"
+-                    android:background="@drawable/settingslib_switch_bar_bg_on"
++                    android:background="@drawable/kompakt_internet_row_connected"
+                     android:visibility="gone">
+ 
+                     <FrameLayout
+@@ -275,7 +275,7 @@
+                     android:layout_height="@dimen/internet_dialog_wifi_network_height"
+                     android:paddingStart="20dp"
+                     android:paddingEnd="24dp"
+-                    android:background="@drawable/settingslib_switch_bar_bg_on"
++                    android:background="@drawable/kompakt_internet_row_connected"
+                     android:visibility="gone">
+ 
+                     <FrameLayout
+diff --git a/packages/SystemUI/res/layout/internet_connectivity_dialog.xml b/packages/SystemUI/res/layout/internet_connectivity_dialog.xml
+index 67e97010ff22..a9446c2e490b 100644
+--- a/packages/SystemUI/res/layout/internet_connectivity_dialog.xml
++++ b/packages/SystemUI/res/layout/internet_connectivity_dialog.xml
+@@ -93,7 +93,7 @@
+                 <LinearLayout
+                     android:id="@+id/ethernet_layout"
+                     style="@style/InternetDialog.Network"
+-                    android:background="@drawable/settingslib_switch_bar_bg_on"
++                    android:background="@drawable/kompakt_internet_row_connected"
+                     android:visibility="gone">
+ 
+                     <FrameLayout
+@@ -253,7 +253,7 @@
+                     android:layout_height="@dimen/internet_dialog_wifi_network_height"
+                     android:paddingStart="20dp"
+                     android:paddingEnd="24dp"
+-                    android:background="@drawable/settingslib_switch_bar_bg_on"
++                    android:background="@drawable/kompakt_internet_row_connected"
+                     android:visibility="gone">
+ 
+                     <FrameLayout
+diff --git a/packages/SystemUI/res/layout/kompakt_offline_card.xml b/packages/SystemUI/res/layout/kompakt_offline_card.xml
+new file mode 100644
+index 000000000000..10548bc7295a
+--- /dev/null
++++ b/packages/SystemUI/res/layout/kompakt_offline_card.xml
+@@ -0,0 +1,61 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Kompakt: the offline switch. -->
++<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
++    android:layout_width="wrap_content"
++    android:layout_height="wrap_content"
++    android:orientation="vertical"
++    android:background="@drawable/kompakt_offline_card_bg"
++    android:paddingStart="14dp"
++    android:paddingEnd="22dp"
++    android:paddingTop="10dp"
++    android:paddingBottom="10dp">
++
++    <LinearLayout
++        android:layout_width="match_parent"
++        android:layout_height="28dp"
++        android:gravity="center_vertical"
++        android:orientation="horizontal"
++        android:layout_marginBottom="6dp">
++        <ImageView
++            android:id="@+id/kompakt_offline_connected_bar"
++            android:layout_width="4dp"
++            android:layout_height="20dp"
++            android:src="@drawable/kompakt_offline_card_bar"
++            android:importantForAccessibility="no"/>
++        <TextView
++            android:id="@+id/kompakt_offline_connected_text"
++            android:layout_width="wrap_content"
++            android:layout_height="wrap_content"
++            android:layout_marginStart="10dp"
++            android:fontFamily="@*android:string/config_bodyFontFamily"
++            android:text="@string/kompakt_offline_connected"
++            android:textColor="#FF000000"
++            android:textSize="18sp"
++            android:maxLines="1"
++            android:includeFontPadding="false"/>
++    </LinearLayout>
++
++    <LinearLayout
++        android:layout_width="match_parent"
++        android:layout_height="28dp"
++        android:gravity="center_vertical"
++        android:orientation="horizontal">
++        <ImageView
++            android:id="@+id/kompakt_offline_offline_bar"
++            android:layout_width="4dp"
++            android:layout_height="20dp"
++            android:src="@drawable/kompakt_offline_card_bar"
++            android:importantForAccessibility="no"/>
++        <TextView
++            android:id="@+id/kompakt_offline_offline_text"
++            android:layout_width="wrap_content"
++            android:layout_height="wrap_content"
++            android:layout_marginStart="10dp"
++            android:fontFamily="@*android:string/config_bodyFontFamily"
++            android:text="@string/kompakt_offline_mode"
++            android:textColor="#FF000000"
++            android:textSize="18sp"
++            android:maxLines="1"
++            android:includeFontPadding="false"/>
++    </LinearLayout>
++</LinearLayout>
+diff --git a/packages/SystemUI/res/values/colors.xml b/packages/SystemUI/res/values/colors.xml
+index 770551804606..b80519807802 100644
+--- a/packages/SystemUI/res/values/colors.xml
++++ b/packages/SystemUI/res/values/colors.xml
+@@ -268,7 +268,8 @@
+     <color name="settingslib_state_on_color">@color/settingslib_state_on</color>
+     <!-- Material next track off color-->
+     <color name="settingslib_track_off_color">@color/settingslib_track_off</color>
+-    <color name="connected_network_secondary_color">#41493D</color>
++    <!-- Kompakt: was #41493D, a mid olive that dithers into texture here. -->
++    <color name="connected_network_secondary_color">@androidprv:color/materialColorOnSurface</color>
+ 
+     <!-- Dream overlay text shadows -->
+     <color name="dream_overlay_clock_key_text_shadow_color">#4D000000</color>
+diff --git a/packages/SystemUI/res/values/config.xml b/packages/SystemUI/res/values/config.xml
+index a7e10fe8905f..7d0d9b5fce3f 100644
+--- a/packages/SystemUI/res/values/config.xml
++++ b/packages/SystemUI/res/values/config.xml
+@@ -102,12 +102,12 @@
+ 
+     <!-- The default tiles to display in QuickSettings -->
+     <string name="quick_settings_tiles_default" translatable="false">
+-        internet,bt,flashlight,dnd,alarm,airplane,controls,wallet,rotation,battery,cast,screenrecord,mictoggle,cameratoggle,custom(com.android.permissioncontroller/.permission.service.v33.SafetyCenterQsTileService)
++        internet,bt,flashlight,dnd,alarm,airplane,controls,wallet,rotation,battery,screenrecord,mictoggle,cameratoggle,custom(com.android.permissioncontroller/.permission.service.v33.SafetyCenterQsTileService)
+     </string>
+ 
+     <!-- The default tiles to display in QuickSettings with the new UI -->
+     <string name="quick_settings_tiles_new_default" translatable="false">
+-        internet,bt,dnd,cast,flashlight,airplane,rotation,wallet,alarm,controls,screenrecord,battery
++        internet,bt,dnd,flashlight,airplane,rotation,alarm,aod,dark,screenrecord,battery,custom(com.kompakt.service/.WarmTorchTileService),custom(com.kompakt.service/.WidthTileService),custom(com.kompakt.service/.EinkTileService)
+     </string>
+ 
+     <!-- The class path of the Safety Quick Settings Tile -->
+@@ -120,7 +120,7 @@
+ 
+     <!-- Tiles native to System UI. Order should match "quick_settings_tiles_default" -->
+     <string name="quick_settings_tiles_stock" translatable="false">
+-        internet,wifi,cell,bt,flashlight,dnd,modes_dnd,alarm,airplane,nfc,controls,wallet,rotation,battery,cast,screenrecord,mictoggle,cameratoggle,location,hotspot,inversion,saver,dark,work,night,reverse,reduce_brightness,qr_code_scanner,onehanded,color_correction,dream,font_scaling,record_issue,hearing_devices,notes,desktopeffects,ambient_display,aod,caffeine,heads_up,powershare,profiles,reading_mode,sync,usb_tether,vpn
++        internet,wifi,cell,bt,flashlight,dnd,modes_dnd,alarm,airplane,nfc,controls,wallet,rotation,battery,screenrecord,mictoggle,cameratoggle,location,hotspot,inversion,saver,dark,work,night,reverse,reduce_brightness,qr_code_scanner,onehanded,color_correction,dream,font_scaling,record_issue,hearing_devices,notes,desktopeffects,ambient_display,aod,caffeine,heads_up,powershare,profiles,reading_mode,sync,usb_tether,vpn
+     </string>
+ 
+     <!-- The tiles to display in QuickSettings -->
+diff --git a/packages/SystemUI/res/values/dimens.xml b/packages/SystemUI/res/values/dimens.xml
+index 26ffada7a017..87a6ec95fd8a 100644
+--- a/packages/SystemUI/res/values/dimens.xml
++++ b/packages/SystemUI/res/values/dimens.xml
+@@ -2297,4 +2297,6 @@
+     <dimen name="tile_details_entry_start_margin">16dp</dimen>
+     <!-- Tile Details end -->
+ 
++    <!-- Kompakt: one weight for every dialog edge. -->
++    <dimen name="kompakt_dialog_outline_width">2dp</dimen>
+ </resources>
+diff --git a/packages/SystemUI/res/values/kompakt_offline.xml b/packages/SystemUI/res/values/kompakt_offline.xml
+new file mode 100644
+index 000000000000..7d9d1cc57c41
+--- /dev/null
++++ b/packages/SystemUI/res/values/kompakt_offline.xml
+@@ -0,0 +1,9 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Kompakt: the offline switch. -->
++<resources>
++    <!-- Slot name. -->
++    <string name="kompakt_offline_slot" translatable="false">kompakt_offline</string>
++    <string name="kompakt_offline_mode">Offline</string>
++    <string name="kompakt_offline_connected">Online</string>
++    <string name="kompakt_offline_icon_desc">Offline</string>
++</resources>
+diff --git a/packages/SystemUI/res/values/kompakt_wallpaper.xml b/packages/SystemUI/res/values/kompakt_wallpaper.xml
+new file mode 100644
+index 000000000000..9083ca8a5562
+--- /dev/null
++++ b/packages/SystemUI/res/values/kompakt_wallpaper.xml
+@@ -0,0 +1,5 @@
++<?xml version="1.0" encoding="utf-8"?>
++<resources>
++    <!-- Kompakt: the plain paper wallpaper's name in the picker. -->
++    <string name="kompakt_paper_wallpaper">Paper</string>
++</resources>
+diff --git a/packages/SystemUI/res/values/styles.xml b/packages/SystemUI/res/values/styles.xml
+index e32aab4a6313..be5551bc6265 100644
+--- a/packages/SystemUI/res/values/styles.xml
++++ b/packages/SystemUI/res/values/styles.xml
+@@ -1494,7 +1494,8 @@
+ 
+     <style name="InternetDialog.NetworkTitle.Active">
+         <item name="android:textAppearance">@style/TextAppearance.InternetDialog.Active</item>
+-        <item name="android:textColor">@androidprv:color/materialColorOnPrimaryContainer</item>
++        <!-- Kompakt: the row is outlined, so its text is the ordinary ink. -->
++        <item name="android:textColor">@androidprv:color/materialColorOnSurface</item>
+     </style>
+ 
+     <style name="InternetDialog.NetworkSummary">
+@@ -1507,7 +1508,8 @@
+     <style name="InternetDialog.NetworkSummary.Active">
+         <item name="android:textAppearance">@style/TextAppearance.InternetDialog.Secondary.Active
+         </item>
+-        <item name="android:textColor">@androidprv:color/materialColorOnPrimaryContainer</item>
++        <!-- Kompakt: see InternetDialog.NetworkTitle.Active. -->
++        <item name="android:textColor">@androidprv:color/materialColorOnSurface</item>
+     </style>
+ 
+     <style name="TextAppearance.InternetDialog">
+@@ -1782,7 +1784,8 @@
+ 
+     <style name="InternetDetails.EntryTitle.Active">
+         <item name="android:textAppearance">@style/TextAppearance.TileDetailsEntryTitle.Active</item>
+-        <item name="android:textColor">@androidprv:color/materialColorOnPrimary</item>
++        <!-- Kompakt: the row is outlined rather than filled, so its text is the ordinary ink. -->
++        <item name="android:textColor">@androidprv:color/materialColorOnSurface</item>
+     </style>
+ 
+     <style name="InternetDetails.EntrySubTitle">
+@@ -1798,6 +1801,7 @@
+ 
+     <style name="InternetDetails.EntrySubTitle.Active">
+         <item name="android:textAppearance">@style/TextAppearance.TileDetailsEntrySubTitle.Active</item>
+-        <item name="android:textColor">@androidprv:color/materialColorOnPrimary</item>
++        <!-- Kompakt: see InternetDetails.EntryTitle.Active. -->
++        <item name="android:textColor">@androidprv:color/materialColorOnSurface</item>
+     </style>
+ </resources>
+diff --git a/packages/SystemUI/res/xml/kompakt_paper_wallpaper.xml b/packages/SystemUI/res/xml/kompakt_paper_wallpaper.xml
+new file mode 100644
+index 000000000000..1a48de534242
+--- /dev/null
++++ b/packages/SystemUI/res/xml/kompakt_paper_wallpaper.xml
+@@ -0,0 +1,6 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Kompakt: the plain paper wallpaper. -->
++<wallpaper
++    xmlns:android="http://schemas.android.com/apk/res/android"
++    android:showMetadataInPreview="false"
++    android:supportsMultipleDisplays="true" />
+diff --git a/packages/SystemUI/shared/src/com/android/systemui/shared/statusbar/phone/BarTransitions.java b/packages/SystemUI/shared/src/com/android/systemui/shared/statusbar/phone/BarTransitions.java
+index f2c927602b7c..977462cd0436 100644
+--- a/packages/SystemUI/shared/src/com/android/systemui/shared/statusbar/phone/BarTransitions.java
++++ b/packages/SystemUI/shared/src/com/android/systemui/shared/statusbar/phone/BarTransitions.java
+@@ -19,6 +19,7 @@ package com.android.systemui.shared.statusbar.phone;
+ import android.annotation.ColorInt;
+ import android.annotation.IntDef;
+ import android.content.Context;
++import android.content.res.Configuration;
+ import android.content.res.Resources;
+ import android.content.res.TypedArray;
+ import android.graphics.Canvas;
+@@ -158,6 +159,8 @@ public class BarTransitions {
+     }
+ 
+     protected static class BarBackgroundDrawable extends Drawable {
++        private final Context mContext;
++        private final boolean mDebugColors;
+         private final int mOpaque;
+         private final int mSemiTransparent;
+         private final int mTransparent;
+@@ -182,13 +185,15 @@ public class BarTransitions {
+ 
+         public BarBackgroundDrawable(Context context, int gradientResourceId) {
+             final Resources res = context.getResources();
++            mContext = context;
++            mDebugColors = DEBUG_COLORS;
+             if (DEBUG_COLORS) {
+                 mOpaque = 0xff0000ff;
+                 mSemiTransparent = 0x7f0000ff;
+                 mTransparent = 0x2f0000ff;
+                 mWarning = 0xffff0000;
+             } else {
+-                // e-ink: opaque white bars; the overlay cannot reach this ColorStateList.
++                // e-ink: paper status and navigation bars, opaque in every state; see paper().
+                 mOpaque = 0xFFFFFFFE;
+                 mSemiTransparent = 0xFFFFFFFE;
+                 mTransparent = SYSTEM_BAR_BACKGROUND_TRANSPARENT;
+@@ -205,6 +210,14 @@ public class BarTransitions {
+             mFrame = frame;
+         }
+ 
++        // Kompakt: black in dark mode, white in light, read at draw time so a mode switch applies.
++        private int paper(int color) {
++            if (mDebugColors || color == mTransparent || color == mWarning) return color;
++            final boolean night = (mContext.getResources().getConfiguration().uiMode
++                    & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
++            return night ? 0xFF000000 : 0xFFFFFFFE;
++        }
++
+         public void setOverrideAlpha(float overrideAlpha) {
+             mOverrideAlpha = overrideAlpha;
+             invalidateSelf();
+@@ -297,6 +310,7 @@ public class BarTransitions {
+             } else {
+                 targetColor = mOpaque;
+             }
++            targetColor = paper(targetColor);
+ 
+             if (!mAnimating) {
+                 mColor = targetColor;
+diff --git a/packages/SystemUI/src/com/android/keyguard/NumPadAnimator.java b/packages/SystemUI/src/com/android/keyguard/NumPadAnimator.java
+index 19af592b98d7..3eee80e87022 100644
+--- a/packages/SystemUI/src/com/android/keyguard/NumPadAnimator.java
++++ b/packages/SystemUI/src/com/android/keyguard/NumPadAnimator.java
+@@ -202,7 +191,7 @@ class NumPadAnimator {
+ 
+         mExpandAnimatorSet = new AnimatorSet();
+         mExpandAnimatorSet.playTogether(expandAnimators);
+-        // e-ink: instant. The set's duration overrides every child animator.
++        // e-ink: instant.
+         mExpandAnimatorSet.setDuration(0);
+ 
+         List<Animator> contractAnimators = new ArrayList<>();
+diff --git a/packages/SystemUI/src/com/android/systemui/brightness/ui/compose/BrightnessSlider.kt b/packages/SystemUI/src/com/android/systemui/brightness/ui/compose/BrightnessSlider.kt
+index 7bf39b931f3b..34236b298351 100644
+--- a/packages/SystemUI/src/com/android/systemui/brightness/ui/compose/BrightnessSlider.kt
++++ b/packages/SystemUI/src/com/android/systemui/brightness/ui/compose/BrightnessSlider.kt
+@@ -30,6 +30,7 @@ import androidx.compose.animation.core.VectorConverter
+ import androidx.compose.animation.core.animateDpAsState
+ import androidx.compose.animation.core.animateFloatAsState
+ import androidx.compose.animation.core.tween
++import androidx.compose.foundation.border
+ import androidx.compose.foundation.background
+ import androidx.compose.foundation.clickable
+ import androidx.compose.foundation.gestures.Orientation
+@@ -115,6 +116,7 @@ import com.android.systemui.brightness.ui.compose.AnimationSpecs.IconDisappearSp
+ import com.android.systemui.brightness.ui.compose.Dimensions.IconPadding
+ import com.android.systemui.brightness.ui.compose.Dimensions.IconSize
+ import com.android.systemui.brightness.ui.compose.Dimensions.SliderBackgroundFrameSize
++import com.android.systemui.brightness.ui.compose.Dimensions.KompaktSliderVerticalPadding
+ import com.android.systemui.brightness.ui.compose.Dimensions.SliderBackgroundRoundedCorner
+ import com.android.systemui.brightness.ui.compose.Dimensions.ThumbHeight
+ import com.android.systemui.brightness.ui.compose.Dimensions.KompaktDotRadius
+@@ -209,8 +211,7 @@ fun BrightnessSlider(
+         }
+     val activeIconColor = colors.activeTickColor
+     val inactiveIconColor = colors.inactiveTickColor
+-    // Read out here because the track is drawn in a DrawScope, which cannot ask
+-    // a composable for anything.
++    // Read out here because the track is drawn in a DrawScope, which cannot ask a composable for anything.
+     val activeTrackColor = colors.activeTrackColor
+     val inactiveTrackColor = colors.inactiveTrackColor
+     // Offset from the right
+@@ -260,7 +261,7 @@ fun BrightnessSlider(
+         verticalAlignment = Alignment.CenterVertically,
+         modifier = modifier
+     ) {
+-        // Kompakt: box the Slider so the icon's tap target stays on the track.
++        // Kompakt: box the Slider so the icon's tap target stays on the track.
+         Box(modifier = Modifier.weight(1f)) {
+             Slider(
+                 value = animatedValue,
+@@ -305,7 +306,7 @@ fun BrightnessSlider(
+                         },
+                 interactionSource = interactionSource,
+                 thumb = {
+-                    // Kompakt: no thumb.
++                    // Kompakt: no thumb.
+                     Spacer(Modifier.width(0.dp).height(0.dp))
+                 },
+                 track = { sliderState ->
+@@ -359,7 +360,7 @@ fun BrightnessSlider(
+                                 }
+                                 .height(TrackHeight)
+                                 .drawWithContent {
+-                                    // Kompakt: the track is one pill drawn here; drawContent() is not called.
++                                    // Kompakt: the track is one pill drawn here; drawContent() is not called.
+                                     val pill =
+                                         Path().apply {
+                                             addRoundRect(
+@@ -385,7 +386,7 @@ fun BrightnessSlider(
+                                     clipPath(pill) {
+                                         drawRect(color = inactiveTrackColor, size = size)
+ 
+-                                        // Dots for the whole length, so they stay put as the level moves.
++                                        // Dots for the whole length, so they stay put as the level moves.
+                                         val step = KompaktDotSpacing.toPx()
+                                         val dotRadius = KompaktDotRadius.toPx()
+                                         var y = step / 2f
+@@ -410,7 +411,7 @@ fun BrightnessSlider(
+                                             y += step
+                                         }
+ 
+-                                        // The level, over the dots.
++                                        // The level, over the dots.
+                                         val fillEnd =
+                                             size.width * sliderState.coercedValueAsFraction
+                                         if (fillEnd > 0f) {
+@@ -424,7 +425,7 @@ fun BrightnessSlider(
+                                         }
+                                     }
+ 
+-                                    // Kompakt: outline the pill, inset by half the stroke.
++                                    // Kompakt: outline the pill.
+                                     val strokePx = KompaktTrackStroke.toPx()
+                                     val halfStroke = strokePx / 2f
+                                     drawRoundRect(
+@@ -574,11 +568,18 @@ private fun drawAutoBrightnessButton(
+         HapticFeedbackConstants.TOGGLE_ON
+     }
+ 
++    // Kompakt: a border, or the button is white on white when off.
++    val kompaktBorder = MaterialTheme.colorScheme.onSurface
+     Box(
+         modifier = Modifier
+             .size(45.dp)
+             .clip(RoundedCornerShape(animatedCornerRadius))
+             .background(backgroundColor)
++            .border(
++                width = 2.dp,
++                color = kompaktBorder,
++                shape = RoundedCornerShape(animatedCornerRadius),
++            )
+             .clickable(
+                 interactionSource = remember { MutableInteractionSource() },
+                 indication = null, // Disable ripple effect
+@@ -631,7 +632,7 @@ fun BrightnessSliderContainer(
+     Box(
+         modifier =
+             modifier
+-                .padding(vertical = { SliderBackgroundFrameSize.height.roundToPx() })
++                .padding(vertical = { KompaktSliderVerticalPadding.roundToPx() })
+                 .fillMaxWidth()
+                 .sysuiResTag("brightness_slider")
+     ) {
+@@ -710,16 +709,19 @@ private val KompaktBrightnessSteps = listOf(1f, 0.75f, 0.5f, 0.25f, 0f)
+ private object Dimensions {
+     val SliderBackgroundFrameSize = DpSize(10.dp, 6.dp)
+     val SliderBackgroundRoundedCorner = 24.dp
+-    // Half the track height, so the ends are true semicircles.
++    // Half the track height, so the ends are true semicircles.
+     val SliderTrackRoundedCorner = 20.dp
+ 
+-    // Halftone under the level.
+-    val KompaktTrackStroke = 1.dp
++    // Halftone under the level.
++    val KompaktTrackStroke = 2.dp // Kompakt: one border weight across QS.
++    // Kompakt: air above and below the brightness row.
++    val KompaktSliderVerticalPadding = 2.dp
+     val KompaktDotSpacing = 8.dp
+-    val KompaktDotRadius = 0.5.dp
++    // Kompakt: the dot pattern is off.
++    val KompaktDotRadius = 0.dp
+     val IconSize = DpSize(28.dp, 28.dp)
+     val IconPadding = 6.dp
+-    // Zero: one pill with no thumb.
++    // Zero.
+     val ThumbTrackGapSize = 0.dp
+ 
+     val ThumbHeight : Dp
+diff --git a/packages/SystemUI/src/com/android/systemui/classifier/FalsingDataProvider.java b/packages/SystemUI/src/com/android/systemui/classifier/FalsingDataProvider.java
+index 1e5e0fada250..e43753efcfa4 100644
+--- a/packages/SystemUI/src/com/android/systemui/classifier/FalsingDataProvider.java
++++ b/packages/SystemUI/src/com/android/systemui/classifier/FalsingDataProvider.java
+@@ -146,13 +146,7 @@ public class FalsingDataProvider {
+     }
+ 
+     void onMotionEventComplete() {
+-        if (mRecentMotionEvents.isEmpty()) {
+-            return;
+-        }
+-        int action = mRecentMotionEvents.get(mRecentMotionEvents.size() - 1).getActionMasked();
+-        if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+-            completePriorGesture();
+-        }
++        // Kompakt: do not finalise here.
+     }
+ 
+     private void completePriorGesture() {
+diff --git a/packages/SystemUI/src/com/android/systemui/globalactions/GlobalActionsDialogLite.java b/packages/SystemUI/src/com/android/systemui/globalactions/GlobalActionsDialogLite.java
+index f38feee7cae2..d16b6a015489 100644
+--- a/packages/SystemUI/src/com/android/systemui/globalactions/GlobalActionsDialogLite.java
++++ b/packages/SystemUI/src/com/android/systemui/globalactions/GlobalActionsDialogLite.java
+@@ -2391,9 +2391,8 @@ public class GlobalActionsDialogLite implements DialogInterface.OnDismissListene
+             if (QsInCompose.isEnabled()) {
+                 int textAndIconColor = context.getColor(R.color.materialColorOnSurface);
+                 messageView.setTextColor(textAndIconColor);
+-                if (!isTv()) {
+-                    // On TV the background is a state list that highlights the focused item, so
+-                    // a single color tint would flatten it and hide the focus indication.
++                if (false) {
++                    // Kompakt: the tint is dropped.
+                     mIconView.setBackgroundTintList(
+                             ColorStateList.valueOf(
+                                     context.getColor(R.color.materialColorSurfaceContainerHighest)
+diff --git a/packages/SystemUI/src/com/android/systemui/globalactions/ShutdownUi.java b/packages/SystemUI/src/com/android/systemui/globalactions/ShutdownUi.java
+index 840a298f9117..7a9d0b29a077 100644
+--- a/packages/SystemUI/src/com/android/systemui/globalactions/ShutdownUi.java
++++ b/packages/SystemUI/src/com/android/systemui/globalactions/ShutdownUi.java
+@@ -74,7 +74,7 @@ public class ShutdownUi {
+         float backgroundAlpha = mContext.getResources().getFloat(
+                 com.android.systemui.res.R.dimen.shutdown_scrim_behind_alpha);
+         background.setAlpha((int) (backgroundAlpha * 255));
+-        // e-ink: the shutdown screen takes the theme background, not a black scrim.
++        // e-ink: the shutdown screen takes the theme background, not a black scrim.
+         background.setColor(com.android.settingslib.Utils.getColorAttrDefaultColor(
+                 mContext, android.R.attr.colorBackground), /* animated= */ false);
+ 
+diff --git a/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/LockscreenBehindScrimViewModel.kt b/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/LockscreenBehindScrimViewModel.kt
+index 7654b7f816b1..92ccaa5c8590 100644
+--- a/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/LockscreenBehindScrimViewModel.kt
++++ b/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/LockscreenBehindScrimViewModel.kt
+@@ -40,7 +40,7 @@ constructor(private val aodDimInteractor: AodDimInteractor) {
+     }
+ 
+     companion object {
+-        /** e-ink: no dim. */
++        /** e-ink: no dim. */
+         private const val LOCKSCREEN_WALLPAPER_DIM_AMOUNT = 0f
+     }
+ }
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/QuickQSPanel.java b/packages/SystemUI/src/com/android/systemui/qs/QuickQSPanel.java
+index cee5a630293b..391f7a2b8552 100644
+--- a/packages/SystemUI/src/com/android/systemui/qs/QuickQSPanel.java
++++ b/packages/SystemUI/src/com/android/systemui/qs/QuickQSPanel.java
+@@ -142,7 +142,7 @@ public class QuickQSPanel extends QSPanel {
+             }
+             visibility = View.GONE;
+         }
+-        // e-ink: never show the compact tile row. Forced here; QSAnimator resets it.
++        // e-ink: never show the compact tile row.
+         super.setVisibility(View.GONE);
+     }
+ 
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/composefragment/QSFragmentCompose.kt b/packages/SystemUI/src/com/android/systemui/qs/composefragment/QSFragmentCompose.kt
+index d5b8c4376ce2..19827da7f16c 100644
+--- a/packages/SystemUI/src/com/android/systemui/qs/composefragment/QSFragmentCompose.kt
++++ b/packages/SystemUI/src/com/android/systemui/qs/composefragment/QSFragmentCompose.kt
+@@ -765,8 +765,7 @@ constructor(
+                                 }
+                                 .let { state -> { state.value } }
+ 
+-                        // e-ink: the QQS row is emptied inside QuickQuickSettings, never skipped
+-                        // here; skipping it drops GridAnchor and crashes SystemUI.
++                        // e-ink: the QQS row is emptied inside QuickQuickSettings, never skipped here.
+                         QuickQuickSettings(
+                             viewModel = viewModel.quickQuickSettingsViewModel,
+                             listening = isListening,
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/panels/data/repository/DefaultLargeTilesRepository.kt b/packages/SystemUI/src/com/android/systemui/qs/panels/data/repository/DefaultLargeTilesRepository.kt
+index 9a1671df60e9..e39d0e9b0336 100644
+--- a/packages/SystemUI/src/com/android/systemui/qs/panels/data/repository/DefaultLargeTilesRepository.kt
++++ b/packages/SystemUI/src/com/android/systemui/qs/panels/data/repository/DefaultLargeTilesRepository.kt
+@@ -28,10 +28,9 @@ interface DefaultLargeTilesRepository {
+ @SysUISingleton
+ class DefaultLargeTilesRepositoryImpl @Inject constructor() : DefaultLargeTilesRepository {
+     override val defaultLargeTiles =
++        // Kompakt: Modes is a one-cell tile and Cast does not exist.
+         setOf(
+             TileSpec.create("internet"),
+             TileSpec.create("bt"),
+-            TileSpec.create("dnd"),
+-            TileSpec.create("cast"),
+         )
+ }
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/PaginatedGridLayout.kt b/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/PaginatedGridLayout.kt
+index fb9e66f1b660..e5af4482ea3a 100644
+--- a/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/PaginatedGridLayout.kt
++++ b/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/PaginatedGridLayout.kt
+@@ -138,7 +138,7 @@ constructor(
+                 pageSpacing = if (pages.size > 1) InterPageSpacing else 0.dp,
+                 beyondViewportPageCount = 1,
+                 verticalAlignment = Alignment.Top,
+-                // e-ink: pages snap instead of gliding.
++                // e-ink: pages snap instantly instead of gliding.
+                 flingBehavior =
+                     PagerDefaults.flingBehavior(
+                         state = pagerState,
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/CommonTile.kt b/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/CommonTile.kt
+index 79ad82b710c9..ff364db978bf 100644
+--- a/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/CommonTile.kt
++++ b/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/CommonTile.kt
+@@ -252,7 +252,7 @@ fun SmallTileContent(
+     val animatedColor by animateColorAsState(color, label = "QSTileIconColor")
+     val iconModifier = modifier.size({ size().roundToPx() }, { size().roundToPx() })
+ 
+-    // e-ink: a filled or outlined Material icon for the tile state; null falls through.
++    // e-ink: a filled or outlined Material icon for the tile state; null falls through.
+     if (kompaktVector != null) {
+         androidx.compose.material3.Icon(
+             imageVector = kompaktVector,
+@@ -375,7 +375,7 @@ private fun TileLabel(
+                         }
+                     }
+                 }
+-                // e-ink: 0 iterations disables the marquee.
++                // e-ink: 0 iterations disables the marquee.
+                 .basicMarquee(
+                     iterations = 0,
+                     initialDelayMillis = TILE_INITIAL_DELAY_MILLIS,
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/EditTile.kt b/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/EditTile.kt
+index 7bb572aaba61..c5c4cbbae121 100644
+--- a/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/EditTile.kt
++++ b/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/EditTile.kt
+@@ -701,13 +701,7 @@ private fun CurrentTilesGrid(
+                 .onGloballyPositioned { coordinates ->
+                     gridContentOffset = coordinates.positionInRoot()
+                 }
+-                .drawBehind {
+-                    drawRoundRect(
+-                        primaryColor,
+-                        cornerRadius = CornerRadius(GridBackgroundCornerRadius.toPx()),
+-                        alpha = .15f,
+-                    )
+-                }
++                // Kompakt: no tinted wash behind the grid; the outline is enough.
+                 .sysuiResTag(CURRENT_TILES_GRID_TEST_TAG),
+     ) {
+         EditTiles(
+@@ -915,13 +909,12 @@ fun LazyGridScope.EditTiles(
+             is TileGridCell ->
+                 if (listState.isMoving(cell.tile.tileSpec)) {
+                     // If the tile is being moved, replace it with a visible spacer
++                    // Kompakt: an outlined gap rather than a translucent wash.
+                     SpacerGridCell(
+-                        Modifier.background(
+-                            color =
+-                                MaterialTheme.colorScheme.secondary.copy(
+-                                    alpha = EditModeTileDefaults.PLACEHOLDER_ALPHA
+-                                ),
+-                            shape = RoundedCornerShape(InactiveCornerRadius),
++                        Modifier.border(
++                            2.dp,
++                            MaterialTheme.colorScheme.onSurface,
++                            RoundedCornerShape(InactiveCornerRadius),
+                         )
+                     )
+                 } else {
+@@ -1128,7 +1121,7 @@ private fun LazyGridItemScope.TileGridCell(
+                     CornerSize(InactiveCornerRadius),
+                 )
+                 .thenIf(isSelectable) { draggableModifier }
+-                .tileBackground { backgroundColor }
++                .tileBackground(MaterialTheme.colorScheme.onSurface) { backgroundColor }
+                 .clickable { selectionState.onTap(cell.tile.tileSpec) }
+                 .thenIf(isSelectable) { selectableModifier }
+         ) {
+@@ -1228,7 +1221,7 @@ private fun AvailableTileGridCell(
+                         MaterialTheme.colorScheme.secondary,
+                         CornerSize(InactiveCornerRadius),
+                     )
+-                    .tileBackground { colors.background }
++                    .tileBackground(MaterialTheme.colorScheme.onSurface) { colors.background }
+                     .clickable(
+                         enabled = !cell.isCurrent,
+                         onClick = onClick,
+@@ -1394,9 +1387,12 @@ private fun MeasureScope.iconHorizontalCenter(containerSize: Int): Float {
+         CommonTileDefaults.TileStartPadding.toPx()
+ }
+ 
+-private fun Modifier.tileBackground(color: () -> Color): Modifier {
++private fun Modifier.tileBackground(outline: Color, color: () -> Color): Modifier {
+     // Clip tile contents from overflowing past the tile
+-    return clip(RoundedCornerShape(InactiveCornerRadius)).drawBehind { drawRect(color()) }
++    // Kompakt: paper tiles, so each one carries its own edge.
++    return clip(RoundedCornerShape(InactiveCornerRadius))
++        .drawBehind { drawRect(color()) }
++        .border(2.dp, outline, RoundedCornerShape(InactiveCornerRadius))
+ }
+ 
+ private object EditModeTileDefaults {
+@@ -1417,8 +1413,9 @@ private object EditModeTileDefaults {
+     @Composable
+     fun editTileColors(): TileColors =
+         TileColors(
+-            background = LocalAndroidColorScheme.current.surfaceEffect1,
+-            iconBackground = LocalAndroidColorScheme.current.surfaceEffect2,
++            // Kompakt: paper, not the two surface-effect greys.
++            background = MaterialTheme.colorScheme.surface,
++            iconBackground = MaterialTheme.colorScheme.surface,
+             label = MaterialTheme.colorScheme.onSurface,
+             secondaryLabel = MaterialTheme.colorScheme.onSurface,
+             icon = MaterialTheme.colorScheme.onSurface,
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/KompaktTileIcons.kt b/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/KompaktTileIcons.kt
+index 341576d03d64..a1f436fe9c3a 100644
+--- a/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/KompaktTileIcons.kt
++++ b/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/KompaktTileIcons.kt
+@@ -1,5 +1,4 @@
+-/* Kompakt e-ink: a filled icon when a QS tile is on, an outlined one when off.
+- * Generated by vendor/kompakt/tools/gen_symbols.py; do not hand edit. */
++/** Kompakt e-ink: a filled icon when a QS tile is on, an outlined one when off. */
+ package com.android.systemui.qs.panels.ui.compose.infinitegrid
+ 
+ import androidx.compose.ui.graphics.Color
+@@ -30,7 +29,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
+ import androidx.compose.ui.graphics.vector.PathParser
+ import androidx.compose.ui.unit.dp
+ 
+-/** Build an ImageVector from Material Symbols path data. */
++/** Build an ImageVector from Material Symbols path data. */
+ private fun symbol(pathData: String): ImageVector =
+     ImageVector.Builder(
+             name = "KompaktSymbol",
+@@ -150,7 +149,7 @@ private val RefreshOff by lazy { symbol("M480-160q-134 0-227-93t-93-227q0-134 93
+ private val EinkModeOn by lazy { symbol("M324-111.5Q251-143 197-197t-85.5-127Q80-397 80-480t31.5-156Q143-709 197-763t127-85.5Q397-880 480-880t156 31.5Q709-817 763-763t85.5 127Q880-563 880-480t-31.5 156Q817-251 763-197t-127 85.5Q563-80 480-80t-156-31.5ZM520-162q30-5 59-13.5t55-24.5H520v38Zm0-118h210q8-9 14-19t12-21H520v40Zm0-120h270l4-20 4-20H520v40Zm0-120h278l-4-20-4-20H520v40Zm0-120h236q-6-11-12-21t-14-19H520v40Zm0-120h114q-26-16-55-24.5T520-798v38Z") }
+ private val EinkModeOff by lazy { symbol("M324-111.5Q251-143 197-197t-85.5-127Q80-397 80-480t31.5-156Q143-709 197-763t127-85.5Q397-880 480-880t156 31.5Q709-817 763-763t85.5 127Q880-563 880-480t-31.5 156Q817-251 763-197t-127 85.5Q563-80 480-80t-156-31.5ZM440-162v-636q-121 15-200.5 106T160-480q0 121 79.5 212T440-162Zm80 0q30-5 59-13.5t55-24.5H520v38Zm0-118h210q8-9 14-19t12-21H520v40Zm0-120h270l4-20 4-20H520v40Zm0-120h278l-4-20-4-20H520v40Zm0-120h236q-6-11-12-21t-14-19H520v40Zm0-120h114q-26-16-55-24.5T520-798v38Zm-80 280Z") }
+ 
+-/** The icon pair for a tile spec, or null to leave the tile's own drawable alone. */
++/** The icon pair for a tile spec, or null to leave the tile's own drawable alone. */
+ fun kompaktTileIcon(spec: String, active: Boolean): ImageVector? {
+     val key =
+         if (spec.startsWith("custom(")) spec.substringAfter("custom(").lowercase() else spec
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/Tile.kt b/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/Tile.kt
+index 64ecac8c97f7..d869b04afce4 100644
+--- a/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/Tile.kt
++++ b/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/Tile.kt
+@@ -59,8 +59,16 @@ import androidx.compose.ui.Alignment
+ import androidx.compose.ui.Modifier
+ import androidx.compose.ui.draw.clip
+ import androidx.compose.ui.geometry.Size
++import androidx.compose.ui.draw.drawBehind
++import androidx.compose.ui.graphics.Outline
++import androidx.compose.ui.graphics.Path
++import androidx.compose.ui.graphics.PathEffect
++import androidx.compose.ui.graphics.PathMeasure
++import androidx.compose.ui.graphics.drawscope.Stroke
++import androidx.compose.ui.graphics.drawscope.inset
+ import androidx.compose.ui.graphics.Color
+ import androidx.compose.ui.graphics.Shape
++import androidx.compose.ui.graphics.StrokeCap
+ import androidx.compose.ui.platform.LocalConfiguration
+ import androidx.compose.ui.platform.LocalDensity
+ import androidx.compose.ui.platform.LocalResources
+@@ -110,7 +118,7 @@ import com.android.systemui.qs.ui.compose.borderOnFocus
+ import com.android.systemui.res.R
+ import kotlinx.coroutines.CoroutineScope
+ 
+-/** Outline width for QS tiles. */
++/** Outline width for QS tiles. */
+ private val QsTileOutlineWidth = 2.dp
+ 
+ @Composable
+@@ -232,14 +240,10 @@ fun ContentScope.Tile(
+                     .then(surfaceRevealModifier)
+                     .borderOnFocus(color = MaterialTheme.colorScheme.secondary, tileShape.topEnd)
+                     .fillMaxWidth()
+-                    // Every tile gets an outline; a white tile on a white shade has no edge.
+-                    // Outline from the tile's own colours.
+-                    .border(
+-                        width = QsTileOutlineWidth,
+-                        // colors.icon: black on an inactive tile, white on an active one.
+-                        color = colors.icon,
+-                        shape = tileShape,
+-                    )
++                    // Kompakt: a tile that is not filled needs an edge.
++                    .thenIf(uiState.state != STATE_ACTIVE) {
++                        Modifier.border(QsTileOutlineWidth, colors.icon, tileShape)
++                    }
+                     .thenIf(currentBounceableInfo != null) {
+                         Modifier.bounceable(
+                             currentBounceableInfo!!.bounceable,
+@@ -328,13 +332,9 @@ fun ContentScope.Tile(
+                 modifier = contentRevealModifier,
+             ) {
+                 val iconProvider: Context.() -> Icon = { getTileIcon(icon = icon) }
+-                // e-ink: filled when the tile is on, outlined when off.
+-                val kompaktVector =
+-                    kompaktTileIcon(tile.spec.spec, uiState.state == STATE_ACTIVE)
+                 if (iconOnly) {
+                     SmallTileContent(
+                         iconProvider = iconProvider,
+-                        kompaktVector = kompaktVector,
+                         color = colors.icon,
+                         modifier =
+                             Modifier.align(Alignment.Center).bounceScale {
+@@ -356,7 +356,6 @@ fun ContentScope.Tile(
+                         label = uiState.label,
+                         secondaryLabel = uiState.secondaryLabel,
+                         iconProvider = iconProvider,
+-                        kompaktVector = kompaktVector,
+                         sideDrawable = uiState.sideDrawable,
+                         colors = colors,
+                         iconShape = iconShape,
+@@ -523,13 +516,12 @@ private object TileDefaults {
+     @ReadOnlyComposable
+     fun activeTileColors(): TileColors =
+         TileColors(
+-            // e-ink: on and off are carried by the fill, not by hue.
+-            // The icon carries the state; the tile keeps one fill.
+-            background = MaterialTheme.colorScheme.surface,
++            // Kompakt: on is the ink.
++            background = MaterialTheme.colorScheme.onSurface,
+             iconBackground = Color.Transparent,
+-            label = MaterialTheme.colorScheme.onSurface,
+-            secondaryLabel = MaterialTheme.colorScheme.onSurface,
+-            icon = MaterialTheme.colorScheme.onSurface,
++            label = MaterialTheme.colorScheme.surface,
++            secondaryLabel = MaterialTheme.colorScheme.surface,
++            icon = MaterialTheme.colorScheme.surface,
+         )
+ 
+     /** An active tile with dual target only show the active color on the icon */
+@@ -557,12 +549,12 @@ private object TileDefaults {
+     @ReadOnlyComposable
+     fun activeDualTargetTileColors(): TileColors =
+         TileColors(
+-            // No black disc behind the icon.
+-            background = MaterialTheme.colorScheme.surface,
++            // Kompakt: the same as activeTileColors.
++            background = MaterialTheme.colorScheme.onSurface,
+             iconBackground = Color.Transparent,
+-            label = MaterialTheme.colorScheme.onSurface,
+-            secondaryLabel = MaterialTheme.colorScheme.onSurface,
+-            icon = MaterialTheme.colorScheme.onSurface,
++            label = MaterialTheme.colorScheme.surface,
++            secondaryLabel = MaterialTheme.colorScheme.surface,
++            icon = MaterialTheme.colorScheme.surface,
+         )
+ 
+     @Composable
+@@ -581,7 +573,7 @@ private object TileDefaults {
+     @ReadOnlyComposable
+     fun inactiveTileColors(): TileColors =
+         TileColors(
+-            // Plain surface; surfaceEffect1 dithers to noise.
++            // Plain surface; surfaceEffect1 dithers to noise.
+             background = MaterialTheme.colorScheme.surface,
+             iconBackground = Color.Transparent,
+             label = MaterialTheme.colorScheme.onSurface,
+@@ -594,8 +586,9 @@ private object TileDefaults {
+     @Composable
+     @ReadOnlyComposable
+     fun unavailableTileColors(): TileColors {
+-        val surfaceColor = MaterialTheme.colorScheme.surface.copy(alpha = .18f)
+-        val onSurfaceVariantColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .38f)
++        // Kompakt: full opacity.
++        val surfaceColor = MaterialTheme.colorScheme.surface
++        val onSurfaceVariantColor = MaterialTheme.colorScheme.onSurfaceVariant
+         return TileColors(
+             background = surfaceColor,
+             iconBackground = surfaceColor,
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/selection/Selection.kt b/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/selection/Selection.kt
+index 753848330fb5..0bda0e91953c 100644
+--- a/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/selection/Selection.kt
++++ b/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/selection/Selection.kt
+@@ -125,6 +125,8 @@ fun InteractiveTileContainer(
+     val selectionBorderAlpha by transition.animateFloat { it.borderAlpha }
+     val isIdle = transition.currentState == transition.targetState
+     val isDraggable = tileState == Selected
++    // Kompakt: the badge is paper on a paper tile, so it needs an edge.
++    val decorationOutline = MaterialTheme.colorScheme.onSurface
+ 
+     Box(
+         modifier.resizable(tileState == Selected, resizingState).selectionBorder(
+@@ -156,6 +158,14 @@ fun InteractiveTileContainer(
+                                 size = rect.size,
+                                 cornerRadius = cornerRadius,
+                             )
++                            val edge = 1.5.dp.toPx()
++                            drawRoundRect(
++                                color = decorationOutline,
++                                topLeft = rect.topLeft + Offset(edge / 2, edge / 2),
++                                size = Size(rect.width - edge, rect.height - edge),
++                                cornerRadius = CornerRadius(radius - edge / 2),
++                                style = Stroke(edge),
++                            )
+ 
+                             path.reset()
+                             path.addRoundRect(RoundRect(rect, cornerRadius))
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/panels/ui/viewmodel/EditTopBarActionsViewModel.kt b/packages/SystemUI/src/com/android/systemui/qs/panels/ui/viewmodel/EditTopBarActionsViewModel.kt
+index e473601bc06e..ce611d3ff86b 100644
+--- a/packages/SystemUI/src/com/android/systemui/qs/panels/ui/viewmodel/EditTopBarActionsViewModel.kt
++++ b/packages/SystemUI/src/com/android/systemui/qs/panels/ui/viewmodel/EditTopBarActionsViewModel.kt
+@@ -29,7 +29,8 @@ class EditTopBarActionsViewModel
+ @AssistedInject
+ constructor(private val activityStarter: ActivityStarter) {
+     val actions: List<EditTopBarActionViewModel> = buildList {
+-        if (SceneContainerFlag.isEnabled) {
++        // Kompakt: no shade settings gear; the shade is always dual.
++        if (false && SceneContainerFlag.isEnabled) {
+             add(
+                 EditTopBarActionViewModel(
+                     SettingsIcon,
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/pipeline/dagger/BaseAutoAddableModule.kt b/packages/SystemUI/src/com/android/systemui/qs/pipeline/dagger/BaseAutoAddableModule.kt
+index c9f6dcfe4293..59b937d7eb0d 100644
+--- a/packages/SystemUI/src/com/android/systemui/qs/pipeline/dagger/BaseAutoAddableModule.kt
++++ b/packages/SystemUI/src/com/android/systemui/qs/pipeline/dagger/BaseAutoAddableModule.kt
+@@ -21,9 +21,7 @@ import com.android.systemui.qs.pipeline.domain.autoaddable.A11yShortcutAutoAddab
+ import com.android.systemui.qs.pipeline.domain.autoaddable.A11yShortcutAutoAddableList
+ import com.android.systemui.qs.pipeline.domain.autoaddable.AutoAddableSetting
+ import com.android.systemui.qs.pipeline.domain.autoaddable.AutoAddableSettingList
+-import com.android.systemui.qs.pipeline.domain.autoaddable.CastAutoAddable
+ import com.android.systemui.qs.pipeline.domain.autoaddable.DataSaverAutoAddable
+-import com.android.systemui.qs.pipeline.domain.autoaddable.DeviceControlsAutoAddable
+ import com.android.systemui.qs.pipeline.domain.autoaddable.HotspotAutoAddable
+ import com.android.systemui.qs.pipeline.domain.autoaddable.NightDisplayAutoAddable
+ import com.android.systemui.qs.pipeline.domain.autoaddable.WalletAutoAddable
+@@ -64,11 +62,11 @@ interface BaseAutoAddableModule {
+         }
+     }
+ 
+-    @Binds @IntoSet fun bindCastAutoAddable(impl: CastAutoAddable): AutoAddable
++    // Kompakt: no Cast tile, so nothing may add one when a cast device appears.
+ 
+     @Binds @IntoSet fun bindDataSaverAutoAddable(impl: DataSaverAutoAddable): AutoAddable
+ 
+-    @Binds @IntoSet fun bindDeviceControlsAutoAddable(impl: DeviceControlsAutoAddable): AutoAddable
++    // Kompakt: no Home tile unless added by hand.
+ 
+     @Binds @IntoSet fun bindHotspotAutoAddable(impl: HotspotAutoAddable): AutoAddable
+ 
+diff --git a/packages/SystemUI/src/com/android/systemui/shade/QuickSettingsControllerImpl.java b/packages/SystemUI/src/com/android/systemui/shade/QuickSettingsControllerImpl.java
+index 0815c3f6538f..3abcc8ff333c 100644
+--- a/packages/SystemUI/src/com/android/systemui/shade/QuickSettingsControllerImpl.java
++++ b/packages/SystemUI/src/com/android/systemui/shade/QuickSettingsControllerImpl.java
+@@ -418,7 +418,7 @@ public class QuickSettingsControllerImpl implements QuickSettingsController, Dum
+             public void onChange(boolean selfChange) {
+                 mOneFingerQuickSettingsIntercept = LineageSettings.System.getIntForUser(
+                         mPanelView.getContext().getContentResolver(),
+-                        // e-ink: default to right-side pulldown.
++                        // e-ink: default to right-side pulldown.
+                         LineageSettings.System.STATUS_BAR_QUICK_QS_PULLDOWN, 1,
+                         selectedUserInteractor.getSelectedUserId());
+             }
+diff --git a/packages/SystemUI/src/com/android/systemui/shade/domain/interactor/ShadeModeInteractor.kt b/packages/SystemUI/src/com/android/systemui/shade/domain/interactor/ShadeModeInteractor.kt
+index 3e4df82e377e..9665d97c8296 100644
+--- a/packages/SystemUI/src/com/android/systemui/shade/domain/interactor/ShadeModeInteractor.kt
++++ b/packages/SystemUI/src/com/android/systemui/shade/domain/interactor/ShadeModeInteractor.kt
+@@ -84,11 +84,10 @@ constructor(
+     @SceneFrameworkTableLog private val tableLogBuffer: TableLogBuffer,
+ ) : ShadeModeInteractor {
+ 
++    // Kompakt: dual only.
+     private val isDualShadeSettingEnabled: Flow<Boolean> =
+         if (SceneContainerFlag.isEnabled) {
+-            secureSettingsRepository
+-                .boolSetting(Settings.Secure.DUAL_SHADE, defaultValue = DUAL_SHADE_ENABLED_DEFAULT)
+-                .flowOn(backgroundDispatcher)
++            flowOf(true)
+         } else {
+             flowOf(false)
+         }
+@@ -160,7 +159,7 @@ constructor(
+         private const val TAG = "ShadeModeInteractorImpl"
+ 
+         /* Whether the Dual Shade setting is enabled by default. */
+-        // e-ink: default to Dual shade; only read with the scene container on.
++        // e-ink: default to Dual shade.
+         private const val DUAL_SHADE_ENABLED_DEFAULT = true
+     }
+ }
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/core/StatusBarOrchestrator.kt b/packages/SystemUI/src/com/android/systemui/statusbar/core/StatusBarOrchestrator.kt
+index 35db6ca66f03..7df0f0fa74a1 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/core/StatusBarOrchestrator.kt
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/core/StatusBarOrchestrator.kt
+@@ -189,7 +189,8 @@ constructor(
+                             updateBarMode(it.animate, it.barTransitions, it.statusBarMode)
+                         }
+                     }
+-                    if (Flags.statusBarAlwaysScheduleAutoHide()) {
++                    // Kompakt: always, the bar mode never changes here.
++                    if (true) {
+                         launch { autoHideUpdate.collect { autoHideController.touchAutoHide() } }
+                     }
+                 }
+@@ -259,7 +260,8 @@ constructor(
+             barTransitions.transitionTo(barMode.toTransitionModeInt(), animate)
+         }
+ 
+-        if (!Flags.statusBarAlwaysScheduleAutoHide()) {
++        // Kompakt: scheduled from autoHideUpdate instead.
++        if (false) {
+             autoHideController.touchAutoHide()
+         }
+     }
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/dagger/CentralSurfacesDependenciesModule.java b/packages/SystemUI/src/com/android/systemui/statusbar/dagger/CentralSurfacesDependenciesModule.java
+index a7929ecbd801..dea546842033 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/dagger/CentralSurfacesDependenciesModule.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/dagger/CentralSurfacesDependenciesModule.java
+@@ -174,9 +174,12 @@ public interface CentralSurfacesDependenciesModule {
+     @Provides
+     @SysUISingleton
+     static StatusBarIconList provideStatusBarIconList(Context context) {
++        // Kompakt: the offline slot sits where the signal bars are.
+         return new StatusBarIconList(
+-                context.getResources().getStringArray(
+-                        com.android.internal.R.array.config_statusBarIcons));
++                com.android.systemui.statusbar.phone.KompaktStatusSlots.withOfflineSlot(
++                        context,
++                        context.getResources().getStringArray(
++                                com.android.internal.R.array.config_statusBarIcons)));
+     }
+ 
+     /**
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/notification/row/ExpandableNotificationRow.java b/packages/SystemUI/src/com/android/systemui/statusbar/notification/row/ExpandableNotificationRow.java
+index f22f7a6bc365..896d5f3bd8c1 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/notification/row/ExpandableNotificationRow.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/notification/row/ExpandableNotificationRow.java
+@@ -3107,7 +3107,7 @@ public class ExpandableNotificationRow extends ActivatableNotificationView
+     }
+ 
+     public boolean isExpandable() {
+-        // e-ink: notifications never expand.
++        // e-ink: notifications never expand.
+         if (true) return false;
+         if (mIsSummaryWithChildren && !shouldShowPublic()) {
+             return !mChildrenExpanded;
+@@ -3807,7 +3807,7 @@ public class ExpandableNotificationRow extends ActivatableNotificationView
+ 
+     @Override
+     public boolean isContentExpandable() {
+-        // e-ink: notifications never expand.
++        // e-ink: notifications never expand.
+         if (true) return false;
+         if (mIsSummaryWithChildren && !shouldShowPublic()) {
+             return true;
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/phone/CentralSurfacesImpl.java b/packages/SystemUI/src/com/android/systemui/statusbar/phone/CentralSurfacesImpl.java
+index 75f6112030a2..59bbd3aea0ad 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/phone/CentralSurfacesImpl.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/phone/CentralSurfacesImpl.java
+@@ -1699,6 +1699,8 @@ public class CentralSurfacesImpl implements CoreStartable, CentralSurfaces {
+         if (transientShown) {
+             mNoAnimationOnNextBarModeChange = true;
+         }
++        // Kompakt: schedule the hide here too; the bar mode never changes.
++        mAutoHideController.touchAutoHide();
+     }
+ 
+     private void updateBarMode(StatusBarMode barMode) {
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/phone/KompaktOfflineCard.java b/packages/SystemUI/src/com/android/systemui/statusbar/phone/KompaktOfflineCard.java
+new file mode 100644
+index 000000000000..eceaf9aeb514
+--- /dev/null
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/phone/KompaktOfflineCard.java
+@@ -0,0 +1,112 @@
++/* Kompakt: the card MuditaOS shows when the Offline+ switch moves. */
++package com.android.systemui.statusbar.phone;
++
++import android.app.Dialog;
++import android.content.Context;
++import android.graphics.Typeface;
++import android.os.Handler;
++import android.util.Log;
++import android.view.Gravity;
++import android.view.View;
++import android.view.Window;
++import android.view.WindowManager;
++import android.widget.ImageView;
++import android.widget.TextView;
++
++import com.android.systemui.res.R;
++
++final class KompaktOfflineCard {
++
++    private static final String TAG = "KompaktOfflineCard";
++
++    /** Stock dismisses after exactly this long, restarting on each flip. */
++    private static final long SHOW_MS = 1000L;
++
++    /** Stock's y offset, in pixels, which puts the card just under the status bar. */
++    private static final int Y_PX = 218;
++
++    private final Context mContext;
++    private final Handler mHandler;
++
++    private Dialog mDialog;
++    private ImageView mConnectedBar;
++    private TextView mConnectedText;
++    private ImageView mOfflineBar;
++    private TextView mOfflineText;
++    private Typeface mNormal;
++    private Typeface mBold;
++
++    private final Runnable mDismiss = () -> {
++        if (mDialog != null && mDialog.isShowing()) {
++            mDialog.dismiss();
++        }
++    };
++
++    KompaktOfflineCard(Context context, Handler handler) {
++        mContext = context;
++        mHandler = handler;
++    }
++
++    void show(boolean offline) {
++        try {
++            if (mDialog == null) {
++                create();
++            }
++            bind(offline);
++            if (!mDialog.isShowing()) {
++                mDialog.show();
++            }
++            mHandler.removeCallbacks(mDismiss);
++            mHandler.postDelayed(mDismiss, SHOW_MS);
++        } catch (RuntimeException e) {
++            // A card that fails to draw must never take SystemUI down with it.
++            Log.e(TAG, "could not show the Offline+ card", e);
++        }
++    }
++
++    private void create() {
++        final Dialog d = new Dialog(mContext);
++        final Window w = d.getWindow();
++        w.requestFeature(Window.FEATURE_NO_TITLE);
++        d.setContentView(R.layout.kompakt_offline_card);
++        w.setLayout(WindowManager.LayoutParams.WRAP_CONTENT,
++                WindowManager.LayoutParams.WRAP_CONTENT);
++        w.setGravity(Gravity.START | Gravity.TOP);
++        w.setType(WindowManager.LayoutParams.TYPE_VOLUME_OVERLAY);
++        w.addFlags(WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED
++                | WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
++                | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL);
++        // Stock clears exactly these.
++        w.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND
++                | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
++                | WindowManager.LayoutParams.FLAG_LAYOUT_INSET_DECOR);
++        w.setWindowAnimations(0);
++        w.setBackgroundDrawableResource(android.R.color.transparent);
++        final WindowManager.LayoutParams lp = w.getAttributes();
++        lp.x = 0;
++        lp.y = Y_PX;
++        w.setAttributes(lp);
++        d.setCanceledOnTouchOutside(true);
++
++        mConnectedBar = d.findViewById(R.id.kompakt_offline_connected_bar);
++        mConnectedText = d.findViewById(R.id.kompakt_offline_connected_text);
++        mOfflineBar = d.findViewById(R.id.kompakt_offline_offline_bar);
++        mOfflineText = d.findViewById(R.id.kompakt_offline_offline_text);
++
++        final Typeface base = mConnectedText.getTypeface();
++        mNormal = Typeface.create(base, Typeface.NORMAL);
++        mBold = Typeface.create(base, Typeface.BOLD);
++        mDialog = d;
++    }
++
++    /** The active row gets the bar and bold; the other loses both. */
++    private void bind(boolean offline) {
++        style(mConnectedBar, mConnectedText, !offline);
++        style(mOfflineBar, mOfflineText, offline);
++    }
++
++    private void style(ImageView bar, TextView text, boolean active) {
++        bar.setVisibility(active ? View.VISIBLE : View.INVISIBLE);
++        text.setTypeface(active ? mBold : mNormal);
++    }
++}
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/phone/KompaktStatusSlots.java b/packages/SystemUI/src/com/android/systemui/statusbar/phone/KompaktStatusSlots.java
+new file mode 100644
+index 000000000000..bf19ab54f8ce
+--- /dev/null
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/phone/KompaktStatusSlots.java
+@@ -0,0 +1,37 @@
++/* Kompakt: status bar slot order. */
++package com.android.systemui.statusbar.phone;
++
++import android.content.Context;
++
++import com.android.systemui.res.R;
++
++import java.util.ArrayList;
++import java.util.Arrays;
++import java.util.List;
++
++/** Places the Offline+ slot where the signal bars are. */
++public final class KompaktStatusSlots {
++
++    private KompaktStatusSlots() {}
++
++    public static String[] withOfflineSlot(Context context, String[] slots) {
++        final String offline = context.getString(R.string.kompakt_offline_slot);
++        final List<String> out = new ArrayList<>(Arrays.asList(slots));
++        if (out.contains(offline)) {
++            return slots;
++        }
++        final String stacked =
++                context.getString(com.android.internal.R.string.status_bar_stacked_mobile);
++        final String mobile = context.getString(com.android.internal.R.string.status_bar_mobile);
++        int at = -1;
++        for (int i = 0; i < out.size(); i++) {
++            final String s = out.get(i);
++            if (s.equals(stacked) || s.equals(mobile)) {
++                at = i;
++                break;
++            }
++        }
++        out.add(at < 0 ? 0 : at, offline);
++        return out.toArray(new String[0]);
++    }
++}
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/phone/PhoneStatusBarPolicy.java b/packages/SystemUI/src/com/android/systemui/statusbar/phone/PhoneStatusBarPolicy.java
+index 5ced9243cb10..740f7625a65e 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/phone/PhoneStatusBarPolicy.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/phone/PhoneStatusBarPolicy.java
+@@ -133,6 +133,9 @@ public class PhoneStatusBarPolicy
+     private final String mSlotScreenRecord;
+     private final String mSlotConnectedDisplay;
+     private final String mSlotFirewall;
++    // Kompakt: the Offline+ switch.
++    private final String mSlotKompaktOffline;
++    private KompaktOfflineCard mKompaktOfflineCard;
+     private final int mDisplayId;
+     private final SharedPreferences mSharedPreferences;
+     private final DateFormatUtil mDateFormatUtil;
+@@ -258,6 +261,7 @@ public class PhoneStatusBarPolicy
+         mSlotScreenRecord = resources.getString(
+                 com.android.internal.R.string.status_bar_screen_record);
+         mSlotFirewall = resources.getString(R.string.status_bar_firewall_slot);
++        mSlotKompaktOffline = resources.getString(R.string.kompakt_offline_slot);
+ 
+         mDisplayId = displayId;
+         mSharedPreferences = sharedPreferences;
+@@ -296,6 +300,25 @@ public class PhoneStatusBarPolicy
+         mIconController.setIcon(mSlotAlarmClock, R.drawable.stat_sys_alarm, null);
+         mIconController.setIconVisibility(mSlotAlarmClock, false);
+ 
++        // Kompakt: Offline+.
++        mKompaktOfflineCard = new KompaktOfflineCard(mContext, mHandler);
++        mIconController.setIcon(mSlotKompaktOffline, R.drawable.kompakt_stat_sys_offline,
++                mResources.getString(R.string.kompakt_offline_icon_desc));
++        mContext.getContentResolver().registerContentObserver(
++                Global.getUriFor(KOMPAKT_HWSWITCH_SETTING), false,
++                new android.database.ContentObserver(mHandler) {
++                    @Override
++                    public void onChange(boolean selfChange) {
++                        updateKompaktOffline();
++                    }
++                });
++        updateKompaktOffline();
++        IntentFilter kompaktSwitch = new IntentFilter();
++        kompaktSwitch.addAction(KOMPAKT_ACTION_LOCKED);
++        kompaktSwitch.addAction(KOMPAKT_ACTION_UNLOCKED);
++        mBroadcastDispatcher.registerReceiverWithHandler(
++                mKompaktSwitchReceiver, kompaktSwitch, mHandler);
++
+         // zen
+         mIconController.setIcon(mSlotZen, R.drawable.stat_sys_dnd, null);
+         mIconController.setIconVisibility(mSlotZen, false);
+@@ -850,6 +873,29 @@ public class PhoneStatusBarPolicy
+         }
+     }
+ 
++    // Kompakt: sent by PhoneWindowManager when the Offline+ switch moves.
++    private static final String KOMPAKT_HWSWITCH_SETTING = "HWSwitch_lock";
++    private static final String KOMPAKT_ACTION_LOCKED =
++            "android.intent.action.ACTION_HWSWITCH_LOCKED";
++    private static final String KOMPAKT_ACTION_UNLOCKED =
++            "android.intent.action.ACTION_HWSWITCH_UNLOCKED";
++
++    private void updateKompaktOffline() {
++        final boolean offline = Global.getInt(mContext.getContentResolver(),
++                KOMPAKT_HWSWITCH_SETTING, 0) == 1;
++        mIconController.setIconVisibility(mSlotKompaktOffline, offline);
++    }
++
++    private final BroadcastReceiver mKompaktSwitchReceiver = new BroadcastReceiver() {
++        @Override
++        public void onReceive(Context context, Intent intent) {
++            if (mKompaktOfflineCard == null) {
++                return;
++            }
++            mKompaktOfflineCard.show(KOMPAKT_ACTION_LOCKED.equals(intent.getAction()));
++        }
++    };
++
+     private BroadcastReceiver mIntentReceiver = new BroadcastReceiver() {
+         @Override
+         public void onReceive(Context context, Intent intent) {
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/phone/PhoneStatusBarViewController.kt b/packages/SystemUI/src/com/android/systemui/statusbar/phone/PhoneStatusBarViewController.kt
+index 881875a1985e..412b5c32c7ee 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/phone/PhoneStatusBarViewController.kt
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/phone/PhoneStatusBarViewController.kt
+@@ -59,6 +59,7 @@ import java.util.Optional
+ import javax.inject.Inject
+ import javax.inject.Named
+ import javax.inject.Provider
++import com.android.systemui.shade.QQSGestureListener
+ 
+ private const val TAG = "PhoneStatusBarViewController"
+ 
+@@ -85,8 +86,14 @@ private constructor(
+     private val lazyStatusBarShadeDisplayPolicy: Lazy<StatusBarTouchShadeDisplayPolicy>,
+     private val lazyShadeDisplaysRepository: Lazy<ShadeDisplaysRepository>,
+     private val statusBarWindowControllerStore: StatusBarWindowControllerStore,
++    private val qqsGestureListener: Provider<QQSGestureListener>,
+ ) : ViewController<PhoneStatusBarView>(view) {
+ 
++    // Kompakt: the QQS gestures see status bar taps the scene container takes.
++    private val kompaktDoubleTap by lazy {
++        GestureDetector(mView.context, qqsGestureListener.get())
++    }
++
+     private lateinit var battery: BatteryMeterView
+     private lateinit var clock: Clock
+     private lateinit var clockCenter: Clock
+@@ -393,6 +400,7 @@ private constructor(
+             // If scene framework is enabled, route the touch to it and
+             // ignore the rest of the gesture.
+             if (SceneContainerFlag.isEnabled) {
++                kompaktDoubleTap.onTouchEvent(event)
+                 windowRootView.get().dispatchTouchEvent(event)
+                 return true
+             }
+@@ -455,6 +463,7 @@ private constructor(
+         private val lazyStatusBarShadeDisplayPolicy: Lazy<StatusBarTouchShadeDisplayPolicy>,
+         private val lazyShadeDisplaysRepository: Lazy<ShadeDisplaysRepository>,
+         private val statusBarWindowControllerStore: StatusBarWindowControllerStore,
++        private val qqsGestureListener: Provider<QQSGestureListener>,
+     ) {
+         fun create(view: PhoneStatusBarView): PhoneStatusBarViewController {
+             return PhoneStatusBarViewController(
+@@ -478,6 +487,7 @@ private constructor(
+                 lazyStatusBarShadeDisplayPolicy,
+                 lazyShadeDisplaysRepository,
+                 statusBarWindowControllerStore,
++                qqsGestureListener,
+             )
+         }
+     }
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/systemstatusicons/SystemStatusIconsModule.kt b/packages/SystemUI/src/com/android/systemui/statusbar/systemstatusicons/SystemStatusIconsModule.kt
+index 9f380323944f..34ef9aa184c4 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/systemstatusicons/SystemStatusIconsModule.kt
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/systemstatusicons/SystemStatusIconsModule.kt
+@@ -36,6 +36,10 @@ object SystemStatusIconsModule {
+     @SysUISingleton
+     @SystemStatusOrderedIconSlotNames
+     fun provideSystemStatusOrderedIconSlotNames(@Application context: Context): Array<String> {
+-        return context.resources.getStringArray(com.android.internal.R.array.config_statusBarIcons)
++        // Kompakt: the offline slot sits where the signal bars are.
++        return com.android.systemui.statusbar.phone.KompaktStatusSlots.withOfflineSlot(
++            context,
++            context.resources.getStringArray(com.android.internal.R.array.config_statusBarIcons),
++        )
+     }
+ }
+diff --git a/packages/SystemUI/src/com/android/systemui/wallpapers/KompaktInk.kt b/packages/SystemUI/src/com/android/systemui/wallpapers/KompaktInk.kt
+new file mode 100644
+index 000000000000..98aa333de3a7
+--- /dev/null
++++ b/packages/SystemUI/src/com/android/systemui/wallpapers/KompaktInk.kt
+@@ -0,0 +1,91 @@
++/* Kompakt: which ink the lockscreen needs. */
++package com.android.systemui.wallpapers
++
++import android.app.WallpaperColors
++import android.app.WallpaperManager
++import android.content.ComponentCallbacks
++import android.content.Context
++import android.content.res.Configuration
++import android.os.Handler
++import android.os.Looper
++import android.util.Log
++import java.util.concurrent.CopyOnWriteArraySet
++
++/** Whether the surface under the lockscreen is dark, so its ink should be white. */
++object KompaktInk {
++    private const val TAG = "KompaktInk"
++
++    private val listeners = CopyOnWriteArraySet<Runnable>()
++
++    @Volatile private var cached: Boolean? = null
++
++    private var registered = false
++
++    @JvmStatic
++    fun isDarkSurface(context: Context): Boolean {
++        cached?.let { return it }
++        return compute(context).also { cached = it }
++    }
++
++    /** Runs [listener] on the main thread whenever the answer changes. */
++    @JvmStatic
++    fun addListener(context: Context, listener: Runnable) {
++        listeners.add(listener)
++        ensureRegistered(context.applicationContext)
++    }
++
++    @JvmStatic
++    fun removeListener(listener: Runnable) {
++        listeners.remove(listener)
++    }
++
++    private fun compute(context: Context): Boolean {
++        val colors =
++            try {
++                val wm = context.getSystemService(WallpaperManager::class.java)
++                wm?.getWallpaperColors(WallpaperManager.FLAG_LOCK)
++                    ?: wm?.getWallpaperColors(WallpaperManager.FLAG_SYSTEM)
++            } catch (t: Throwable) {
++                Log.w(TAG, "no wallpaper colours", t)
++                null
++            }
++        if (colors != null) {
++            val hints = colors.colorHints
++            if ((hints and WallpaperColors.HINT_SUPPORTS_DARK_TEXT) != 0) return false
++            if ((hints and WallpaperColors.HINT_SUPPORTS_DARK_THEME) != 0) return true
++            return colors.primaryColor.luminance() < 0.5f
++        }
++        return (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
++            Configuration.UI_MODE_NIGHT_YES
++    }
++
++    @Synchronized
++    private fun ensureRegistered(app: Context) {
++        if (registered) return
++        registered = true
++        val main = Handler(Looper.getMainLooper())
++        try {
++            app.getSystemService(WallpaperManager::class.java)
++                ?.addOnColorsChangedListener({ _, _ -> refresh(app) }, main)
++        } catch (t: Throwable) {
++            Log.w(TAG, "cannot watch wallpaper colours", t)
++        }
++        app.registerComponentCallbacks(
++            object : ComponentCallbacks {
++                override fun onConfigurationChanged(newConfig: Configuration) {
++                    main.post { refresh(app) }
++                }
++
++                @Deprecated("Deprecated in Java")
++                override fun onLowMemory() {}
++            }
++        )
++    }
++
++    private fun refresh(app: Context) {
++        val now = compute(app)
++        if (now == cached) return
++        cached = now
++        listeners.forEach { it.run() }
++    }
++}
+diff --git a/packages/SystemUI/src/com/android/systemui/wallpapers/KompaktPaperWallpaper.kt b/packages/SystemUI/src/com/android/systemui/wallpapers/KompaktPaperWallpaper.kt
+new file mode 100644
+index 000000000000..efe27005280a
+--- /dev/null
++++ b/packages/SystemUI/src/com/android/systemui/wallpapers/KompaktPaperWallpaper.kt
+@@ -0,0 +1,81 @@
++/* Kompakt: the default wallpaper. */
++package com.android.systemui.wallpapers
++
++import android.app.WallpaperColors
++import android.content.res.Configuration
++import android.graphics.Color
++import android.service.wallpaper.WallpaperService
++import android.util.Log
++import android.view.SurfaceHolder
++
++/** Plain paper: white in light mode, black in dark mode. */
++class KompaktPaperWallpaper : WallpaperService() {
++
++    private val engines = mutableSetOf<PaperEngine>()
++
++    override fun onCreateEngine(): Engine = PaperEngine()
++
++    override fun onConfigurationChanged(newConfig: Configuration) {
++        super.onConfigurationChanged(newConfig)
++        engines.toList().forEach { it.repaint() }
++    }
++
++    private fun isDark(): Boolean =
++        (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
++            Configuration.UI_MODE_NIGHT_YES
++
++    private fun paper(): Int = if (isDark()) Color.BLACK else Color.WHITE
++
++    inner class PaperEngine : Engine() {
++
++        override fun onCreate(surfaceHolder: SurfaceHolder) {
++            super.onCreate(surfaceHolder)
++            engines.add(this)
++        }
++
++        override fun onDestroy() {
++            engines.remove(this)
++            super.onDestroy()
++        }
++
++        override fun onSurfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
++            super.onSurfaceChanged(holder, format, width, height)
++            draw(holder)
++        }
++
++        override fun onSurfaceRedrawNeeded(holder: SurfaceHolder) {
++            draw(holder)
++        }
++
++        override fun onComputeColors(): WallpaperColors {
++            val dark = isDark()
++            return WallpaperColors(
++                Color.valueOf(paper()),
++                null,
++                null,
++                if (dark) WallpaperColors.HINT_SUPPORTS_DARK_THEME
++                else WallpaperColors.HINT_SUPPORTS_DARK_TEXT,
++            )
++        }
++
++        fun repaint() {
++            surfaceHolder?.let { draw(it) }
++            notifyColorsChanged()
++        }
++
++        private fun draw(holder: SurfaceHolder) {
++            val surface = holder.surface
++            if (surface == null || !surface.isValid) return
++            try {
++                val canvas = surface.lockHardwareCanvas()
++                try {
++                    canvas.drawColor(paper())
++                } finally {
++                    surface.unlockCanvasAndPost(canvas)
++                }
++            } catch (e: IllegalStateException) {
++                Log.d("KompaktPaperWallpaper", "cannot draw", e)
++            }
++        }
++    }
++}

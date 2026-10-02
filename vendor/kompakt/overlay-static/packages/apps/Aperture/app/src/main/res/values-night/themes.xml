@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: Kompakt (night): Aperture pins its camera screen to a dark Material theme with a black window, whatever the. -->
+<resources>
+    <style name="Theme.Aperture.Camera" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowBackground">@color/gray_10</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="elevationOverlayEnabled">false</item>
+        <item name="enableEdgeToEdge">true</item>
+    </style>
+</resources>

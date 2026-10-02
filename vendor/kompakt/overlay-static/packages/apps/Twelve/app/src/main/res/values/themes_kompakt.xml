@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Music in two inks, and a play button that is an outline. -->
+<resources>
+    <style name="Theme.Twelve" parent="Theme.Material3Expressive.DayNight.NoActionBar">
+        <item name="colorOnSurface">#ff000000</item>
+        <item name="colorOnSurfaceVariant">#ff000000</item>
+        <item name="colorOnBackground">#ff000000</item>
+        <item name="colorOutline">#ff000000</item>
+        <item name="colorOutlineVariant">#ff000000</item>
+        <item name="colorPrimaryContainer">#ffffffff</item>
+        <item name="colorOnPrimaryContainer">#ff000000</item>
+        <item name="colorSecondaryContainer">#ffffffff</item>
+        <item name="colorOnSecondaryContainer">#ff000000</item>
+        <item name="colorTertiaryContainer">#ffffffff</item>
+        <item name="colorOnTertiaryContainer">#ff000000</item>
+        <item name="colorSurfaceContainer">#ffffffff</item>
+        <item name="colorSurfaceContainerHigh">#ffffffff</item>
+        <item name="colorSurfaceContainerHighest">#ffffffff</item>
+        <item name="colorSurfaceContainerLow">#ffffffff</item>
+        <item name="colorSurfaceContainerLowest">#ffffffff</item>
+        <item name="android:textColorSecondary">#ff000000</item>
+        <item name="android:textColorTertiary">#ff000000</item>
+        <item name="elevationOverlayEnabled">false</item>
+        <!-- Kompakt: the transport controls. -->
+        <item name="materialIconButtonFilledStyle">@style/Theme.Twelve.Kompakt.IconButton</item>
+        <item name="materialIconButtonFilledTonalStyle">@style/Theme.Twelve.Kompakt.IconButton</item>
+        <item name="materialIconButtonStyle">@style/Theme.Twelve.Kompakt.IconButton</item>
+        <item name="materialCardViewFilledStyle">@style/Theme.Twelve.Kompakt.FlatCard</item>
+    </style>
+
+    <style name="Theme.Twelve.NowPlayingFragment.MediaButton.Primary" parent="Widget.Material3Expressive.Button.IconButton">
+        <item name="android:layout_width">64dp</item>
+        <item name="android:layout_height">64dp</item>
+        <item name="android:padding">0dp</item>
+        <item name="iconGravity">textStart</item>
+        <item name="iconSize">32dp</item>
+        <!-- Outline, not fill. -->
+        <item name="backgroundTint">@android:color/transparent</item>
+        <item name="android:background">@android:color/transparent</item>
+        <item name="strokeColor">#ff000000</item>
+        <item name="strokeWidth">2dp</item>
+        <item name="iconTint">#ff000000</item>
+        <item name="rippleColor">#14000000</item>
+        <item name="elevation">0dp</item>
+        <!-- No press morph; see the header. -->
+        <item name="android:stateListAnimator">@null</item>
+        <item name="elevationOverlayEnabled">false</item>
+    </style>
+
+    <style name="Theme.Twelve.NowPlayingFragment.MediaButton.Tertiary" parent="Widget.Material3Expressive.Button.IconButton">
+        <item name="android:layout_width">64dp</item>
+        <item name="android:layout_height">64dp</item>
+        <item name="android:padding">0dp</item>
+        <item name="backgroundTint">@android:color/transparent</item>
+        <item name="strokeColor">#ff000000</item>
+        <item name="strokeWidth">2dp</item>
+        <item name="iconTint">#ff000000</item>
+        <item name="iconGravity">textStart</item>
+        <item name="iconSize">32dp</item>
+        <item name="rippleColor">#14000000</item>
+        <item name="elevation">0dp</item>
+        <item name="android:stateListAnimator">@null</item>
+        <item name="elevationOverlayEnabled">false</item>
+    </style>
+
+    <style name="Theme.Twelve.NowPlayingFragment.MediaButton.Standard" parent="Widget.Material3Expressive.Button.IconButton.Standard">
+        <item name="android:layout_width">44dp</item>
+        <item name="android:layout_height">44dp</item>
+        <item name="android:layout_gravity">center</item>
+        <item name="android:padding">0dp</item>
+        <item name="iconGravity">textStart</item>
+        <item name="iconSize">22dp</item>
+        <item name="iconTint">#ff000000</item>
+        <item name="rippleColor">#14000000</item>
+        <item name="android:stateListAnimator">@null</item>
+        <item name="elevationOverlayEnabled">false</item>
+    </style>
+    <!-- Kompakt: an icon and nothing else. -->
+    <style name="Theme.Twelve.Kompakt.IconButton" parent="Widget.Material3.Button.IconButton">
+        <item name="backgroundTint">@android:color/transparent</item>
+        <item name="iconTint">?attr/colorOnSurface</item>
+        <item name="iconSize">28dp</item>
+        <item name="android:minWidth">48dp</item>
+        <item name="android:minHeight">48dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:stateListAnimator">@null</item>
+        <item name="rippleColor">@android:color/transparent</item>
+        <item name="strokeWidth">0dp</item>
+        <item name="elevation">0dp</item>
+    </style>
+
+    <!-- Kompakt: the bottom ribbon is a filled card, which is why it was a black slab behind the icons. -->
+    <style name="Theme.Twelve.Kompakt.FlatCard" parent="Widget.Material3.CardView.Filled">
+        <item name="cardBackgroundColor">@android:color/transparent</item>
+        <item name="cardElevation">0dp</item>
+        <item name="cardCornerRadius">0dp</item>
+        <item name="strokeWidth">0dp</item>
+    </style>
+</resources>

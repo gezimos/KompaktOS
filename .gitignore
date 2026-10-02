@@ -1,0 +1,31 @@
+# Signing keys never belong here. Without vendor/lineage-priv/keys the build
+# falls back to the AOSP test keys, which is how this repository builds.
+# keys.mk there sets PRODUCT_DEFAULT_DEV_CERTIFICATE; nothing in-tree does.
+vendor/kompakt/security/
+vendor/lineage-priv/
+*.pk8
+*.pem
+*.keystore
+*.jks
+*.p12
+
+# Mudita's charging screen: made by vendor/kompakt/charger/extract-from-stock.sh
+vendor/kompakt/charger/kpoc_charger
+vendor/kompakt/charger/kpoc_charger.mudita
+vendor/kompakt/charger/libshowlogo.so
+
+# Built images and archives
+*.img
+*.img.xz
+*.7z
+*.zip
+*.tar.gz
+
+# macOS resource forks, created whenever an archive is unpacked on a Mac
+._*
+.DS_Store
+
+# Editor and tooling noise
+*.swp
+*~
+.idea/

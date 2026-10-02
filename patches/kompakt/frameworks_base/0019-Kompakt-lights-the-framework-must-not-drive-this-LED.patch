@@ -1,0 +1,71 @@
+From 528af5246f807c3c9b846d1c9a2d13f53ae95842 Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Mon, 21 Sep 2026 21:32:03 +0200
+Subject: [PATCH 19/38] Kompakt: lights: the framework must not drive this LED
+
+---
+ core/res/res/values/config.xml                             | 5 +++++
+ core/res/res/values/symbols.xml                            | 1 +
+ .../core/java/com/android/server/lights/LightsService.java | 2 +-
+ .../server/notification/NotificationAttentionHelper.java   | 7 +++++--
+ 4 files changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/core/res/res/values/config.xml b/core/res/res/values/config.xml
+index fbe4c3280e49..1a28724f71b5 100644
+--- a/core/res/res/values/config.xml
++++ b/core/res/res/values/config.xml
+@@ -1468,6 +1468,9 @@
+     <!-- Is the notification LED intrusive? Used to decide if there should be a disable option -->
+     <bool name="config_intrusiveNotificationLed">false</bool>
+ 
++    <!-- When true, something outside the framework owns the notification LED. -->
++    <bool name="config_notificationLedHandledExternally">false</bool>
++
+     <!-- De we do icon badges? Used to decide if there should be a disable option-->
+     <bool name="config_notificationBadging">true</bool>
+ 
+diff --git a/core/res/res/values/symbols.xml b/core/res/res/values/symbols.xml
+index c3ef357178cb..143e8ffad26d 100644
+--- a/core/res/res/values/symbols.xml
++++ b/core/res/res/values/symbols.xml
+@@ -2601,6 +2601,7 @@
+   <java-symbol type="integer" name="config_mobile_hotspot_provision_check_period" />
+   <java-symbol type="string" name="config_wifi_tether_enable" />
+   <java-symbol type="bool" name="config_intrusiveNotificationLed" />
++  <java-symbol type="bool" name="config_notificationLedHandledExternally" />
+   <java-symbol type="bool" name="config_notificationBadging" />
+   <java-symbol type="bool" name="config_callNotificationActionColorsRequireColorized" />
+   <java-symbol type="dimen" name="preference_fragment_padding_bottom" />
+diff --git a/services/core/java/com/android/server/lights/LightsService.java b/services/core/java/com/android/server/lights/LightsService.java
+index 58a894100569..fb8e7ba30460 100644
+--- a/services/core/java/com/android/server/lights/LightsService.java
++++ b/services/core/java/com/android/server/lights/LightsService.java
+@@ -507,7 +507,7 @@ public class LightsService extends SystemService {
+                     setLight_native(mHwLight.id, color, mode, onMS, offMS,
+                             brightnessMode, mBrightnessLevel);
+                 }
+-            } catch (RemoteException | UnsupportedOperationException ex) {
++            } catch (RemoteException | RuntimeException ex) {
+                 Slog.e(TAG, "Failed issuing setLightState", ex);
+             } finally {
+                 Trace.traceEnd(Trace.TRACE_TAG_POWER);
+diff --git a/services/core/java/com/android/server/notification/NotificationAttentionHelper.java b/services/core/java/com/android/server/notification/NotificationAttentionHelper.java
+index 89abfcd6ffdc..14a2fa00f3c4 100644
+--- a/services/core/java/com/android/server/notification/NotificationAttentionHelper.java
++++ b/services/core/java/com/android/server/notification/NotificationAttentionHelper.java
+@@ -234,10 +234,13 @@ public final class NotificationAttentionHelper {
+         mVibratorHelper = new VibratorHelper(context);
+         mVibrationStatsWriter = vibrationStatsWriter;
+ 
+-        mNotificationLight = lightsManager.getLight(LightsManager.LIGHT_ID_NOTIFICATIONS);
++        Resources resources = context.getResources();
++        mNotificationLight = resources.getBoolean(
++                com.android.internal.R.bool.config_notificationLedHandledExternally)
++                ? null
++                : lightsManager.getLight(LightsManager.LIGHT_ID_NOTIFICATIONS);
+         mAttentionLight = lightsManager.getLight(LightsManager.LIGHT_ID_ATTENTION);
+ 
+-        Resources resources = context.getResources();
+         mUseAttentionLight = resources.getBoolean(R.bool.config_useAttentionLight);
+         mHasLight =
+                 resources.getBoolean(com.android.internal.R.bool.config_intrusiveNotificationLed);

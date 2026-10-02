@@ -1,0 +1,10 @@
+._*
+.DS_Store
+
+# OpenEUICC is an upstream checkout with its own .git. It is backed up
+# wholesale into the mirror repo, not tracked here as a gitlink.
+OpenEUICC/
+
+# Signing keys. Never commit, never publish.
+security/
+*.pk8

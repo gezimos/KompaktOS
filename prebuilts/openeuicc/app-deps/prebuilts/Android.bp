@@ -1,0 +1,43 @@
+// com.journeyapps:zxing-android-embedded:4.3.0 -- the one dependency of
+// OpenEUICC that AOSP does not already carry.
+//
+// Every other entry in OpenEUICC-deps-defaults resolves to an existing AOSP
+// module (androidx.core_core-ktx, appcompat, material, constraintlayout,
+// preference, lifecycle, swiperefreshlayout, cardview, viewpager2,
+// datastore-preferences). This is the only one carrying the OpenEUICC_ prefix,
+// which is upstream's convention for "not in AOSP" -- hence the only thing
+// standing between us and a working LPA.
+//
+// It supplies the camera capture wrapper only: ScanContract / ScanOptions in
+// app-common's DownloadWizardMethodSelectFragment.kt, and the
+// com.journeyapps.barcodescanner.CaptureActivity declared in app-common's
+// manifest. The pure-Java half of zxing -- QRCodeReader, RGBLuminanceSource,
+// BinaryBitmap, HybridBinarizer, used in Utils.kt to decode a QR out of an
+// image file -- comes from external/zxing, already in the tree.
+//
+// Its POM declares exactly one dependency, com.google.zxing:core:3.4.1.
+// external/zxing is 3.5.2, which is forward compatible, so zxing-core covers
+// it and no second prebuilt is needed.
+//
+// Apache 2.0, so shipping the binary unmodified is fine and carries no source
+// obligation of its own. OpenEUICC itself is GPLv3 and stays unmodified, which
+// is the reason to vendor this AAR rather than patch the QR scanner out.
+//
+// sdk_version is deliberately unset. zxing-core is a platform module (no
+// sdk_version), and a module declaring sdk_version cannot depend on a platform
+// one; leaving it unset makes this a platform module too, matching
+// OpenEUICC-common.
+//
+// sha256 of the AAR as fetched from repo1.maven.org:
+//   4ab03353127c34e55cbb80fbc9a34031decbcfb1ec5e8f991944d2d494621a33
+
+android_library_import {
+    name: "OpenEUICC_com.journeyapps_zxing-android-embedded",
+    aars: ["zxing-android-embedded-4.3.0.aar"],
+    static_libs: [
+        "zxing-core",
+        "androidx.appcompat_appcompat",
+        "androidx.core_core",
+    ],
+    system_ext_specific: true,
+}

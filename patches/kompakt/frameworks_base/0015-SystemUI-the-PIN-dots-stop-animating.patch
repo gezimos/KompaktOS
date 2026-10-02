@@ -1,0 +1,38 @@
+From 122fcfc3159897e4872a391fe9b3e3584e2882f1 Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Wed, 9 Sep 2026 20:19:59 +0200
+Subject: [PATCH 15/38] SystemUI: the PIN dots stop animating
+
+---
+ .../android/keyguard/PasswordTextView.java    | 23 ++++++++++++++-----
+ 1 file changed, 17 insertions(+), 6 deletions(-)
+
+diff --git a/packages/SystemUI/src/com/android/keyguard/PasswordTextView.java b/packages/SystemUI/src/com/android/keyguard/PasswordTextView.java
+index 394773df28c5..73f59eb43905 100644
+--- a/packages/SystemUI/src/com/android/keyguard/PasswordTextView.java
++++ b/packages/SystemUI/src/com/android/keyguard/PasswordTextView.java
+@@ -46,17 +46,18 @@ import java.util.ArrayList;
+  * changed
+  */
+ public class PasswordTextView extends BasePasswordTextView {
+-    public static final long APPEAR_DURATION = 160;
+-    public static final long DISAPPEAR_DURATION = 160;
++    // e-ink: the PIN dots do not animate.
++    public static final long APPEAR_DURATION = 0;
++    public static final long DISAPPEAR_DURATION = 0;
+     private static final float DOT_OVERSHOOT_FACTOR = 1.5f;
+-    private static final long DOT_APPEAR_DURATION_OVERSHOOT = 320;
+-    private static final long RESET_DELAY_PER_ELEMENT = 40;
+-    private static final long RESET_MAX_DELAY = 200;
++    private static final long DOT_APPEAR_DURATION_OVERSHOOT = 0;
++    private static final long RESET_DELAY_PER_ELEMENT = 0;
++    private static final long RESET_MAX_DELAY = 0;
+ 
+     /**
+      * The overlap between the text disappearing and the dot appearing animation
+      */
+-    private static final long DOT_APPEAR_TEXT_DISAPPEAR_OVERLAP_DURATION = 130;
++    private static final long DOT_APPEAR_TEXT_DISAPPEAR_OVERLAP_DURATION = 0;
+ 
+     /**
+      * The duration the text needs to stay there at least before it can morph into a dot

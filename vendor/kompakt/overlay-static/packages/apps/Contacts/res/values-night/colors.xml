@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: the night half of the Contacts palette. -->
+<resources>
+    <color name="quantum_black_secondary_text">#fffffffe</color>
+    <color name="quantum_black_text">#fffffffe</color>
+    <color name="primary_color">#ff000000</color>
+    <color name="primary_color_dark">#ff000000</color>
+    <color name="action_bar_background">#ff000000</color>
+    <color name="background_primary">#ff000000</color>
+    <color name="kompakt_editor_photo_bg">#ff000000</color>
+    <color name="kompakt_editor_photo_fg">#fffffffe</color>
+    <!-- Kompakt: what you write with, and what you write on. -->
+    <color name="kompakt_ink">#FFFFFFFE</color>
+    <color name="kompakt_ground">#FF000000</color>
+    <color name="empty_state_background">@color/kompakt_ground</color>
+</resources>

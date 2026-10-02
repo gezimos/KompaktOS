@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt e ink: black label on the lens selector buttons. -->
+<androidx.appcompat.widget.AppCompatButton xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="32dp"
+    android:layout_height="32dp"
+    android:layout_weight="1"
+    android:background="@drawable/lens_selector_button_background"
+    android:backgroundTint="@color/lens_selector_button_background"
+    android:paddingHorizontal="0dp"
+    android:textAlignment="center"
+    android:textColor="@color/gray_60"
+    android:textSize="10dp"
+    tools:ignore="SpUsage" />

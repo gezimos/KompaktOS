@@ -1,0 +1,138 @@
+From 114307c91441b707f4c70ca603a91f923fad2c67 Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Wed, 9 Sep 2026 17:44:35 +0200
+Subject: [PATCH 12/38] SystemUI: monochrome status bar icons, and a battery on
+ the keyguard
+
+---
+ .../phone/DarkIconDispatcherImpl.java         |  5 +++
+ .../phone/KeyguardStatusBarView.java          | 38 ++++++++++++++---
+ .../KeyguardStatusBarViewController.java      | 42 +++++++++++++++----
+ .../battery/shared/ui/BatteryColors.kt        | 15 ++++---
+ 4 files changed, 81 insertions(+), 19 deletions(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/phone/DarkIconDispatcherImpl.java b/packages/SystemUI/src/com/android/systemui/statusbar/phone/DarkIconDispatcherImpl.java
+index 09cf935df893..cc3a0078f90b 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/phone/DarkIconDispatcherImpl.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/phone/DarkIconDispatcherImpl.java
+@@ -157,6 +157,8 @@ public class DarkIconDispatcherImpl implements SysuiDarkIconDispatcher,
+ 
+     @Override
+     public void applyDarkIntensity(float darkIntensity) {
++        // e-ink: icons are always dark; the status bar is always near-white.
++        darkIntensity = 1f;
+         mDarkIntensity = darkIntensity;
+         ArgbEvaluator evaluator = ArgbEvaluator.getInstance();
+ 
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/phone/KeyguardStatusBarView.java b/packages/SystemUI/src/com/android/systemui/statusbar/phone/KeyguardStatusBarView.java
+index 8e2bc1fc2227..3c2a925b9530 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/phone/KeyguardStatusBarView.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/phone/KeyguardStatusBarView.java
+@@ -133,11 +133,7 @@ public class KeyguardStatusBarView extends RelativeLayout {
+         mMultiUserAvatar = findViewById(R.id.multi_user_avatar);
+         mCarrierLabel = findViewById(R.id.keyguard_carrier_text);
+         mBatteryView = mSystemIconsContainer.findViewById(R.id.battery);
+-        if (NewStatusBarIcons.isEnabled()) {
+-            // When this flag is rolled forward, this whole view can be removed
+-            mBatteryView.setVisibility(View.GONE);
+-            mBatteryView = null;
+-        }
++        // Keep the legacy battery view; its replacement needs the scene container.
+         mCutoutSpace = findViewById(R.id.cutout_space_view);
+         mStatusIconArea = findViewById(R.id.status_icon_area);
+         mStatusIconContainer = findViewById(R.id.statusIcons);
+@@ -486,7 +482,8 @@ public class KeyguardStatusBarView extends RelativeLayout {
+         @ColorInt int contrastColor = luminance < 0.5
+                 ? DarkIconDispatcherImpl.DEFAULT_ICON_TINT
+                 : DarkIconDispatcherImpl.DEFAULT_INVERSE_ICON_TINT;
+-        float intensity = textColor == Color.WHITE ? 0 : 1;
++        // e-ink: the keyguard is a light surface, so the intensity is always 1.
++        float intensity = 1f;
+         mCarrierLabel.setTextColor(iconColor);
+ 
+         TextView userSwitcherName = mUserSwitcherContainer.findViewById(R.id.current_user_name);
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/phone/KeyguardStatusBarViewController.java b/packages/SystemUI/src/com/android/systemui/statusbar/phone/KeyguardStatusBarViewController.java
+index 2b26035c798c..014432dee69c 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/phone/KeyguardStatusBarViewController.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/phone/KeyguardStatusBarViewController.java
+@@ -463,9 +463,8 @@ public class KeyguardStatusBarViewController extends ViewController<KeyguardStat
+     protected void onInit() {
+         super.onInit();
+         mCarrierTextController.init();
+-        if (!NewStatusBarIcons.isEnabled()) {
+-            mBatteryMeterViewController.init();
+-        }
++        // e-ink: always drive the legacy BatteryMeterView.
++        mBatteryMeterViewController.init();
+         if (isMigrationEnabled()) {
+             KeyguardStatusBarViewBinder.bind(mView, mKeyguardStatusBarViewModel);
+         }
+@@ -534,10 +533,7 @@ public class KeyguardStatusBarViewController extends ViewController<KeyguardStat
+             collectFlow(mView, mKeyguardInteractor.primaryBouncerShowing, x -> updateViewState());
+         }
+         if (NewStatusBarIcons.isEnabled()) {
+-            if (!SceneContainerFlag.isEnabled()) {
+-                mBatteryComposeView = createAndBindComposeBattery();
+-            }
+-            mSystemIconsContainer.addView(mBatteryComposeView, -1);
++            // No Compose battery here; onInit() keeps the legacy view.
+             // Set the margins for the system icons appropriately
+             AlphaOptimizedLinearLayout systemIcons =
+                     mSystemIconsContainer.findViewById(R.id.statusIcons);
+@@ -806,6 +802,10 @@ public class KeyguardStatusBarViewController extends ViewController<KeyguardStat
+     }
+ 
+     private void updateBatteryVisibility() {
++        // e-ink: no Compose battery exists; without this addView(null) crashes.
++        if (mBatteryComposeView == null) {
++            return;
++        }
+         ArraySet<String> hideList = StatusBarIconController.getIconHideList(mContext,
+                 Settings.Secure.getString(mContext.getContentResolver(),
+                         StatusBarIconController.ICON_HIDE_LIST));
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/pipeline/battery/shared/ui/BatteryColors.kt b/packages/SystemUI/src/com/android/systemui/statusbar/pipeline/battery/shared/ui/BatteryColors.kt
+index a1675766ba04..05b8ea22f8a0 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/pipeline/battery/shared/ui/BatteryColors.kt
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/pipeline/battery/shared/ui/BatteryColors.kt
+@@ -63,16 +63,17 @@ sealed interface BatteryColors {
+             override val backgroundWithGlyph = highAlphaBg
+         }
+ 
++        // e-ink: monochrome.
+         data object Charging : LightTheme() {
+-            override val fill = Color(0xFF18CC47)
++            override val fill = Color.Black
+         }
+ 
+         data object Error : LightTheme() {
+-            override val fill = Color(0xFFFF0E01)
++            override val fill = Color.Black
+         }
+ 
+         data object PowerSave : LightTheme() {
+-            override val fill = Color(0xFFFFC917)
++            override val fill = Color.Black
+         }
+ 
+         companion object {
+@@ -99,16 +100,17 @@ sealed interface BatteryColors {
+             override val fill = Color.White
+         }
+ 
++        // e-ink: monochrome, inverse of the light theme above.
+         data object Charging : DarkTheme() {
+-            override val fill = Color(0xFF18CC47)
++            override val fill = Color.White
+         }
+ 
+         data object Error : DarkTheme() {
+-            override val fill = Color(0xFFFF0E01)
++            override val fill = Color.White
+         }
+ 
+         data object PowerSave : DarkTheme() {
+-            override val fill = Color(0xFFFFC917)
++            override val fill = Color.White
+         }
+ 
+         companion object {

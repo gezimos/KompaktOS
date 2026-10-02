@@ -1,0 +1,30 @@
+# Mudita's power-off charging screen, from MuditaOS K 1.6.0. The on charger
+# block is Mudita's verbatim.
+
+on charger
+    # for cycle count backup
+    mkdir /mnt/vendor/persist 0700 system system
+    mount ext4 /dev/block/by-name/persist /mnt/vendor/persist
+    chown system system /mnt/vendor/persist/battery/cycle_count
+    chown system system /mnt/vendor/persist/battery/charge_sum_count
+    chown system system /mnt/vendor/persist/battery/first_use_date
+    chown system system /mnt/vendor/persist/battery/max_charge_level
+    chown system system /sys/kernel/battery_monitor/extra_trigger
+    chown system system /sys/kernel/battery_monitor/extra_data
+    chown system system /sys/kernel/battery_monitor/charge_limit
+    chown system system /sys/kernel/battery_monitor/hysteresis_enable
+    chmod 0660 /sys/kernel/battery_monitor/charge_limit
+
+    restorecon_recursive /mnt/vendor/persist
+
+    chmod 0666 /proc/mtk_battery_cmd/current_cmd
+    start health-hal-2-1
+    start kpoc_charger
+
+# Built against Android 12's libbase and libui; libkpoc supplies the four
+# symbols Android 16 renamed (kpoc_shim.cpp), and the binary links it directly
+# (patch-needed.py): LD_PRELOAD is dropped on the domain transition.
+service kpoc_charger /system/bin/kpoc_charger
+    class charger
+    group system wakelock
+    capabilities BLOCK_SUSPEND SYS_ADMIN SYS_BOOT

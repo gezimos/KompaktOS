@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt e ink: stop the preference title marquee. -->
+<resources>
+
+    <style name="ExpressivePreferenceTextFrameTitleStyle">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_gravity">start</item>
+        <item name="android:textAlignment">viewStart</item>
+        <item name="android:maxLines">2</item>
+        <item name="android:textAppearance">?android:attr/textAppearanceListItem</item>
+        <!-- not marquee, which animates: a partial refresh loop on e ink -->
+        <item name="android:ellipsize">end</item>
+    </style>
+
+    <style name="ExpressivePreferenceTextFrameSummaryStyle">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_below">@android:id/title</item>
+        <item name="android:layout_alignStart">@android:id/title</item>
+        <item name="android:layout_gravity">start</item>
+        <item name="android:textAlignment">viewStart</item>
+        <item name="android:textAppearance">?android:attr/textAppearanceListItemSecondary</item>
+        <item name="android:textColor">?android:attr/textColorSecondary</item>
+        <item name="android:maxLines">10</item>
+        <item name="android:ellipsize">end</item>
+    </style>
+
+</resources>

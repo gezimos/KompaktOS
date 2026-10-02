@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: the chip is an outline; stock is a bare rounded rectangle that shows only when tinted. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="8dp" />
+    <stroke android:width="2dp" android:color="@color/gray_60" />
+</shape>

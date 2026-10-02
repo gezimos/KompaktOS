@@ -1,0 +1,26 @@
+From c9ffe4e47f9596424a99e6712974f10970d6175e Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Tue, 22 Sep 2026 22:05:00 +0200
+Subject: [PATCH 29/38] Kompakt: AOD icons fall back to the shelf icon
+
+---
+ .../NotificationIconContainerAlwaysOnDisplayViewModel.kt    | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/notification/icon/ui/viewmodel/NotificationIconContainerAlwaysOnDisplayViewModel.kt b/packages/SystemUI/src/com/android/systemui/statusbar/notification/icon/ui/viewmodel/NotificationIconContainerAlwaysOnDisplayViewModel.kt
+index f86ae684777f..bcab3c9c5a84 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/notification/icon/ui/viewmodel/NotificationIconContainerAlwaysOnDisplayViewModel.kt
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/notification/icon/ui/viewmodel/NotificationIconContainerAlwaysOnDisplayViewModel.kt
+@@ -93,7 +93,11 @@ constructor(
+         iconsInteractor.aodNotifs
+             .map { entries ->
+                 NotificationIconsViewData(
+-                    visibleIcons = entries.mapNotNull { it.toIconInfo(it.aodIcon) },
++                    // Kompakt: fall back to the shelf and then the status bar icon.
++                    visibleIcons =
++                        entries.mapNotNull {
++                            it.toIconInfo(it.aodIcon ?: it.shelfIcon ?: it.statusBarIcon)
++                        },
+                     iconLimit = maxIcons,
+                 )
+             }

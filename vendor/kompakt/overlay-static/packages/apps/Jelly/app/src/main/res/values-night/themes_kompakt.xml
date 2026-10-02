@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The dark ripple in the URL bar. -->
+<resources>
+    <!-- Kompakt: Kompakt night: generated twin of the values/ file by m3_overlay_night.py, inks inverted. -->
+    <style name="Theme.Jelly" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:colorControlHighlight">#14ffffff</item>
+        <item name="colorControlHighlight">#14ffffff</item>
+        <item name="elevationOverlayEnabled">false</item>
+        <!-- Kompakt: the selected URL was a translucent black wash, dithered on this panel. -->
+        <item name="android:textColorHighlight">#ff3a3a3a</item>
+    </style>
+</resources>

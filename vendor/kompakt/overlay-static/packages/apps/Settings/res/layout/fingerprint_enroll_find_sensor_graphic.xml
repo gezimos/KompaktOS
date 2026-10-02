@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: a small fingerprint instead of the full width phone mockup, and no pulsing dot. -->
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="fill_parent"
+    android:layout_height="wrap_content"
+    android:paddingTop="@dimen/fingerprint_find_sensor_padding_top">
+
+    <ImageView
+        android:id="@+id/fingerprint_sensor_location"
+        android:layout_width="96dp"
+        android:layout_height="96dp"
+        android:layout_gravity="center_horizontal"
+        android:contentDescription="@string/security_settings_fingerprint_enroll_find_sensor_content_description"
+        android:scaleType="fitCenter"
+        android:src="@drawable/kompakt_fp_enroll_filled" />
+
+    <ImageView
+        android:id="@+id/fingerprint_sensor_location_front_overlay"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone" />
+
+    <com.android.settings.biometrics.fingerprint.FingerprintLocationAnimationView
+        android:id="@+id/fingerprint_sensor_location_animation"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone" />
+
+</FrameLayout>

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Jelly is nearly monochrome already; this is the one colour it defines and the ripple it inherits. -->
+<resources>
+    <!-- Kompakt: Kompakt night: generated twin of the values/ file by m3_overlay_night.py, inks inverted. -->
+    <color name="colorDelete">#fffffffe</color>
+</resources>

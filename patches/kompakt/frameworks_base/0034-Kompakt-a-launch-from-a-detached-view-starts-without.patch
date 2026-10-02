@@ -1,0 +1,50 @@
+From 22d2c033aa9e7301af2e205300452844fcaa9e26 Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Sat, 26 Sep 2026 03:10:00 +0200
+Subject: [PATCH 34/38] Kompakt: a launch from a detached view starts without
+ animation
+
+---
+ .../animation/ActivityTransitionAnimator.kt   | 21 +++++++++++++++++--
+ 1 file changed, 19 insertions(+), 2 deletions(-)
+
+diff --git a/packages/SystemUI/animation/src/com/android/systemui/animation/ActivityTransitionAnimator.kt b/packages/SystemUI/animation/src/com/android/systemui/animation/ActivityTransitionAnimator.kt
+index cdac78b117e5..3e8d98cfd413 100644
+--- a/packages/SystemUI/animation/src/com/android/systemui/animation/ActivityTransitionAnimator.kt
++++ b/packages/SystemUI/animation/src/com/android/systemui/animation/ActivityTransitionAnimator.kt
+@@ -375,7 +375,8 @@ constructor(
+     ) {
+         if (intentStarter != null) {
+             val cookie = controller?.transitionCookie
+-            if (cookie == null || scope == null || !animate) {
++            if (cookie == null || scope == null || !animate ||
++                    controller?.hasTransitionContainer() != true) {
+                 Log.i(TAG, "Starting intent with no animation")
+                 intentStarter(null)
+                 controller?.callOnIntentStartedOnMainThread(willAnimate = false)
+@@ -430,7 +431,7 @@ constructor(
+                 (returnTransition?.remoteTransition as? OriginTransition)?.dispose()
+             }
+         } else if (intentStarterLegacy != null) {
+-            if (controller == null || !animate) {
++            if (controller == null || !animate || !controller.hasTransitionContainer()) {
+                 Log.i(TAG, "Starting intent with no animation")
+                 intentStarterLegacy(null)
+                 controller?.callOnIntentStartedOnMainThread(willAnimate = false)
+@@ -940,6 +941,16 @@ constructor(
+      * This method must only be used for ephemeral (launch or return) transitions. Otherwise, use
+      * [createLongLivedRunner].
+      */
++    /* Kompakt: a detached view has no transition container; launch without animation. */
++    private fun Controller.hasTransitionContainer(): Boolean =
++        try {
++            transitionContainer
++            true
++        } catch (e: ClassCastException) {
++            Log.w(TAG, "Launch view detached, starting without animation", e)
++            false
++        }
++
+     @Deprecated("Use createOriginTransition() instead.")
+     @VisibleForTesting
+     fun createEphemeralRunner(controller: Controller): Runner {

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: sits on the ink filled send disc, so it takes the opposite ink. -->
+
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="960"
+    android:viewportHeight="960"
+    android:autoMirrored="true">
+  <path
+      android:fillColor="@color/kompakt_ground"
+      android:pathData="M120,800L120,560L440,480L120,400L120,160L880,480L120,800Z"/>
+</vector>

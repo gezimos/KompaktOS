@@ -1,0 +1,92 @@
+From d48cfe8f8697fdc9144e49fced24007552617ca1 Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Fri, 18 Sep 2026 18:56:28 +0200
+Subject: [PATCH 26/38] Kompakt: battery: monochrome, with the foreground
+ inverted against the fill
+
+---
+ .../systemui/battery/BatteryMeterView.java    |  7 ---
+ .../battery/unified/BatteryDrawableState.kt   |  4 +-
+ .../battery/unified/BatteryLayersDrawable.kt  | 50 +++++++++----------
+ .../com/android/server/BatteryService.java    | 15 ------
+ 4 files changed, 25 insertions(+), 51 deletions(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/battery/unified/BatteryDrawableState.kt b/packages/SystemUI/src/com/android/systemui/battery/unified/BatteryDrawableState.kt
+index 58e8fc3a65fa..f0feed2344a8 100644
+--- a/packages/SystemUI/src/com/android/systemui/battery/unified/BatteryDrawableState.kt
++++ b/packages/SystemUI/src/com/android/systemui/battery/unified/BatteryDrawableState.kt
+@@ -99,7 +99,7 @@ sealed interface BatteryColors {
+         // 22% alpha white
+         override val bg: Int = Color.valueOf(1f, 1f, 1f, 0.22f).toArgb()
+ 
+-        // Kompakt: black, not GM Gray 500/600.
++        // Kompakt: black, not GM Gray 500/600.
+         override val fill = Color.BLACK
+         override val fillOnly = Color.BLACK
+     }
+diff --git a/packages/SystemUI/src/com/android/systemui/battery/unified/BatteryLayersDrawable.kt b/packages/SystemUI/src/com/android/systemui/battery/unified/BatteryLayersDrawable.kt
+index 5f106a913f31..e15967d4fe80 100644
+--- a/packages/SystemUI/src/com/android/systemui/battery/unified/BatteryLayersDrawable.kt
++++ b/packages/SystemUI/src/com/android/systemui/battery/unified/BatteryLayersDrawable.kt
+@@ -19,6 +19,7 @@ package com.android.systemui.battery.unified
+ import android.content.Context
+ import android.graphics.BlendMode
+ import android.graphics.Canvas
++import android.graphics.Color
+ import android.graphics.Matrix
+ import android.graphics.Paint
+ import android.graphics.Rect
+@@ -71,7 +72,10 @@ class BatteryLayersDrawable(
+ ) : LayerDrawable(arrayOf(frameBg, frame, fill, textOnly, spaceSharingText, attribution)) {
+ 
+     /** Punches the foreground shapes back out of the solid fill. See draw(). */
+-    private val clearPaint = Paint().also { it.blendMode = BlendMode.CLEAR }
++    /**
++     * Kompakt: the foreground is drawn inverted against whatever is under it.
++     */
++    private val invertPaint = Paint().also { it.blendMode = BlendMode.DIFFERENCE }
+ 
+     private val scaleMatrix = Matrix().also { it.setScale(1f, 1f) }
+ 
+@@ -129,16 +133,17 @@ class BatteryLayersDrawable(
+         }
+     }
+ 
+-    /** Kompakt: the fill no longer depends on the state. */
++    /** Kompakt: the fill no longer depends on the state. */
+     private fun updateColorProfile(
+         hasFg: Boolean,
+         colorInfo: BatteryColors,
+     ) {
+         frame.setTint(colorInfo.fg)
+         frameBg.setTint(colorInfo.bg)
+-        textOnly.setTint(colorInfo.fg)
+-        spaceSharingText.setTint(colorInfo.fg)
+-        attribution.setTint(colorInfo.fg)
++        // Kompakt: white, not fg. These three are drawn through invertPaint.
++        textOnly.setTint(Color.WHITE)
++        spaceSharingText.setTint(Color.WHITE)
++        attribution.setTint(Color.WHITE)
+ 
+         fill.fillColor = if (hasFg) colorInfo.fill else colorInfo.fillOnly
+     }
+@@ -210,15 +215,12 @@ class BatteryLayersDrawable(
+         // 2. Then the frame itself
+         frame.draw(canvas)
+ 
+-        // 3. The contents first, on the light interior; the fill is solid black.
+-        drawForeground(canvas)
+-
+-        // 4. Fill to the level, then clear the same shapes back out of it.
+-        val layer = canvas.saveLayer(null, null)
++        // 3. Fill it the appropriate amount
+         fill.draw(canvas)
+-        val punch = canvas.saveLayer(null, clearPaint)
++
++        // 4. The bolt and the percentage, as the inverse of what they land on.
++        val layer = canvas.saveLayer(null, invertPaint)
+         drawForeground(canvas)
+-        canvas.restoreToCount(punch)
+         canvas.restoreToCount(layer)
+     }
+ 

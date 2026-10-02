@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dark mode dynamic accent: accent1_300 is black here. -->
+<resources>
+    <color name="sud_dynamic_color_accent_glif_v3_dark">@android:color/system_accent1_100</color>
+    <color name="sud_dynamic_switch_thumb_off_outline_dark">@android:color/system_accent1_100</color>
+</resources>

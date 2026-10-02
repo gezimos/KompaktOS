@@ -1,0 +1,129 @@
+From 8bf6f83d714c369bcd3fd649a2ca5906964755a1 Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Thu, 24 Sep 2026 01:00:00 +0200
+Subject: [PATCH 28/38] Kompakt: doze: draw the AOD clock and let the SoC sleep
+
+---
+ .../android/systemui/doze/DozeMachine.java    | 15 +++++
+ .../systemui/doze/DozeScreenState.java        | 38 ++++++++++++
+ .../src/com/android/systemui/doze/DozeUi.java | 58 ++++++++++++++++---
+ 3 files changed, 103 insertions(+), 8 deletions(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/doze/DozeMachine.java b/packages/SystemUI/src/com/android/systemui/doze/DozeMachine.java
+index 7cd141813c5e..7cfb1ac0162b 100644
+--- a/packages/SystemUI/src/com/android/systemui/doze/DozeMachine.java
++++ b/packages/SystemUI/src/com/android/systemui/doze/DozeMachine.java
+@@ -220,6 +220,17 @@ public class DozeMachine {
+      * Note that {@link #transitionPolicy} can modify what state will be transitioned to.
+      */
+     @MainThread
++    /** Kompakt: find a Part by type, so DozeUi can reach DozeScreenState. */
++    @SuppressWarnings("unchecked")
++    public <T extends Part> T getPart(Class<T> cls) {
++        for (Part p : mParts) {
++            if (cls.isInstance(p)) {
++                return (T) p;
++            }
++        }
++        return null;
++    }
++
+     public void requestState(State requestedState) {
+         Preconditions.checkArgument(requestedState != State.DOZE_REQUEST_PULSE);
+         requestState(requestedState, DozeLog.PULSE_REASON_NONE);
+diff --git a/packages/SystemUI/src/com/android/systemui/doze/DozeScreenState.java b/packages/SystemUI/src/com/android/systemui/doze/DozeScreenState.java
+index 6ee0dec04c2c..162ab1904070 100644
+--- a/packages/SystemUI/src/com/android/systemui/doze/DozeScreenState.java
++++ b/packages/SystemUI/src/com/android/systemui/doze/DozeScreenState.java
+@@ -230,7 +230,30 @@ public class DozeScreenState implements DozeMachine.Part {
+         mPendingScreenState = Display.STATE_UNKNOWN;
+     }
+ 
++    /** Kompakt, e-ink: AOD paints in DOZE, then drops to DOZE_SUSPEND to sleep.
++     * Never stay in DOZE: meink stays in AOD and the panel freezes. */
++    private static final long AOD_PAINT_MS = 2000;
++
++    private final Runnable mDropToDozeSuspend =
++            () -> applyScreenStateNow(Display.STATE_DOZE_SUSPEND);
++
++    /** Repaint the AOD clock: bump to DOZE, then settle back to DOZE_SUSPEND. */
++    public void bumpForAodPaint() {
++        applyScreenState(Display.STATE_DOZE_SUSPEND);
++    }
++
+     private void applyScreenState(int screenState) {
++        if (screenState == Display.STATE_DOZE_SUSPEND) {
++            applyScreenStateNow(Display.STATE_DOZE);
++            mHandler.removeCallbacks(mDropToDozeSuspend);
++            mHandler.postDelayed(mDropToDozeSuspend, AOD_PAINT_MS);
++            return;
++        }
++        mHandler.removeCallbacks(mDropToDozeSuspend);
++        applyScreenStateNow(screenState);
++    }
++
++    private void applyScreenStateNow(int screenState) {
+         if (screenState != Display.STATE_UNKNOWN) {
+             if (DEBUG) Log.d(TAG, "setDozeScreenState(" + screenState + ")");
+             mDozeService.setDozeScreenState(screenState);
+diff --git a/packages/SystemUI/src/com/android/systemui/doze/DozeUi.java b/packages/SystemUI/src/com/android/systemui/doze/DozeUi.java
+index 91c6df3a1901..1655636cfe4b 100644
+--- a/packages/SystemUI/src/com/android/systemui/doze/DozeUi.java
++++ b/packages/SystemUI/src/com/android/systemui/doze/DozeUi.java
+@@ -59,6 +59,8 @@ public class DozeUi implements DozeMachine.Part {
+     private volatile long mLastTimeTickElapsed = 0;
+     // If time tick is scheduled and there's not a pending runnable to cancel:
+     private volatile boolean mTimeTickScheduled;
++
++    private static final long[] AOD_PAINT_PUSH_MS = {0, 500};
+     private final Runnable mCancelTimeTickerRunnable =  new Runnable() {
+         @Override
+         public void run() {
+@@ -133,12 +135,9 @@ public class DozeUi implements DozeMachine.Part {
+         switch (newState) {
+             case DOZE_AOD:
+             case DOZE_AOD_DOCKED:
+-                if (oldState == DOZE_AOD_PAUSED || oldState == DOZE) {
+-                    // Whenever turning on the display, it's necessary to push a new frame.
+-                    // The display buffers will be empty and need to be filled.
+-                    mHost.dozeTimeTick();
+-                    // The first frame may arrive when the display isn't ready yet.
+-                    mHandler.postDelayed(mWakeLock.wrap(mHost::dozeTimeTick), 500);
++                // Kompakt, e-ink: push a frame on every AOD entry; nothing else paints the ink.
++                for (long delay : AOD_PAINT_PUSH_MS) {
++                    mHandler.postDelayed(mWakeLock.wrap(mHost::dozeTimeTick), delay);
+                 }
+                 scheduleTimeTick();
+                 break;
+@@ -231,8 +230,29 @@ public class DozeUi implements DozeMachine.Part {
+     private void onTimeTick() {
+         verifyLastTimeTick();
+ 
+-        // Keep wakelock until a frame has been pushed.
+-        mHandler.post(mWakeLock.wrap(mHost::dozeTimeTick));
++        // Kompakt, e-ink: bump to STATE_DOZE before the frame is composited.
++        // Only while in AOD; an awake display forced to DOZE freezes the panel.
++        if (mMachine == null) {
++            mDozeLog.d("AOD paint bump skipped, machine null");
++        } else {
++            final DozeScreenState screenState = mMachine.getPart(DozeScreenState.class);
++            if (screenState == null) {
++                mDozeLog.d("AOD paint bump skipped, no DozeScreenState part");
++            } else {
++                mHandler.post(mWakeLock.wrap(() -> {
++                    DozeMachine.State s = mMachine.getState();
++                    mDozeLog.d("AOD paint bump ran, state=" + s);
++                    if (s != null && s.isAlwaysOn()) {
++                        screenState.bumpForAodPaint();
++                    }
++                }));
++            }
++        }
++
++        // Keep the wakelock until a frame has been pushed.
++        for (long delay : AOD_PAINT_PUSH_MS) {
++            mHandler.postDelayed(mWakeLock.wrap(mHost::dozeTimeTick), delay);
++        }
+ 
+         mTimeTickScheduled = false;
+         scheduleTimeTick();

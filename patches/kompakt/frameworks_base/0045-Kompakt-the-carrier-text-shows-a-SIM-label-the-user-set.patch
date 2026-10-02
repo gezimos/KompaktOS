@@ -1,0 +1,32 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Mon, 28 Sep 2026 21:00:00 +0200
+Subject: [PATCH 45/45] Kompakt: the carrier text shows a SIM label the user set
+
+---
+diff --git a/packages/SystemUI/src/com/android/keyguard/CarrierTextManager.java b/packages/SystemUI/src/com/android/keyguard/CarrierTextManager.java
+--- a/packages/SystemUI/src/com/android/keyguard/CarrierTextManager.java
++++ b/packages/SystemUI/src/com/android/keyguard/CarrierTextManager.java
+@@ -30,6 +30,7 @@
+ import android.os.Trace;
+ import android.telephony.ServiceState;
+ import android.telephony.SubscriptionInfo;
++import android.telephony.SubscriptionManager;
+ import android.telephony.TelephonyCallback.ActiveDataSubscriptionIdListener;
+ import android.telephony.TelephonyManager;
+ import android.text.TextUtils;
+@@ -373,7 +374,13 @@
+             subsIds[i] = subId;
+             subOrderBySlot[slotId] = i;
+             int simState = mKeyguardUpdateMonitor.getSimStateForSlotId(slotId);
+-            CharSequence carrierName = subs.get(i).getCarrierName();
++            // Kompakt: a SIM label the user set wins over the operator name.
++            CharSequence carrierName =
++                    subs.get(i).getDisplayNameSource()
++                            == SubscriptionManager.NAME_SOURCE_USER_INPUT
++                            && !TextUtils.isEmpty(subs.get(i).getDisplayName())
++                    ? subs.get(i).getDisplayName()
++                    : subs.get(i).getCarrierName();
+             CharSequence carrierTextForSimState = getCarrierTextForSimState(simState, carrierName);
+             mLogger.logUpdateLoopStart(subId, simState, String.valueOf(carrierName));
+             if (carrierTextForSimState != null) {

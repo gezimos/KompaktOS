@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: the spacebar, marked by a rule across its middle. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/keyboard_key_normal_color_you" />
+            <corners android:radius="@dimen/keyboard_key_corner_radius_you" />
+        </shape>
+    </item>
+    <item android:left="32dp" android:right="32dp"
+          android:gravity="center_vertical|fill_horizontal" android:height="2dp">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/keyboard_key_text_color_you" />
+        </shape>
+    </item>
+</layer-list>

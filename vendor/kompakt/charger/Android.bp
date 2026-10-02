@@ -1,0 +1,39 @@
+// Mudita's power-off charging screen. The binaries are not in this repository:
+// extract-from-stock.sh takes them from MuditaOS K 1.6.0's system image.
+
+cc_prebuilt_binary {
+    name: "kpoc_charger",
+    srcs: ["kpoc_charger"],
+    compile_multilib: "64",
+    init_rc: ["kpoc_charger.rc"],
+    required: [
+        "libkpoc",
+        "libshowlogo",
+        "libsuspend",
+    ],
+    check_elf_files: false,
+    strip: {
+        none: true,
+    },
+}
+
+cc_prebuilt_library_shared {
+    name: "libshowlogo",
+    srcs: ["libshowlogo.so"],
+    compile_multilib: "64",
+    check_elf_files: false,
+    strip: {
+        none: true,
+    },
+}
+
+cc_library_shared {
+    name: "libkpoc",
+    srcs: ["kpoc_shim.cpp"],
+    shared_libs: ["libcutils"],
+    compile_multilib: "64",
+    cflags: [
+        "-Wall",
+        "-Werror",
+    ],
+}

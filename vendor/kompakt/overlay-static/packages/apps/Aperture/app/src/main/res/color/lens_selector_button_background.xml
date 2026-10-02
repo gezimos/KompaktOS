@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: never a fill. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:color="@android:color/transparent" android:state_selected="false" />
+    <item android:color="@android:color/transparent" android:state_selected="true" />
+</selector>

@@ -1,0 +1,25 @@
+From 374d979a2e4a83e93bdc8286a04b83d7559cf892 Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Sat, 26 Sep 2026 16:32:06 +0200
+Subject: [PATCH 41/41] Kompakt: QS: every icon only tile names itself in the toolbar
+
+---
+ .../systemui/qs/panels/ui/compose/infinitegrid/Tile.kt     | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/Tile.kt b/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/Tile.kt
+index d869b04afce4..2cd8e71bf1d0 100644
+--- a/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/Tile.kt
++++ b/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/Tile.kt
+@@ -309,7 +309,8 @@ fun ContentScope.Tile(
+                                 contentBounceable.animateContentBounce(iconOnly)
+                             }
+                         }
+-                        if (uiState.isToggleable && iconOnly) {
++                        // Kompakt: every icon only tile names itself, not only switches.
++                        if (iconOnly) {
+                             // And show footer text feedback for icons
+                             requestToggleTextFeedback(tile.spec)
+                         }
+-- 
+2.43.0

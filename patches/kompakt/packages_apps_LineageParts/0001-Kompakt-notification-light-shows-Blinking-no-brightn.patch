@@ -1,0 +1,55 @@
+From 8514fcc4c6bf8a1dbc85e0b77ba69600168b4031 Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Fri, 25 Sep 2026 13:56:35 +0200
+Subject: [PATCH] Kompakt: notification light shows Blinking, no brightness
+ levels
+
+---
+ res/values/kompakt_strings.xml                              | 6 ++++++
+ .../notificationlight/ApplicationLightPreference.java       | 4 +++-
+ .../notificationlight/NotificationLightSettings.java        | 4 ++++
+ 3 files changed, 13 insertions(+), 1 deletion(-)
+ create mode 100644 res/values/kompakt_strings.xml
+
+diff --git a/res/values/kompakt_strings.xml b/res/values/kompakt_strings.xml
+new file mode 100644
+index 0000000..6196c3e
+--- /dev/null
++++ b/res/values/kompakt_strings.xml
+@@ -0,0 +1,6 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Kompakt: strings for the notification light on this phone. -->
++<resources>
++    <!-- The only way this LED lights: it breathes. -->
++    <string name="pulse_length_kompakt_blinking">Blinking</string>
++</resources>
+diff --git a/src/org/lineageos/lineageparts/notificationlight/ApplicationLightPreference.java b/src/org/lineageos/lineageparts/notificationlight/ApplicationLightPreference.java
+index 7f9c4f6..752582c 100644
+--- a/src/org/lineageos/lineageparts/notificationlight/ApplicationLightPreference.java
++++ b/src/org/lineageos/lineageparts/notificationlight/ApplicationLightPreference.java
+@@ -274,7 +274,8 @@ public class ApplicationLightPreference extends CustomDialogPreference<LightSett
+ 
+     private String mapLengthValue(Integer time) {
+         if (mOnOffType == OnOffType.TOGGLE) {
+-            return getContext().getResources().getString(R.string.pulse_length_always_on);
++            // Kompakt: our TOGGLE LED only breathes, so say Blinking.
++            return getContext().getResources().getString(R.string.pulse_length_kompakt_blinking);
+         }
+         if (time == DEFAULT_TIME) {
+             return mOnOffType == OnOffType.BREATH
+diff --git a/src/org/lineageos/lineageparts/notificationlight/NotificationLightSettings.java b/src/org/lineageos/lineageparts/notificationlight/NotificationLightSettings.java
+index 99af256..2b467fa 100644
+--- a/src/org/lineageos/lineageparts/notificationlight/NotificationLightSettings.java
++++ b/src/org/lineageos/lineageparts/notificationlight/NotificationLightSettings.java
+@@ -144,6 +144,8 @@ public class NotificationLightSettings extends SettingsPreferenceFragment implem
+                         LightsCapabilities.LIGHTS_NO_BRIGHTNESS_CONTROL)) {
+             removePreference(BRIGHTNESS_SECTION);
+         }
++        // Kompakt: a breathing LED cannot be dimmed, so no brightness levels.
++        removePreference(BRIGHTNESS_SECTION);
+         if (!mLedCanBlink && !mMultiColorLed) {
+             mGeneralPrefs.removePreference(mDefaultPref);
+             mAdvancedPrefs.removePreference(mCustomEnabledPref);
+-- 
+2.43.0
+

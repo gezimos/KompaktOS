@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Force light. -->
+    <integer name="config_defaultNightMode">1</integer>
+
+    <!-- Caret: solid, never blinking. -->
+    <integer name="def_accessibility_text_cursor_blink_interval_ms">0</integer>
+    <!-- Kompakt: 2000 (stock 1000). -->
+    <integer name="config_keyguardDrawnTimeout">2000</integer>
+</resources>

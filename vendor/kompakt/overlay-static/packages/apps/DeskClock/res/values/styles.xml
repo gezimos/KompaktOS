@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- TimerSetupTime, with the digits given room. -->
+<resources>
+    <style name="TimerSetupTime">
+        <item name="layout_constraintBottom_toBottomOf">@id/timer_setup_time_bottom</item>
+        <item name="layout_constraintEnd_toEndOf">@id/timer_setup_digits</item>
+        <item name="layout_constraintStart_toStartOf">@id/timer_setup_digits</item>
+        <item name="layout_constraintTop_toTopOf">@id/timer_setup_time_top</item>
+        <item name="android:letterSpacing">0.08</item>
+    </style>
+</resources>

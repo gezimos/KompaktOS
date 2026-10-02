@@ -1,0 +1,321 @@
+From 58317a30f2bc2e27c353336652ce71ad5529490b Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Tue, 8 Sep 2026 15:02:54 +0200
+Subject: [PATCH 06/38] SystemUI: e-ink shade, quick settings and notifications
+
+---
+ .../res/drawable/notification_material_bg.xml |  1 +
+ .../res/drawable/qs_tile_background_shape.xml |  3 ++-
+ .../layout/notification_children_divider.xml  |  2 +-
+ .../quick_status_bar_expanded_header.xml      |  1 +
+ ...status_bar_notification_section_header.xml |  1 +
+ packages/SystemUI/res/values/colors.xml       |  8 +++----
+ packages/SystemUI/res/values/config.xml       |  4 ++--
+ packages/SystemUI/res/values/dimens.xml       | 22 +++++++++----------
+ packages/SystemUI/res/values/flags.xml        |  2 +-
+ .../statusbar/phone/BarTransitions.java       | 10 ++++++---
+ .../com/android/systemui/qs/QSFooterView.java |  5 +++++
+ .../com/android/systemui/qs/QuickQSPanel.java |  6 ++++-
+ .../row/ExpandableNotificationRow.java        |  6 +++++
+ .../ExpandableNotificationRowController.java  |  3 ++-
+ 14 files changed, 48 insertions(+), 26 deletions(-)
+
+diff --git a/packages/SystemUI/res/drawable/notification_material_bg.xml b/packages/SystemUI/res/drawable/notification_material_bg.xml
+index db3b969cca39..1a1c17cb8042 100644
+--- a/packages/SystemUI/res/drawable/notification_material_bg.xml
++++ b/packages/SystemUI/res/drawable/notification_material_bg.xml
+@@ -21,6 +21,7 @@
+     <item>
+         <shape>
+             <solid android:color="@androidprv:color/materialColorSurfaceContainerHigh" />
++            <stroke android:width="2.0px" android:color="#ff000000" />
+         </shape>
+     </item>
+     <item>
+diff --git a/packages/SystemUI/res/drawable/qs_tile_background_shape.xml b/packages/SystemUI/res/drawable/qs_tile_background_shape.xml
+index f6b68347124e..8cad5808b72e 100644
+--- a/packages/SystemUI/res/drawable/qs_tile_background_shape.xml
++++ b/packages/SystemUI/res/drawable/qs_tile_background_shape.xml
+@@ -17,5 +17,6 @@
+ 
+ <shape xmlns:android="http://schemas.android.com/apk/res/android">
+     <corners android:radius="@dimen/qs_corner_radius" />
+-    <solid android:color="#FFFFFF" />
++    <solid android:color="#00000000" />
++    <stroke android:width="2.0px" android:color="#ff000000" />
+ </shape>
+\ No newline at end of file
+diff --git a/packages/SystemUI/res/layout/notification_children_divider.xml b/packages/SystemUI/res/layout/notification_children_divider.xml
+index c1d94f990d25..2f513eeee7a6 100644
+--- a/packages/SystemUI/res/layout/notification_children_divider.xml
++++ b/packages/SystemUI/res/layout/notification_children_divider.xml
+@@ -20,5 +20,5 @@
+     xmlns:androidprv="http://schemas.android.com/apk/prv/res/android"
+     android:id="@+id/notification_more_divider"
+     android:layout_width="match_parent"
+-    android:layout_height="@dimen/notification_divider_height"
++    android:layout_height="2.0px"
+     android:background="@androidprv:color/materialColorOnSurfaceVariant" />
+diff --git a/packages/SystemUI/res/layout/quick_status_bar_expanded_header.xml b/packages/SystemUI/res/layout/quick_status_bar_expanded_header.xml
+index 1749ed403c09..8c9ec506a560 100644
+--- a/packages/SystemUI/res/layout/quick_status_bar_expanded_header.xml
++++ b/packages/SystemUI/res/layout/quick_status_bar_expanded_header.xml
+@@ -21,6 +21,7 @@
+     android:id="@+id/header"
+     android:layout_width="match_parent"
+     android:layout_height="wrap_content"
++    android:minHeight="1.0px"
+     android:layout_gravity="@integer/notification_panel_layout_gravity"
+     android:background="@android:color/transparent"
+     android:importantForAccessibility="no"
+diff --git a/packages/SystemUI/res/layout/status_bar_notification_section_header.xml b/packages/SystemUI/res/layout/status_bar_notification_section_header.xml
+index 53abe87e7c12..e159f413de2a 100644
+--- a/packages/SystemUI/res/layout/status_bar_notification_section_header.xml
++++ b/packages/SystemUI/res/layout/status_bar_notification_section_header.xml
+@@ -25,6 +25,7 @@
+ 
+     <LinearLayout
+         android:id="@+id/content"
++        android:visibility="gone"
+         android:layout_width="match_parent"
+         android:layout_height="wrap_content"
+         android:layout_gravity="bottom"
+diff --git a/packages/SystemUI/res/values/colors.xml b/packages/SystemUI/res/values/colors.xml
+index f65b09df925d..770551804606 100644
+--- a/packages/SystemUI/res/values/colors.xml
++++ b/packages/SystemUI/res/values/colors.xml
+@@ -84,13 +84,13 @@
+     <color name="notification_legacy_background_color">#ff1a1a1a</color>
+ 
+     <!-- The color of the dividing line between grouped notifications. -->
+-    <color name="notification_divider_color">@*android:color/background_device_default_light</color>
++    <color name="notification_divider_color">#ff000000</color>
+ 
+     <!-- The color of the ripples on the untinted notifications -->
+-    <color name="notification_ripple_untinted_color">#28000000</color>
++    <color name="notification_ripple_untinted_color">#00000000</color>
+ 
+     <!-- The color of the ripples on the tinted notifications -->
+-    <color name="notification_ripple_tinted_color">#30ffffff</color>
++    <color name="notification_ripple_tinted_color">#00000000</color>
+ 
+     <!-- The color of the gear shown behind a notification -->
+     <color name="notification_gear_color">@color/GM2_grey_700</color>
+@@ -162,7 +162,7 @@
+     <color name="sfps_chevron_fill">@color/material_dynamic_primary90</color>
+ 
+     <!-- Floating overlay actions -->
+-    <color name="overlay_button_ripple">#1f000000</color>
++    <color name="overlay_button_ripple">#00000000</color>
+     <color name="overlay_background_protection_start">#40000000</color> <!-- 25% black -->
+ 
+     <!-- GM2 colors -->
+diff --git a/packages/SystemUI/res/values/config.xml b/packages/SystemUI/res/values/config.xml
+index e0bc1ec0e01a..a7e10fe8905f 100644
+--- a/packages/SystemUI/res/values/config.xml
++++ b/packages/SystemUI/res/values/config.xml
+@@ -446,7 +446,7 @@
+ 
+     <!-- Whether or not there should be dividing lines between child notifications when the
+          group has been expanded. -->
+-    <bool name="config_showDividersWhenGroupNotificationExpanded">false</bool>
++    <bool name="config_showDividersWhenGroupNotificationExpanded">true</bool>
+ 
+     <!-- Whether or not the dividing lines should be shown when the container is expanding and
+          collapsing. If this value is true, then the lines will only show when the container has
+@@ -461,7 +461,7 @@
+ 
+     <!-- Whether or not a view containing child notifications will have a custom background when
+          it has been expanded to reveal its children. -->
+-    <bool name="config_showGroupNotificationBgWhenExpanded">false</bool>
++    <bool name="config_showGroupNotificationBgWhenExpanded">true</bool>
+ 
+     <!-- Should we vibrate on an icon animation of the shelf. This should only be active if the
+      vibrator is capable of subtle vibrations -->
+diff --git a/packages/SystemUI/res/values/dimens.xml b/packages/SystemUI/res/values/dimens.xml
+index 28600f5a6f7c..be4fcb95e54c 100644
+--- a/packages/SystemUI/res/values/dimens.xml
++++ b/packages/SystemUI/res/values/dimens.xml
+@@ -345,7 +345,7 @@
+     <dimen name="notification_min_interaction_height">40dp</dimen>
+ 
+     <!-- Radius for notifications corners without adjacent notifications -->
+-    <dimen name="notification_corner_radius">28dp</dimen>
++    <dimen name="notification_corner_radius">12dp</dimen>
+ 
+     <!-- Stroke width for notifications focus state overlay, see id/notification_focus_outline -->
+     <dimen name="notification_focus_stroke_width">3dp</dimen>
+@@ -354,7 +354,7 @@
+     <dimen name="notification_corner_animation_distance">48dp</dimen>
+ 
+     <!-- Radius for notifications corners with adjacent notifications -->
+-    <dimen name="notification_corner_radius_small">4dp</dimen>
++    <dimen name="notification_corner_radius_small">0dp</dimen>
+ 
+     <!-- the padding of the shelf icon container -->
+     <dimen name="shelf_icon_container_padding">13dp</dimen>
+@@ -724,10 +724,10 @@
+     <dimen name="pull_span_min">25dp</dimen>
+ 
+     <dimen name="qs_corner_radius">28dp</dimen>
+-    <dimen name="qs_tile_height">80dp</dimen>
++    <dimen name="qs_tile_height">56dp</dimen>
+     <dimen name="qs_tile_margin_horizontal">8dp</dimen>
+     <dimen name="qs_tile_margin_vertical">@dimen/qs_tile_margin_horizontal</dimen>
+-    <dimen name="qs_tile_margin_top_bottom">4dp</dimen>
++    <dimen name="qs_tile_margin_top_bottom">2dp</dimen>
+     <dimen name="qs_brightness_margin_top">8dp</dimen>
+     <dimen name="qs_brightness_margin_bottom">16dp</dimen>
+     <dimen name="qqs_layout_margin_top">16dp</dimen>
+@@ -755,7 +755,7 @@
+     <dimen name="qs_side_view_size">28dp</dimen>
+     <dimen name="qs_label_container_margin">10dp</dimen>
+     <dimen name="qs_quick_tile_size">60dp</dimen>
+-    <dimen name="qs_tile_padding">12dp</dimen>
++    <dimen name="qs_tile_padding">8dp</dimen>
+     <dimen name="qs_tile_start_padding">16dp</dimen>
+     <dimen name="qs_drawable_end_margin">4dp</dimen>
+     <dimen name="qs_page_indicator_width">16dp</dimen>
+@@ -769,7 +769,7 @@
+     <dimen name="qs_dual_tile_padding_horizontal">6dp</dimen>
+     <dimen name="qs_panel_elevation">4dp</dimen>
+     <dimen name="qs_panel_padding_bottom">@dimen/footer_actions_height</dimen>
+-    <dimen name="qs_panel_padding_top">80dp</dimen>
++    <dimen name="qs_panel_padding_top">8dp</dimen>
+ 
+     <!-- Size is in sp because the icon is inlined in text -->
+     <dimen name="qs_edit_mode_app_icon">14sp</dimen>
+@@ -810,7 +810,7 @@
+     <dimen name="z_distance_between_notifications">0.5dp</dimen>
+ 
+     <!-- The height of the divider between the individual notifications. -->
+-    <dimen name="notification_divider_height">2dp</dimen>
++    <dimen name="notification_divider_height">-2px</dimen>
+ 
+     <!-- The *additional* height of the divider between bundles. -->
+     <dimen name="bundle_divider_height">2dp</dimen>
+@@ -833,9 +833,7 @@
+ 
+     <!-- The height of the divider between the individual notifications in a notification
+          group. -->
+-    <dimen name="notification_children_container_divider_height">
+-        @dimen/notification_minimum_spacing_between_children
+-    </dimen>
++    <dimen name="notification_children_container_divider_height">2px</dimen>
+ 
+     <!-- The height of the divider between the individual notifications within a bundle -->
+     <dimen name="bundle_children_container_divider_height">2dp</dimen>
+@@ -943,7 +941,7 @@
+     <dimen name="notification_children_padding">8dp</dimen>
+ 
+     <!-- The padding on top of the first notification to the children container -->
+-    <dimen name="notification_children_container_top_padding">8dp</dimen>
++    <dimen name="notification_children_container_top_padding">0dp</dimen>
+ 
+     <!-- The padding on the bottom of the last group hybrid notification when collapsed -->
+     <dimen name="notification_children_collapsed_bottom_padding">16dp</dimen>
+@@ -971,7 +969,7 @@
+     <!-- Padding before battery level text in status bar, QS, and Keyguard -->
+     <dimen name="battery_level_padding_start">4dp</dimen>
+ 
+-    <dimen name="notification_section_header_height">48dp</dimen>
++    <dimen name="notification_section_header_height">0dp</dimen>
+ 
+     <!-- Largest size an avatar might need to be drawn in the user picker, status bar, or
+          quick settings header -->
+diff --git a/packages/SystemUI/res/values/flags.xml b/packages/SystemUI/res/values/flags.xml
+index 07a40c86d03a..d1335bafda50 100644
+--- a/packages/SystemUI/res/values/flags.xml
++++ b/packages/SystemUI/res/values/flags.xml
+@@ -18,7 +18,7 @@
+ <resources>
+     <bool name="are_flags_overrideable">false</bool>
+ 
+-    <bool name="flag_monet">true</bool>
++    <bool name="flag_monet">false</bool>
+ 
+     <!-- People Tile flag -->
+     <bool name="flag_conversations">false</bool>
+diff --git a/packages/SystemUI/shared/src/com/android/systemui/shared/statusbar/phone/BarTransitions.java b/packages/SystemUI/shared/src/com/android/systemui/shared/statusbar/phone/BarTransitions.java
+index c123306880ca..f2c927602b7c 100644
+--- a/packages/SystemUI/shared/src/com/android/systemui/shared/statusbar/phone/BarTransitions.java
++++ b/packages/SystemUI/shared/src/com/android/systemui/shared/statusbar/phone/BarTransitions.java
+@@ -188,9 +188,9 @@ public class BarTransitions {
+                 mTransparent = 0x2f0000ff;
+                 mWarning = 0xffff0000;
+             } else {
+-                mOpaque = SYSTEM_BAR_BACKGROUND_OPAQUE;
+-                mSemiTransparent = context.getColor(
+-                        com.android.internal.R.color.system_bar_background_semi_transparent);
++                // e-ink: opaque white bars; the overlay cannot reach this ColorStateList.
++                mOpaque = 0xFFFFFFFE;
++                mSemiTransparent = 0xFFFFFFFE;
+                 mTransparent = SYSTEM_BAR_BACKGROUND_TRANSPARENT;
+                 mWarning = getColorAttrDefaultColor(context, android.R.attr.colorError, 0);
+             }
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/QSFooterView.java b/packages/SystemUI/src/com/android/systemui/qs/QSFooterView.java
+index 5a872d699f35..ed30c7fd9e0b 100644
+--- a/packages/SystemUI/src/com/android/systemui/qs/QSFooterView.java
++++ b/packages/SystemUI/src/com/android/systemui/qs/QSFooterView.java
+@@ -86,6 +86,11 @@ public class QSFooterView extends FrameLayout {
+ 
+     private void setBuildText() {
+         if (mBuildText == null) return;
++        // e-ink: the build string is a marquee. Never show it.
++        mBuildText.setText(null);
++        mShouldShowBuildText = false;
++        mBuildText.setSelected(false);
++        if (true) return;
+         if (DevelopmentSettingsEnabler.isDevelopmentSettingsEnabled(mContext)) {
+             mBuildText.setText(mContext.getString(
+                     com.android.internal.R.string.bugreport_status,
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/QuickQSPanel.java b/packages/SystemUI/src/com/android/systemui/qs/QuickQSPanel.java
+index 168be40c846b..cee5a630293b 100644
+--- a/packages/SystemUI/src/com/android/systemui/qs/QuickQSPanel.java
++++ b/packages/SystemUI/src/com/android/systemui/qs/QuickQSPanel.java
+@@ -142,7 +142,8 @@ public class QuickQSPanel extends QSPanel {
+             }
+             visibility = View.GONE;
+         }
+-        super.setVisibility(visibility);
++        // e-ink: never show the compact tile row. Forced here; QSAnimator resets it.
++        super.setVisibility(View.GONE);
+     }
+ 
+     @Override
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/notification/row/ExpandableNotificationRow.java b/packages/SystemUI/src/com/android/systemui/statusbar/notification/row/ExpandableNotificationRow.java
+index 8a539747fa47..f22f7a6bc365 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/notification/row/ExpandableNotificationRow.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/notification/row/ExpandableNotificationRow.java
+@@ -3107,6 +3107,8 @@ public class ExpandableNotificationRow extends ActivatableNotificationView
+     }
+ 
+     public boolean isExpandable() {
++        // e-ink: notifications never expand.
++        if (true) return false;
+         if (mIsSummaryWithChildren && !shouldShowPublic()) {
+             return !mChildrenExpanded;
+         }
+@@ -3804,6 +3806,8 @@ public class ExpandableNotificationRow extends ActivatableNotificationView
+ 
+     @Override
+     public boolean isContentExpandable() {
++        // e-ink: notifications never expand.
++        if (true) return false;
+         if (mIsSummaryWithChildren && !shouldShowPublic()) {
+             return true;
+         }
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/notification/row/ExpandableNotificationRowController.java b/packages/SystemUI/src/com/android/systemui/statusbar/notification/row/ExpandableNotificationRowController.java
+index 4c168b947934..036921574b1a 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/notification/row/ExpandableNotificationRowController.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/notification/row/ExpandableNotificationRowController.java
+@@ -562,7 +562,8 @@ public class ExpandableNotificationRowController implements NotifViewController
+ 
+     @Override
+     public void setSystemExpanded(boolean systemExpanded) {
+-        mView.setSystemExpanded(systemExpanded);
++        // e-ink: never auto-expand a notification.
++        mView.setSystemExpanded(false);
+     }
+ 
+     @Override

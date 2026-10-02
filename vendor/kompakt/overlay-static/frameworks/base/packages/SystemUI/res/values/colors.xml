@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Text on the shutdown / restart screen. -->
+    <color name="global_actions_shutdown_ui_text">#ff000000</color>
+
+    <!-- Kompakt: the Emergency tile on the power menu was the one red thing on the dialog (#D8372D). -->
+    <color name="global_actions_lite_emergency_background_new_color">#ff000000</color>
+    <color name="global_actions_lite_emergency_icon_new_color">#fffffffe</color>
+    <color name="global_actions_lite_emergency_background">#ff000000</color>
+    <color name="global_actions_lite_emergency_icon">#fffffffe</color>
+    <color name="kompakt_notification_outline">#ff000000</color>
+    <color name="status_bar_icons_hover_color_light">#00000000</color>
+    <color name="status_bar_icons_hover_color_dark">#00000000</color>
+    <!-- Kompakt: notification row edge (black by day, white at night); status bar hover pill off. -->
+</resources>

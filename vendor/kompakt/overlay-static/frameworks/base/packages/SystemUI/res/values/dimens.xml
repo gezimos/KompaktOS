@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- QSPanel.updatePadding applies this as the panel's top padding whenever the scene container is off, which it. -->
+    <dimen name="qs_panel_padding_top">8dp</dimen>
+
+    <!-- The "Restarting" / "Shutting down" screen. -->
+    <item name="shutdown_scrim_behind_alpha" format="float" type="dimen">1.0</item>
+
+    <!-- Notification icons on AOD: deliberately NOT overridden. -->
+
+    <!-- Kompakt: no rounded corners on the shade or quick settings. -->
+    <dimen name="aux_spacing_overlay_panel_shape_radius">0dp</dimen>
+    <dimen name="overlay_shade_panel_shape_radius">0dp</dimen>
+    <dimen name="notification_scrim_corner_radius">0dp</dimen>
+</resources>

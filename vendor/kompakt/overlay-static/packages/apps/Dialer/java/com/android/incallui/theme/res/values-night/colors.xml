@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: The call screen in night mode — which on this device is ALWAYS. -->
+<resources>
+    <color name="incall_background_gradient_top">#ff000000</color>
+    <color name="incall_background_gradient_middle">#ff000000</color>
+    <color name="incall_background_gradient_bottom">#ff000000</color>
+    <color name="incall_background_multiwindow">#ff000000</color>
+
+    <color name="kompakt_incall_background">#ff000000</color>
+    <color name="kompakt_incall_text_primary">#fffffffe</color>
+    <color name="kompakt_incall_text_secondary">#ddffffff</color>
+</resources>

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Theme.DeskClock, restored in full. -->
+<resources>
+    <style name="Theme.DeskClock" parent="Theme.Material3Expressive.Light.NoActionBar">
+        <!-- Kompakt: white header, so the system must ink the status bar dark. -->
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:statusBarColor">#ffffffff</item>
+
+        <!-- Verbatim from upstream below this line. -->
+        <item name="android:colorBackgroundFloating">?attr/colorBackgroundFloating</item>
+        <item name="android:navigationBarColor">?attr/colorSurfaceVariant</item>
+        <item name="popupMenuBackground">@drawable/popup_background</item>
+        <item name="floatingActionButtonStyle">@style/Widget.DeskClock.FloatingActionButton</item>
+
+        <item name="android:timePickerStyle">@style/Widget.TimePicker</item>
+        <item name="android:windowBackground">?attr/colorSurface</item>
+        <item name="android:windowContentOverlay">@null</item>
+
+        <item name="android:colorForeground">?attr/colorOnSurface</item>
+        <item name="colorBackgroundFloating">?attr/colorSurface</item>
+        <item name="colorControlActivated">?attr/colorPrimary</item>
+        <item name="colorControlNormal">?attr/colorOnSurfaceVariant</item>
+        <item name="colorPrimaryDark">?android:attr/colorBackground</item>
+
+        <item name="alertDialogTheme">@style/AlertDialogTheme</item>
+        <item name="snackbarStyle">@style/SnackBarStyle</item>
+        <item name="snackbarButtonStyle">@style/SnackBarButtonStyle</item>
+        <item name="snackbarTextViewStyle">@style/SnackBarTextStyle</item>
+        <item name="actionBarSize">64dp</item>
+        <item name="elevationOverlayEnabled">false</item>
+    </style>
+
+    <!-- The plus button, outlined instead of filled. -->
+    <style name="Widget.DeskClock.FloatingActionButton"
+        parent="Widget.Material3Expressive.FloatingActionButton">
+        <item name="shapeAppearanceOverlay">
+            @style/ShapeAppearance.Material3.Corner.Full
+        </item>
+        <item name="backgroundTint">#ffffffff</item>
+        <item name="tint">#ff000000</item>
+        <item name="android:foreground">@drawable/kompakt_fab_outline</item>
+        <item name="elevation">0dp</item>
+        <item name="hoveredFocusedTranslationZ">0dp</item>
+        <item name="pressedTranslationZ">0dp</item>
+        <item name="elevationOverlayEnabled">false</item>
+    </style>
+</resources>

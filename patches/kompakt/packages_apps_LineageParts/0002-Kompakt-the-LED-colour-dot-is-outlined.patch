@@ -1,0 +1,59 @@
+From 6e63e27245c2cd75fd310763b20fb8160298db3c Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Fri, 25 Sep 2026 15:15:30 +0200
+Subject: [PATCH] Kompakt: the LED colour dot is outlined
+
+---
+ .../ApplicationLightPreference.java           | 23 ++++++++++++-------
+ 1 file changed, 15 insertions(+), 8 deletions(-)
+
+diff --git a/src/org/lineageos/lineageparts/notificationlight/ApplicationLightPreference.java b/src/org/lineageos/lineageparts/notificationlight/ApplicationLightPreference.java
+index 752582c..757840e 100644
+--- a/src/org/lineageos/lineageparts/notificationlight/ApplicationLightPreference.java
++++ b/src/org/lineageos/lineageparts/notificationlight/ApplicationLightPreference.java
+@@ -9,8 +9,8 @@ package org.lineageos.lineageparts.notificationlight;
+ import android.app.Dialog;
+ import android.content.Context;
+ import android.content.DialogInterface;
+-import android.graphics.drawable.ShapeDrawable;
+-import android.graphics.drawable.shapes.OvalShape;
++import android.content.res.TypedArray;
++import android.graphics.drawable.GradientDrawable;
+ import android.os.Bundle;
+ import android.util.AttributeSet;
+ import android.view.View;
+@@ -149,7 +149,7 @@ public class ApplicationLightPreference extends CustomDialogPreference<LightSett
+             // adjust if necessary to prevent material whiteout
+             final int imageColor = ((mColorValue & 0xF0F0F0) == 0xF0F0F0) ?
+                     (mColorValue - 0x101010) : mColorValue;
+-            mLightColorView.setImageDrawable(createOvalShape(size,
++            mLightColorView.setImageDrawable(createOvalShape(getContext(), size,
+                     0xFF000000 + imageColor));
+         }
+         if (mOnValueView != null) {
+@@ -264,11 +264,17 @@ public class ApplicationLightPreference extends CustomDialogPreference<LightSett
+     /**
+      * Utility methods
+      */
+-    private static ShapeDrawable createOvalShape(int size, int color) {
+-        ShapeDrawable shape = new ShapeDrawable(new OvalShape());
+-        shape.setIntrinsicHeight(size);
+-        shape.setIntrinsicWidth(size);
+-        shape.getPaint().setColor(color);
++    private static GradientDrawable createOvalShape(Context context, int size, int color) {
++        // Kompakt: outlined in the text colour, so a white LED colour stays visible.
++        GradientDrawable shape = new GradientDrawable();
++        shape.setShape(GradientDrawable.OVAL);
++        shape.setSize(size, size);
++        shape.setColor(color);
++        TypedArray a = context.obtainStyledAttributes(
++                new int[] { android.R.attr.textColorPrimary });
++        final int ink = a.getColor(0, 0xFF000000);
++        a.recycle();
++        shape.setStroke(Math.round(1.5f * context.getResources().getDisplayMetrics().density), ink);
+         return shape;
+     }
+ 
+-- 
+2.43.0
+

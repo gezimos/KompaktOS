@@ -1,0 +1,155 @@
+From a34c13788610574ce99408d1a760e3242a5b2b31 Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Fri, 11 Sep 2026 19:44:38 +0200
+Subject: [PATCH] CameraService: Kompakt changes
+
+---
+ services/camera/libcameraservice/CameraService.cpp | 91 ++++++++++++++++++++++
+ 1 file changed, 91 insertions(+)
+
+diff --git a/services/camera/libcameraservice/CameraService.cpp b/services/camera/libcameraservice/CameraService.cpp
+index 495931295a..a7027e4ab5 100644
+--- a/services/camera/libcameraservice/CameraService.cpp
++++ b/services/camera/libcameraservice/CameraService.cpp
+@@ -124,6 +124,27 @@ namespace {
+ 
+ namespace android {
+ 
++namespace {
++
++// Kompakt: one rear sensor, also offered as a front camera alias.
++constexpr const char* kKompaktRealCameraId = "0";
++constexpr const char* kKompaktFrontAliasId = "1";
++
++// Set in updateCameraNumAndIds() under mServiceLock, read without it.
++std::atomic<bool> gKompaktFrontAliasActive{false};
++
++bool kompaktFrontAliasActive() {
++    return gKompaktFrontAliasActive.load(std::memory_order_relaxed);
++}
++
++// True for the alias id, and only while the alias is actually in force.
++bool isKompaktFrontAlias(const std::string& id) {
++    return kompaktFrontAliasActive() && id == kKompaktFrontAliasId;
++}
++
++}  // namespace
++
++
+ using namespace camera3;
+ using namespace camera3::SessionConfigurationUtils;
+ 
+@@ -430,6 +451,17 @@ void CameraService::updateCameraNumAndIds() {
+     mNormalDeviceIds =
+             mCameraProviderManager->getAPI1CompatibleCameraDeviceIds();
+     filterAPI1SystemCameraLocked(mNormalDeviceIds);
++
++    // Kompakt: alias only when the HAL exposes exactly one camera, "0".
++    const bool onlyOneRearCamera =
++            mNormalDeviceIds.size() == 1 && mNormalDeviceIds[0] == kKompaktRealCameraId;
++    const bool wanted = property_get_bool("persist.kompakt.front_alias", 1);
++    gKompaktFrontAliasActive.store(onlyOneRearCamera && wanted,
++            std::memory_order_relaxed);
++    if (onlyOneRearCamera && wanted) {
++        ALOGI("Kompakt: exposing camera %s as front-facing alias %s",
++                kKompaktRealCameraId, kKompaktFrontAliasId);
++    }
+ }
+ 
+ void CameraService::filterSPerfClassCharacteristicsLocked() {
+@@ -821,6 +853,7 @@ Status CameraService::getNumberOfCameras(int32_t type,
+     }
+ 
+     Mutex::Autolock l(mServiceLock);
++    // Kompakt: the front alias is counted after the switch below.
+     bool hasSystemCameraPermissions =
+             hasPermissionsForSystemCamera(std::string(), getCallingPid(),
+                     getCallingUid());
+@@ -845,6 +878,11 @@ Status CameraService::getNumberOfCameras(int32_t type,
+             return STATUS_ERROR_FMT(ERROR_ILLEGAL_ARGUMENT,
+                     "Unknown camera type %d", type);
+     }
++
++    // Kompakt: one more than the HAL reports, for every type.
++    if (kompaktFrontAliasActive()) {
++        (*numCameras)++;
++    }
+     return Status::ok();
+ }
+ 
+@@ -1234,6 +1272,10 @@ std::optional<std::string> CameraService::resolveCameraId(
+             ALOGE("%s: %s", __FUNCTION__, msg.c_str());
+             return std::nullopt;
+         }
++        // Kompakt: the alias resolves to the rear camera, so the sensor is never opened twice.
++        if (isKompaktFrontAlias(inputCameraId)) {
++            return std::string(kKompaktRealCameraId);
++        }
+         return inputCameraId;
+     }
+ 
+@@ -1276,6 +1318,11 @@ Status CameraService::getCameraInfo(int cameraId, const CameraCompatibilityInfo&
+     if (hasSystemCameraPermissions) {
+         cameraIdBound = mNumberOfCameras;
+     }
++    // Kompakt: room for the front alias.
++    const int kompaktAliasIndex = kompaktFrontAliasActive() ? cameraIdBound : -1;
++    if (kompaktFrontAliasActive()) {
++        cameraIdBound++;
++    }
+     if (cameraId < 0 || cameraId >= cameraIdBound) {
+         return STATUS_ERROR(ERROR_ILLEGAL_ARGUMENT,
+                 "CameraId is not valid");
+@@ -1293,6 +1340,11 @@ Status CameraService::getCameraInfo(int cameraId, const CameraCompatibilityInfo&
+                 + std::to_string(cameraId), ERROR_INVALID_OPERATION);
+     }
+ 
++    // Kompakt: same sensor, facing front; keep the sensor's own orientation.
++    if (err == OK && cameraId == kompaktAliasIndex) {
++        cameraInfo->facing = hardware::CAMERA_FACING_FRONT;
++    }
++
+     return ret;
+ }
+ 
+@@ -1313,6 +1365,10 @@ std::string CameraService::cameraIdIntToStrLocked(int cameraIdInt,
+     if (systemCameraPermissions || getpid() == callingPid) {
+         cameraIds = &mNormalDeviceIds;
+     }
++    // Kompakt: the front alias sits one past the real ids and maps to the rear camera.
++    if (kompaktFrontAliasActive() && cameraIdInt == static_cast<int>(cameraIds->size())) {
++        return std::string(kKompaktRealCameraId);
++    }
+     if (cameraIdInt < 0 || cameraIdInt >= static_cast<int>(cameraIds->size())) {
+         ALOGE("%s: input id %d invalid: valid range (0, %zu)",
+                 __FUNCTION__, cameraIdInt, cameraIds->size());
+@@ -1385,6 +1441,12 @@ Status CameraService::getCameraCharacteristics(const std::string& unresolvedCame
+         }
+     }
+ 
++    // Kompakt: the alias reports front facing; checked on the unresolved id.
++    if (isKompaktFrontAlias(unresolvedCameraId)) {
++        uint8_t facing = ANDROID_LENS_FACING_FRONT;
++        cameraInfo->update(ANDROID_LENS_FACING, &facing, 1);
++    }
++
+     return filterSensitiveMetadataIfNeeded(cameraId, cameraInfo);
+ }
+ 
+@@ -3622,6 +3684,16 @@ Status CameraService::addListenerHelper(const sp<ICameraServiceListener>& listen
+                     mapToInterface(i.second->getStatus()), i.second->getUnavailablePhysicalIds(),
+                     openCloseCallbackAllowed ? i.second->getClientPackage() : std::string(),
+                     deviceId);
++
++            // Kompakt: list the alias too; camera2's getCameraIdList() is built from this.
++            if (kompaktFrontAliasActive() && i.first == kKompaktRealCameraId) {
++                cameraStatuses->emplace_back(std::string(kKompaktFrontAliasId),
++                        mapToInterface(i.second->getStatus()),
++                        i.second->getUnavailablePhysicalIds(),
++                        openCloseCallbackAllowed ? i.second->getClientPackage()
++                                                 : std::string(),
++                        deviceId);
++            }
+         }
+     }
+     // Remove the camera statuses that should be hidden from the client, we do

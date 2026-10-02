@@ -1,0 +1,207 @@
+From 2e6014aeeb75e0bba631fe563bd4e9183fb37db7 Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Sat, 26 Sep 2026 12:01:59 +0200
+Subject: [PATCH 39/39] Kompakt: keyguard: hold the lockscreen frame until home is
+ drawn
+
+---
+ .../android/server/wm/KeyguardController.java |  27 ++++
+ .../android/server/wm/KompaktUnlockHold.java  | 132 ++++++++++++++++++
+ .../server/wm/TransitionController.java       |   4 +
+ 3 files changed, 163 insertions(+)
+ create mode 100644 services/core/java/com/android/server/wm/KompaktUnlockHold.java
+
+diff --git a/services/core/java/com/android/server/wm/KeyguardController.java b/services/core/java/com/android/server/wm/KeyguardController.java
+index 01e141ed731d..70c32de63cd3 100644
+--- a/services/core/java/com/android/server/wm/KeyguardController.java
++++ b/services/core/java/com/android/server/wm/KeyguardController.java
+@@ -92,6 +92,8 @@ class KeyguardController {
+ 
+     private final ActivityTaskSupervisor mTaskSupervisor;
+     private WindowManagerService mWindowManager;
++    // Kompakt: see KompaktUnlockHold.
++    private KompaktUnlockHold mKompaktUnlockHold;
+ 
+     private final SparseArray<KeyguardDisplayState> mDisplayStates = new SparseArray<>();
+     private final ActivityTaskManagerService mService;
+@@ -108,6 +110,14 @@ class KeyguardController {
+     void setWindowManager(WindowManagerService windowManager) {
+         mWindowManager = windowManager;
+         mRootWindowContainer = mService.mRootWindowContainer;
++        mKompaktUnlockHold = new KompaktUnlockHold(windowManager);
++    }
++
++    /** Kompakt: transitions settled; if the keyguard is gone, release the held frame. */
++    void onKompaktTransitionsIdle() {
++        if (mKompaktUnlockHold == null || !mKompaktUnlockHold.isHolding()) return;
++        if (isKeyguardOrAodShowing(DEFAULT_DISPLAY)) return;
++        mKompaktUnlockHold.releaseAfterNextFrame("transitions idle");
+     }
+ 
+     boolean isAodShowing(int displayId) {
+@@ -209,6 +219,16 @@ class KeyguardController {
+             return;
+         }
+ 
++        // Kompakt: hold the lockscreen or AOD frame until home is drawn behind it, and let go
++        // if the keyguard comes back instead.
++        if (displayId == DEFAULT_DISPLAY) {
++            if (!keyguardShowing && state.mKeyguardShowing) {
++                mKompaktUnlockHold.hold(dc, "keyguard hidden");
++            } else if (keyguardShowing) {
++                mKompaktUnlockHold.release("keyguard shown");
++            }
++        }
++
+         final ActionChain chain = mService.mChainTracker.startTransit("setKGShown");
+ 
+         if (ENABLE_NEW_KEYGUARD_SHELL_TRANSITIONS) {
+@@ -312,6 +332,10 @@ class KeyguardController {
+                 if (state.mKeyguardShowing && !state.mKeyguardGoingAway) {
+                     state.mKeyguardGoingAway = true;
+                     state.writeEventLog("keyguardGoingAway");
++                    if (dc.mDisplayId == DEFAULT_DISPLAY) {
++                        // Kompakt: see setKeyguardShown.
++                        mKompaktUnlockHold.hold(dc, "keyguard going away");
++                    }
+                     scheduleGoingAwayTimeout(dc.mDisplayId);
+                     changedDisplays.add(dc);
+                 }
+diff --git a/services/core/java/com/android/server/wm/KompaktUnlockHold.java b/services/core/java/com/android/server/wm/KompaktUnlockHold.java
+new file mode 100644
+index 000000000000..bf592e372d9e
+--- /dev/null
++++ b/services/core/java/com/android/server/wm/KompaktUnlockHold.java
+@@ -0,0 +1,115 @@
++/*
++ * Copyright (C) 2026 KompaktOS
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package com.android.server.wm;
++
++import android.graphics.Rect;
++import android.hardware.HardwareBuffer;
++import android.os.SystemProperties;
++import android.util.Slog;
++import android.view.Display;
++import android.view.SurfaceControl;
++import android.window.ScreenCapture.ScreenCaptureParams;
++import android.window.ScreenCaptureInternal;
++
++import com.android.internal.policy.TransitionAnimation;
++
++/** Kompakt: keeps the last lockscreen or AOD frame on the panel while the
++ * keyguard goes away, until home has been drawn behind it. */
++class KompaktUnlockHold {
++    private static final String TAG = "KompaktUnlockHold";
++    private static final long TIMEOUT_MS = 1500;
++
++    private final WindowManagerService mWmService;
++    private SurfaceControl mLayer;
++
++    private final Runnable mTimeout = () -> {
++        synchronized (KompaktUnlockHold.this.mWmService.mGlobalLock) {
++            release("timeout");
++        }
++    };
++
++    KompaktUnlockHold(WindowManagerService wmService) {
++        mWmService = wmService;
++    }
++
++    boolean isHolding() {
++        return mLayer != null;
++    }
++
++    /** Freezes the panel on what it shows now. Called with the global lock held. */
++    void hold(DisplayContent dc, String reason) {
++        if (mLayer != null || dc == null) return;
++        if (!SystemProperties.getBoolean("persist.sys.kompakt.unlock_hold", true)) return;
++        // A dark panel is held by the screen-on block instead, and has nothing to freeze.
++        if (Display.isOffState(dc.getDisplayInfo().state)) return;
++
++        final Rect crop = new Rect(dc.getBounds());
++        crop.offsetTo(0, 0);
++        final ScreenCaptureInternal.LayerCaptureArgs args =
++                new ScreenCaptureInternal.LayerCaptureArgs.Builder(dc.getSurfaceControl())
++                        .setSourceCrop(crop)
++                        .setSecureContentPolicy(ScreenCaptureParams.SECURE_CONTENT_POLICY_CAPTURE)
++                        .setProtectedContentPolicy(
++                                ScreenCaptureParams.PROTECTED_CONTENT_POLICY_CAPTURE)
++                        .setPreserveDisplayColors(true)
++                        .build();
++        final ScreenCaptureInternal.ScreenshotHardwareBuffer shot =
++                ScreenCaptureInternal.captureLayers(args);
++        final HardwareBuffer buffer = shot == null ? null : shot.getHardwareBuffer();
++        if (buffer == null || buffer.getWidth() <= 1 || buffer.getHeight() <= 1) {
++            Slog.w(TAG, "no screenshot, not holding (" + reason + ")");
++            return;
++        }
++
++        final SurfaceControl layer = dc.makeOverlay()
++                .setName("KompaktUnlockHold")
++                .setOpaque(true)
++                .setSecure(shot.containsSecureLayers())
++                .setCallsite("KompaktUnlockHold")
++                .setBLASTLayer()
++                .build();
++        final SurfaceControl.Transaction t = mWmService.mTransactionFactory.get();
++        TransitionAnimation.configureScreenshotLayer(t, layer, shot);
++        t.setLayer(layer, Integer.MAX_VALUE);
++        t.show(layer);
++        t.apply();
++        t.close();
++        buffer.close();
++
++        mLayer = layer;
++        mWmService.mH.postDelayed(mTimeout, TIMEOUT_MS);
++        Slog.i(TAG, "hold: " + reason);
++    }
++
++    /** Releases the hold after the next frame has placed every surface. */
++    void releaseAfterNextFrame(String reason) {
++        if (mLayer == null) return;
++        mWmService.mAnimator.addAfterPrepareSurfacesRunnable(() -> release(reason));
++    }
++
++    /** Called with the global lock held. */
++    void release(String reason) {
++        if (mLayer == null) return;
++        mWmService.mH.removeCallbacks(mTimeout);
++        final SurfaceControl.Transaction t = mWmService.mTransactionFactory.get();
++        t.remove(mLayer);
++        t.apply();
++        t.close();
++        mLayer = null;
++        Slog.i(TAG, "release: " + reason);
++    }
++}
+diff --git a/services/core/java/com/android/server/wm/TransitionController.java b/services/core/java/com/android/server/wm/TransitionController.java
+index eace57ac234c..7d5e35ad5a69 100644
+--- a/services/core/java/com/android/server/wm/TransitionController.java
++++ b/services/core/java/com/android/server/wm/TransitionController.java
+@@ -1127,6 +1127,10 @@ class TransitionController {
+             mAtm.mWindowManager.mAnimator.addSurfaceVisibilityUpdate(
+                     record.mTargets.get(i).mContainer);
+         }
++        // Kompakt: an unlock holds the panel on the lockscreen until this point.
++        if (!inTransition()) {
++            mAtm.mKeyguardController.onKompaktTransitionsIdle();
++        }
+     }
+ 
+     /** Called by {@link Transition#finishTransition} if it committed invisible to any activities */
+-- 
+2.43.0

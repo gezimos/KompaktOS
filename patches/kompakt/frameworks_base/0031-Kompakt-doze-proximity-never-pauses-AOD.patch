@@ -1,0 +1,35 @@
+From 569b676b8a1bee4627b41c568cccdd2303dca180 Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Wed, 23 Sep 2026 10:25:00 +0200
+Subject: [PATCH 31/38] Kompakt: doze proximity never pauses AOD
+
+---
+ .../SystemUI/src/com/android/systemui/doze/DozeTriggers.java | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/doze/DozeTriggers.java b/packages/SystemUI/src/com/android/systemui/doze/DozeTriggers.java
+index 58b2b23a39f5..35f0869b1d9b 100644
+--- a/packages/SystemUI/src/com/android/systemui/doze/DozeTriggers.java
++++ b/packages/SystemUI/src/com/android/systemui/doze/DozeTriggers.java
+@@ -405,7 +405,6 @@ public class DozeTriggers implements DozeMachine.Part {
+         final DozeMachine.State state = mMachine.getState();
+         final boolean paused = (state == DozeMachine.State.DOZE_AOD_PAUSED);
+         final boolean pausing = (state == DozeMachine.State.DOZE_AOD_PAUSING);
+-        final boolean aod = (state == DozeMachine.State.DOZE_AOD);
+ 
+         if (state == DozeMachine.State.DOZE_PULSING
+                 || state == DozeMachine.State.DOZE_PULSING_BRIGHT
+@@ -415,12 +414,10 @@ public class DozeTriggers implements DozeMachine.Part {
+             mDozeHost.onIgnoreTouchWhilePulsing(near);
+         }
+ 
++        // Kompakt: bistable panel, nothing to burn in; never pause AOD on prox.
+         if (far && (paused || pausing)) {
+             mDozeLog.d("Prox FAR, unpausing AOD");
+             mMachine.requestState(DozeMachine.State.DOZE_AOD);
+-        } else if (near && aod) {
+-            mDozeLog.d("Prox NEAR, starting pausing AOD countdown");
+-            mMachine.requestState(DozeMachine.State.DOZE_AOD_PAUSING);
+         }
+     }
+ 

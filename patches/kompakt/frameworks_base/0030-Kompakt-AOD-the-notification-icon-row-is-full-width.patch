@@ -1,0 +1,37 @@
+From 5c52d85f90280bd3671bcf80bb12ea567e179ad3 Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Thu, 24 Sep 2026 01:00:00 +0200
+Subject: [PATCH 30/38] Kompakt: AOD the notification icon row is full width
+
+---
+ .../composable/elements/AodNotificationIconsElementProvider.kt | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/AodNotificationIconsElementProvider.kt b/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/AodNotificationIconsElementProvider.kt
+index afc590eb3d88..ff4f7d2bb985 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/AodNotificationIconsElementProvider.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/AodNotificationIconsElementProvider.kt
+@@ -21,6 +21,7 @@ import androidx.compose.animation.AnimatedVisibility
+ import androidx.compose.animation.core.MutableTransitionState
+ import androidx.compose.animation.fadeIn
+ import androidx.compose.animation.fadeOut
++import androidx.compose.foundation.layout.fillMaxWidth
+ import androidx.compose.foundation.layout.height
+ import androidx.compose.foundation.layout.padding
+ import androidx.compose.runtime.Composable
+@@ -101,6 +102,7 @@ constructor(
+             modifier =
+                 modifier
+                     .height(dimensionResource(R.dimen.notification_shelf_height))
++                    .fillMaxWidth()
+                     .padding(
+                         start = dimensionResource(R.dimen.below_clock_padding_start_icons),
+                         end = dimensionResource(R.dimen.shelf_icon_container_padding),
+@@ -109,6 +111,7 @@ constructor(
+         ) {
+             val scope = rememberCoroutineScope()
+             AndroidView(
++                modifier = Modifier.fillMaxWidth(),
+                 factory = { context ->
+                     NotificationIconContainer(context, null).also { nic ->
+                         scope.launch {

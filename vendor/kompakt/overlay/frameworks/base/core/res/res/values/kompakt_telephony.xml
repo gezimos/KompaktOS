@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: the modem builds the Wi-Fi calling tunnel through its own ePDG
+     daemon when the framework asks the RIL for the IWLAN data call, as
+     MuditaOS does. Google's Iwlan app built a tunnel the MediaTek IMS stack
+     could not send through. -->
+<resources>
+    <string name="config_wlan_data_service_package" translatable="false">com.android.phone</string>
+    <string name="config_wlan_data_service_class" translatable="false">com.android.internal.telephony.data.CellularDataService</string>
+</resources>

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Theme.InCallScreen, made to follow light and dark instead of always being dark. -->
+<resources>
+    <style name="Theme.InCallScreen" parent="@style/Dialer.Dark.ThemeBase.NoActionBar">
+        <item name="android:textColorPrimary">@color/kompakt_incall_text_primary</item>
+        <item name="android:textColorSecondary">@color/kompakt_incall_text_secondary</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:windowLightStatusBar">@bool/kompakt_incall_light_bars</item>
+        <item name="android:colorPrimaryDark">@color/kompakt_incall_background</item>
+        <item name="colorPrimaryDark">@color/kompakt_incall_background</item>
+        <item name="dialpad_style">@style/InCallDialpad</item>
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:windowBackground">@color/kompakt_incall_background</item>
+        <!-- Stock sets this true and the wallpaper shows through behind the call screen. -->
+        <item name="android:windowShowWallpaper">false</item>
+        <item name="bottomSheetDialogTheme">@style/TransparentBottomSheetDialogTheme</item>
+    </style>
+</resources>

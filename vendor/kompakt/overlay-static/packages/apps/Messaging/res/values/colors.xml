@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Messaging in black and white. -->
+<resources>
+    <!-- The bars. -->
+    <color name="primary_color">#ffffffff</color>
+    <color name="action_bar_background_color">#ffffffff</color>
+    <color name="action_bar_background_color_dark">#ffffffff</color>
+    <color name="contextual_action_bar_background_color">#ffffffff</color>
+    <color name="archived_conversation_action_bar_background_color">#ffffffff</color>
+    <color name="archived_conversation_action_bar_background_color_dark">#ffffffff</color>
+
+    <!-- Incoming bubbles: white fill, black text. The outline is in the drawable. -->
+    <color name="message_text_color_incoming">#ff000000</color>
+    <color name="timestamp_text_incoming">#ff000000</color>
+    <color name="message_bubble_color_incoming">#ffffffff</color>
+    <color name="message_error_bubble_color_incoming">#ffffffff</color>
+
+    <!-- Outgoing was already white; it gets the same outline treatment. -->
+    <color name="message_bubble_color_outgoing">#ffffffff</color>
+
+    <!-- The conversation list. -->
+    <color name="conversation_list_item_read">#ff000000</color>
+    <color name="conversation_list_item_unread">#ff000000</color>
+    <color name="conversation_list_name">#ff000000</color>
+    <color name="conversation_list_details">#ff000000</color>
+    <color name="conversation_list_error">#ff000000</color>
+    <color name="message_info_text_incoming_download_failed">#ff000000</color>
+    <color name="message_text_color_incoming_download_failed">#ff000000</color>
+    <color name="conversation_compose_divider_start">#ff000000</color>
+    <!-- The conversation title. -->
+    <color name="action_bar_title_text_color">#ff000000</color>
+
+    <!-- Avatar discs. -->
+    <array name="letter_tile_colors">
+        <item>#ffffffff</item>
+        <item>#ffffffff</item>
+        <item>#ffffffff</item>
+        <item>#ffffffff</item>
+        <item>#ffffffff</item>
+        <item>#ffffffff</item>
+        <item>#ffffffff</item>
+        <item>#ffffffff</item>
+        <item>#ffffffff</item>
+        <item>#ffffffff</item>
+        <item>#ffffffff</item>
+        <item>#ffffffff</item>
+    </array>
+
+    <!-- The initial inside the disc, and the ring around it. -->
+    <color name="letter_tile_font_color">#ff000000</color>
+
+    <!-- The start chat header: the other half of making it white. -->
+    <color name="compose_contact_text">#ff000000</color>
+
+    <!-- The start chat tab strip. -->
+    <color name="contact_picker_tab_underline">#ff000000</color>
+    <color name="contact_picker_tab_pressed">#00000000</color>
+
+    <!-- Kompakt: the stock day greys that the sweep still showed (#323232 text, #999999, #6d6d6d, #cccccc dividers, #4285f4. -->
+    <color name="kompakt_ink">#ff000000</color>
+    <color name="kompakt_ground">#fffffffe</color>
+    <color name="message_text_color_outgoing">#ff000000</color>
+    <color name="timestamp_text_outgoing">#ff000000</color>
+    <color name="message_title_text">#ff000000</color>
+    <color name="conversation_edge_effect">#ff000000</color>
+    <color name="compose_message_send_color_pressed">#ff000000</color>
+    <color name="contact_list_text_primary">#ff000000</color>
+    <color name="contact_list_text_secondary">#ff000000</color>
+    <color name="chips_dropdown_background_activated">#ff000000</color>
+    <color name="chips_dropdown_background_pressed">#fffffffe</color>
+    <color name="people_and_options_header_text">#ff000000</color>
+    <color name="people_and_options_list_divider">#ff000000</color>
+    <color name="message_body_size_text_color">#ff000000</color>
+    <color name="mms_indicator_color">#ff000000</color>
+    <color name="list_empty_text">#ff000000</color>
+    <color name="sim_selector_text_primary">#ff000000</color>
+    <color name="sim_selector_text_secondary">#ff000000</color>
+    <color name="sim_selector_background_end">#fffffffe</color>
+    <color name="sim_selector_background_start">#fffffffe</color>
+    <color name="settings_list_text_primary">#ff000000</color>
+    <color name="settings_list_text_secondary">#ff000000</color>
+    <color name="group_mms_setting_text_color">#ff000000</color>
+    <color name="widget_text_color">#ff000000</color>
+    <color name="widget_outgoing_text_color">#ff000000</color>
+    <color name="participant_list_text_primary">#ff000000</color>
+    <color name="audio_picker_timer_text_color">#ff000000</color>
+    <color name="audio_attachment_timer_text_color">#ff000000</color>
+    <color name="search_view_text_cursor">#ff000000</color>
+    <color name="notification_warning_color">#ff000000</color>
+    <color name="message_download_failed_timestamp_text">#ff000000</color>
+    <color name="timestamp_text_failed">#ff000000</color>
+    <color name="message_failed_timestamp_text">#ff000000</color>
+    <color name="wearable_notification_participants_count">#ff000000</color>
+    <color name="message_bubble_color_selected">#ff000000</color>
+    <!-- Kompakt: a selected bubble is outlined rather than filled, so its text is the ink, the same as any other. -->
+    <color name="message_text_color_selected">#ff000000</color>
+    <!-- Kompakt: one opaque tint for every icon on an action bar. -->
+    <color name="action_bar_icon_tint">#ff000000</color>
+    <!-- Kompakt: the new message screen status bar, kept off primary_color, which is white at night. -->
+    <color name="compose_notification_bar_background">@color/action_bar_background_color</color>
+    <!-- Kompakt: the one tone here that is neither ink nor paper. -->
+    <color name="text_highlight_color">#ffcccccc</color>
+    <!-- Kompakt: drawn on a selected bubble, which is the ink -->
+    <color name="message_action_timestamp_text">#fffffffe</color>
+    <color name="message_action_status_text">#fffffffe</color>
+    <color name="message_action_info_text">#fffffffe</color>
+    <!-- Kompakt: text handles sit on a selected bubble, so they take the bubble's text colour -->
+    <color name="kompakt_select_handle">#ff000000</color>
+    <color name="kompakt_select_handle_ring">#fffffffe</color>
+    <!-- ============================================================ frameworks/opt/chips, linked into this apk. -->
+    <color name="chips_dropdown_text_default">@color/kompakt_ink</color>
+    <color name="chips_dropdown_text_highlighted">@color/kompakt_ink</color>
+    <color name="chips_dropdown_permission_text">@color/kompakt_ink</color>
+    <color name="autocomplete_divider_color">@color/kompakt_ink</color>
+    <color name="chip_background">@color/kompakt_ground</color>
+    <color name="chip_background_invalid">@color/kompakt_ground</color>
+    <!-- A drop shadow is a gradient, and a gradient here is a dither. -->
+    <color name="autocomplete_bottom_shadow_start">#00000000</color>
+
+    <!-- The recipient chip itself, set on the view in contact_picker_fragment.xml. -->
+    <color name="chips_text_color">@color/kompakt_ink</color>
+    <color name="chips_background_color">@color/kompakt_ground</color>
+
+    <!-- ============================================================ The media picker. -->
+    <color name="contact_picker_button_text_color">@color/kompakt_ink</color>
+    <color name="notification_accent_color">@color/kompakt_ink</color>
+
+    <!-- Hints. -->
+    <color name="contact_picker_hint_text_color">@color/kompakt_ink</color>
+    <color name="audio_picker_hint_text_color">@color/kompakt_ink</color>
+    <color name="compose_contact_faint_text">@color/kompakt_ink</color>
+
+    <!-- Washes: an animated one is a moving dither, a static one is a flat grey. -->
+    <color name="background_item_pressed">#00000000</color>
+    <color name="contact_avatar_pressed_color">#00000000</color>
+    <color name="open_conversation_animation_background_shadow">#00000000</color>
+    <color name="translucent_white">#00000000</color>
+
+    <!-- The rest of the sweep. -->
+    <color name="compose_contact_divider">@color/kompakt_ink</color>
+    <color name="audio_picker_level_primary_color">@color/kompakt_ink</color>
+    <color name="audio_record_control_button_stroke">@color/kompakt_ink</color>
+    <!-- Drawn on an incoming bubble, which is paper now, not the accent. -->
+    <color name="message_info_text">@color/kompakt_ink</color>
+    <!-- The "+3" badge: white text, so its ground has to be the ink. -->
+    <color name="attachment_preview_more_items_text_background">@color/kompakt_ink</color>
+    <color name="notification_sender_text">@color/kompakt_ink</color>
+    <color name="notification_secondary_text">@color/kompakt_ink</color>
+    <color name="notification_tertiary_text">@color/kompakt_ink</color>
+    <color name="notification_subject_color">@color/kompakt_ink</color>
+    <color name="contact_picker_background">@color/kompakt_ground</color>
+    <color name="compose_message_send_color">@color/kompakt_ink</color>
+</resources>

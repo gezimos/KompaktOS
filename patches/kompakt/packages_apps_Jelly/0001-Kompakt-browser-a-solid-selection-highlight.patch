@@ -1,0 +1,25 @@
+From 4423c74f9be1993b4321e8ef8cf5899c80003688 Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Thu, 17 Sep 2026 21:26:36 +0200
+Subject: [PATCH] Kompakt: browser: a solid selection highlight
+
+---
+ .../java/org/lineageos/jelly/ui/AutoCompleteTextViewExt.kt   | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/app/src/main/java/org/lineageos/jelly/ui/AutoCompleteTextViewExt.kt b/app/src/main/java/org/lineageos/jelly/ui/AutoCompleteTextViewExt.kt
+index dfc4dbc..192489c 100644
+--- a/app/src/main/java/org/lineageos/jelly/ui/AutoCompleteTextViewExt.kt
++++ b/app/src/main/java/org/lineageos/jelly/ui/AutoCompleteTextViewExt.kt
+@@ -16,6 +16,11 @@ import com.google.android.material.textfield.MaterialAutoCompleteTextView
+ class AutoCompleteTextViewExt : MaterialAutoCompleteTextView {
+     private var positionX = 0
+ 
++    // Kompakt: solid highlight; the theme's textColorHighlight does not reach this field.
++    init {
++        highlightColor = context.getColor(org.lineageos.jelly.R.color.kompakt_url_highlight)
++    }
++
+     constructor(context: Context) : super(context)
+     constructor(context: Context, attrs: AttributeSet?) : super(context, attrs)
+     constructor(context: Context, attrs: AttributeSet?, defStyle: Int) :

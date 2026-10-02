@@ -1,0 +1,50 @@
+From 01de840f3bebff52684c70ccc666520d7ccbdee1 Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Sat, 26 Sep 2026 14:23:46 +0200
+Subject: [PATCH 40/40] Kompakt: QS: a focus ring only for keyboard and d-pad
+ navigation
+
+---
+ .../android/systemui/qs/ui/compose/BorderOnFocus.kt  | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/ui/compose/BorderOnFocus.kt b/packages/SystemUI/src/com/android/systemui/qs/ui/compose/BorderOnFocus.kt
+index e6caa0d7520d..ab211f4872f4 100644
+--- a/packages/SystemUI/src/com/android/systemui/qs/ui/compose/BorderOnFocus.kt
++++ b/packages/SystemUI/src/com/android/systemui/qs/ui/compose/BorderOnFocus.kt
+@@ -29,9 +29,13 @@ import androidx.compose.ui.geometry.Rect
+ import androidx.compose.ui.graphics.Color
+ import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+ import androidx.compose.ui.graphics.drawscope.Stroke
++import androidx.compose.ui.input.InputMode
++import androidx.compose.ui.node.CompositionLocalConsumerModifierNode
+ import androidx.compose.ui.node.DrawModifierNode
+ import androidx.compose.ui.node.ModifierNodeElement
++import androidx.compose.ui.node.currentValueOf
+ import androidx.compose.ui.platform.InspectorInfo
++import androidx.compose.ui.platform.LocalInputModeManager
+ import androidx.compose.ui.unit.Dp
+ import androidx.compose.ui.unit.dp
+ 
+@@ -52,7 +56,7 @@ private class BorderOnFocusNode(
+     var cornerSize: CornerSize,
+     var strokeWidth: Dp,
+     var padding: Dp,
+-) : FocusEventModifierNode, DrawModifierNode, Modifier.Node() {
++) : FocusEventModifierNode, DrawModifierNode, CompositionLocalConsumerModifierNode, Modifier.Node() {
+ 
+     private var focused by mutableStateOf(false)
+ 
+@@ -63,7 +67,9 @@ private class BorderOnFocusNode(
+     override fun ContentDrawScope.draw() {
+         drawContent()
+         val focusOutline = Rect(Offset.Zero, size).inflate(padding.toPx())
+-        if (focused) {
++        // Kompakt: a focus ring only for keyboard and fingerprint d-pad navigation.
++        val keyboard = currentValueOf(LocalInputModeManager).inputMode == InputMode.Keyboard
++        if (focused && keyboard) {
+             drawRoundRect(
+                 color = color,
+                 topLeft = focusOutline.topLeft,
+-- 
+2.43.0

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- No wallpaper dimming. -->
+    <item name="config_wallpaperDimAmount" format="float" type="dimen">0.0</item>
+
+    <!-- Transition animation scale default. -->
+    <item name="config_appTransitionAnimationDurationScaleDefault" format="float" type="dimen">0.0</item>
+    <!-- Scroll friction. -->
+    <item name="config_scrollFriction" format="float" type="dimen">0.10</item>
+    <!-- No toast shadow: a grey edge dithers. The toast frame has a border instead. -->
+    <dimen name="toast_elevation">0dp</dimen>
+</resources>

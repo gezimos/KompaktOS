@@ -1,0 +1,66 @@
+From ab360d275caec580daa9ae2b53f7fe3e027ab094 Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Fri, 25 Sep 2026 19:54:57 +0200
+Subject: [PATCH] posix_spawn: mark fds close-on-exec by hand before Linux 5.11
+
+---
+ libc/bionic/spawn.cpp | 31 ++++++++++++++++++++++++++++++-
+ 1 file changed, 30 insertions(+), 1 deletion(-)
+
+diff --git a/libc/bionic/spawn.cpp b/libc/bionic/spawn.cpp
+index f1b8eb06d..90a8c027e 100644
+--- a/libc/bionic/spawn.cpp
++++ b/libc/bionic/spawn.cpp
+@@ -39,6 +39,7 @@
+ #include <unistd.h>
+ 
+ #include <android/fdsan.h>
++#include <dirent.h>
+ 
+ #include "private/ScopedSignalBlocker.h"
+ 
+@@ -114,6 +115,32 @@ struct __posix_spawnattr {
+   } sigmask, sigdefault;
+ };
+ 
++// CLOSE_RANGE_CLOEXEC needs Linux 5.11; on older kernels walk /proc/self/fd instead.
++// Runs in the vfork child: raw syscalls only, no allocation, no stdio.
++static bool CloexecByHand() {
++  if (errno != ENOSYS && errno != EINVAL) return false;
++  int dir = open("/proc/self/fd", O_RDONLY | O_DIRECTORY | O_CLOEXEC);
++  if (dir == -1) return false;
++  // Small: bionic caps a stack frame at 2 KiB.
++  char buf[512] __attribute__((aligned(8)));
++  long n;
++  while ((n = syscall(__NR_getdents64, dir, buf, sizeof(buf))) > 0) {
++    for (long off = 0; off < n;) {
++      const dirent* d = reinterpret_cast<const dirent*>(buf + off);
++      off += d->d_reclen;
++      int fd = 0;
++      const char* c = d->d_name;
++      if (*c < '0' || *c > '9') continue;
++      for (; *c >= '0' && *c <= '9'; ++c) fd = fd * 10 + (*c - '0');
++      if (fd < 3 || fd == dir) continue;
++      int fl = fcntl(fd, F_GETFD);
++      if (fl != -1 && (fl & FD_CLOEXEC) == 0) fcntl(fd, F_SETFD, fl | FD_CLOEXEC);
++    }
++  }
++  close(dir);
++  return n == 0;
++}
++
+ static void ApplyAttrs(short flags, const posix_spawnattr_t* attr) {
+   // POSIX: "If POSIX_SPAWN_SETSIGDEF is set ... signals in sigdefault ...
+   // shall be set to their default actions in the child process."
+@@ -154,7 +181,7 @@ static void ApplyAttrs(short flags, const posix_spawnattr_t* attr) {
+ 
+   if ((flags & POSIX_SPAWN_CLOEXEC_DEFAULT) != 0) {
+     // mark all open fds except stdin/out/err as close-on-exec
+-    if (close_range(3, ~0U, CLOSE_RANGE_CLOEXEC)) _exit(127);
++    if (close_range(3, ~0U, CLOSE_RANGE_CLOEXEC) && !CloexecByHand()) _exit(127);
+   }
+ }
+ 
+-- 
+2.43.0
+

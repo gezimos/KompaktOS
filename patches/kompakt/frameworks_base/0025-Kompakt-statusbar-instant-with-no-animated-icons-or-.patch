@@ -1,0 +1,599 @@
+From f7dae4da8708cf2cb5b4f3f807744d6cea6db44f Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Fri, 18 Sep 2026 18:56:28 +0200
+Subject: [PATCH 25/38] Kompakt: statusbar: instant, with no animated icons or
+ clock
+
+---
+ .../src/com/android/keyguard/CarrierText.java |  9 +-
+ .../systemui/shade/ShadeHeaderController.kt   | 33 +++----
+ .../events/SystemEventCoordinator.kt          |  9 +-
+ .../phone/KeyguardStatusBarView.java          | 85 +++----------------
+ .../KeyguardStatusBarViewController.java      | 62 ++------------
+ .../phone/LightBarControllerImpl.java         | 12 ++-
+ .../phone/LightBarTransitionsController.java  | 22 ++---
+ .../fragment/CollapsedStatusBarFragment.java  |  3 +-
+ .../data/repository/BatteryRepository.kt      |  6 +-
+ .../battery/shared/ui/BatteryColors.kt        | 57 +++++--------
+ .../battery/ui/composable/UnifiedBattery.kt   | 18 ++--
+ .../data/repository/ConnectivityRepository.kt | 32 ++++++-
+ .../ui/binder/HomeStatusBarViewBinder.kt      | 43 +++++++---
+ .../systemui/statusbar/policy/Clock.java      | 14 +++
+ 14 files changed, 169 insertions(+), 236 deletions(-)
+
+diff --git a/packages/SystemUI/src/com/android/keyguard/CarrierText.java b/packages/SystemUI/src/com/android/keyguard/CarrierText.java
+index ef080bb5c833..3666f6e3dda0 100644
+--- a/packages/SystemUI/src/com/android/keyguard/CarrierText.java
++++ b/packages/SystemUI/src/com/android/keyguard/CarrierText.java
+@@ -58,7 +58,7 @@ public class CarrierText extends TextView {
+     @Override
+     protected void onVisibilityChanged(View changedView, int visibility) {
+         super.onVisibilityChanged(changedView, visibility);
+-        // Kompakt: never marquee. This overrides any ellipsize set in XML.
++        // Kompakt: never marquee.
+         setEllipsize(TextUtils.TruncateAt.END);
+     }
+ 
+diff --git a/packages/SystemUI/src/com/android/systemui/shade/ShadeHeaderController.kt b/packages/SystemUI/src/com/android/systemui/shade/ShadeHeaderController.kt
+index cea4f0f52f6d..6d94b0dfadc5 100644
+--- a/packages/SystemUI/src/com/android/systemui/shade/ShadeHeaderController.kt
++++ b/packages/SystemUI/src/com/android/systemui/shade/ShadeHeaderController.kt
+@@ -174,6 +174,9 @@ constructor(
+     var shadeCollapseAction: Runnable? = null
+ 
+     private lateinit var iconManager: TintedIconManager
++
++    // Kompakt: the icon group is registered once and never torn down.
++    private var iconGroupAdded = false
+     private lateinit var carrierIconSlots: List<String>
+     private lateinit var mShadeCarrierGroupController: ShadeCarrierGroupController
+ 
+@@ -306,7 +309,7 @@ constructor(
+     private val configurationControllerListener =
+         object : ConfigurationController.ConfigurationListener {
+             override fun onConfigChanged(newConfig: Configuration?) {
+-                // Kompakt: the status bar's own padding, as updateResources() uses.
++                // Kompakt: the status bar's own padding, as updateResources() uses.
+                 header.setPaddingRelative(
+                     header.resources.getDimensionPixelSize(R.dimen.status_bar_padding_start),
+                     header.paddingTop,
+@@ -492,7 +495,11 @@ constructor(
+         dumpManager.registerDumpable(this)
+         configurationController.addCallback(configurationControllerListener)
+         demoModeController.addCallback(demoModeReceiver)
+-        statusBarIconController.addIconGroup(iconManager)
++        // Kompakt: register once, for the life of SystemUI.
++        if (!iconGroupAdded) {
++            statusBarIconController.addIconGroup(iconManager)
++            iconGroupAdded = true
++        }
+         nextAlarmController.addCallback(nextAlarmCallback)
+         systemIconsHoverContainer.setOnHoverListener(
+             statusOverlayHoverListenerFactory.createListener(systemIconsHoverContainer)
+@@ -505,7 +512,7 @@ constructor(
+         dumpManager.unregisterDumpable(this::class.java.simpleName)
+         configurationController.removeCallback(configurationControllerListener)
+         demoModeController.removeCallback(demoModeReceiver)
+-        statusBarIconController.removeIconGroup(iconManager)
++        // Kompakt: deliberately NOT removeIconGroup(iconManager).
+         nextAlarmController.removeCallback(nextAlarmCallback)
+         systemIconsHoverContainer.setOnHoverListener(null)
+     }
+@@ -721,8 +728,7 @@ constructor(
+         roundedCorners = SystemProperties.getInt("persist.sys.phh.rounded_corners_padding", -1);
+         if(roundedCorners == -1)
+             roundedCorners = resources.getDimensionPixelSize(R.dimen.rounded_corner_content_padding)
+-        // Kompakt: pad with the status bar's own dimensions so the header lines up.
+-        // Set here, not in the layout: this method overwrites it.
++        // Kompakt: pad with the status bar's own dimensions so the header lines up.
+         val paddingStart = resources.getDimensionPixelSize(R.dimen.status_bar_padding_start)
+         val paddingEnd = resources.getDimensionPixelSize(R.dimen.status_bar_padding_end)
+         header.setPaddingRelative(
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/events/SystemEventCoordinator.kt b/packages/SystemUI/src/com/android/systemui/statusbar/events/SystemEventCoordinator.kt
+index 6e95ef74bac7..d4262fde7901 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/events/SystemEventCoordinator.kt
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/events/SystemEventCoordinator.kt
+@@ -85,13 +85,8 @@ constructor(
+     }
+ 
+     fun notifyPluggedIn(@IntRange(from = 0, to = 100) batteryLevel: Int) {
+-        scheduler.onStatusEvent(
+-            BatteryEvent(
+-                batteryLevel,
+-                batteryInteractor.batteryIconStyle.value,
+-                batteryInteractor.showPercentNextToIcon.value,
+-            )
+-        )
++        // Kompakt: no charging chip.
++        return
+     }
+ 
+     fun notifyPrivacyItemsEmpty() {
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/phone/KeyguardStatusBarView.java b/packages/SystemUI/src/com/android/systemui/statusbar/phone/KeyguardStatusBarView.java
+index f70eb6b5386f..735d173c3fba 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/phone/KeyguardStatusBarView.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/phone/KeyguardStatusBarView.java
+@@ -133,7 +133,7 @@ public class KeyguardStatusBarView extends RelativeLayout {
+         mMultiUserAvatar = findViewById(R.id.multi_user_avatar);
+         mCarrierLabel = findViewById(R.id.keyguard_carrier_text);
+         mBatteryView = mSystemIconsContainer.findViewById(R.id.battery);
+-        // Keep the legacy battery view; its replacement needs the scene container.
++        // Keep the legacy battery view; its replacement needs the scene container.
+         mCutoutSpace = findViewById(R.id.cutout_space_view);
+         mStatusIconArea = findViewById(R.id.status_icon_area);
+         mStatusIconContainer = findViewById(R.id.statusIcons);
+@@ -489,15 +489,16 @@ public class KeyguardStatusBarView extends RelativeLayout {
+         @ColorInt int textColor = Utils.getColorAttrDefaultColor(mContext,
+                 R.attr.wallpaperTextColor);
+         float luminance = Color.luminance(textColor);
+-        // Kompakt: black, in every configuration.
+-        @ColorInt int iconColor = Utils.getColorStateListDefaultColor(mContext,
+-                    com.android.settingslib.R.color.dark_mode_icon_color_single_tone);
+-        @ColorInt int contrastColor = luminance < 0.5
+-                ? DarkIconDispatcherImpl.DEFAULT_ICON_TINT
+-                : DarkIconDispatcherImpl.DEFAULT_INVERSE_ICON_TINT;
+-        // e-ink: the keyguard is a light surface, so the intensity is always 1.
+-        // Kompakt: pinned to 1, not keyed off night mode.
+-        float intensity = 1f;
++        // Kompakt: the ink follows the surface under the bar.
++        final boolean kompaktDark =
++                com.android.systemui.wallpapers.KompaktInk.isDarkSurface(mContext);
++        @ColorInt int iconColor = Utils.getColorStateListDefaultColor(mContext, kompaktDark
++                    ? com.android.settingslib.R.color.light_mode_icon_color_single_tone
++                    : com.android.settingslib.R.color.dark_mode_icon_color_single_tone);
++        @ColorInt int contrastColor = kompaktDark
++                ? DarkIconDispatcherImpl.DEFAULT_INVERSE_ICON_TINT
++                : DarkIconDispatcherImpl.DEFAULT_ICON_TINT;
++        float intensity = kompaktDark ? 0f : 1f;
+         mCarrierLabel.setTextColor(iconColor);
+ 
+         TextView userSwitcherName = mUserSwitcherContainer.findViewById(R.id.current_user_name);
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/phone/KeyguardStatusBarViewController.java b/packages/SystemUI/src/com/android/systemui/statusbar/phone/KeyguardStatusBarViewController.java
+index d7ccc08fb1a3..bb6d3e7e460c 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/phone/KeyguardStatusBarViewController.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/phone/KeyguardStatusBarViewController.java
+@@ -173,6 +173,9 @@ public class KeyguardStatusBarViewController extends ViewController<KeyguardStat
+     private ViewGroup mSystemIconsContainer;
+     private final StatusOverlayHoverListenerFactory mStatusOverlayHoverListenerFactory;
+ 
++    /** Kompakt: re-tint when the wallpaper or ui mode changes the ink. */
++    private final Runnable mKompaktInkListener = this::onThemeChanged;
++
+     private final ConfigurationController.ConfigurationListener mConfigurationListener =
+             new ConfigurationController.ConfigurationListener() {
+                 @Override
+@@ -463,8 +466,7 @@ public class KeyguardStatusBarViewController extends ViewController<KeyguardStat
+     protected void onInit() {
+         super.onInit();
+         mCarrierTextController.init();
+-        // e-ink: always drive the legacy BatteryMeterView.
+-        // Kompakt: exactly one battery; the legacy view only without the Compose one.
++        // Kompakt: always drive the legacy BatteryMeterView.
+         if (mBatteryComposeView == null) {
+             mBatteryMeterViewController.init();
+         }
+@@ -510,6 +512,7 @@ public class KeyguardStatusBarViewController extends ViewController<KeyguardStat
+         }
+         mView.init(mStatusBarUserChipViewModel);
+         mConfigurationController.addCallback(mConfigurationListener);
++        com.android.systemui.wallpapers.KompaktInk.addListener(mContext, mKompaktInkListener);
+         mAnimationScheduler.addCallback(mAnimationCallback);
+         mUserInfoController.addCallback(mOnUserInfoChangedListener);
+         mStatusBarStateController.addCallback(mStatusBarStateListener);
+@@ -529,9 +532,7 @@ public class KeyguardStatusBarViewController extends ViewController<KeyguardStat
+             // whenever the shade is opened on top of lockscreen, and then re-attached when the
+             // shade is closed. So, we need to re-add the IconManager each time we're re-attached to
+             // get icon updates.
+-            if (isMigrationEnabled()) {
+-                mStatusBarIconController.addIconGroup(mTintedIconManager);
+-            }
++            // Kompakt: nothing to do.
+         }
+ 
+         mSystemIconsContainer = mView.findViewById(R.id.system_icons);
+@@ -605,6 +601,7 @@ public class KeyguardStatusBarViewController extends ViewController<KeyguardStat
+     protected void onViewDetached() {
+         mSystemIconsContainer.setOnHoverListener(null);
+         mConfigurationController.removeCallback(mConfigurationListener);
++        com.android.systemui.wallpapers.KompaktInk.removeListener(mKompaktInkListener);
+         mAnimationScheduler.removeCallback(mAnimationCallback);
+         mUserInfoController.removeCallback(mOnUserInfoChangedListener);
+         mStatusBarStateController.removeCallback(mStatusBarStateListener);
+@@ -612,9 +609,7 @@ public class KeyguardStatusBarViewController extends ViewController<KeyguardStat
+         mDisableStateTracker.stopTracking(mCommandQueue);
+         mSecureSettings.unregisterContentObserverSync(mIconHideListObserver);
+         mSecureSettings.unregisterContentObserverSync(mVolumeSettingObserver);
+-        if (mTintedIconManager != null) {
+-            mStatusBarIconController.removeIconGroup(mTintedIconManager);
+-        }
++        // Kompakt: deliberately NOT removeIconGroup(mTintedIconManager).
+         if (SceneContainerFlag.isEnabled()) {
+             mKeyguardStateController.removeCallback(mKeyguardStateControllerCallback);
+             if (mBatteryComposeView != null) {
+@@ -839,7 +834,7 @@ public class KeyguardStatusBarViewController extends ViewController<KeyguardStat
+     }
+ 
+     private void updateBatteryVisibility() {
+-        // e-ink: no Compose battery exists; without this addView(null) crashes.
++        // e-ink: no Compose battery exists; without this addView(null) crashes.
+         if (mBatteryComposeView == null) {
+             return;
+         }
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/phone/LightBarControllerImpl.java b/packages/SystemUI/src/com/android/systemui/statusbar/phone/LightBarControllerImpl.java
+index 75b176116527..d1df3aa37edf 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/phone/LightBarControllerImpl.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/phone/LightBarControllerImpl.java
+@@ -22,6 +22,8 @@ import static android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS;
+ import static com.android.systemui.shared.statusbar.phone.BarTransitions.MODE_LIGHTS_OUT_TRANSPARENT;
+ import static com.android.systemui.shared.statusbar.phone.BarTransitions.MODE_TRANSPARENT;
+ 
++import android.content.res.Configuration;
++import android.content.res.Resources;
+ import android.graphics.Rect;
+ import android.util.Log;
+ import android.view.Display;
+@@ -376,10 +378,12 @@ public class LightBarControllerImpl implements
+     }
+ 
+     private static boolean isLight(int appearance, int barMode, int flag) {
+-        final boolean isTransparentBar = (barMode == MODE_TRANSPARENT
+-                || barMode == MODE_LIGHTS_OUT_TRANSPARENT);
+-        final boolean light = (appearance & flag) != 0;
+-        return isTransparentBar && light;
++        // Kompakt: follow the app over a transparent bar, the system mode over paper.
++        if (barMode == MODE_TRANSPARENT || barMode == MODE_LIGHTS_OUT_TRANSPARENT) {
++            return (appearance & flag) != 0;
++        }
++        return (Resources.getSystem().getConfiguration().uiMode
++                & Configuration.UI_MODE_NIGHT_MASK) != Configuration.UI_MODE_NIGHT_YES;
+     }
+ 
+     private boolean animateChange() {
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/phone/LightBarTransitionsController.java b/packages/SystemUI/src/com/android/systemui/statusbar/phone/LightBarTransitionsController.java
+index cc15181a37b1..bab34456e45c 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/phone/LightBarTransitionsController.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/phone/LightBarTransitionsController.java
+@@ -215,19 +215,19 @@ public class LightBarTransitionsController implements Dumpable {
+         onNavigationSettingsChanged();
+     }
+ 
++    /** Kompakt: apply the tint now. */
+     public void setIconsDark(boolean dark, boolean animate) {
+-        if (!animate) {
+-            setIconTintInternal(dark ? 1.0f : 0.0f);
+-            mNextDarkIntensity = dark ? 1.0f : 0.0f;
+-        } else if (mTransitionPending) {
+-            deferIconTintChange(dark ? 1.0f : 0.0f);
+-        } else if (mTransitionDeferring) {
+-            animateIconTint(dark ? 1.0f : 0.0f,
+-                    Math.max(0, mTransitionDeferringStartTime - SystemClock.uptimeMillis()),
+-                    mTransitionDeferringDuration);
+-        } else {
+-            animateIconTint(dark ? 1.0f : 0.0f, 0 /* delay */, mApplier.getTintAnimationDuration());
++        final float target = dark ? 1.0f : 0.0f;
++
++        if (mTintAnimator != null) {
++            mTintAnimator.cancel();
++            mTintAnimator = null;
+         }
++        // Nothing is parked, so no callback can flush a stale value over this one.
++        mTintChangePending = false;
++        mPendingDarkIntensity = target;
++        mNextDarkIntensity = target;
++        setIconTintInternal(target);
+     }
+ 
+     public float getCurrentDarkIntensity() {
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/phone/fragment/CollapsedStatusBarFragment.java b/packages/SystemUI/src/com/android/systemui/statusbar/phone/fragment/CollapsedStatusBarFragment.java
+index 8649c8e81eea..334a061839f0 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/phone/fragment/CollapsedStatusBarFragment.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/phone/fragment/CollapsedStatusBarFragment.java
+@@ -247,7 +247,8 @@ public class CollapsedStatusBarFragment extends Fragment implements CommandQueue
+     };
+     private DisposableHandle mNicBindingDisposable;
+ 
+-    private boolean mAnimationsEnabled = true;
++    // Kompakt: false, not true.
++    private boolean mAnimationsEnabled = false;
+ 
+     @Inject
+     public CollapsedStatusBarFragment(
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/pipeline/battery/data/repository/BatteryRepository.kt b/packages/SystemUI/src/com/android/systemui/statusbar/pipeline/battery/data/repository/BatteryRepository.kt
+index 8baaa2983c10..fa3bcb55f72f 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/pipeline/battery/data/repository/BatteryRepository.kt
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/pipeline/battery/data/repository/BatteryRepository.kt
+@@ -346,7 +346,8 @@ constructor(
+                         LineageSettings.System.getIntForUser(
+                             resolver,
+                             LineageSettings.System.STATUS_BAR_SHOW_BATTERY_PERCENT,
+-                            BatteryRepository.SHOW_PERCENT_HIDDEN,
++                            // Kompakt: inside the icon; config_defaultBatteryPercentageSetting is not read here.
++                            BatteryRepository.SHOW_PERCENT_INSIDE,
+                             UserHandle.USER_CURRENT,
+                         )
+                     }
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/pipeline/battery/shared/ui/BatteryColors.kt b/packages/SystemUI/src/com/android/systemui/statusbar/pipeline/battery/shared/ui/BatteryColors.kt
+index 05b8ea22f8a0..248cd12f7dbe 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/pipeline/battery/shared/ui/BatteryColors.kt
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/pipeline/battery/shared/ui/BatteryColors.kt
+@@ -51,30 +51,20 @@ sealed interface BatteryColors {
+      */
+     sealed class LightTheme : BatteryColors {
+         override val attribution = Color.Black
+-        override val glyph = Color.Black.copy(alpha = 0.75f)
+-        override val backgroundOnly = lowAlphaBg
+-        override val backgroundWithGlyph = lowAlphaBg
+ 
+-        data object Default : LightTheme() {
+-            override val glyph = Color.White.copy(alpha = 0.9f)
+-            override val fill = Color.Black
++        // e-ink: monochrome. Every profile fills black, so every glyph is white.
++        override val glyph = Color.White.copy(alpha = 0.9f)
++        override val fill = Color.Black
++        override val backgroundOnly = lowAlphaBg
++        override val backgroundWithGlyph = highAlphaBg
+ 
+-            /** Use a higher opacity here because the foreground is white */
+-            override val backgroundWithGlyph = highAlphaBg
+-        }
++        data object Default : LightTheme()
+ 
+-        // e-ink: monochrome.
+-        data object Charging : LightTheme() {
+-            override val fill = Color.Black
+-        }
++        data object Charging : LightTheme()
+ 
+-        data object Error : LightTheme() {
+-            override val fill = Color.Black
+-        }
++        data object Error : LightTheme()
+ 
+-        data object PowerSave : LightTheme() {
+-            override val fill = Color.Black
+-        }
++        data object PowerSave : LightTheme()
+ 
+         companion object {
+             private val lowAlphaBg = Color.Black.copy(alpha = 0.20f)
+@@ -93,26 +83,20 @@ sealed interface BatteryColors {
+      */
+     sealed class DarkTheme : BatteryColors {
+         override val attribution = Color.White
++
++        // e-ink: monochrome, the inverse of the light theme above.
++        override val glyph = Color.Black.copy(alpha = 0.75f)
++        override val fill = Color.White
+         override val backgroundOnly = lowAlphaBg
+         override val backgroundWithGlyph = highAlphaBg
+-        override val glyph = Color.Black.copy(alpha = 0.75f)
+ 
+-        data object Default : DarkTheme() {
+-            override val fill = Color.White
+-        }
++        data object Default : DarkTheme()
+ 
+-        // e-ink: monochrome, inverse of the light theme above.
+-        data object Charging : DarkTheme() {
+-            override val fill = Color.White
+-        }
++        data object Charging : DarkTheme()
+ 
+-        data object Error : DarkTheme() {
+-            override val fill = Color.White
+-        }
++        data object Error : DarkTheme()
+ 
+-        data object PowerSave : DarkTheme() {
+-            override val fill = Color.White
+-        }
++        data object PowerSave : DarkTheme()
+ 
+         companion object {
+             private val lowAlphaBg = Color.White.copy(alpha = 0.45f)
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/pipeline/battery/ui/composable/UnifiedBattery.kt b/packages/SystemUI/src/com/android/systemui/statusbar/pipeline/battery/ui/composable/UnifiedBattery.kt
+index a050bca95609..3435959e87df 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/pipeline/battery/ui/composable/UnifiedBattery.kt
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/pipeline/battery/ui/composable/UnifiedBattery.kt
+@@ -428,7 +428,6 @@ fun CircleBatteryBody(
+     modifier: Modifier = Modifier,
+     contentDescription: String = "",
+ ) {
+-    val colorError = MaterialTheme.colorScheme.error
+     val textMeasurer = rememberTextMeasurer()
+ 
+     Canvas(modifier = modifier, contentDescription = contentDescription) {
+@@ -447,15 +446,8 @@ fun CircleBatteryBody(
+         // Draw colored arc representing charge level
+         if (level != null && level > 0) {
+             drawArc(
+-                if (attr is BatteryGlyph.Bolt || attr is BatteryGlyph.Defend) {
+-                    BatteryColors.DarkTheme.Charging.fill
+-                } else if (attr is BatteryGlyph.Plus) {
+-                    BatteryColors.DarkTheme.PowerSave.fill
+-                } else if (level <= 20) {
+-                    colorError
+-                } else {
+-                    colors.attribution
+-                },
++                // e-ink: the arc is the ink of the current theme, always.
++                colors.attribution,
+                 270f,
+                 3.6f * level,
+                 useCenter = false,
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/pipeline/shared/data/repository/ConnectivityRepository.kt b/packages/SystemUI/src/com/android/systemui/statusbar/pipeline/shared/data/repository/ConnectivityRepository.kt
+index e0bf00fbe431..d78f6ca6676f 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/pipeline/shared/data/repository/ConnectivityRepository.kt
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/pipeline/shared/data/repository/ConnectivityRepository.kt
+@@ -18,6 +18,7 @@ package com.android.systemui.statusbar.pipeline.shared.data.repository
+ 
+ import android.annotation.SuppressLint
+ import android.content.Context
++import android.database.ContentObserver
+ import android.net.ConnectivityManager
+ import android.net.Network
+ import android.net.NetworkCapabilities
+@@ -28,6 +29,7 @@ import android.net.NetworkCapabilities.TRANSPORT_WIFI
+ import android.net.vcn.VcnTransportInfo
+ import android.net.vcn.VcnUtils
+ import android.net.wifi.WifiInfo
++import android.provider.Settings
+ import android.telephony.SubscriptionManager.INVALID_SUBSCRIPTION_ID
+ import androidx.annotation.ArrayRes
+ import androidx.annotation.VisibleForTesting
+@@ -53,9 +55,11 @@ import java.io.PrintWriter
+ import javax.inject.Inject
+ import kotlinx.coroutines.CoroutineScope
+ import kotlinx.coroutines.channels.awaitClose
++import kotlinx.coroutines.flow.Flow
+ import kotlinx.coroutines.flow.SharedFlow
+ import kotlinx.coroutines.flow.SharingStarted
+ import kotlinx.coroutines.flow.StateFlow
++import kotlinx.coroutines.flow.combine
+ import kotlinx.coroutines.flow.distinctUntilChanged
+ import kotlinx.coroutines.flow.map
+ import kotlinx.coroutines.flow.onEach
+@@ -108,7 +112,7 @@ constructor(
+             .asList()
+             .toSlotSet(connectivitySlots)
+ 
+-    override val forceHiddenSlots: StateFlow<Set<ConnectivitySlot>> =
++    private val tunerHiddenSlots: Flow<Set<ConnectivitySlot>> =
+         conflatedCallbackFlow {
+                 val callback =
+                     object : TunerService.Tunable {
+@@ -128,6 +132,32 @@ constructor(
+ 
+                 awaitClose { tunerService.removeTunable(callback) }
+             }
++
++    // Kompakt: while Offline+ cuts the modem, the signal bars say no signal.
++    private val kompaktOffline: Flow<Boolean> =
++        conflatedCallbackFlow {
++                val resolver = context.contentResolver
++                fun read() = Settings.Global.getInt(resolver, "HWSwitch_lock", 0) == 1
++                val observer =
++                    object : ContentObserver(null) {
++                        override fun onChange(selfChange: Boolean) {
++                            trySend(read())
++                        }
++                    }
++                resolver.registerContentObserver(
++                    Settings.Global.getUriFor("HWSwitch_lock"),
++                    false,
++                    observer,
++                )
++                trySend(read())
++                awaitClose { resolver.unregisterContentObserver(observer) }
++            }
++            .distinctUntilChanged()
++
++    override val forceHiddenSlots: StateFlow<Set<ConnectivitySlot>> =
++        combine(tunerHiddenSlots, kompaktOffline) { slots, offline ->
++                if (offline) slots + ConnectivitySlot.MOBILE else slots
++            }
+             .stateIn(
+                 scope,
+                 started = SharingStarted.WhileSubscribed(),
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/pipeline/shared/ui/binder/HomeStatusBarViewBinder.kt b/packages/SystemUI/src/com/android/systemui/statusbar/pipeline/shared/ui/binder/HomeStatusBarViewBinder.kt
+index 4d8117785930..0422c7eb2962 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/pipeline/shared/ui/binder/HomeStatusBarViewBinder.kt
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/pipeline/shared/ui/binder/HomeStatusBarViewBinder.kt
+@@ -134,9 +134,23 @@ constructor(
+             // GONE because this shouldn't take space in the layout
+             primaryChipView.hideInitially(state = View.GONE)
+             systemInfoView.hideInitially()
+-            leftClock.hideInitially(state = View.GONE)
+-            centerClock.hideInitially(state = View.GONE)
+-            rightClock.hideInitially(state = View.GONE)
++            // Kompakt: the clock in use starts INVISIBLE, not GONE, to hold its width.
++            val kompaktClockPosition = view.context.contentResolver.readClockPosition()
++            leftClock.hideInitially(
++                state =
++                    if (kompaktClockPosition == CLOCK_POSITION_LEFT) View.INVISIBLE
++                    else View.GONE
++            )
++            centerClock.hideInitially(
++                state =
++                    if (kompaktClockPosition == CLOCK_POSITION_CENTER) View.INVISIBLE
++                    else View.GONE
++            )
++            rightClock.hideInitially(
++                state =
++                    if (kompaktClockPosition == CLOCK_POSITION_RIGHT) View.INVISIBLE
++                    else View.GONE
++            )
+             notificationIconsArea.hideInitially()
+         }
+ 
+@@ -152,7 +166,8 @@ constructor(
+                             denyListed = false,
+                             hideForHun = false,
+                             position = context.contentResolver.readClockPosition(),
+-                            visibilityModel = VisibilityModel(View.GONE, true),
++                            // Kompakt: INVISIBLE, not GONE.
++                            visibilityModel = VisibilityModel(View.INVISIBLE, true),
+                         )
+                     )
+ 
+@@ -472,7 +487,13 @@ constructor(
+                                         !state.denyListed
+                                 ) {
+                                     state.visibilityModel
++                                } else if (
++                                    state.visibilityModel.visibility == View.INVISIBLE
++                                ) {
++                                    // Kompakt: not resolved yet.
++                                    state.visibilityModel
+                                 } else {
++                                    // A real policy hide: denylisted, auto-hidden, or blocked by a heads-up.
+                                     state.visibilityModel.copy(visibility = View.GONE)
+                                 }
+ 
+@@ -485,13 +506,15 @@ constructor(
+                                     else -> leftClock
+                                 }
+ 
+-                            // Hide all clocks first
+-                            leftClock.visibility = View.GONE
+-                            centerClock.visibility = View.GONE
+-                            rightClock.visibility = View.GONE
++                            // Kompakt: Hide the clocks that are NOT in use.
++                            if (leftClock !== activeClock) leftClock.visibility = View.GONE
++                            if (centerClock !== activeClock) centerClock.visibility = View.GONE
++                            if (rightClock !== activeClock) rightClock.visibility = View.GONE
+ 
+-                            // Show only the active one
+-                            activeClock.adjustVisibility(finalVisibility)
++                            // Kompakt: Show only the active one.
++                            activeClock.adjustVisibility(
++                                finalVisibility.copy(shouldAnimateChange = false)
++                            )
+                         }
+                     }
+ 
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/policy/Clock.java b/packages/SystemUI/src/com/android/systemui/statusbar/policy/Clock.java
+index 97c71b2c319b..faad09d66bae 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/policy/Clock.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/policy/Clock.java
+@@ -206,6 +206,20 @@ public class Clock extends TextView implements
+         }
+     }
+ 
++    /** Kompakt: give the clock its text before anything measures it. */
++    @Override
++    protected void onFinishInflate() {
++        super.onFinishInflate();
++
++        if (mCalendar == null) {
++            mCurrentUserId = mUserTracker.getUserId();
++            mCalendar = Calendar.getInstance(TimeZone.getDefault());
++            mContentDescriptionFormatString = "";
++            mDateTimePatternGenerator = null;
++            updateClock();
++        }
++    }
++
+     @Override
+     protected void onAttachedToWindow() {
+         super.onAttachedToWindow();

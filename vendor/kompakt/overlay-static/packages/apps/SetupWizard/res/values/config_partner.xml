@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: no dynamic colour, and sizes for a 4.3 inch screen. -->
+<resources>
+    <bool name="dynamic_color_enabled">false</bool>
+    <bool name="full_dynamic_color_enabled">false</bool>
+    <bool name="show_payment_action">false</bool>
+
+    <dimen name="setup_design_layout_margin_start">16dp</dimen>
+    <dimen name="setup_design_layout_margin_end">16dp</dimen>
+    <dimen name="setup_design_icon_size">20dp</dimen>
+    <dimen name="setup_design_icon_margin_top">12dp</dimen>
+    <dimen name="setup_design_header_text_size">24sp</dimen>
+    <dimen name="setup_design_header_text_margin_top">8dp</dimen>
+    <bool name="setup_design_header_auto_size_enabled">true</bool>
+    <dimen name="setup_design_header_auto_size_max_text_size">24sp</dimen>
+    <dimen name="setup_design_header_auto_size_min_text_size">20sp</dimen>
+    <dimen name="setup_design_description_text_size">15sp</dimen>
+    <dimen name="setup_design_description_text_margin_top">8dp</dimen>
+</resources>
