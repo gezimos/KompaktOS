@@ -1,0 +1,826 @@
+From 5ac6d8be1636bd5365a1e67d11cc8b496bd74b24 Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Thu, 17 Sep 2026 21:26:35 +0200
+Subject: [PATCH] Kompakt: contacts: two inks
+
+---
+ res/drawable/fab_bg.xml                       |   2 +
+ res/layout/contact_editor_activity.xml        |   3 +-
+ res/layout/contacts_drawer_activity.xml       |   3 +-
+ res/layout/photo_editor_view.xml              |   2 +-
+ res/values-night-v27/styles.xml               | 145 ++++++++++++++++++
+ res/values-night/colors.xml                   | 115 ++++++++++++--
+ res/values-night/styles.xml                   |  17 ++
+ res/values-v27/styles.xml                     |  14 ++
+ res/values/colors.xml                         | 108 ++++++-------
+ res/values/dimens.xml                         |   2 +
+ res/values/styles.xml                         |  12 ++
+ .../contacts/activities/PeopleActivity.java   |  26 +++-
+ .../contacts/editor/PhotoEditorView.java      |   7 +
+ .../lettertiles/LetterTileDrawable.java       |  24 ++-
+ 14 files changed, 405 insertions(+), 75 deletions(-)
+ create mode 100644 res/values-night-v27/styles.xml
+ create mode 100644 res/values-night/styles.xml
+
+diff --git a/res/drawable/fab_bg.xml b/res/drawable/fab_bg.xml
+index a6526789b..9a67fcb89 100644
+--- a/res/drawable/fab_bg.xml
++++ b/res/drawable/fab_bg.xml
+@@ -6,4 +6,6 @@
+ <shape xmlns:android="http://schemas.android.com/apk/res/android"
+     android:shape="oval">
+     <solid android:color="@color/fab_color"/>
++    <!-- Kompakt: outlined; without its shadow a white disc on a white page has no edge. -->
++    <stroke android:width="2dp" android:color="@color/floating_action_button_icon_color"/>
+ </shape>
+diff --git a/res/layout/contact_editor_activity.xml b/res/layout/contact_editor_activity.xml
+index 5843a58cd..c96cb4d52 100644
+--- a/res/layout/contact_editor_activity.xml
++++ b/res/layout/contact_editor_activity.xml
+@@ -22,13 +22,14 @@
+     android:layout_height="match_parent"
+     android:orientation="vertical">
+ 
++    <!-- Kompakt: flat toolbar; a drop shadow dithers on this panel. -->
+     <androidx.appcompat.widget.Toolbar
+         android:id="@+id/toolbar"
+         style="@style/EditorActionBarStyle"
+         android:layout_width="match_parent"
+         android:layout_height="?android:attr/actionBarSize"
+         android:background="?android:attr/colorPrimary"
+-        android:elevation="4dp"
++        android:elevation="0dp"
+         app:navigationContentDescription="@string/cancel_button_content_description"
+         app:navigationIcon="@drawable/quantum_ic_close_vd_theme_24"
+         app:title="@string/contact_editor_title_existing_contact" />
+diff --git a/res/layout/contacts_drawer_activity.xml b/res/layout/contacts_drawer_activity.xml
+index a59e1db82..0cbf53f2a 100644
+--- a/res/layout/contacts_drawer_activity.xml
++++ b/res/layout/contacts_drawer_activity.xml
+@@ -41,11 +41,12 @@
+             android:background="?android:attr/windowBackground" />
+     </LinearLayout>
+ 
++    <!-- Kompakt: the drawer covers the screen; see PeopleActivity for the scrim and the slide. -->
+     <fragment
+         android:id="@+id/drawer"
+         android:name="com.android.contacts.drawer.DrawerFragment"
+         android:layout_gravity="start"
+-        android:layout_width="@dimen/drawer_width"
++        android:layout_width="match_parent"
+         android:layout_height="match_parent" />
+ 
+ </androidx.drawerlayout.widget.DrawerLayout>
+diff --git a/res/layout/photo_editor_view.xml b/res/layout/photo_editor_view.xml
+index b9f32a0a2..c28fc4750 100644
+--- a/res/layout/photo_editor_view.xml
++++ b/res/layout/photo_editor_view.xml
+@@ -43,7 +43,7 @@
+             android:layout_marginBottom="16dp"
+             android:layout_marginEnd="16dp"
+             android:background="?android:attr/selectableItemBackground"
+-            android:tint="@android:color/white"
++            android:tint="@color/letter_tile_font_color"
+             android:src="@drawable/quantum_ic_camera_alt_vd_theme_24" />
+ 
+     <View
+diff --git a/res/values-night-v27/styles.xml b/res/values-night-v27/styles.xml
+new file mode 100644
+index 000000000..7206b30f8
+--- /dev/null
++++ b/res/values-night-v27/styles.xml
+@@ -0,0 +1,145 @@
++<resources>
++    <!-- Kompakt: night versions of the two live themes. -->
++
++    <style name="PeopleTheme" parent="@android:style/Theme.Material">
++        <!-- Kompakt: the drawer icon and the selection tick are controls; they take the ink so they show in both modes. -->
++        <item name="colorControlNormal">#fffffffe</item>
++        <item name="colorControlActivated">#fffffffe</item>
++        <item name="android:colorControlNormal">#fffffffe</item>
++        <item name="android:colorControlActivated">#fffffffe</item>
++        <item name="android:forceDarkAllowed">false</item>
++        <item name="android:actionBarStyle">@style/ContactsActionBarStyle</item>
++        <!-- Style for the overflow button in the actionbar. -->
++        <item name="android:actionOverflowButtonStyle">@style/ContactsActionBarOverflowQP</item>
++        <item name="android:actionModeCloseDrawable">@drawable/quantum_ic_close_vd_theme_24</item>
++        <item name="android:textColorPrimary">@color/primary_text_color</item>
++        <item name="android:textColorSecondary">@color/secondary_text_color</item>
++        <item name="android:icon">@android:color/transparent</item>
++        <item name="android:listViewStyle">@style/ListViewStyle</item>
++        <item name="android:windowBackground">@color/background_primary</item>
++        <item name="android:colorPrimaryDark">@color/primary_color_dark</item>
++        <item name="android:colorPrimary">@color/primary_color</item>
++        <item name="android:colorAccent">@color/kompakt_accent</item>
++        <item name="android:alertDialogTheme">@style/ContactsAlertDialogTheme</item>
++        <item name="list_item_height">@dimen/contact_browser_list_item_height</item>
++        <item name="list_section_header_height">24dip</item>
++        <item name="list_item_padding_top">
++            @dimen/contact_browser_list_item_padding_top_or_bottom
++        </item>
++        <item name="list_item_padding_right">32dp</item>
++        <item name="list_item_padding_bottom">
++            @dimen/contact_browser_list_item_padding_top_or_bottom
++        </item>
++        <item name="list_item_padding_left">0dp</item>
++        <item name="list_item_gap_between_image_and_text">
++            @dimen/contact_browser_list_item_gap_between_image_and_text
++        </item>
++        <item name="list_item_gap_between_label_and_data">5dip</item>
++        <item name="list_item_presence_icon_margin">4dip</item>
++        <item name="list_item_presence_icon_size">16dip</item>
++        <item name="list_item_photo_size">@dimen/contact_browser_list_item_photo_size</item>
++        <item name="list_item_profile_photo_size">70dip</item>
++        <item name="list_item_prefix_highlight_color">@color/people_app_theme_color</item>
++        <item name="list_item_background_color">@color/list_item_pinned_header_color</item>
++        <item name="list_item_header_text_color">@color/people_app_theme_color</item>
++        <item name="list_item_header_text_size">14sp</item>
++        <item name="list_item_header_height">30dip</item>
++        <item name="list_item_header_text_indent">8dip</item>
++        <item name="contact_browser_list_padding_left">0dip</item>
++        <item name="contact_browser_list_padding_right">0dip</item>
++        <item name="contact_browser_background">@color/background_primary</item>
++        <item name="list_item_text_indent">@dimen/contact_browser_list_item_text_indent</item>
++        <item name="list_item_text_offset_top">-2dp</item>
++        <item name="list_item_avatar_offset_top">-1dp</item>
++        <!-- Favorites -->
++        <item name="favorites_padding_bottom">0dip</item>
++        <!-- Popup menu -->
++        <item name="android:popupMenuStyle">@style/PopupMenuStyle</item>
++        <item name="android:navigationBarColor">@color/navigation_bar_bg</item>
++        <item name="android:windowLightNavigationBar">false</item>
++        <!-- Kompakt: night: dark bars and a black window. -->
++        <item name="android:windowLightStatusBar">false</item>
++        <item name="android:statusBarColor">@color/background_primary</item>
++        <item name="android:colorBackground">@color/background_primary</item>
++        <item name="android:colorBackgroundFloating">@color/background_primary</item>
++    </style>
++
++    <style name="PeopleThemeAppCompat" parent="Theme.AppCompat">
++        <!-- Kompakt: the drawer icon and the selection tick are controls; they take the ink so they show in both modes. -->
++        <item name="colorControlNormal">#fffffffe</item>
++        <item name="colorControlActivated">#fffffffe</item>
++        <item name="android:colorControlNormal">#fffffffe</item>
++        <item name="android:colorControlActivated">#fffffffe</item>
++        <item name="android:forceDarkAllowed">false</item>
++        <!-- Styles that require AppCompat compatibility, remember to update both sets -->
++        <item name="android:actionBarStyle">@style/ContactsActionBarStyleAppCompat</item>
++        <item name="actionBarStyle">@style/ContactsActionBarStyleAppCompat</item>
++        <item name="android:actionButtonStyle">@style/ContactsActionButtonStyle</item>
++        <item name="actionButtonStyle">@style/ContactsActionButtonStyle</item>
++        <!-- Style for the overflow button in the actionbar. -->
++        <item name="android:actionOverflowButtonStyle">@style/ContactsActionBarOverflowQP</item>
++        <item name="actionOverflowButtonStyle">@style/ContactsActionBarOverflowQP</item>
++        <item name="toolbarNavigationButtonStyle">@style/ContactToolbarNavigationButtonStyle</item>
++        <item name="android:actionModeCloseDrawable">@drawable/quantum_ic_close_vd_theme_24</item>
++        <item name="android:textColorPrimary">@color/primary_text_color</item>
++        <item name="android:textColorSecondary">@color/secondary_text_color</item>
++        <item name="android:icon">@android:color/transparent</item>
++        <item name="android:listViewStyle">@style/ListViewStyle</item>
++        <item name="android:windowBackground">@color/background_primary</item>
++        <item name="android:colorPrimaryDark">@color/primary_color_dark</item>
++        <item name="colorPrimaryDark">@color/primary_color_dark</item>
++        <item name="android:colorPrimary">@color/primary_color</item>
++        <item name="colorPrimary">@color/primary_color</item>
++        <item name="android:colorAccent">@color/kompakt_accent</item>
++        <item name="colorAccent">@color/kompakt_accent</item>
++        <item name="android:alertDialogTheme">@style/ContactsAlertDialogThemeAppCompat</item>
++        <item name="alertDialogTheme">@style/ContactsAlertDialogThemeAppCompat</item>
++        <item name="list_item_height">@dimen/contact_browser_list_item_height</item>
++        <item name="list_section_header_height">24dip</item>
++        <item name="list_item_padding_top">
++            @dimen/contact_browser_list_item_padding_top_or_bottom
++        </item>
++        <item name="list_item_padding_right">32dp</item>
++        <item name="list_item_padding_bottom">
++            @dimen/contact_browser_list_item_padding_top_or_bottom
++        </item>
++        <item name="list_item_padding_left">0dp</item>
++        <item name="list_item_gap_between_image_and_text">
++            @dimen/contact_browser_list_item_gap_between_image_and_text
++        </item>
++        <item name="list_item_gap_between_indexer_and_image">
++            @dimen/contact_browser_list_item_gap_between_indexer_and_image
++        </item>
++        <item name="list_item_gap_between_label_and_data">5dip</item>
++        <item name="list_item_presence_icon_margin">4dip</item>
++        <item name="list_item_presence_icon_size">16dip</item>
++        <item name="list_item_photo_size">@dimen/contact_browser_list_item_photo_size</item>
++        <item name="list_item_profile_photo_size">70dip</item>
++        <item name="list_item_prefix_highlight_color">@color/people_app_theme_color</item>
++        <item name="list_item_background_color">@color/list_item_pinned_header_color</item>
++        <item name="list_item_header_text_color">@color/people_app_theme_color</item>
++        <item name="list_item_header_text_size">14sp</item>
++        <item name="list_item_header_height">30dip</item>
++        <item name="list_item_header_text_indent">8dip</item>
++        <item name="contact_browser_list_padding_left">0dip</item>
++        <item name="contact_browser_list_padding_right">0dip</item>
++        <item name="contact_browser_background">@color/background_primary</item>
++        <item name="list_item_text_indent">@dimen/contact_browser_list_item_text_indent</item>
++        <item name="list_item_text_offset_top">-2dp</item>
++        <item name="list_item_avatar_offset_top">-1dp</item>
++        <!-- Favorites -->
++        <item name="favorites_padding_bottom">0dip</item>
++        <item name="drawerArrowStyle">@style/DrawerArrowStyle</item>
++        <!-- Popup menu -->
++        <item name="android:popupMenuStyle">@style/PopupMenuStyleAppCompat</item>
++        <item name="popupMenuStyle">@style/PopupMenuStyleAppCompat</item>
++        <item name="android:navigationBarColor">@color/navigation_bar_bg</item>
++        <item name="android:windowLightNavigationBar">false</item>
++        <!-- Kompakt: night: dark bars and a black window. -->
++        <item name="android:windowLightStatusBar">false</item>
++        <item name="android:statusBarColor">@color/background_primary</item>
++        <item name="android:colorBackground">@color/background_primary</item>
++        <item name="android:colorBackgroundFloating">@color/background_primary</item>
++    </style>
++
++</resources>
+diff --git a/res/values-night/colors.xml b/res/values-night/colors.xml
+index fc5bb3017..82f5ee0db 100644
+--- a/res/values-night/colors.xml
++++ b/res/values-night/colors.xml
+@@ -1,18 +1,103 @@
+ <?xml version="1.0" encoding="utf-8"?>
+-<!--
+- * SPDX-License-Identifier: Apache-2.0
+- * Copyright (C) 2020 The LineageOS Project
+--->
++<!-- Kompakt: night: black ground, white ink. -->
+ <resources>
+-    <!-- Background color of pinned header items. -->
+-    <color name="list_item_pinned_header_color">@*android:color/system_neutral1_900</color>
+-
+-    <!-- Color of contact name in list. -->
+-    <color name="contact_list_name_text_color">#dadada</color>
+-
+-    <!-- Color of the background of the contact detail and editor pages -->
+-    <color name="background_primary">@*android:color/system_neutral1_900</color>
+-    <color name="contact_all_list_background_color">@*android:color/system_neutral1_900</color>
+-
+-    <color name="fab_color">@android:color/system_accent1_100</color>
++    <color name="action_bar_background">#ff000000</color>
++    <color name="action_bar_button_text_color">#fffffffe</color>
++    <color name="actionbar_color_grey_solid">#fffffffe</color>
++    <color name="actionbar_icon_color">#fffffffe</color>
++    <color name="actionbar_icon_color_grey">#fffffffe</color>
++    <color name="actionbar_text_color">#fffffffe</color>
++    <color name="actionbar_text_color_black">#fffffffe</color>
++    <color name="alert_background">#ff000000</color>
++    <color name="background_primary">#ff000000</color>
++    <color name="call_arrow_green">#fffffffe</color>
++    <color name="call_arrow_red">#fffffffe</color>
++    <color name="call_subject_button">#fffffffe</color>
++    <color name="call_subject_divider">#fffffffe</color>
++    <color name="call_subject_history_background">#ff000000</color>
++    <color name="call_subject_history_icon">#fffffffe</color>
++    <color name="call_subject_limit_exceeded">#fffffffe</color>
++    <color name="card_margin_color">#ff000000</color>
++    <color name="contact_all_list_background_color">#ff000000</color>
++    <color name="contact_list_name_text_color">#fffffffe</color>
++    <color name="contacts_accent_color">#fffffffe</color>
++    <color name="contacts_text_color">#fffffffe</color>
++    <color name="contextual_selection_bar_color">#ff000000</color>
++    <color name="contextual_selection_bar_status_bar_color">#ff000000</color>
++    <color name="control_highlight_color">#1affffff</color>
++    <color name="custom_filter_divider">#fffffffe</color>
++    <color name="device_account_tint_color">#fffffffe</color>
++    <color name="dialtacts_primary_text_color">#fffffffe</color>
++    <color name="dialtacts_secondary_text_color">#fffffffe</color>
++    <color name="dialtacts_theme_color">#fffffffe</color>
++    <color name="disabled_button_background">#26ffffff</color>
++    <color name="disabled_button_text">#40ffffff</color>
++    <color name="disabled_contact_list_name_text">#4dffffff</color>
++    <color name="drawer_divider_color">#fffffffe</color>
++    <color name="drawer_selected_color">#fffffffe</color>
++    <color name="editor_disabled_text_color">#bffffffe</color>
++    <color name="editor_icon_color">#fffffffe</color>
++    <color name="empty_state_background">#ff000000</color>
++    <color name="expanding_entry_card_background_color">#ff000000</color>
++    <color name="expanding_entry_card_button_text_color">#fffffffe</color>
++    <color name="fab_color">#fffffffe</color>
++    <color name="floating_action_button_icon_color">#ff000000</color>
++    <color name="frequently_contacted_title_color">#fffffffe</color>
++    <color name="group_primary_color">#ff000000</color>
++    <color name="group_primary_color_dark">#ff000000</color>
++    <color name="ic_add_contact_shortcut_background">#ff000000</color>
++    <color name="image_placeholder">#ff000000</color>
++    <color name="kompakt_accent">#fffffffe</color>
++    <color name="letter_tile_default_color">#fffffffe</color>
++    <color name="letter_tile_font_color">#ff000000</color>
++    <color name="list_item_pinned_header_color">#ff000000</color>
++    <color name="material_star_pink">#fffffffe</color>
++    <color name="nav_item_selected_background">#0fffffff</color>
++    <color name="navigation_bar_bg">#ff000000</color>
++    <color name="navigation_drawer_background_color">#ff000000</color>
++    <color name="people_app_theme_color">#fffffffe</color>
++    <color name="primary_color">#ff000000</color>
++    <color name="primary_color_dark">#ff000000</color>
++    <color name="primary_text_color">#fffffffe</color>
++    <color name="quantum_black_hint_text">#61ffffff</color>
++    <color name="quantum_black_secondary_text">#89ffffff</color>
++    <color name="quantum_black_text">#ddffffff</color>
++    <color name="quickcontact_default_photo_tint_color">#ff000000</color>
++    <color name="quickcontact_default_photo_tint_color_dark">#ff000000</color>
++    <color name="quickcontact_entry_header_text_color">#fffffffe</color>
++    <color name="quickcontact_entry_sub_header_text_color">#fffffffe</color>
++    <color name="searchbox_background_color">#ff000000</color>
++    <color name="searchbox_hint_text_color">#66ffffff</color>
++    <color name="searchbox_text_color">#fffffffe</color>
++    <color name="snackbar_action_text">#ff000000</color>
++    <color name="snackbar_background">#fffffffe</color>
++    <array name="letter_tile_colors">
++        <item>#fffffffe</item>
++        <item>#fffffffe</item>
++        <item>#fffffffe</item>
++        <item>#fffffffe</item>
++        <item>#fffffffe</item>
++        <item>#fffffffe</item>
++        <item>#fffffffe</item>
++        <item>#fffffffe</item>
++        <item>#fffffffe</item>
++        <item>#fffffffe</item>
++        <item>#fffffffe</item>
++        <item>#fffffffe</item>
++    </array>
++    <array name="letter_tile_colors_dark">
++        <item>#fffffffe</item>
++        <item>#fffffffe</item>
++        <item>#fffffffe</item>
++        <item>#fffffffe</item>
++        <item>#fffffffe</item>
++        <item>#fffffffe</item>
++        <item>#fffffffe</item>
++        <item>#fffffffe</item>
++        <item>#fffffffe</item>
++        <item>#fffffffe</item>
++        <item>#fffffffe</item>
++        <item>#fffffffe</item>
++    </array>
++    <!-- Kompakt: the editor photo band keeps the ink at night. -->
+ </resources>
+diff --git a/res/values-night/styles.xml b/res/values-night/styles.xml
+new file mode 100644
+index 000000000..e7b9a13cb
+--- /dev/null
++++ b/res/values-night/styles.xml
+@@ -0,0 +1,17 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Kompakt: the two themes that only exist in values/ and need a night half. -->
++<resources>
++    <style name="PeopleActivityTheme" parent="@style/PeopleThemeAppCompat">
++        <item name="android:forceDarkAllowed">false</item>
++        <item name="windowActionBar">false</item>
++        <item name="windowNoTitle">true</item>
++        <item name="android:listSelector">?android:attr/listChoiceBackgroundIndicator</item>
++    </style>
++    <style name="LaunchScreenTheme" parent="Theme.AppCompat.DayNight.DarkActionBar">
++        <item name="android:windowBackground">@drawable/quantum_launchscreen_contacts</item>
++        <item name="colorPrimaryDark">@color/primary_color_dark</item>
++        <item name="colorPrimary">@color/primary_color</item>
++        <item name="android:windowLightStatusBar">false</item>
++        <item name="android:statusBarColor">@color/background_primary</item>
++    </style>
++</resources>
+diff --git a/res/values-v27/styles.xml b/res/values-v27/styles.xml
+index 3702fb209..d975d287c 100644
+--- a/res/values-v27/styles.xml
++++ b/res/values-v27/styles.xml
+@@ -1,6 +1,13 @@
+ <resources>
+ 
+     <style name="PeopleTheme" parent="@android:style/Theme.Material.Light.DarkActionBar">
++        <!-- Kompakt: the drawer icon and the selection tick are controls; they take the ink so they show in both modes. -->
++        <item name="colorControlNormal">#ff000000</item>
++        <item name="colorControlActivated">#ff000000</item>
++        <item name="android:colorControlNormal">#ff000000</item>
++        <item name="android:colorControlActivated">#ff000000</item>
++        <!-- Kompakt: white bar by day needs dark icons. -->
++        <item name="android:windowLightStatusBar">true</item>
+         <item name="android:forceDarkAllowed">true</item>
+         <item name="android:actionBarStyle">@style/ContactsActionBarStyle</item>
+         <!-- Style for the overflow button in the actionbar. -->
+@@ -54,6 +61,13 @@
+     </style>
+ 
+     <style name="PeopleThemeAppCompat" parent="Theme.AppCompat.Light.DarkActionBar">
++        <!-- Kompakt: the drawer icon and the selection tick are controls; they take the ink so they show in both modes. -->
++        <item name="colorControlNormal">#ff000000</item>
++        <item name="colorControlActivated">#ff000000</item>
++        <item name="android:colorControlNormal">#ff000000</item>
++        <item name="android:colorControlActivated">#ff000000</item>
++        <!-- Kompakt: white bar by day needs dark icons. -->
++        <item name="android:windowLightStatusBar">true</item>
+         <item name="android:forceDarkAllowed">true</item>
+         <!-- Styles that require AppCompat compatibility, remember to update both sets -->
+         <item name="android:actionBarStyle">@style/ContactsActionBarStyleAppCompat</item>
+diff --git a/res/values/colors.xml b/res/values/colors.xml
+index 429695ec7..b978fee72 100644
+--- a/res/values/colors.xml
++++ b/res/values/colors.xml
+@@ -14,7 +14,7 @@
+      limitations under the License.
+ -->
+ <resources>
+-    <color name="ic_add_contact_shortcut_background">#F5F5F5</color>
++    <color name="ic_add_contact_shortcut_background">#fffffffe</color>
+ 
+     <!-- 87% black -->
+     <color name="quantum_black_text">#dd000000</color>
+@@ -36,9 +36,9 @@
+ 
+     <color name="actionbar_background_color">@color/primary_color</color>
+ 
+-    <color name="contextual_selection_bar_color">#f6f6f6</color>
++    <color name="contextual_selection_bar_color">#fffffffe</color>
+     <!-- Color of the status bar above the contextual selection bar. -->
+-    <color name="contextual_selection_bar_status_bar_color">#bababa</color>
++    <color name="contextual_selection_bar_status_bar_color">#fffffffe</color>
+ 
+     <color name="primary_color_dark">@*android:color/system_accent1_700</color>
+     <color name="primary_color">@*android:color/system_accent1_600</color>
+@@ -62,19 +62,19 @@
+     <color name="expanding_entry_card_background_color">#ffffff</color>
+ 
+     <!-- Color of the margin for cards -->
+-    <color name="card_margin_color">#f4f4f4</color>
++    <color name="card_margin_color">#fffffffe</color>
+ 
+-    <color name="call_arrow_green">#2aad6f</color>
+-    <color name="call_arrow_red">#ff2e58</color>
++    <color name="call_arrow_green">#ff000000</color>
++    <color name="call_arrow_red">#ff000000</color>
+ 
+     <!-- Background color of pinned header items. -->
+     <color name="list_item_pinned_header_color">@color/background_primary</color>
+ 
+     <!-- Color of the mime-type icons inside the editor. 50% black. -->
+-    <color name="editor_icon_color">#7f7f7f</color>
++    <color name="editor_icon_color">#ff000000</color>
+ 
+     <!-- Color of disabled text and unfocused hint text inside the contact editor. 25% black. -->
+-    <color name="editor_disabled_text_color">#40000000</color>
++    <color name="editor_disabled_text_color">#bf000000</color>
+ 
+     <!-- Color of text on disabled link contacts button, 25% black. -->
+     <color name="disabled_button_text">#40000000</color>
+@@ -92,7 +92,7 @@
+     <color name="ripple_material_dark">#a0ffffff</color>
+ 
+     <!-- Divider color for header separator -->
+-    <color name="primary_text_color">#363636</color>
++    <color name="primary_text_color">#ff000000</color>
+ 
+     <color name="secondary_text_color">@color/dialtacts_secondary_text_color</color>
+ 
+@@ -106,13 +106,13 @@
+     <color name="dialtacts_theme_color">@*android:color/system_accent1_600</color>
+ 
+     <!-- Color of image view placeholder. -->
+-    <color name="image_placeholder">#DDDDDD</color>
++    <color name="image_placeholder">#fffffffe</color>
+ 
+     <!-- Primary text color in the Phone app -->
+-    <color name="dialtacts_primary_text_color">#333333</color>
++    <color name="dialtacts_primary_text_color">#ff000000</color>
+ 
+     <!-- Secondary text color in the Phone app -->
+-    <color name="dialtacts_secondary_text_color">#737373</color>
++    <color name="dialtacts_secondary_text_color">#ff000000</color>
+ 
+     <color name="shortcut_overlay_text_background">#7f000000</color>
+ 
+@@ -127,46 +127,46 @@
+         These colors are also used by MaterialColorMapUtils to generate primary activity colors.
+     -->
+     <array name="letter_tile_colors">
+-        <item>@*android:color/system_accent1_300</item>
+-        <item>@*android:color/system_accent2_300</item>
+-        <item>@*android:color/system_accent3_300</item>
+-        <item>@*android:color/system_accent1_400</item>
+-        <item>@*android:color/system_accent2_400</item>
+-        <item>@*android:color/system_accent3_400</item>
+-        <item>@*android:color/system_accent1_500</item>
+-        <item>@*android:color/system_accent2_500</item>
+-        <item>@*android:color/system_accent3_500</item>
+-        <item>@*android:color/system_accent1_600</item>
+-        <item>@*android:color/system_accent2_600</item>
+-        <item>@*android:color/system_accent3_600</item>
++        <item>#ff000000</item>
++        <item>#ff000000</item>
++        <item>#ff000000</item>
++        <item>#ff000000</item>
++        <item>#ff000000</item>
++        <item>#ff000000</item>
++        <item>#ff000000</item>
++        <item>#ff000000</item>
++        <item>#ff000000</item>
++        <item>#ff000000</item>
++        <item>#ff000000</item>
++        <item>#ff000000</item>
+     </array>
+ 
+     <!-- Darker versions of letter_tile_colors, two shades darker. These colors are used
+         for settings secondary activity colors. -->
+     <array name="letter_tile_colors_dark">
+-        <item>@*android:color/system_accent1_500</item>
+-        <item>@*android:color/system_accent2_500</item>
+-        <item>@*android:color/system_accent3_500</item>
+-        <item>@*android:color/system_accent1_600</item>
+-        <item>@*android:color/system_accent2_600</item>
+-        <item>@*android:color/system_accent3_600</item>
+-        <item>@*android:color/system_accent1_700</item>
+-        <item>@*android:color/system_accent2_700</item>
+-        <item>@*android:color/system_accent3_700</item>
+-        <item>@*android:color/system_accent1_800</item>
+-        <item>@*android:color/system_accent2_800</item>
+-        <item>@*android:color/system_accent3_800</item>
++        <item>#ff000000</item>
++        <item>#ff000000</item>
++        <item>#ff000000</item>
++        <item>#ff000000</item>
++        <item>#ff000000</item>
++        <item>#ff000000</item>
++        <item>#ff000000</item>
++        <item>#ff000000</item>
++        <item>#ff000000</item>
++        <item>#ff000000</item>
++        <item>#ff000000</item>
++        <item>#ff000000</item>
+     </array>
+ 
+     <!-- The default color used for tinting photos when no color can be extracted via Palette,
+             this is Blue Grey 500 -->
+-    <color name="quickcontact_default_photo_tint_color">#607D8B</color>
++    <color name="quickcontact_default_photo_tint_color">#ff000000</color>
+     <!-- The default secondary color when no color can be extracted via Palette,
+             this is Blue Grey 700 -->
+-    <color name="quickcontact_default_photo_tint_color_dark">#455A64</color>
++    <color name="quickcontact_default_photo_tint_color_dark">#ff000000</color>
+ 
+ 
+-    <color name="letter_tile_default_color">#cccccc</color>
++    <color name="letter_tile_default_color">#ff000000</color>
+ 
+     <color name="letter_tile_font_color">#ffffff</color>
+ 
+@@ -180,11 +180,11 @@
+     phone_settings_actionbar_text_color-->
+     <color name="actionbar_text_color">#ffffff</color>
+     <!-- 54% black for icons -->
+-    <color name="actionbar_icon_color_grey">#8C000000</color>
++    <color name="actionbar_icon_color_grey">#ff000000</color>
+     <!-- 87% black for actionbar text -->
+-    <color name="actionbar_text_color_black">#DF000000</color>
++    <color name="actionbar_text_color_black">#ff000000</color>
+     <!-- Solid grey for status bar overlay-->
+-    <color name="actionbar_color_grey_solid">#777777</color>
++    <color name="actionbar_color_grey_solid">#ff000000</color>
+ 
+     <!-- Text color of the search box text as entered by user  -->
+     <color name="searchbox_text_color">#000000</color>
+@@ -200,16 +200,16 @@
+     <color name="contact_all_list_background_color">@*android:color/system_neutral1_0</color>
+ 
+     <!-- Text color used for character counter when the max limit has been exceeded -->
+-    <color name="call_subject_limit_exceeded">#d1041c</color>
++    <color name="call_subject_limit_exceeded">#ff000000</color>
+ 
+     <!-- Tint color for the call subject history icon. -->
+     <color name="call_subject_history_icon">#000000</color>
+ 
+     <!-- Divider line on the call subject dialog. -->
+-    <color name="call_subject_divider">#d8d8d8</color>
++    <color name="call_subject_divider">#ff000000</color>
+ 
+     <!-- Text color for the SEND & CALL button on the call subject dialog. -->
+-    <color name="call_subject_button">#00c853</color>
++    <color name="call_subject_button">#ff000000</color>
+ 
+     <!-- Background color for the call subject history view. -->
+     <color name="call_subject_history_background">#ffffff</color>
+@@ -218,33 +218,35 @@
+     <!-- Text color for an action in a snackbar. -->
+     <color name="snackbar_action_text">#ffffff</color>
+     <!-- Background color for a snackbar. -->
+-    <color name="snackbar_background">#333333</color>
++    <color name="snackbar_background">#ff000000</color>
+ 
+     <!-- Color of account/custom filters -->
+     <color name="account_filter_text_color">@color/actionbar_text_color_black</color>
+-    <color name="custom_filter_divider">#dbdbdb</color>
++    <color name="custom_filter_divider">#ff000000</color>
+ 
+     <color name="material_star_pink">@color/primary_color</color>
+ 
+     <!-- Primary text color in Contacts app -->
+-    <color name="contacts_text_color">#333333</color>
++    <color name="contacts_text_color">#ff000000</color>
+ 
+     <!-- tint color for device account icons -->
+-    <color name="device_account_tint_color">#7f7f7f</color>
++    <color name="device_account_tint_color">#ff000000</color>
+ 
+     <!-- Background color for sync-off alert. -->
+-    <color name="alert_background">#e0e0e0</color>
++    <color name="alert_background">#fffffffe</color>
+ 
+     <!-- Divider color in navigation drawer -->
+-    <color name="drawer_divider_color">#E5E5E5</color>
++    <color name="drawer_divider_color">#ff000000</color>
+ 
+     <!-- Background color for the navigation drawer -->
+-    <color name="navigation_drawer_background_color">#FAFAFA</color>
++    <color name="navigation_drawer_background_color">#fffffffe</color>
+ 
+     <!-- Background color for the current selected item in the navigation drawer -->
+-    <color name="drawer_selected_color">#E8E8E8</color>
++    <color name="drawer_selected_color">#ff000000</color>
+ 
+     <!-- Highlight color used in places such as ripples -->
+     <color name="control_highlight_color">#1A000000</color>
+ 
++    <!-- Kompakt: accent for the night styles; unused by day, where the styles still take primary_color. -->
++    <color name="kompakt_accent">#ff000000</color>
+ </resources>
+diff --git a/res/values/dimens.xml b/res/values/dimens.xml
+index 9bd8bbe2b..5554df08f 100644
+--- a/res/values/dimens.xml
++++ b/res/values/dimens.xml
+@@ -382,4 +382,6 @@
+     <!-- Side padding within the navigation drawer -->
+     <dimen name="drawer_label_header_end_padding">24dp</dimen>
+ 
++    <!-- Kompakt: overrides the Material library dimen; no shadow under the FAB. -->
++    <dimen name="design_fab_elevation">0dp</dimen>
+ </resources>
+diff --git a/res/values/styles.xml b/res/values/styles.xml
+index a4c10b809..aec55f497 100644
+--- a/res/values/styles.xml
++++ b/res/values/styles.xml
+@@ -17,6 +17,8 @@
+            xmlns:tools="http://schemas.android.com/tools">
+ 
+     <style name="EditorActivityTheme" parent="@style/PeopleActivityTheme">
++        <!-- Kompakt: the editor sets its own status bar colour. -->
++        <item name="android:statusBarColor">@color/background_primary</item>
+         <item name="actionBarStyle">@style/EditorActionBarStyle</item>
+         <item name="colorButtonNormal">@color/background_primary</item>
+         <item name="windowActionModeOverlay">true</item>
+@@ -40,6 +42,11 @@
+     </style>
+ 
+     <style name="PeopleTheme" parent="@android:style/Theme.Material.Light.DarkActionBar">
++        <!-- Kompakt: the drawer icon and the selection tick are controls; they take the ink so they show in both modes. -->
++        <item name="colorControlNormal">#ff000000</item>
++        <item name="colorControlActivated">#ff000000</item>
++        <item name="android:colorControlNormal">#ff000000</item>
++        <item name="android:colorControlActivated">#ff000000</item>
+         <item name="android:actionBarStyle">@style/ContactsActionBarStyle</item>
+         <!-- Style for the overflow button in the actionbar. -->
+         <item name="android:actionOverflowButtonStyle">@style/ContactsActionBarOverflowQP</item>
+@@ -103,6 +110,11 @@
+     </style>
+ 
+     <style name="PeopleThemeAppCompat" parent="Theme.AppCompat.Light.DarkActionBar">
++        <!-- Kompakt: the drawer icon and the selection tick are controls; they take the ink so they show in both modes. -->
++        <item name="colorControlNormal">#ff000000</item>
++        <item name="colorControlActivated">#ff000000</item>
++        <item name="android:colorControlNormal">#ff000000</item>
++        <item name="android:colorControlActivated">#ff000000</item>
+         <!-- Styles that require AppCompat compatibility, remember to update both sets -->
+         <item name="android:actionBarStyle">@style/ContactsActionBarStyleAppCompat</item>
+         <item name="actionBarStyle">@style/ContactsActionBarStyleAppCompat</item>
+diff --git a/src/com/android/contacts/activities/PeopleActivity.java b/src/com/android/contacts/activities/PeopleActivity.java
+index 62dc48ef4..d7c9231d1 100644
+--- a/src/com/android/contacts/activities/PeopleActivity.java
++++ b/src/com/android/contacts/activities/PeopleActivity.java
+@@ -380,6 +380,22 @@ public class PeopleActivity extends AppCompatContactsActivity implements
+         mToggle = new ContactsActionBarDrawerToggle(this, mDrawerLayout, mToolbar,
+                 R.string.navigation_drawer_open, R.string.navigation_drawer_close);
+         mDrawerLayout.setDrawerListener(mToggle);
++        // Kompakt: no slide, no scrim.
++        mDrawerLayout.setScrimColor(android.graphics.Color.TRANSPARENT);
++        // Kompakt: full width.
++        final View drawerView = findViewById(R.id.drawer);
++        if (drawerView != null) {
++            final ViewGroup.LayoutParams drawerParams = drawerView.getLayoutParams();
++            drawerParams.width = getResources().getDisplayMetrics().widthPixels;
++            drawerView.setLayoutParams(drawerParams);
++        }
++        mToolbar.post(() -> mToolbar.setNavigationOnClickListener(v -> {
++            if (mDrawerLayout.isDrawerOpen(GravityCompat.START)) {
++                mDrawerLayout.closeDrawer(GravityCompat.START, false);
++            } else {
++                mDrawerLayout.openDrawer(GravityCompat.START, false);
++            }
++        }));
+         // Set fallback handler for when drawer is disabled.
+         mToggle.setToolbarNavigationClickListener(new View.OnClickListener() {
+             @Override
+@@ -653,7 +669,9 @@ public class PeopleActivity extends AppCompatContactsActivity implements
+             mDrawerLayout.setStatusBarBackgroundColor(color);
+         }
+         mDrawerLayout.invalidate();
+-        getWindow().setStatusBarColor(Color.TRANSPARENT);
++        // Kompakt: an ink, not transparent.
++        getWindow().setStatusBarColor(
++                getResources().getColor(R.color.primary_color_dark, getTheme()));
+     }
+ 
+     @Override
+@@ -1107,6 +1125,9 @@ public class PeopleActivity extends AppCompatContactsActivity implements
+     protected void onPostCreate(Bundle savedInstanceState) {
+         super.onPostCreate(savedInstanceState);
+         mToggle.syncState();
++        // Kompakt: the toggle draws the arrow from the toolbar's theme, so colour it here.
++        mToggle.getDrawerArrowDrawable().setColor(
++                getResources().getColor(R.color.primary_text_color, getTheme()));
+     }
+ 
+     @Override
+@@ -1289,7 +1310,8 @@ public class PeopleActivity extends AppCompatContactsActivity implements
+     }
+ 
+     public void closeDrawer() {
+-        mDrawerLayout.closeDrawer(GravityCompat.START);
++        // Kompakt: closes without sliding, like the open path above.
++        mDrawerLayout.closeDrawer(GravityCompat.START, false);
+     }
+ 
+     private Intent createPreferenceIntent() {
+diff --git a/src/com/android/contacts/editor/PhotoEditorView.java b/src/com/android/contacts/editor/PhotoEditorView.java
+index 09a15b09d..4373b7d3a 100644
+--- a/src/com/android/contacts/editor/PhotoEditorView.java
++++ b/src/com/android/contacts/editor/PhotoEditorView.java
+@@ -186,6 +186,13 @@ public class PhotoEditorView extends RelativeLayout implements View.OnClickListe
+         mIsNonDefaultPhotoBound = false;
+         updatePhotoDescription();
+         EditorUiUtils.setDefaultPhoto(mPhotoImageView, getResources(), materialPalette);
++        // Kompakt: the editor band is the inverse of a contact-list tile.
++        mPhotoImageView.setTint(getResources().getColor(R.color.kompakt_editor_photo_bg, getContext().getTheme()));
++        final android.graphics.drawable.Drawable avatar = mPhotoImageView.getDrawable();
++        if (avatar instanceof com.android.contacts.lettertiles.LetterTileDrawable) {
++            ((com.android.contacts.lettertiles.LetterTileDrawable) avatar).setFontColor(
++                    getResources().getColor(R.color.kompakt_editor_photo_fg, getContext().getTheme()));
++        }
+     }
+ 
+     private void updatePhotoDescription() {
+diff --git a/src/com/android/contacts/lettertiles/LetterTileDrawable.java b/src/com/android/contacts/lettertiles/LetterTileDrawable.java
+index fd299bf6e..4de514196 100644
+--- a/src/com/android/contacts/lettertiles/LetterTileDrawable.java
++++ b/src/com/android/contacts/lettertiles/LetterTileDrawable.java
+@@ -24,6 +24,8 @@ import android.graphics.Canvas;
+ import android.graphics.ColorFilter;
+ import android.graphics.Paint;
+ import android.graphics.Paint.Align;
++import android.graphics.PorterDuff;
++import android.graphics.PorterDuffColorFilter;
+ import android.graphics.Rect;
+ import android.graphics.Typeface;
+ import android.graphics.drawable.AdaptiveIconDrawable;
+@@ -75,7 +77,23 @@ public class LetterTileDrawable extends Drawable {
+     private int mColor;
+     private Character mLetter = null;
+ 
++    /** Kompakt: the glyph ink for this drawable; defaults to the shared one. */
++    private int mFontColor = Integer.MIN_VALUE;
++
++    /** Kompakt: use a glyph ink other than the shared one. */
++    public LetterTileDrawable setFontColor(int color) {
++        mFontColor = color;
++        return this;
++    }
++
++    private int fontColor() {
++        return mFontColor == Integer.MIN_VALUE ? sTileFontColor : mFontColor;
++    }
++
+     public LetterTileDrawable(final Resources res) {
++        // Kompakt: the two inks are re-read every time.
++        sDefaultColor = res.getColor(R.color.letter_tile_default_color);
++        sTileFontColor = res.getColor(R.color.letter_tile_font_color);
+         if (sColors == null) {
+             sColors = res.obtainTypedArray(R.array.letter_tile_colors);
+             sDefaultColor = res.getColor(R.color.letter_tile_default_color);
+@@ -131,8 +149,10 @@ public class LetterTileDrawable extends Drawable {
+         sPaint.setTextAlign(Align.CENTER);
+         sPaint.setAntiAlias(true);
+         sPaint.setAlpha(ALPHA);
+-
++        // Kompakt: the avatar bitmaps are white glyphs.
++        sPaint.setColorFilter(new PorterDuffColorFilter(fontColor(), PorterDuff.Mode.SRC_IN));
+         canvas.drawBitmap(bitmap, sRect, destRect, sPaint);
++        sPaint.setColorFilter(null);
+     }
+ 
+     private void drawLetterTile(final Canvas canvas) {
+@@ -159,7 +179,7 @@ public class LetterTileDrawable extends Drawable {
+             sPaint.setTextSize(mScale * sLetterToTileRatio * minDimension);
+             sPaint.getTextBounds(sFirstChar, 0, 1, sRect);
+             sPaint.setTypeface(Typeface.create("sans-serif", Typeface.NORMAL));
+-            sPaint.setColor(sTileFontColor);
++            sPaint.setColor(fontColor());
+ 
+             // Draw the letter in the canvas, vertically shifted up or down by the user-defined
+             // offset

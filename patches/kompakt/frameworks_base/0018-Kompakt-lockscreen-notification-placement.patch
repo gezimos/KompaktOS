@@ -1,0 +1,167 @@
+From 35a8e673af657d45f09081a7d873a2f1a258482d Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Sat, 12 Sep 2026 11:42:01 +0200
+Subject: [PATCH 18/38] Kompakt: lockscreen notification placement,
+ clock ink, Center reverted
+
+---
+ .../LockscreenUpperRegionElementProvider.kt   | 10 +---
+ .../ui/composable/Notifications.kt            | 55 +++++++++++++++++--
+ .../android/keyguard/ClockEventController.kt  | 38 ++++++++++++-
+ .../android/server/usb/UsbDeviceManager.java  | 10 +---
+ 4 files changed, 89 insertions(+), 24 deletions(-)
+
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/LockscreenUpperRegionElementProvider.kt b/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/LockscreenUpperRegionElementProvider.kt
+index 80a95aced9e2..508f27439cbb 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/LockscreenUpperRegionElementProvider.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/LockscreenUpperRegionElementProvider.kt
+@@ -19,7 +19,6 @@ package com.android.systemui.keyguard.ui.composable.elements
+ import android.content.Context
+ import androidx.compose.animation.AnimatedVisibility
+ import androidx.compose.animation.core.tween
+-import androidx.compose.foundation.layout.Arrangement
+ import androidx.compose.foundation.layout.Box
+ import androidx.compose.foundation.layout.BoxScope
+ import androidx.compose.foundation.layout.Column
+@@ -99,11 +98,7 @@ constructor(
+ 
+         @Composable
+         protected fun LockscreenScope<ContentScope>.Notifications(modifier: Modifier = Modifier) {
+-            Column(
+-                modifier = modifier.fillMaxHeight(),
+-                // Kompakt: centre the stack in the band it is given.
+-                verticalArrangement = Arrangement.Center,
+-            ) {
++            Column(modifier) {
+                 AODNotifications()
+                 AnimatedVisibility(viewModel.isNotificationStackActive) {
+                     LockscreenElement(Notifications.Stack)
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/notifications/ui/composable/Notifications.kt b/packages/SystemUI/compose/features/src/com/android/systemui/notifications/ui/composable/Notifications.kt
+index e7dd919080b2..4f32a353e234 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/notifications/ui/composable/Notifications.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/notifications/ui/composable/Notifications.kt
+@@ -305,12 +305,14 @@ fun ContentScope.ConstrainedNotificationStack(
+     viewModel: NotificationsPlaceholderViewModel,
+     modifier: Modifier = Modifier,
+ ) {
++    // Kompakt: not Scenes.Lockscreen; this runs in a nested layout.
++    val useLockscreenBounds = { layoutState.transitionState.isIdle() }
+     Box(
+         modifier =
+             modifier
+                 .onSizeChanged { viewModel.onConstrainedAvailableSpaceChanged(it.height) }
+                 .onGloballyPositioned {
+-                    if (shouldUseLockscreenStackBounds(layoutState.transitionState)) {
++                    if (useLockscreenBounds()) {
+                         stackScrollView.updateDrawBounds(it.rawBoundsInWindow())
+                     }
+                 }
+@@ -318,7 +320,7 @@ fun ContentScope.ConstrainedNotificationStack(
+         NotificationPlaceholder(
+             stackScrollView = stackScrollView,
+             viewModel = viewModel,
+-            useStackBounds = { shouldUseLockscreenStackBounds(layoutState.transitionState) },
++            useStackBounds = useLockscreenBounds,
+             modifier =
+                 Modifier.fillMaxWidth()
+                     .notificationStackHeight(view = stackScrollView, constrainToMaxHeight = true)
+@@ -825,6 +827,15 @@ private fun ContentScope.NotificationPlaceholder(
+     useStackBounds: () -> Boolean,
+     modifier: Modifier = Modifier,
+ ) {
++    // Kompakt: remember the last position and apply it once useStackBounds is true.
++    var lastStackTop: Float? by remember { mutableStateOf(null) }
++    val useBoundsNow = useStackBounds()
++    LaunchedEffect(useBoundsNow, lastStackTop) {
++        if (useBoundsNow) {
++            lastStackTop?.let { stackScrollView.setStackTop(it) }
++        }
++    }
++
+     Box(
+         modifier =
+             modifier
+@@ -836,9 +847,12 @@ private fun ContentScope.NotificationPlaceholder(
+                     // multiple instances of it during a transition. Thus we need to determine which
+                     // instance should feed its bounds to NSSL to avoid providing conflicting values
+                     val useBounds = useStackBounds()
++                    // NOTE: positionInWindow.y scrolls off screen, but boundsInWindow.top won't
++                    val positionInWindow = coordinates.positionInWindow()
++                    // Kompakt: kept even when it cannot be used yet, so the effect
++                    // above can apply it once useStackBounds turns true.
++                    lastStackTop = positionInWindow.y
+                     if (useBounds) {
+-                        // NOTE: positionInWindow.y scrolls off screen, but boundsInWindow.top won't
+-                        val positionInWindow = coordinates.positionInWindow()
+                         debugLog(viewModel) {
+                             "STACK onGloballyPositioned:" +
+                                 " size=${coordinates.size}" +
+diff --git a/packages/SystemUI/src/com/android/keyguard/ClockEventController.kt b/packages/SystemUI/src/com/android/keyguard/ClockEventController.kt
+index f579bc4f5d71..680b0a873f9e 100644
+--- a/packages/SystemUI/src/com/android/keyguard/ClockEventController.kt
++++ b/packages/SystemUI/src/com/android/keyguard/ClockEventController.kt
+@@ -252,10 +252,15 @@ constructor(
+     val smallClockMaxSize = MutableStateFlow<VPointF>(VPointF.ZERO)
+     val largeClockMaxSize = MutableStateFlow<VPointF>(VPointF.ZERO)
+ 
++    /** Doze fraction past which the clock sits over AOD's black rather than white paper. */
++    private val kompaktDarkSurfaceDoze = 0.5f
++
++    /** Tracks the last answer, so handleDoze only repaints on an actual crossing. */
++    private var kompaktOverDarkSurface = false
++
+     private fun isDarkTheme(): Boolean {
+-        val isLightTheme = TypedValue()
+-        context.theme.resolveAttribute(R.attr.isLightTheme, isLightTheme, true)
+-        return isLightTheme.data == 0
++        // Kompakt: the ink follows the surface under the clock, not the theme.
++        return dozeAmount.value >= kompaktDarkSurfaceDoze
+     }
+ 
+     private fun updateColors() {
+@@ -603,6 +608,13 @@ constructor(
+         smallTimeListener?.update(doze < DOZE_TICKRATE_THRESHOLD)
+         largeTimeListener?.update(doze < DOZE_TICKRATE_THRESHOLD)
+         dozeAmount.value = doze
++
++        // Kompakt: recolour only when doze crosses the threshold.
++        val overDark = doze >= kompaktDarkSurfaceDoze
++        if (overDark != kompaktOverDarkSurface) {
++            kompaktOverDarkSurface = overDark
++            updateColors()
++        }
+     }
+ 
+     @DeprecatedSysuiVisibleForTesting
+diff --git a/services/usb/java/com/android/server/usb/UsbDeviceManager.java b/services/usb/java/com/android/server/usb/UsbDeviceManager.java
+index 392e58de237a..9a2183128c3f 100644
+--- a/services/usb/java/com/android/server/usb/UsbDeviceManager.java
++++ b/services/usb/java/com/android/server/usb/UsbDeviceManager.java
+@@ -141,8 +141,6 @@ public class UsbDeviceManager implements ActivityTaskManagerInternal.ScreenObser
+      * sessions.
+      */
+     static final String UNLOCKED_CONFIG_PREF = "usb-screen-unlocked-config-%d";
+-    // Kompakt: an unset USB default means MTP, for Mudita Center.
+-    static final String DEFAULT_UNLOCKED_CONFIG = "mtp";
+ 
+     /**
+      * ro.bootmode value when phone boots into usual Android.
+@@ -746,7 +744,7 @@ public class UsbDeviceManager implements ActivityTaskManagerInternal.ScreenObser
+                 mScreenUnlockedFunctions = UsbManager.usbFunctionsFromString(
+                         mSettings.getString(
+                                 String.format(Locale.ENGLISH, UNLOCKED_CONFIG_PREF, mCurrentUser),
+-                                DEFAULT_UNLOCKED_CONFIG));
++                                ""));
+             }
+ 
+             // We do not show the USB notification if the primary volume supports mass storage.
+@@ -1509,8 +1507,7 @@ public class UsbDeviceManager implements ActivityTaskManagerInternal.ScreenObser
+                         if (mSettings != null) {
+                             mScreenUnlockedFunctions = UsbManager.usbFunctionsFromString(
+                                     mSettings.getString(String.format(Locale.ENGLISH,
+-                                            UNLOCKED_CONFIG_PREF, mCurrentUser),
+-                                            DEFAULT_UNLOCKED_CONFIG));
++                                            UNLOCKED_CONFIG_PREF, mCurrentUser), ""));
+                         }
+                         setEnabledFunctions(UsbManager.FUNCTION_NONE, false, operationId);
+                     }

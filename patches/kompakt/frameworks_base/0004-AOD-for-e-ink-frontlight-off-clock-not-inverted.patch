@@ -1,0 +1,49 @@
+From 49c8e8d56ae5cb9dbf86836caac87af3d0fbdae3 Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Tue, 8 Sep 2026 14:26:39 +0200
+Subject: [PATCH 04/38] AOD for e-ink: frontlight off, clock not inverted
+
+---
+ core/res/res/values/config.xml                            | 2 +-
+ .../systemui/shared/clocks/DefaultClockController.kt      | 8 ++------
+ 2 files changed, 3 insertions(+), 7 deletions(-)
+
+diff --git a/core/res/res/values/config.xml b/core/res/res/values/config.xml
+index fbe4c3280e49..5fa02194d1d0 100644
+--- a/core/res/res/values/config.xml
++++ b/core/res/res/values/config.xml
+@@ -1617,7 +1617,7 @@
+     <!-- Screen brightness used to dim the screen while dozing in a very low power state.
+          May be less than the minimum allowed brightness setting
+          that can be set by the user. -->
+-    <integer name="config_screenBrightnessDoze">1</integer>
++    <integer name="config_screenBrightnessDoze">0</integer>
+     <item name="config_screenBrightnessDozeFloat" format="float" type="dimen">0.0</item>
+ 
+     <!-- Whether or not to skip the initial brightness ramps when the display transitions to
+diff --git a/packages/SystemUI/customization/src/com/android/systemui/shared/clocks/DefaultClockController.kt b/packages/SystemUI/customization/src/com/android/systemui/shared/clocks/DefaultClockController.kt
+index 5597b2f19956..7b4673f9a44b 100644
+--- a/packages/SystemUI/customization/src/com/android/systemui/shared/clocks/DefaultClockController.kt
++++ b/packages/SystemUI/customization/src/com/android/systemui/shared/clocks/DefaultClockController.kt
+@@ -178,11 +178,7 @@ class DefaultClockController(
+         open fun recomputePadding(targetRegion: Rect?) {}
+ 
+         private fun getAodColor(): Int {
+-            return if (ambientAod()) {
+-                ctx.resources.getColor(android.R.color.system_accent1_100)
+-            } else {
+-                DOZE_COLOR
+-            }
++            return DOZE_COLOR
+         }
+     }
+ 
+@@ -324,7 +320,7 @@ class DefaultClockController(
+     }
+ 
+     companion object {
+-        @VisibleForTesting const val DOZE_COLOR = Color.WHITE
++        @VisibleForTesting const val DOZE_COLOR = Color.BLACK
+         private const val FORMAT_NUMBER = 1234567890
+     }
+ }

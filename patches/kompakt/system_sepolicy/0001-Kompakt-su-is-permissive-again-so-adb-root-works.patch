@@ -1,0 +1,28 @@
+From 491fda604566ae6f14931404815e7fa54835f6ee Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Wed, 30 Sep 2026 00:45:26 +0200
+Subject: [PATCH] Kompakt: su is permissive again, so adb root works
+
+---
+ private/su.te | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/private/su.te b/private/su.te
+index 9521a7406..8587b951c 100644
+--- a/private/su.te
++++ b/private/su.te
+@@ -23,9 +23,8 @@ userdebug_or_eng(`
+   # own domain.
+   virtualizationservice_use(su)
+ 
+-  # do not declare su as permissive. the su binary is not included in GSI
+-  # builds (treble_arm64_bvN = no su) so the domain is never entered, and
+-  # permissive domains are rejected by the build system in user builds.
++  # Kompakt: permissive, because adbd enters su for adb root.
++  permissive su;
+ 
+   app_domain(su)
+ 
+-- 
+2.43.0
+

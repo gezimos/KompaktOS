@@ -1,0 +1,13 @@
+// See aee_core_forwarder.c for why this exists.
+
+cc_binary {
+    name: "aee_core_forwarder",
+    srcs: ["aee_core_forwarder.c"],
+    system_ext_specific: true,
+    static_executable: true,
+    static_libs: ["libc"],
+    cflags: [
+        "-Wall",
+        "-Werror",
+    ],
+}

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: 2dp edge in the on surface ink; resolves per mode through the theme. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="28dp" />
+    <stroke android:width="2dp" android:color="?attr/colorOnSurface" />
+    <solid android:color="@android:color/transparent" />
+</shape>

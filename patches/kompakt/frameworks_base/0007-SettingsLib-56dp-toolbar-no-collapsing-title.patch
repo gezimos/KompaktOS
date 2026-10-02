@@ -1,0 +1,35 @@
+From 65feb7e81c4e4ec5810d532851003b3a5d2f8b15 Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Tue, 8 Sep 2026 15:04:58 +0200
+Subject: [PATCH 07/38] SettingsLib: 56dp toolbar, no collapsing title
+
+---
+ .../res/layout-v31/collapsing_toolbar_content_layout.xml        | 1 +
+ .../CollapsingToolbarBaseActivity/res/values-v31/dimens.xml     | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/packages/SettingsLib/CollapsingToolbarBaseActivity/res/layout-v31/collapsing_toolbar_content_layout.xml b/packages/SettingsLib/CollapsingToolbarBaseActivity/res/layout-v31/collapsing_toolbar_content_layout.xml
+index 9848749e2d1c..5ba5c23176e9 100644
+--- a/packages/SettingsLib/CollapsingToolbarBaseActivity/res/layout-v31/collapsing_toolbar_content_layout.xml
++++ b/packages/SettingsLib/CollapsingToolbarBaseActivity/res/layout-v31/collapsing_toolbar_content_layout.xml
+@@ -34,6 +34,7 @@
+             android:layout_height="@dimen/settingslib_toolbar_layout_height"
+             app:layout_scrollFlags="scroll|exitUntilCollapsed|snap"
+             app:toolbarId="@id/action_bar"
++            app:titleEnabled="false"
+             style="@style/CollapsingToolbarLayoutStyle.SettingsLib">
+ 
+             <Toolbar
+diff --git a/packages/SettingsLib/CollapsingToolbarBaseActivity/res/values-v31/dimens.xml b/packages/SettingsLib/CollapsingToolbarBaseActivity/res/values-v31/dimens.xml
+index 40b9fcd79d49..3308399af5f4 100644
+--- a/packages/SettingsLib/CollapsingToolbarBaseActivity/res/values-v31/dimens.xml
++++ b/packages/SettingsLib/CollapsingToolbarBaseActivity/res/values-v31/dimens.xml
+@@ -16,7 +16,7 @@
+ -->
+ <resources>
+     <!-- Collapsing toolbar layout dimensions -->
+-    <dimen name="settingslib_toolbar_layout_height">179dp</dimen>
++    <dimen name="settingslib_toolbar_layout_height">56dp</dimen>
+     <dimen name="settingslib_scrim_visible_height_trigger">137dp</dimen>
+     <dimen name="expanded_title_margin_start">24dp</dimen>
+     <dimen name="expanded_title_margin_end">24dp</dimen>

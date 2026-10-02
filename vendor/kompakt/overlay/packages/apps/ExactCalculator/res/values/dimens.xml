@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Calculator on a 480x800 213dpi panel. -->
+    <dimen name="formula_min_textsize">20dip</dimen>
+    <dimen name="formula_max_textsize">32dip</dimen>
+    <dimen name="formula_padding_top">8dip</dimen>
+    <dimen name="formula_padding_bottom">4dip</dimen>
+
+    <!-- Same reasoning for the result line below the formula. -->
+    <dimen name="result_textsize">24dip</dimen>
+    <dimen name="result_padding_bottom">16dip</dimen>
+    <dimen name="result_padding_top">4dip</dimen>
+</resources>

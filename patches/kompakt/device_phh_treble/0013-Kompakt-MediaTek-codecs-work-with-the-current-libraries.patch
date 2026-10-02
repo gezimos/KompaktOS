@@ -1,0 +1,32 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Mon, 28 Sep 2026 21:00:00 +0200
+Subject: [PATCH 13/13] Kompakt: MediaTek codecs work with the current libraries
+
+---
+diff --git a/rw-system.sh b/rw-system.sh
+--- a/rw-system.sh
++++ b/rw-system.sh
+@@ -1347,3 +1347,22 @@
+     chcon -h u:object_r:vendor_configs_file:s0 /vendor/etc/seccomp_policy/samsung.software.media.c2-base-policy
+     chmod 644 /vendor/etc/seccomp_policy/samsung.software.media.c2-base-policy
+ fi
++
++# Kompakt: replace MediaTek's Codec2 seccomp policy, which kills the service with SIGSYS.
++mtkc2=/vendor/etc/seccomp_policy/android.hardware.media.c2@1.2-mediatek-seccomp-policy
++if [ -f "$mtkc2" ] && [ -f /system/etc/kompakt/mtk-c2.policy ]; then
++    cp /system/etc/kompakt/mtk-c2.policy /mnt/phh/mtk-c2-seccomp-policy
++    chcon u:object_r:vendor_configs_file:s0 /mnt/phh/mtk-c2-seccomp-policy
++    chmod 644 /mnt/phh/mtk-c2-seccomp-policy
++    mount -o bind /mnt/phh/mtk-c2-seccomp-policy "$mtkc2"
++fi
++
++# Kompakt: drop c2.mtk.mp3.decoder, which crashes Codec2; MP3 goes to c2.android.mp3.decoder.
++mtkcodecs=/vendor/etc/media_codecs_c2.xml
++if grep -q 'name="c2.mtk.mp3.decoder"' "$mtkcodecs" 2>/dev/null; then
++    cp "$mtkcodecs" /mnt/phh/media_codecs_c2.xml
++    sed -i '/<MediaCodec name="c2.mtk.mp3.decoder"/,/<\/MediaCodec>/d' /mnt/phh/media_codecs_c2.xml
++    chcon u:object_r:vendor_configs_file:s0 /mnt/phh/media_codecs_c2.xml
++    chmod 644 /mnt/phh/media_codecs_c2.xml
++    mount -o bind /mnt/phh/media_codecs_c2.xml "$mtkcodecs"
++fi

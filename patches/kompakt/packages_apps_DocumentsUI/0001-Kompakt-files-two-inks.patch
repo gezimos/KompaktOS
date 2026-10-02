@@ -1,0 +1,641 @@
+From e1dc6e5e8e174568f458a34a3353ee7cd32c97f8 Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Thu, 17 Sep 2026 21:26:36 +0200
+Subject: [PATCH] Kompakt: files: two inks
+
+---
+ res/color/item_root_icon.xml                  |  2 +-
+ res/color/item_root_primary_text.xml          |  4 +--
+ res/color/item_root_secondary_text.xml        |  4 +--
+ res/color/kompakt_doc_title.xml               |  7 ++++
+ res/drawable/ic_chip_from_this_week.xml       |  2 +-
+ res/drawable/ic_chip_large_files.xml          |  2 +-
+ res/drawable/ic_doc_apk.xml                   |  2 +-
+ res/drawable/ic_doc_audio.xml                 |  2 +-
+ res/drawable/ic_doc_certificate.xml           |  2 +-
+ res/drawable/ic_doc_codes.xml                 |  2 +-
+ res/drawable/ic_doc_compressed.xml            |  2 +-
+ res/drawable/ic_doc_contact.xml               |  2 +-
+ res/drawable/ic_doc_document.xml              |  2 +-
+ res/drawable/ic_doc_event.xml                 |  2 +-
+ res/drawable/ic_doc_excel.xml                 |  2 +-
+ res/drawable/ic_doc_folder.xml                |  2 +-
+ res/drawable/ic_doc_font.xml                  |  2 +-
+ res/drawable/ic_doc_generic.xml               |  2 +-
+ res/drawable/ic_doc_image.xml                 |  2 +-
+ res/drawable/ic_doc_pdf.xml                   |  2 +-
+ res/drawable/ic_doc_powerpoint.xml            |  2 +-
+ res/drawable/ic_doc_presentation.xml          |  2 +-
+ res/drawable/ic_doc_spreadsheet.xml           |  2 +-
+ res/drawable/ic_doc_text.xml                  |  2 +-
+ res/drawable/ic_doc_video.xml                 |  2 +-
+ res/drawable/ic_doc_word.xml                  |  2 +-
+ .../values/dimens_m3.xml                      |  3 +-
+ res/layout/item_doc_grid.xml                  |  3 ++
+ res/layout/item_doc_list.xml                  |  2 ++
+ res/layout/search_chip_item.xml               |  1 +
+ res/values-night-v31/colors.xml               |  2 +-
+ res/values-night/colors.xml                   | 23 +++++++------
+ res/values-v31/colors.xml                     |  3 +-
+ res/values/colors.xml                         | 32 ++++++++++---------
+ res/values/dimens.xml                         |  3 +-
+ .../android/documentsui/DrawerController.java | 13 +++++---
+ 36 files changed, 85 insertions(+), 61 deletions(-)
+ create mode 100644 res/color/kompakt_doc_title.xml
+
+diff --git a/res/color/item_root_icon.xml b/res/color/item_root_icon.xml
+index 456d1b4a2..5631eec56 100644
+--- a/res/color/item_root_icon.xml
++++ b/res/color/item_root_icon.xml
+@@ -20,5 +20,5 @@
+         android:color="?android:colorControlNormal" />
+     <item
+         android:state_activated="true"
+-        android:color="?android:colorControlActivated" />
++        android:color="@color/kompakt_ground" />
+ </selector>
+diff --git a/res/color/item_root_primary_text.xml b/res/color/item_root_primary_text.xml
+index 62a620c85..cd3750df0 100644
+--- a/res/color/item_root_primary_text.xml
++++ b/res/color/item_root_primary_text.xml
+@@ -15,8 +15,8 @@
+ -->
+ 
+ <selector xmlns:android="http://schemas.android.com/apk/res/android">
+-    <item android:state_focused="true" android:state_activated="true" android:color="?android:colorControlActivated" />
+-    <item android:state_focused="false" android:state_activated="true" android:color="?android:colorControlActivated" />
++    <item android:state_focused="true" android:state_activated="true" android:color="@color/kompakt_ground" />
++    <item android:state_focused="false" android:state_activated="true" android:color="@color/kompakt_ground" />
+     <item android:state_enabled="false" android:alpha="0.5" android:color="?android:textColorPrimary" />
+     <item android:color="?android:textColorPrimary" />
+ </selector>
+diff --git a/res/color/item_root_secondary_text.xml b/res/color/item_root_secondary_text.xml
+index 632135ce8..1b7606335 100644
+--- a/res/color/item_root_secondary_text.xml
++++ b/res/color/item_root_secondary_text.xml
+@@ -17,9 +17,9 @@
+ 
+ <selector xmlns:android="http://schemas.android.com/apk/res/android">
+     <item android:state_focused="true" android:state_activated="true"
+-        android:color="?android:colorControlActivated" />
++        android:color="@color/kompakt_ground" />
+     <item android:state_focused="false" android:state_activated="true"
+-        android:color="?android:colorControlActivated" />
++        android:color="@color/kompakt_ground" />
+     <item android:state_enabled="false" android:alpha="0.5" android:color="?android:textColorSecondary" />
+     <item android:color="?android:textColorSecondary" />
+ </selector>
+diff --git a/res/color/kompakt_doc_title.xml b/res/color/kompakt_doc_title.xml
+new file mode 100644
+index 000000000..8859b5ce8
+--- /dev/null
++++ b/res/color/kompakt_doc_title.xml
+@@ -0,0 +1,7 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Kompakt: text on a selected (activated) row flips to the ground colour, because the row itself fills with the ink. -->
++<selector xmlns:android="http://schemas.android.com/apk/res/android">
++    <item android:state_activated="true" android:color="@color/kompakt_ground" />
++    <item android:state_enabled="false" android:alpha="0.5" android:color="@color/kompakt_ink" />
++    <item android:color="@color/kompakt_ink" />
++</selector>
+diff --git a/res/drawable/ic_chip_from_this_week.xml b/res/drawable/ic_chip_from_this_week.xml
+index 8d799df60..f072e4996 100644
+--- a/res/drawable/ic_chip_from_this_week.xml
++++ b/res/drawable/ic_chip_from_this_week.xml
+@@ -20,6 +20,6 @@
+         android:viewportWidth="24"
+         android:viewportHeight="24">
+     <path
+-        android:fillColor="#5F6368"
++        android:fillColor="@color/kompakt_ink"
+         android:pathData="M13,3c-4.97,0 -9,4.03 -9,9L1,12l4,3.99L9,12L6,12c0,-3.87 3.13,-7 7,-7s7,3.13 7,7 -3.13,7 -7,7c-1.93,0 -3.68,-0.79 -4.94,-2.06l-1.42,1.42C8.27,19.99 10.51,21 13,21c4.97,0 9,-4.03 9,-9s-4.03,-9 -9,-9zM12,8v5l4.25,2.52 0.77,-1.28 -3.52,-2.09L13.5,8z"/>
+ </vector>
+\ No newline at end of file
+diff --git a/res/drawable/ic_chip_large_files.xml b/res/drawable/ic_chip_large_files.xml
+index 1accc73ce..686e4df94 100644
+--- a/res/drawable/ic_chip_large_files.xml
++++ b/res/drawable/ic_chip_large_files.xml
+@@ -20,6 +20,6 @@
+         android:viewportWidth="24"
+         android:viewportHeight="24">
+     <path
+-        android:fillColor="#5F6368"
++        android:fillColor="@color/kompakt_ink"
+         android:pathData="M21.41,11.58l-9,-9C12.05,2.22 11.55,2 11,2H4c-1.1,0 -2,0.9 -2,2v7c0,0.55 0.22,1.05 0.59,1.42l9,9c0.36,0.36 0.86,0.58 1.41,0.58s1.05,-0.22 1.41,-0.59l7,-7c0.37,-0.36 0.59,-0.86 0.59,-1.41s-0.23,-1.06 -0.59,-1.42zM13,20.01L4,11V4h7v-0.01l9,9 -7,7.02zM8,6.5C8,7.33 7.33,8 6.5,8S5,7.33 5,6.5 5.67,5 6.5,5 8,5.67 8,6.5z"/>
+ </vector>
+\ No newline at end of file
+diff --git a/res/drawable/ic_doc_apk.xml b/res/drawable/ic_doc_apk.xml
+index 197445ef5..5596257ab 100644
+--- a/res/drawable/ic_doc_apk.xml
++++ b/res/drawable/ic_doc_apk.xml
+@@ -19,6 +19,6 @@ Copyright (C) 2015 The Android Open Source Project
+         android:viewportWidth="24.0"
+         android:viewportHeight="24.0">
+     <path
+-        android:fillColor="#FF737373"
++        android:fillColor="@color/kompakt_ink"
+         android:pathData="M6 18c0 .55.45 1 1 1h1v3.5c0 .83.67 1.5 1.5 1.5s1.5,-.67 1.5,-1.5V19h2v3.5c0 .83.67 1.5 1.5 1.5s1.5,-.67 1.5,-1.5V19h1c.55 0 1,-.45 1,-1V8H6v10zM3.5 8C2.67 8 2 8.67 2 9.5v7c0 .83.67 1.5 1.5 1.5S5 17.33 5 16.5v-7C5 8.67 4.33 8 3.5 8zm17 0c-.83 0,-1.5.67,-1.5 1.5v7c0 .83.67 1.5 1.5 1.5s1.5,-.67 1.5,-1.5v-7c0,-.83,-.67,-1.5,-1.5,-1.5zm-4.97,-5.84l1.3,-1.3c.2,-.2.2,-.51 0,-.71,-.2,-.2,-.51,-.2,-.71 0l-1.48 1.48C13.85 1.23 12.95 1 12 1c-.96 0,-1.86.23,-2.66.63L7.85.15c-.2,-.2,-.51,-.2,-.71 0,-.2.2,-.2.51 0 .71l1.31 1.31C6.97 3.26 6 5.01 6 7h12c0,-1.99,-.97,-3.75,-2.47,-4.84zM10 5H9V4h1v1zm5 0h-1V4h1v1z"/>
+ </vector>
+diff --git a/res/drawable/ic_doc_audio.xml b/res/drawable/ic_doc_audio.xml
+index 454eea3bb..940ea4334 100644
+--- a/res/drawable/ic_doc_audio.xml
++++ b/res/drawable/ic_doc_audio.xml
+@@ -19,6 +19,6 @@ Copyright (C) 2015 The Android Open Source Project
+         android:viewportWidth="24.0"
+         android:viewportHeight="24.0">
+     <path
+-        android:fillColor="#FFDB4437"
++        android:fillColor="@color/kompakt_ink"
+         android:pathData="M19 3H5c-1.1 0,-2 .9,-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2,-.9 2,-2V5c0,-1.1,-.9,-2,-2,-2zM7.2 18c-.66 0,-1.2,-.54,-1.2,-1.2V12c0,-3.31 2.69,-6 6,-6s6 2.69 6 6v4.8c0 .66,-.54 1.2,-1.2 1.2H14v-4h2v-2c0,-2.21,-1.79,-4,-4,-4s-4 1.79,-4 4v2h2v4H7.2z"/>
+ </vector>
+diff --git a/res/drawable/ic_doc_certificate.xml b/res/drawable/ic_doc_certificate.xml
+index b99baf6f4..22d8b39e4 100644
+--- a/res/drawable/ic_doc_certificate.xml
++++ b/res/drawable/ic_doc_certificate.xml
+@@ -19,6 +19,6 @@ Copyright (C) 2015 The Android Open Source Project
+         android:viewportWidth="24.0"
+         android:viewportHeight="24.0">
+     <path
+-        android:fillColor="#FF737373"
++        android:fillColor="@color/kompakt_ink"
+         android:pathData="M17.81 4.47c-.08 0,-.16,-.02,-.23,-.06C15.66 3.42 14 3 12.01 3c-1.98 0,-3.86.47,-5.57 1.41,-.24.13,-.54.04,-.68,-.2,-.13,-.24,-.04,-.55.2,-.68C7.82 2.52 9.86 2 12.01 2c2.13 0 3.99.47 6.03 1.52.25.13.34.43.21.67,-.09.18,-.26.28,-.44.28zM3.5 9.72c-.1 0,-.2,-.03,-.29,-.09,-.23,-.16,-.28,-.47,-.12,-.7.99,-1.4 2.25,-2.5 3.75,-3.27C9.98 4.04 14 4.03 17.15 5.65c1.5.77 2.76 1.86 3.75 3.25.16.22.11.54,-.12.7,-.23.16,-.54.11,-.7,-.12,-.9,-1.26,-2.04,-2.25,-3.39,-2.94,-2.87,-1.47,-6.54,-1.47,-9.4.01,-1.36.7,-2.5 1.7,-3.4 2.96,-.08.14,-.23.21,-.39.21zm6.25 12.07c-.13 0,-.26,-.05,-.35,-.15,-.87,-.87,-1.34,-1.43,-2.01,-2.64,-.69,-1.23,-1.05,-2.73,-1.05,-4.34 0,-2.97 2.54,-5.39 5.66,-5.39s5.66 2.42 5.66 5.39c0 .28,-.22.5,-.5.5s-.5,-.22,-.5,-.5c0,-2.42,-2.09,-4.39,-4.66,-4.39,-2.57 0,-4.66 1.97,-4.66 4.39 0 1.44.32 2.77.93 3.85.64 1.15 1.08 1.64 1.85 2.42.19.2.19.51 0 .71,-.11.1,-.24.15,-.37.15zm7.17,-1.85c-1.19 0,-2.24,-.3,-3.1,-.89,-1.49,-1.01,-2.38,-2.65,-2.38,-4.39 0,-.28.22,-.5.5,-.5s.5.22.5.5c0 1.41.72 2.74 1.94 3.56.71.48 1.54.71 2.54.71.24 0 .64,-.03 1.04,-.1.27,-.05.53.13.58.41.05.27,-.13.53,-.41.58,-.57.11,-1.07.12,-1.21.12zM14.91 22c-.04 0,-.09,-.01,-.13,-.02,-1.59,-.44,-2.63,-1.03,-3.72,-2.1,-1.4,-1.39,-2.17,-3.24,-2.17,-5.22 0,-1.62 1.38,-2.94 3.08,-2.94 1.7 0 3.08 1.32 3.08 2.94 0 1.07.93 1.94 2.08 1.94s2.08,-.87 2.08,-1.94c0,-3.77,-3.25,-6.83,-7.25,-6.83,-2.84 0,-5.44 1.58,-6.61 4.03,-.39.81,-.59 1.76,-.59 2.8 0 .78.07 2.01.67 3.61.1.26,-.03.55,-.29.64,-.26.1,-.55,-.04,-.64,-.29,-.49,-1.31,-.73,-2.61,-.73,-3.96 0,-1.2.23,-2.29.68,-3.24 1.33,-2.79 4.28,-4.6 7.51,-4.6 4.55 0 8.25 3.51 8.25 7.83 0 1.62,-1.38 2.94,-3.08 2.94s-3.08,-1.32,-3.08,-2.94c0,-1.07,-.93,-1.94,-2.08,-1.94s-2.08.87,-2.08 1.94c0 1.71.66 3.31 1.87 4.51.95.94 1.86 1.46 3.27 1.85.27.07.42.35.35.61,-.05.23,-.26.38,-.47.38z"/>
+ </vector>
+diff --git a/res/drawable/ic_doc_codes.xml b/res/drawable/ic_doc_codes.xml
+index ea1c46489..737f050db 100644
+--- a/res/drawable/ic_doc_codes.xml
++++ b/res/drawable/ic_doc_codes.xml
+@@ -19,6 +19,6 @@ Copyright (C) 2015 The Android Open Source Project
+         android:viewportWidth="24.0"
+         android:viewportHeight="24.0">
+     <path
+-        android:fillColor="#FF737373"
++        android:fillColor="@color/kompakt_ink"
+         android:pathData="M9.4 16.6L4.8 12l4.6,-4.6L8 6l-6 6 6 6 1.4,-1.4zm5.2 0l4.6,-4.6,-4.6,-4.6L16 6l6 6,-6 6,-1.4,-1.4z"/>
+ </vector>
+diff --git a/res/drawable/ic_doc_compressed.xml b/res/drawable/ic_doc_compressed.xml
+index e0eb669af..b96600a73 100644
+--- a/res/drawable/ic_doc_compressed.xml
++++ b/res/drawable/ic_doc_compressed.xml
+@@ -19,6 +19,6 @@ Copyright (C) 2015 The Android Open Source Project
+         android:viewportWidth="24.0"
+         android:viewportHeight="24.0">
+     <path
+-        android:fillColor="#FF737373"
++        android:fillColor="@color/kompakt_ink"
+         android:pathData="M19 3H5c-1.1 0,-2 .9,-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2,-.9 2,-2V5c0,-1.1,-.9,-2,-2,-2zm-5 6h-2v2h2v2h-2v-2h-2V9h2V7h-2V5h2v2h2v2zm0 8h-2v-2h-2v-2h2v2h2v2z"/>
+ </vector>
+diff --git a/res/drawable/ic_doc_contact.xml b/res/drawable/ic_doc_contact.xml
+index a77cb6ba1..98e87dbc7 100644
+--- a/res/drawable/ic_doc_contact.xml
++++ b/res/drawable/ic_doc_contact.xml
+@@ -19,6 +19,6 @@ Copyright (C) 2015 The Android Open Source Project
+         android:viewportWidth="24.0"
+         android:viewportHeight="24.0">
+     <path
+-        android:fillColor="#FF737373"
++        android:fillColor="@color/kompakt_ink"
+         android:pathData="M19 3H5c-1.11 0,-2 .89,-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2,-.9 2,-2V5c0,-1.11,-.9,-2,-2,-2zm-7 3c1.65 0 3 1.35 3 3 0 1.66,-1.35 3,-3 3s-3,-1.34,-3,-3c0,-1.65 1.35,-3 3,-3zm6 12H6v-1c0,-2 4,-3.1 6,-3.1s6 1.1 6 3.1v1z"/>
+ </vector>
+diff --git a/res/drawable/ic_doc_document.xml b/res/drawable/ic_doc_document.xml
+index 29251ad79..fddd85528 100644
+--- a/res/drawable/ic_doc_document.xml
++++ b/res/drawable/ic_doc_document.xml
+@@ -19,6 +19,6 @@ Copyright (C) 2015 The Android Open Source Project
+         android:viewportWidth="24.0"
+         android:viewportHeight="24.0">
+     <path
+-        android:fillColor="#FF4883F3"
++        android:fillColor="@color/kompakt_ink"
+         android:pathData="M19 3H5c-1.1 0,-2 .9,-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2,-.9 2,-2V5c0,-1.1,-.9,-2,-2,-2zm-1.99 6H7V7h10.01v2zm0 4H7v-2h10.01v2zm-3 4H7v-2h7.01v2z"/>
+ </vector>
+diff --git a/res/drawable/ic_doc_event.xml b/res/drawable/ic_doc_event.xml
+index 113f079c8..335cf4385 100644
+--- a/res/drawable/ic_doc_event.xml
++++ b/res/drawable/ic_doc_event.xml
+@@ -19,6 +19,6 @@ Copyright (C) 2015 The Android Open Source Project
+         android:viewportWidth="24.0"
+         android:viewportHeight="24.0">
+     <path
+-        android:fillColor="#FF737373"
++        android:fillColor="@color/kompakt_ink"
+         android:pathData="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0,-1.99.9,-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2,-.9 2,-2V5c0,-1.1,-.9,-2,-2,-2h-1V1h-2zm3 18H5V8h14v11z"/>
+ </vector>
+diff --git a/res/drawable/ic_doc_excel.xml b/res/drawable/ic_doc_excel.xml
+index 3ed27e1f7..3488a9d3b 100644
+--- a/res/drawable/ic_doc_excel.xml
++++ b/res/drawable/ic_doc_excel.xml
+@@ -19,6 +19,6 @@ Copyright (C) 2015 The Android Open Source Project
+         android:viewportWidth="24.0"
+         android:viewportHeight="24.0">
+     <path
+-        android:fillColor="#FF16A765"
++        android:fillColor="@color/kompakt_ink"
+         android:pathData="M19 3H5c-1.1 0,-2 .9,-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2,-.9 2,-2V5c0,-1.1,-.9,-2,-2,-2zm-2.8 14h-2L12 13.2 9.8 17h-2l3.2,-5,-3.2,-5h2l2.2 3.8L14.2 7h2L13 12l3.2 5z"/>
+ </vector>
+diff --git a/res/drawable/ic_doc_folder.xml b/res/drawable/ic_doc_folder.xml
+index dcbce0108..9154eec98 100644
+--- a/res/drawable/ic_doc_folder.xml
++++ b/res/drawable/ic_doc_folder.xml
+@@ -19,6 +19,6 @@ Copyright (C) 2015 The Android Open Source Project
+         android:viewportWidth="24.0"
+         android:viewportHeight="24.0">
+     <path
+-        android:fillColor="#FF737373"
++        android:fillColor="@color/kompakt_ink"
+         android:pathData="M10 4H4c-1.1 0,-1.99.9,-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2,-.9 2,-2V8c0,-1.1,-.9,-2,-2,-2h-8l-2,-2z"/>
+ </vector>
+diff --git a/res/drawable/ic_doc_font.xml b/res/drawable/ic_doc_font.xml
+index 4c13d71e4..646d4009e 100644
+--- a/res/drawable/ic_doc_font.xml
++++ b/res/drawable/ic_doc_font.xml
+@@ -19,6 +19,6 @@ Copyright (C) 2015 The Android Open Source Project
+         android:viewportWidth="24.0"
+         android:viewportHeight="24.0">
+     <path
+-        android:fillColor="#FF737373"
++        android:fillColor="@color/kompakt_ink"
+         android:pathData="M9.93 13.5h4.14L12 7.98zM20 2H4c-1.1 0,-2 .9,-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2,-.9 2,-2V4c0,-1.1,-.9,-2,-2,-2zm-4.05 16.5l-1.14,-3H9.17l-1.12 3H5.96l5.11,-13h1.86l5.11 13h-2.09z"/>
+ </vector>
+diff --git a/res/drawable/ic_doc_generic.xml b/res/drawable/ic_doc_generic.xml
+index 006dfba4a..93b191430 100644
+--- a/res/drawable/ic_doc_generic.xml
++++ b/res/drawable/ic_doc_generic.xml
+@@ -19,6 +19,6 @@ Copyright (C) 2015 The Android Open Source Project
+         android:viewportWidth="24.0"
+         android:viewportHeight="24.0">
+     <path
+-        android:fillColor="#FF737373"
++        android:fillColor="@color/kompakt_ink"
+         android:pathData="M6 2c-1.1 0,-1.99.9,-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2,-.9 2,-2V8l-6,-6H6zm7 7V3.5L18.5 9H13z"/>
+ </vector>
+diff --git a/res/drawable/ic_doc_image.xml b/res/drawable/ic_doc_image.xml
+index 23953f71f..a24b0acc3 100644
+--- a/res/drawable/ic_doc_image.xml
++++ b/res/drawable/ic_doc_image.xml
+@@ -19,6 +19,6 @@ Copyright (C) 2015 The Android Open Source Project
+         android:viewportWidth="24.0"
+         android:viewportHeight="24.0">
+     <path
+-        android:fillColor="#FFDB4437"
++        android:fillColor="@color/kompakt_ink"
+         android:pathData="M21 19V5c0,-1.1,-.9,-2,-2,-2H5c-1.1 0,-2 .9,-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2,-.9 2,-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5,-4.5z"/>
+ </vector>
+diff --git a/res/drawable/ic_doc_pdf.xml b/res/drawable/ic_doc_pdf.xml
+index b2d01938c..b9f3a8743 100644
+--- a/res/drawable/ic_doc_pdf.xml
++++ b/res/drawable/ic_doc_pdf.xml
+@@ -19,6 +19,6 @@ Copyright (C) 2015 The Android Open Source Project
+         android:viewportWidth="24.0"
+         android:viewportHeight="24.0">
+     <path
+-        android:fillColor="#FFDB4437"
++        android:fillColor="@color/kompakt_ink"
+         android:pathData="M7 11.5h1v-1H7v1zM19 3H5c-1.1 0,-2 .9,-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2,-.9 2,-2V5c0,-1.1,-.9,-2,-2,-2zm-9.5 8.5c0 .83,-.67 1.5,-1.5 1.5H7v2H5.5V9H8c.83 0 1.5.67 1.5 1.5v1zm10,-1H17v1h1.5V13H17v2h-1.5V9h4v1.5zm-5 3c0 .83,-.67 1.5,-1.5 1.5h-2.5V9H13c.83 0 1.5.67 1.5 1.5v3zm-2.5 0h1v-3h-1v3z"/>
+ </vector>
+diff --git a/res/drawable/ic_doc_powerpoint.xml b/res/drawable/ic_doc_powerpoint.xml
+index aa5bfc818..89ad5681a 100644
+--- a/res/drawable/ic_doc_powerpoint.xml
++++ b/res/drawable/ic_doc_powerpoint.xml
+@@ -19,6 +19,6 @@ Copyright (C) 2015 The Android Open Source Project
+         android:viewportWidth="24.0"
+         android:viewportHeight="24.0">
+     <path
+-        android:fillColor="#FFFF7537"
++        android:fillColor="@color/kompakt_ink"
+         android:pathData="M19 3H5c-1.1 0,-2 .9,-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2,-.9 2,-2V5c0,-1.1,-.9,-2,-2,-2zM9.8 13.4V17H8V7h4.3c1.53 0 2.15.3 2.8.89.65.59.9 1.37.9 2.34 0 1.02,-.26 1.8,-.9 2.35s-1.3.82,-2.8.82H9.8zm0,-1.4V8.4h2.3c.66 0 1.17.25 1.5.6.33.35.5.72.5 1.25 0 .55,-.18.95,-.5 1.25,-.32.31,-.7.5,-1.38.5H9.8z"/>
+ </vector>
+diff --git a/res/drawable/ic_doc_presentation.xml b/res/drawable/ic_doc_presentation.xml
+index 7937bc12a..d531827b2 100644
+--- a/res/drawable/ic_doc_presentation.xml
++++ b/res/drawable/ic_doc_presentation.xml
+@@ -19,6 +19,6 @@ Copyright (C) 2015 The Android Open Source Project
+         android:viewportWidth="24.0"
+         android:viewportHeight="24.0">
+     <path
+-        android:fillColor="#FFF4B400"
++        android:fillColor="@color/kompakt_ink"
+         android:pathData="M19 3H5c-1.1 0,-1.99.9,-1.99 2v14c0 1.1.89 2 1.99 2h14c1.1 0 2,-.9 2,-2V5c0,-1.1,-.9,-2,-2,-2zm0 13H5V8h14v8z"/>
+ </vector>
+diff --git a/res/drawable/ic_doc_spreadsheet.xml b/res/drawable/ic_doc_spreadsheet.xml
+index 1663c0a1a..70523039c 100644
+--- a/res/drawable/ic_doc_spreadsheet.xml
++++ b/res/drawable/ic_doc_spreadsheet.xml
+@@ -19,6 +19,6 @@ Copyright (C) 2015 The Android Open Source Project
+         android:viewportWidth="24.0"
+         android:viewportHeight="24.0">
+     <path
+-        android:fillColor="#FF16A765"
++        android:fillColor="@color/kompakt_ink"
+         android:pathData="M19 3H5c-1.1 0,-1.99.9,-1.99 2L3 8v11c0 1.1.9 2 2 2h14c1.1 0 2,-.9 2,-2V5c0,-1.1,-.9,-2,-2,-2zm0 8h-8v8H9v-8H5V9h4V5h2v4h8v2z"/>
+ </vector>
+diff --git a/res/drawable/ic_doc_text.xml b/res/drawable/ic_doc_text.xml
+index 7fc04e811..fff20d021 100644
+--- a/res/drawable/ic_doc_text.xml
++++ b/res/drawable/ic_doc_text.xml
+@@ -19,6 +19,6 @@ Copyright (C) 2015 The Android Open Source Project
+         android:viewportWidth="24.0"
+         android:viewportHeight="24.0">
+     <path
+-        android:fillColor="#FF737373"
++        android:fillColor="@color/kompakt_ink"
+         android:pathData="M14 2H6c-1.1 0,-1.99.9,-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2,-.9 2,-2V8l-6,-6zm2 16H8v-2h8v2zm0,-4H8v-2h8v2zm-3,-5V3.5L18.5 9H13z"/>
+ </vector>
+diff --git a/res/drawable/ic_doc_video.xml b/res/drawable/ic_doc_video.xml
+index ad4dae89c..e85eecad3 100644
+--- a/res/drawable/ic_doc_video.xml
++++ b/res/drawable/ic_doc_video.xml
+@@ -19,6 +19,6 @@ Copyright (C) 2015 The Android Open Source Project
+         android:viewportWidth="24.0"
+         android:viewportHeight="24.0">
+     <path
+-        android:fillColor="#FFDB4437"
++        android:fillColor="@color/kompakt_ink"
+         android:pathData="M18 4l2 4h-3l-2,-4h-2l2 4h-3l-2,-4H8l2 4H7L5 4H4c-1.1 0,-1.99.9,-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2,-.9 2,-2V4h-4z"/>
+ </vector>
+diff --git a/res/drawable/ic_doc_word.xml b/res/drawable/ic_doc_word.xml
+index 7a3a0ec9b..a8e525b36 100644
+--- a/res/drawable/ic_doc_word.xml
++++ b/res/drawable/ic_doc_word.xml
+@@ -19,6 +19,6 @@ Copyright (C) 2015 The Android Open Source Project
+         android:viewportWidth="24.0"
+         android:viewportHeight="24.0">
+     <path
+-        android:fillColor="#FF4883F3"
++        android:fillColor="@color/kompakt_ink"
+         android:pathData="M19 3H5c-1.1 0,-2 .9,-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2,-.9 2,-2V5c0,-1.1,-.9,-2,-2,-2zm-3.5 14H14l-2,-7.5,-2 7.5H8.5L6.1 7h1.7l1.54 7.51L11.3 7h1.4l1.97 7.51L16.2 7h1.7l-2.4 10z"/>
+ </vector>
+diff --git a/res/flag(com.android.documentsui.flags.use_material3)/values/dimens_m3.xml b/res/flag(com.android.documentsui.flags.use_material3)/values/dimens_m3.xml
+index 397014cc0..49d0b6c5e 100644
+--- a/res/flag(com.android.documentsui.flags.use_material3)/values/dimens_m3.xml
++++ b/res/flag(com.android.documentsui.flags.use_material3)/values/dimens_m3.xml
+@@ -105,7 +105,8 @@
+     <dimen name="grid_item_elevation_m3">2dp</dimen>
+     <!-- TODO(b/379776735): remove this after use_material3 flag is launched. -->
+     <dimen name="grid_item_radius_m3">12dp</dimen>
+-    <dimen name="max_drawer_width_m3">280dp</dimen>
++    <!-- Kompakt: only a CAP; the real width is computed in DrawerController.calculateDrawerWidth. -->
++    <dimen name="max_drawer_width_m3">480dp</dimen>
+     <dimen name="briefcase_icon_margin_m3">12dp</dimen>
+     <dimen name="briefcase_icon_grid_margin">8dp</dimen>
+     <dimen name="briefcase_icon_size_m3">14dp</dimen>
+diff --git a/res/layout/item_doc_grid.xml b/res/layout/item_doc_grid.xml
+index d654571eb..10b303ad4 100644
+--- a/res/layout/item_doc_grid.xml
++++ b/res/layout/item_doc_grid.xml
+@@ -159,6 +159,7 @@
+ 
+                     <TextView
+                         android:id="@android:id/title"
++                        android:textColor="@color/kompakt_doc_title"
+                         android:layout_width="wrap_content"
+                         android:layout_height="wrap_content"
+                         android:layout_alignParentTop="true"
+@@ -170,6 +171,7 @@
+ 
+                     <TextView
+                         android:id="@+id/details"
++                        android:textColor="@color/kompakt_doc_title"
+                         android:layout_width="wrap_content"
+                         android:layout_height="wrap_content"
+                         android:layout_below="@android:id/title"
+@@ -181,6 +183,7 @@
+ 
+                     <TextView
+                         android:id="@+id/date"
++                        android:textColor="@color/kompakt_doc_title"
+                         android:layout_width="wrap_content"
+                         android:layout_height="wrap_content"
+                         android:layout_below="@android:id/title"
+diff --git a/res/layout/item_doc_list.xml b/res/layout/item_doc_list.xml
+index 77494a29c..99c7bef21 100644
+--- a/res/layout/item_doc_list.xml
++++ b/res/layout/item_doc_list.xml
+@@ -103,6 +103,7 @@
+ 
+           <TextView
+               android:id="@android:id/title"
++              android:textColor="@color/kompakt_doc_title"
+               android:layout_width="wrap_content"
+               android:layout_height="wrap_content"
+               android:ellipsize="end"
+@@ -123,6 +124,7 @@
+ 
+           <TextView
+               android:id="@+id/metadata"
++              android:textColor="@color/kompakt_doc_title"
+               android:layout_width="wrap_content"
+               android:layout_height="wrap_content"
+               android:ellipsize="end"
+diff --git a/res/layout/search_chip_item.xml b/res/layout/search_chip_item.xml
+index 3ee00c290..cf4a5cb5a 100644
+--- a/res/layout/search_chip_item.xml
++++ b/res/layout/search_chip_item.xml
+@@ -25,6 +25,7 @@
+     android:textAppearance="@style/SearchChipText"
+     android:textColor="@color/search_chip_text_color"
+     app:checkedIcon="@drawable/ic_check"
++    app:checkedIconTint="@color/search_chip_text_color"
+     app:chipBackgroundColor="@color/search_chip_background_color"
+     app:chipCornerRadius="@dimen/search_chip_radius"
+     app:chipStrokeColor="@color/search_chip_stroke_color"
+diff --git a/res/values-night-v31/colors.xml b/res/values-night-v31/colors.xml
+index c5e4f6d90..3aa31c5e4 100644
+--- a/res/values-night-v31/colors.xml
++++ b/res/values-night-v31/colors.xml
+@@ -14,7 +14,7 @@
+ -->
+ 
+ <resources>
+-  <color name="tab_selected_text_color">@android:color/black</color>
++  <color name="tab_selected_text_color">#fffffffe</color>
+   <color name="work_profile_button_stroke_color">
+     @*android:color/system_accent1_200
+   </color> <!-- accent 200 -->
+diff --git a/res/values-night/colors.xml b/res/values-night/colors.xml
+index 9874d8a4c..6fc565945 100644
+--- a/res/values-night/colors.xml
++++ b/res/values-night/colors.xml
+@@ -14,13 +14,13 @@
+      limitations under the License.
+ -->
+ <resources>
+-    <color name="app_background_color">#202124</color>
+-    <color name="background_floating">#3C4043</color>
+-    <color name="nav_bar_translucent">#52000000</color>
++    <color name="app_background_color">#ff000000</color>
++    <color name="background_floating">#ff000000</color>
++    <color name="nav_bar_translucent">#ff000000</color>
+ 
+-    <color name="primary">#8AB4F8</color>
+-    <color name="secondary">#3D8AB4F8</color>
+-    <color name="hairline">#5F6368</color>
++    <color name="primary">#fffffffe</color>
++    <color name="secondary">#fffffffe</color>
++    <color name="hairline">#fffffffe</color>
+ 
+     <color name="empty_state_text_color">@android:color/white</color>
+     <color name="error_image_color">@android:color/white</color>
+@@ -28,13 +28,18 @@
+     <color name="edge_effect">@android:color/white</color>
+ 
+     <!-- AppCompat.textColorSecondary -->
+-    <color name="doc_list_item_subtitle_enabled">#b3ffffff</color>
++    <color name="doc_list_item_subtitle_enabled">#fffffffe</color>
+     <color name="doc_list_item_subtitle_disabled">#36ffffff</color>
+ 
+-    <color name="list_divider_color">#9aa0a6</color>
++    <color name="list_divider_color">#fffffffe</color>
+     <color name="list_item_selected_background_color">?android:colorSecondary</color>
+ 
+-    <color name="fragment_pick_active_text_color">#202124</color> <!-- Grey 900 -->
++    <color name="fragment_pick_active_text_color">#ff000000</color> <!-- Grey 900 -->
+ 
+     <color name="search_chip_text_selected_color">@android:color/black</color>
++    <color name="kompakt_ink">#fffffffe</color>
++    <color name="kompakt_ground">#ff000000</color>
++    <color name="chip_background_disable_color">#ff000000</color>
++    <color name="shortcut_foreground">#fffffffe</color>
++    <color name="shortcut_background">#ff000000</color>
+ </resources>
+diff --git a/res/values-v31/colors.xml b/res/values-v31/colors.xml
+index 72de6e574..59b1600b0 100644
+--- a/res/values-v31/colors.xml
++++ b/res/values-v31/colors.xml
+@@ -30,8 +30,7 @@
+     @*android:color/system_neutral2_700
+   </color>
+   <!-- neutral variant 700 -->
+-  <color name="profile_tab_selected_color">@*android:color/system_accent1_100
+-  </color>
++  <color name="profile_tab_selected_color">#ff000000</color>
+   <!-- accent 100 -->
+   <color name="profile_tab_default_color">@*android:color/system_neutral1_10
+   </color>
+diff --git a/res/values/colors.xml b/res/values/colors.xml
+index 6ccaa6faf..8e769ac29 100644
+--- a/res/values/colors.xml
++++ b/res/values/colors.xml
+@@ -20,13 +20,13 @@
+ 
+   <color name="app_background_color">@android:color/white</color>
+   <color name="background_floating">@android:color/white</color>
+-  <color name="nav_bar_translucent">#99FFFFFF</color>
++  <color name="nav_bar_translucent">#fffffffe</color>
+ 
+-  <color name="primary">#1E88E5</color> <!-- Blue 600 -->
+-  <color name="secondary">#E3F2FD</color> <!-- Blue 50 -->
+-  <color name="hairline">#E0E0E0</color> <!-- Gray 300 -->
++  <color name="primary">#ff000000</color> <!-- Blue 600 -->
++  <color name="secondary">#ff000000</color> <!-- Blue 50 -->
++  <color name="hairline">#ff000000</color> <!-- Gray 300 -->
+ 
+-  <color name="chip_background_disable_color">#fff1f3f4</color>
++  <color name="chip_background_disable_color">#fffffffe</color>
+   <color name="menu_search_background">@android:color/transparent</color>
+   <color name="item_breadcrumb_background_hovered">#1affffff</color>
+   <color name="item_drag_shadow_background">@android:color/white</color>
+@@ -40,19 +40,19 @@
+ 
+   <color name="downloads_icon_background">#ff4688f2</color>
+   <color name="app_icon_background">#ff4688f2</color>
+-  <color name="shortcut_foreground">#ff3367d6</color>
+-  <color name="shortcut_background">#fff5f5f5</color>
++  <color name="shortcut_foreground">#ff000000</color>
++  <color name="shortcut_background">#fffffffe</color>
+ 
+-  <color name="empty_state_text_color">#202124</color>
+-  <color name="error_image_color">#757575</color>
++  <color name="empty_state_text_color">#ff000000</color>
++  <color name="error_image_color">#ff000000</color>
+ 
+   <color name="edge_effect">@android:color/black</color>
+ 
+-  <color name="doc_list_item_subtitle_enabled">#5F6368</color> <!-- Gray 700 -->
++  <color name="doc_list_item_subtitle_enabled">#ff000000</color> <!-- Gray 700 -->
+   <color name="doc_list_item_subtitle_disabled">#613c4043
+   </color> <!-- 38% Grey800 -->
+ 
+-  <color name="list_divider_color">#1f000000</color>
++  <color name="list_divider_color">#ff000000</color>
+   <color name="list_item_selected_background_color">?android:colorSecondary
+   </color>
+   <color name="color_surface_header">@color/app_background_color</color>
+@@ -60,13 +60,15 @@
+   <color name="tab_selected_text_color">@color/primary</color>
+   <color name="work_profile_button_stroke_color">@color/primary</color>
+   <color name="profile_tab_selected_color">?android:attr/colorAccent</color>
+-  <color name="profile_tab_default_color">#E0E0E0</color>
+-  <color name="tab_unselected_text_color">#5F6368</color> <!-- Gray 700 -->
++  <color name="profile_tab_default_color">#fffffffe</color>
++  <color name="tab_unselected_text_color">#ff000000</color> <!-- Gray 700 -->
+ 
+-  <color name="fragment_pick_inactive_button_color">#E0E0E0</color>
+-  <color name="fragment_pick_inactive_text_color">#5F6368</color>
++  <color name="fragment_pick_inactive_button_color">#fffffffe</color>
++  <color name="fragment_pick_inactive_text_color">#ff000000</color>
+   <color name="fragment_pick_active_button_color">@color/primary</color>
+   <color name="fragment_pick_active_text_color">@android:color/white</color>
+ 
+   <color name="search_chip_text_selected_color">@android:color/white</color>
++    <color name="kompakt_ink">#ff000000</color>
++    <color name="kompakt_ground">#fffffffe</color>
+ </resources>
+diff --git a/res/values/dimens.xml b/res/values/dimens.xml
+index 037375385..92e42502e 100644
+--- a/res/values/dimens.xml
++++ b/res/values/dimens.xml
+@@ -52,7 +52,8 @@
+     <dimen name="drag_shadow_size">120dp</dimen>
+     <dimen name="grid_item_elevation">2dp</dimen>
+     <dimen name="grid_item_radius">2dp</dimen>
+-    <dimen name="max_drawer_width">280dp</dimen>
++    <!-- Kompakt: only a CAP. -->
++    <dimen name="max_drawer_width">480dp</dimen>
+     <dimen name="briefcase_icon_margin">8dp</dimen>
+     <dimen name="briefcase_icon_size">14dp</dimen>
+     <dimen name="briefcase_icon_size_photo">24dp</dimen>
+diff --git a/src/com/android/documentsui/DrawerController.java b/src/com/android/documentsui/DrawerController.java
+index 655b0e94d..4ab30ed2f 100644
+--- a/src/com/android/documentsui/DrawerController.java
++++ b/src/com/android/documentsui/DrawerController.java
+@@ -88,9 +88,8 @@ public abstract class DrawerController implements DrawerListener {
+     }
+ 
+     private static int calculateDrawerWidth(Activity activity) {
+-        // Material design specification for navigation drawer:
+-        // https://www.google.com/design/spec/patterns/navigation-drawer.html
+-        float width = Display.screenWidth(activity) - Display.actionBarHeight(activity);
++        // Kompakt: full screen width, capped by max_drawer_width.
++        float width = Display.screenWidth(activity);
+         float maxWidth = activity.getResources().getDimension(getRes(R.dimen.max_drawer_width));
+         int finalWidth = (int) ((width > maxWidth ? maxWidth : width));
+ 
+@@ -129,6 +128,9 @@ public abstract class DrawerController implements DrawerListener {
+ 
+             mLayout.setDrawerListener(this);
+ 
++            // Kompakt: no scrim; a partial alpha dithers on e-ink.
++            mLayout.setScrimColor(android.graphics.Color.TRANSPARENT);
++
+             if (activityConfig.dragAndDropEnabled()) {
+                 View edge = layout.findViewById(getRes(R.id.drawer_edge));
+                 // nav_rail_layout also uses DrawerLayout, but it doesn't have drawer edge.
+@@ -188,7 +190,8 @@ public abstract class DrawerController implements DrawerListener {
+             View list = mDrawer.findViewById(getRes(R.id.roots_list));
+             ViewGroup mainContainer = mLayout.findViewById(getRes(R.id.main_container));
+             if (open) {
+-                mLayout.openDrawer(mDrawer);
++                // Kompakt: animate=false.
++                mLayout.openDrawer(mDrawer, false);
+                 // When the drawer is open, block the main container section (which contains app
+                 // bar, file list/grid, etc...) and its children to get focus, so tab cycle will
+                 // be restricted inside the drawer.
+@@ -199,7 +202,7 @@ public abstract class DrawerController implements DrawerListener {
+                     mDrawer.requestFocus();
+                 }
+             } else {
+-                mLayout.closeDrawer(mDrawer);
++                mLayout.closeDrawer(mDrawer, false);
+                 if (isUseMaterial3FlagEnabled() && mainContainer != null) {
+                     mainContainer.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
+                 }

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Kompakt: Kompakt night: dark bars. -->
+    <bool name="light_navigation_bar">false</bool>
+    <bool name="kompakt_light_status_bar">false</bool>
+</resources>

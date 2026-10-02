@@ -1,0 +1,86 @@
+From 365c6461868f74aba967add707022bad099f4577 Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Fri, 25 Sep 2026 23:00:00 +0200
+Subject: [PATCH 08/12] Kompakt: run Mudita kpoc_charger in charging mode
+
+---
+ charger.rc                           |  3 +++
+ sepolicy/compat/31.0/31.0.compat.cil |  3 +++
+ sepolicy/file_contexts               |  3 +++
+ sepolicy/kompakt_kpoc_charger.te     | 39 ++++++++++++++++++++++++++++
+ 4 files changed, 48 insertions(+)
+ create mode 100644 sepolicy/kompakt_kpoc_charger.te
+
+diff --git a/charger.rc b/charger.rc
+index b52e93b..b8545ad 100644
+--- a/charger.rc
++++ b/charger.rc
+@@ -11,6 +11,8 @@ service charger /system/bin/charger
+     group system root shell graphics input wakelock
+     capabilities SYS_BOOT
+     seclabel u:r:charger:s0
++    # Kompakt: kpoc_charger draws the charging screen; two chargers would fight over the panel.
++    disabled
+ 
+ on charger && property:ro.hardware=mt*
+     write /sys/class/leds/lcd-backlight/trigger "backlight"
+diff --git a/sepolicy/compat/31.0/31.0.compat.cil b/sepolicy/compat/31.0/31.0.compat.cil
+index 9dfd058..917fa1b 100644
+--- a/sepolicy/compat/31.0/31.0.compat.cil
++++ b/sepolicy/compat/31.0/31.0.compat.cil
+@@ -1,2 +1,5 @@
+ (roletype object_r proc_battery_cmd)
+ (roletype object_r proc_battery_current_cmd)
++(typeattribute kpoc_charger_31_0)
++(expandtypeattribute (kpoc_charger_31_0) true)
++(typeattributeset kpoc_charger_31_0 (kpoc_charger))
+diff --git a/sepolicy/file_contexts b/sepolicy/file_contexts
+index bd5b48d..4b65cbf 100644
+--- a/sepolicy/file_contexts
++++ b/sepolicy/file_contexts
+@@ -20,3 +20,6 @@
+ 
+ /dev/smcinvoke u:object_r:smcinvoke_device:s0
+ /system/bin/hw/android\.hardware\.bluetooth\.audio-service-system u:object_r:hal_audio_sysbta_exec:s0
++
++# Mudita power-off charging screen (vendor/kompakt/charger)
++/system/bin/kpoc_charger u:object_r:kpoc_charger_exec:s0
+diff --git a/sepolicy/kompakt_kpoc_charger.te b/sepolicy/kompakt_kpoc_charger.te
+new file mode 100644
+index 0000000..7c6ae00
+--- /dev/null
++++ b/sepolicy/kompakt_kpoc_charger.te
+@@ -0,0 +1,33 @@
++# Kompakt: Mudita's power-off charging screen, /system/bin/kpoc_charger.
++# The vendor half is kpoc_charger_31_0; compat/31.0/31.0.compat.cil maps it to this type.
++
++type kpoc_charger, domain, coredomain;
++type kpoc_charger_exec, system_file_type, exec_type, file_type;
++
++init_daemon_domain(kpoc_charger)
++hal_client_domain(kpoc_charger, hal_health)
++hal_client_domain(kpoc_charger, hal_light)
++hwbinder_use(kpoc_charger)
++wakelock_use(kpoc_charger)
++
++allow kpoc_charger block_device:dir search;
++allow kpoc_charger graphics_device:dir search;
++allow kpoc_charger graphics_device:chr_file rw_file_perms;
++allow kpoc_charger input_device:dir r_dir_perms;
++allow kpoc_charger input_device:chr_file rw_file_perms;
++allow kpoc_charger self:capability { net_admin sys_admin sys_boot sys_nice };
++allow kpoc_charger self:global_capability2_class_set block_suspend;
++allow kpoc_charger self:netlink_kobject_uevent_socket { read create bind setopt };
++allow kpoc_charger sysfs:dir r_dir_perms;
++allow kpoc_charger kmsg_device:chr_file w_file_perms;
++allow kpoc_charger rtc_device:chr_file rw_file_perms;
++allow kpoc_charger rootfs:file r_file_perms;
++allow kpoc_charger sysfs_leds:dir r_dir_perms;
++allow kpoc_charger sysfs_batteryinfo:dir r_dir_perms;
++allow kpoc_charger sysfs_power:file rw_file_perms;
++allow kpoc_charger sysfs_dt_firmware_android:dir r_dir_perms;
++allow kpoc_charger sysfs_dt_firmware_android:file r_file_perms;
++allow kpoc_charger sysfs_dt_firmware_android:lnk_file r_file_perms;
++allow kpoc_charger proc_cmdline:file r_file_perms;
++allow kpoc_charger metadata_file:dir search;
++allow kpoc_charger gpu_device:dir search;

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The grey text and icons in Files. -->
+<resources>
+    <!-- Kompakt: Kompakt night: generated twin of the values/ file by m3_overlay_night.py, inks inverted. -->
+    <style name="Theme.Camelot" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorOnSurfaceVariant">#fffffffe</item>
+        <item name="colorOnSurface">#fffffffe</item>
+        <item name="colorOnBackground">#fffffffe</item>
+        <item name="android:textColorSecondary">#fffffffe</item>
+        <item name="android:textColorTertiary">#fffffffe</item>
+        <item name="colorOutline">#fffffffe</item>
+        <item name="elevationOverlayEnabled">false</item>
+    </style>
+</resources>

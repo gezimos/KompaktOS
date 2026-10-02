@@ -1,0 +1,24 @@
+From 5824c323791e36599f6f757480fea5288ceb8dca Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Wed, 9 Sep 2026 20:19:59 +0200
+Subject: [PATCH 2/2] Declare what the notification LED actually is
+
+---
+ lineage/res/res/values/config.xml | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/lineage/res/res/values/config.xml b/lineage/res/res/values/config.xml
+index e7290737..36f74479 100644
+--- a/lineage/res/res/values/config.xml
++++ b/lineage/res/res/values/config.xml
+@@ -95,7 +95,9 @@
+ 
+          For example, a device with notification and battery lights that supports
+          pulsating and RGB control would set this config to 75. -->
+-    <integer name="config_deviceLightCapabilities">8</integer>
++    <!-- Kompakt: 1 (RGB notification LED) + 512 (no brightness control).
++         Never 8: the LED cannot pulse, and claiming it crashes system_server. -->
++    <integer name="config_deviceLightCapabilities">513</integer>
+ 
+     <!-- Defines external services to be started by the LineageSystemServer at boot. The service itself
+          should publish as a binder services in its onStart -->

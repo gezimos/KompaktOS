@@ -1,0 +1,29 @@
+From e5513f64d4a6876ae57e2d12ddb3a14c60c0cd56 Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Fri, 25 Sep 2026 17:24:42 +0200
+Subject: [PATCH] Kompakt: hotspot clients get DNS again
+
+---
+ .../src/com/android/networkstack/tethering/Tethering.java | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/Tethering/src/com/android/networkstack/tethering/Tethering.java b/Tethering/src/com/android/networkstack/tethering/Tethering.java
+index c1c44f97d0..64275ca188 100644
+--- a/Tethering/src/com/android/networkstack/tethering/Tethering.java
++++ b/Tethering/src/com/android/networkstack/tethering/Tethering.java
+@@ -2069,9 +2069,11 @@ public class Tethering {
+             // Legacy DHCP server is disabled if passed an empty ranges array
+             final String[] dhcpRanges = cfg.useLegacyDhcpServer()
+                     ? cfg.legacyDhcpRanges : new String[0];
++            // Kompakt: start with netd's DNS proxy, or clients get no DNS; fall back without it.
+             try {
+-                NetdUtils.tetherStart(mNetd, false /** usingLegacyDnsProxy */, dhcpRanges);
++                NetdUtils.tetherStart(mNetd, true /** usingLegacyDnsProxy */, dhcpRanges);
+             } catch (RemoteException | ServiceSpecificException e) {
++                mLog.e("tetherStart with the DNS proxy failed, retrying without: " + e);
+                 try {
+                     // Stop and retry.
+                     mNetd.tetherStop();
+-- 
+2.43.0
+

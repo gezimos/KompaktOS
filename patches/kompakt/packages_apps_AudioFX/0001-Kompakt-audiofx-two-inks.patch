@@ -1,0 +1,171 @@
+From 147ca643953ad698205204fb1c8caff2650dd4ae Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Thu, 17 Sep 2026 21:26:36 +0200
+Subject: [PATCH] Kompakt: audiofx: two inks
+
+---
+ .../lineageos/audiofx/eq/EqContainerView.java | 31 +++++++------------
+ .../audiofx/fragment/ControlsFragment.java    |  2 +-
+ .../audiofx/fragment/EqualizerFragment.java   |  9 +++---
+ .../lineageos/audiofx/knobs/RadialKnob.java   |  9 +++++-
+ 4 files changed, 25 insertions(+), 26 deletions(-)
+
+diff --git a/src/org/lineageos/audiofx/eq/EqContainerView.java b/src/org/lineageos/audiofx/eq/EqContainerView.java
+index 97c1910..16e9090 100644
+--- a/src/org/lineageos/audiofx/eq/EqContainerView.java
++++ b/src/org/lineageos/audiofx/eq/EqContainerView.java
+@@ -160,14 +160,14 @@ public class EqContainerView extends FrameLayout
+ 
+         mTextPaint = new Paint();
+         mTextPaint.setAntiAlias(true);
+-        mTextPaint.setColor(Color.WHITE);
++        mTextPaint.setColor(r.getColor(R.color.eq_ink, mContext.getTheme())); // Kompakt: canvas ink
+         mTextPaint.setTextAlign(Paint.Align.CENTER);
+         mTextPaint.setElegantTextHeight(true);
+         mTextPaint.setTextSize(selectedBoxTextSize);
+ 
+         mFreqPaint = new Paint();
+         mFreqPaint.setAntiAlias(true);
+-        mFreqPaint.setColor(Color.WHITE);
++        mFreqPaint.setColor(r.getColor(R.color.eq_ink, mContext.getTheme()));
+         mFreqPaint.setTextAlign(Paint.Align.CENTER);
+         mFreqPaint.setTextSize(freqTextSize);
+ 
+@@ -176,7 +176,7 @@ public class EqContainerView extends FrameLayout
+         mSelectedFreqPaint.setTextSize(selectedBoxTextSize);
+ 
+         mCenterLinePaint = new Paint();
+-        mCenterLinePaint.setColor(Color.WHITE);
++        mCenterLinePaint.setColor(r.getColor(R.color.eq_ink, mContext.getTheme()));
+         mCenterLinePaint.setAntiAlias(true);
+         mCenterLinePaint.setPathEffect(new DashPathEffect(new float[]{6, 6}, 0));
+         mCenterLinePaint.setStyle(Paint.Style.STROKE);
+@@ -256,13 +256,9 @@ public class EqContainerView extends FrameLayout
+                     return false;
+                 });
+ 
+-                // set correct initial alpha
+-                if (i % 2 == 0) {
+-                    bar.setAlpha(0.6f);
+-                } else {
+-                    bar.setAlpha(0.8f);
+-                }
+-                bar.setBackgroundColor(Color.WHITE);
++                // Kompakt: no alpha greys on e-ink; an unselected band is an outlined bar.
++                bar.setAlpha(1f);
++                bar.setBackgroundResource(R.drawable.eq_bar);
+ 
+                 addView(bar, getFrameParams(i));
+                 bar.setParentHeight(mHeight, getTop());
+@@ -416,17 +412,12 @@ public class EqContainerView extends FrameLayout
+             final EqBarView bar = findViewWithTag(tag);
+             if (bar != null) {
+                 final ViewPropertyAnimator barAnimation = bar.animate().withLayer();
+-                if (mSelectedBands.isEmpty()) {
+-                    if (i % 2 == 0) {
+-                        barAnimation.alpha(0.6f);
+-                    } else {
+-                        barAnimation.alpha(0.8f);
+-                    }
+-                } else if (mSelectedBands.contains(i)) {
+-                    barAnimation.alpha(1f);
+-                    bar.setBackgroundColor(mSelectedBandColor);
++                // Kompakt: selected band filled, the rest outlined; never alpha.
++                barAnimation.alpha(1f);
++                if (mSelectedBands.contains(i)) {
++                    bar.setBackgroundResource(R.drawable.eq_bar_selected);
+                 } else {
+-                    barAnimation.alpha(0.40f);
++                    bar.setBackgroundResource(R.drawable.eq_bar);
+                 }
+             }
+         }
+diff --git a/src/org/lineageos/audiofx/fragment/ControlsFragment.java b/src/org/lineageos/audiofx/fragment/ControlsFragment.java
+index 1dd2516..41959a6 100644
+--- a/src/org/lineageos/audiofx/fragment/ControlsFragment.java
++++ b/src/org/lineageos/audiofx/fragment/ControlsFragment.java
+@@ -93,7 +93,7 @@ public class ControlsFragment extends AudioFxBaseFragment {
+                 new int[]{
+                         color,
+                         color,
+-                        Color.GRAY
++                        getResources().getColor(R.color.radial_knob_arc_bg, null) /* Kompakt: no fixed grey; the track colour */
+                 }
+         );
+ 
+diff --git a/src/org/lineageos/audiofx/fragment/EqualizerFragment.java b/src/org/lineageos/audiofx/fragment/EqualizerFragment.java
+index 2dcb752..f1b6284 100644
+--- a/src/org/lineageos/audiofx/fragment/EqualizerFragment.java
++++ b/src/org/lineageos/audiofx/fragment/EqualizerFragment.java
+@@ -230,8 +230,9 @@ public class EqualizerFragment extends AudioFxBaseFragment
+         mPresetPageIndicator.setViewPager(mFakePager, 0);
+         mPresetPageIndicator.setCurrentItem(mSelectedPosition);
+ 
+-        mFakePager.setCurrentItem(mSelectedPosition);
+-        mPresetPager.setCurrentItem(mSelectedPosition);
++        // Kompakt: no slide between presets.
++        mFakePager.setCurrentItem(mSelectedPosition, false);
++        mPresetPager.setCurrentItem(mSelectedPosition, false);
+     }
+ 
+     @Override
+@@ -263,7 +264,7 @@ public class EqualizerFragment extends AudioFxBaseFragment
+                         int newPage = mCurrentRealPage + diff;
+ 
+                         mAnimatingToRealPageTarget = newPage;
+-                        mPresetPager.setCurrentItemAbsolute(newPage);
++                        mPresetPager.setCurrentItemAbsolute(newPage, false);
+                     }
+ 
+                     @Override
+@@ -325,7 +326,7 @@ public class EqualizerFragment extends AudioFxBaseFragment
+                 mDeviceChanging = true;
+ 
+                 if (!samePage) {
+-                    mPresetPager.setCurrentItemAbsolute(newPage);
++                    mPresetPager.setCurrentItemAbsolute(newPage, false);
+                 }
+             }
+ 
+diff --git a/src/org/lineageos/audiofx/knobs/RadialKnob.java b/src/org/lineageos/audiofx/knobs/RadialKnob.java
+index 7e5e917..61605b4 100644
+--- a/src/org/lineageos/audiofx/knobs/RadialKnob.java
++++ b/src/org/lineageos/audiofx/knobs/RadialKnob.java
+@@ -13,6 +13,7 @@ import android.content.Context;
+ import android.content.res.Resources;
+ import android.graphics.Canvas;
+ import android.graphics.Color;
++import android.graphics.DashPathEffect;
+ import android.graphics.Paint;
+ import android.graphics.RectF;
+ import android.graphics.Typeface;
+@@ -69,6 +70,8 @@ public class RadialKnob extends View {
+     private final int mBackgroundArcColorDisabled;
+     private final int mRectPadding;
+     private final int mStrokeWidth;
++    private final DashPathEffect mTrackDots =
++            new DashPathEffect(new float[] {3f, 7f}, 0f);
+     private final float mTextOffset;
+ 
+     private Context mContext;
+@@ -88,7 +91,8 @@ public class RadialKnob extends View {
+         mTextPaint.setElegantTextHeight(true);
+         mTextPaint.setFakeBoldText(true);
+         mTextPaint.setTextSize(res.getDimension(R.dimen.radial_text_size));
+-        mTextPaint.setColor(Color.LTGRAY);
++        // Kompakt: label in the highlight ink, not a fixed light grey.
++        mTextPaint.setColor(mHighlightColor);
+ 
+         mTextOffset = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 2,
+                 getResources().getDisplayMetrics());
+@@ -187,7 +191,10 @@ public class RadialKnob extends View {
+         mPaint.setStrokeWidth(mStrokeWidth);
+ 
+         mPaint.setColor(mEnabled ? mBackgroundArcColor : mBackgroundArcColorDisabled);
++        // Kompakt: the unfilled part of the track is the same ink as the level, broken into dots.
++        mPaint.setPathEffect(mTrackDots);
+         canvas.drawArc(mRectF, START_ANGLE, MAX_DEGREES, false, mPaint);
++        mPaint.setPathEffect(null);
+ 
+         final float sweepAngle = mEnabled ? mProgress * MAX_DEGREES : 0;
+         if (mOn) {

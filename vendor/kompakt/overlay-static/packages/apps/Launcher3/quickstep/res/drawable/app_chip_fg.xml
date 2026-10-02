@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: the app chip needs an edge. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="@color/app_chip_state_color_fg" />
+    <stroke android:width="2dp" android:color="@color/kompakt_task_outline" />
+    <corners android:radius="@dimen/app_chip_round_corner_radius" />
+</shape>

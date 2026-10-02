@@ -1,0 +1,39 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Mon, 28 Sep 2026 19:10:00 +0200
+Subject: [PATCH 44/44] Kompakt: bouncer: a SIM PIN always has its confirm key
+
+---
+diff --git a/packages/SystemUI/src/com/android/systemui/bouncer/ui/viewmodel/PinBouncerViewModel.kt b/packages/SystemUI/src/com/android/systemui/bouncer/ui/viewmodel/PinBouncerViewModel.kt
+--- a/packages/SystemUI/src/com/android/systemui/bouncer/ui/viewmodel/PinBouncerViewModel.kt
++++ b/packages/SystemUI/src/com/android/systemui/bouncer/ui/viewmodel/PinBouncerViewModel.kt
+@@ -136,20 +136,27 @@
+                     }
+                     .collect { _hintedPinLength.value = it }
+             }
++            // Kompakt: a SIM PIN has no known length, so its pad always has a confirm key.
+             launch {
+                 combine(mutablePinInput, interactor.isAutoConfirmEnabled) {
+                         mutablePinEntries,
+                         isAutoConfirmEnabled ->
+                         computeBackspaceButtonAppearance(
+                             pinInput = mutablePinEntries,
+-                            isAutoConfirmEnabled = isAutoConfirmEnabled,
++                            isAutoConfirmEnabled = isAutoConfirmEnabled && !isSimAreaVisible,
+                         )
+                     }
+                     .collect { _backspaceButtonAppearance.value = it }
+             }
+             launch {
+                 interactor.isAutoConfirmEnabled
+-                    .map { if (it) ActionButtonAppearance.Hidden else ActionButtonAppearance.Shown }
++                    .map {
++                        if (it && !isSimAreaVisible) {
++                            ActionButtonAppearance.Hidden
++                        } else {
++                            ActionButtonAppearance.Shown
++                        }
++                    }
+                     .collect { _confirmButtonAppearance.value = it }
+             }
+             launch {

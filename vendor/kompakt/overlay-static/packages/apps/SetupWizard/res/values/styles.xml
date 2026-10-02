@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: the plain Glif theme, not the full dynamic colour one. -->
+<resources>
+    <style name="Theme.Setup" parent="@style/SudThemeGlifV3.DayNight">
+        <item name="sucUsePartnerResource">true</item>
+        <item name="sudUsePartnerHeavyTheme">true</item>
+    </style>
+</resources>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: setup screens primary button in the light ink in dark mode. -->
+<resources>
+    <color name="sud_dynamic_color_accent_glif_v3_dark">@color/sud_system_accent1_100</color>
+    <!-- An off switch was black on black: its outline gets the light ink. -->
+    <color name="sud_dynamic_switch_thumb_off_outline_dark">@color/sud_system_accent1_100</color>
+</resources>

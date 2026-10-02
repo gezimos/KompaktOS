@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: two inks. lineage_accent is also the logo's fill. -->
+<resources>
+    <color name="lineage_accent">#ff000000</color>
+
+    <color name="button_bar_text_enabled">#ff000000</color>
+    <!-- Light grey, at the paper end, where the panel renders it flat rather than as a dither. -->
+    <color name="button_bar_text_disabled">#ffbbbbbb</color>
+
+    <color name="divider">#ff000000</color>
+</resources>

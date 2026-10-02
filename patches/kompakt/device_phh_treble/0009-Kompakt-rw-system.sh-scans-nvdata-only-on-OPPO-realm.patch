@@ -1,0 +1,28 @@
+From d1ca61c177b4e0774b6eefe679242d3304659d84 Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Sat, 26 Sep 2026 03:00:00 +0200
+Subject: [PATCH 09/12] Kompakt: rw-system.sh scans nvdata only on
+ OPPO/realme/OnePlus
+
+---
+ rw-system.sh | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/rw-system.sh b/rw-system.sh
+index 8ca3209..cf4fa92 100644
+--- a/rw-system.sh
++++ b/rw-system.sh
+@@ -366,8 +366,12 @@ if ! getprop ro.vendor.build.fingerprint | grep -q -e samsung/;then
+     mount -o remount,ro / || true
+ fi
+ 
++# Kompakt: scan nvdata only on OPPO/realme/OnePlus; grepping all of it stalls post-fs.
++oppoVendor=false
++getprop ro.product.vendor.manufacturer | grep -qiE "oppo|realme|oneplus" && oppoVendor=true
++getprop ro.product.vendor.brand | grep -qiE "oppo|realme|oneplus" && oppoVendor=true
+ for part in /dev/block/bootdevice/by-name/oppodycnvbk  /dev/block/platform/bootdevice/by-name/nvdata;do
+-    if [ -b "$part" ];then
++    if [ "$oppoVendor" = true ] && [ -b "$part" ];then
+         oppoName="$(grep -aohE '(RMX|CPH)[0-9]{4}' "$part" |head -n 1)"
+         if [ -n "$oppoName" ];then
+             setprop ro.build.overlay.deviceid "$oppoName"

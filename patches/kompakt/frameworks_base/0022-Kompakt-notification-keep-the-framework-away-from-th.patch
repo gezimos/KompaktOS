@@ -1,0 +1,57 @@
+From c232862df495856520116bb40fefb720e5f6a152 Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Fri, 18 Sep 2026 18:56:27 +0200
+Subject: [PATCH 22/38] Kompakt: notification: keep the framework away from the
+ LED
+
+---
+ core/java/android/app/Notification.java                      | 5 +++--
+ packages/SettingsProvider/res/values/defaults.xml            | 2 ++
+ .../src/com/android/providers/settings/DatabaseHelper.java   | 3 +++
+ 3 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/core/java/android/app/Notification.java b/core/java/android/app/Notification.java
+index 85921a77c6b4..012833133b90 100644
+--- a/core/java/android/app/Notification.java
++++ b/core/java/android/app/Notification.java
+@@ -7691,10 +7691,11 @@ public class Notification implements Parcelable
+             boolean colorable = !isLegacy() || getColorUtil().isGrayscaleIcon(mContext,
+                     smallIcon);
+             int color = getSmallIconColor(p);
++            // Kompakt: the circle behind the app icon takes the text colour.
+             contentView.setInt(R.id.icon, "setBackgroundColor",
+-                    getBackgroundColor(p));
++                    getPrimaryTextColor(p));
+             contentView.setInt(R.id.icon, "setOriginalIconColor",
+-                    colorable ? color : COLOR_INVALID);
++                    colorable ? getBackgroundColor(p) : COLOR_INVALID);
+         }
+ 
+         /**
+diff --git a/packages/SettingsProvider/res/values/defaults.xml b/packages/SettingsProvider/res/values/defaults.xml
+index e054045a0972..af8521c83cf9 100644
+--- a/packages/SettingsProvider/res/values/defaults.xml
++++ b/packages/SettingsProvider/res/values/defaults.xml
+@@ -35,6 +35,8 @@
+     <integer name="def_screen_brightness">102</integer>
+     <bool name="def_screen_brightness_automatic_mode">false</bool>
+     <fraction name="def_window_animation_scale">100%</fraction>
++    <!-- Kompakt: the third animation scale, which AOSP never seeds. -->
++    <fraction name="def_animator_duration_scale">100%</fraction>
+     <fraction name="def_window_transition_scale">100%</fraction>
+     <bool name="def_haptic_feedback">true</bool>
+ 
+diff --git a/packages/SettingsProvider/src/com/android/providers/settings/DatabaseHelper.java b/packages/SettingsProvider/src/com/android/providers/settings/DatabaseHelper.java
+index a3eab5da1100..0dde2058e220 100644
+--- a/packages/SettingsProvider/src/com/android/providers/settings/DatabaseHelper.java
++++ b/packages/SettingsProvider/src/com/android/providers/settings/DatabaseHelper.java
+@@ -2165,6 +2165,9 @@ class DatabaseHelper extends SQLiteOpenHelper {
+                 R.fraction.def_window_animation_scale, 1);
+         loadFractionSetting(stmt, Settings.System.TRANSITION_ANIMATION_SCALE,
+                 R.fraction.def_window_transition_scale, 1);
++        // Kompakt: seed the animator scale too.
++        loadFractionSetting(stmt, Settings.Global.ANIMATOR_DURATION_SCALE,
++                R.fraction.def_animator_duration_scale, 1);
+     }
+ 
+     private void loadDefaultHapticSettings(SQLiteStatement stmt) {

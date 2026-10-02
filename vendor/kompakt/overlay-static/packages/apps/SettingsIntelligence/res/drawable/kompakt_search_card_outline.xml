@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: 2dp edge for the search card, in the mode's primary ink, corner matching the card (the stock CardView uses a. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <stroke android:width="2dp" android:color="?android:attr/textColorPrimary" />
+    <corners android:radius="24dp" />
+    <solid android:color="@android:color/transparent" />
+</shape>

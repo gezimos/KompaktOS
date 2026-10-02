@@ -1,0 +1,503 @@
+From b479f0bf1ad96ab03631566a5b0529a0bc1024dd Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Fri, 18 Sep 2026 18:56:28 +0200
+Subject: [PATCH 23/38] Kompakt: keyguard: unlock without showing the frames in
+ between
+
+---
+ .../repository/LightRevealScrimRepository.kt  | 33 ++-----------
+ .../domain/interactor/BurnInInteractor.kt     | 18 +++----
+ ...ternateBouncerToGoneTransitionViewModel.kt |  9 ++--
+ .../viewmodel/AodToGoneTransitionViewModel.kt |  3 +-
+ .../DozingToGoneTransitionViewModel.kt        | 10 ++++
+ .../ui/viewmodel/KeyguardRootViewModel.kt     | 47 +++++--------------
+ .../LockscreenToGoneTransitionViewModel.kt    | 13 ++---
+ ...PrimaryBouncerToGoneTransitionViewModel.kt |  9 ++--
+ .../stack/NotificationStackSizeCalculator.kt  |  2 +-
+ .../viewmodel/NotificationScrollViewModel.kt  |  7 ++-
+ .../SharedNotificationContainerViewModel.kt   | 35 ++++++++++----
+ .../statusbar/phone/ScrimController.java      |  7 +--
+ .../systemui/statusbar/phone/ScrimState.java  | 22 ++++++---
+ 13 files changed, 94 insertions(+), 121 deletions(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/keyguard/data/repository/LightRevealScrimRepository.kt b/packages/SystemUI/src/com/android/systemui/keyguard/data/repository/LightRevealScrimRepository.kt
+index ad7c25e67b45..47c79d948e98 100644
+--- a/packages/SystemUI/src/com/android/systemui/keyguard/data/repository/LightRevealScrimRepository.kt
++++ b/packages/SystemUI/src/com/android/systemui/keyguard/data/repository/LightRevealScrimRepository.kt
+@@ -20,8 +20,6 @@ import android.app.WallpaperColors
+ import android.app.WallpaperManager
+ import android.content.Context
+ import android.graphics.Point
+-import androidx.core.animation.Animator
+-import androidx.core.animation.ValueAnimator
+ import com.android.internal.colorextraction.ColorExtractor
+ import com.android.keyguard.logging.ScrimLogger
+ import com.android.systemui.colorextraction.SysuiColorExtractor
+@@ -143,7 +141,6 @@ constructor(
+             }
+         }
+ 
+-    private val revealAmountAnimator = ValueAnimator.ofFloat(0f, 1f)
+ 
+     override val wallpaperSupportsAmbientMode: MutableStateFlow<Boolean> = MutableStateFlow(false)
+ 
+@@ -165,34 +162,14 @@ constructor(
+             }
+             .stateIn(backgroundScope, SharingStarted.Eagerly, false)
+ 
+-    override val revealAmount: Flow<Float> = callbackFlow {
+-        val updateListener =
+-            Animator.AnimatorUpdateListener {
+-                val value = (it as ValueAnimator).animatedValue as Float
+-                trySend(value)
+-
+-                if (value <= 0.0f || value >= 1.0f) {
+-                    scrimLogger.d(TAG, "revealAmount", value)
+-                }
+-            }
+-        revealAmountAnimator.addUpdateListener(updateListener)
+-        awaitClose { revealAmountAnimator.removeUpdateListener(updateListener) }
+-    }
++    // Kompakt: fully revealed, always.
++    override val revealAmount: Flow<Float> = MutableStateFlow(1f)
+     override val isAnimating: Boolean
+-        get() = revealAmountAnimator.isRunning
+-
+-    private var willBeOrIsRevealed: Boolean? = null
++        get() = false
+ 
+     override fun startRevealAmountAnimator(reveal: Boolean, duration: Long) {
+-        if (reveal == willBeOrIsRevealed) return
+-        willBeOrIsRevealed = reveal
+-        revealAmountAnimator.duration = duration
+-        if (reveal && !revealAmountAnimator.isRunning) {
+-            revealAmountAnimator.start()
+-        } else {
+-            revealAmountAnimator.reverse()
+-        }
+-        scrimLogger.d(TAG, "startRevealAmountAnimator, reveal", reveal)
++        // Kompakt: no reveal animation on this panel; see revealAmount.
++        scrimLogger.d(TAG, "startRevealAmountAnimator ignored on Kompakt, reveal", reveal)
+     }
+ 
+     override val revealEffect: Flow<LightRevealEffect> =
+diff --git a/packages/SystemUI/src/com/android/systemui/keyguard/domain/interactor/BurnInInteractor.kt b/packages/SystemUI/src/com/android/systemui/keyguard/domain/interactor/BurnInInteractor.kt
+index ccff49ac0bde..39ae2c39f0f6 100644
+--- a/packages/SystemUI/src/com/android/systemui/keyguard/domain/interactor/BurnInInteractor.kt
++++ b/packages/SystemUI/src/com/android/systemui/keyguard/domain/interactor/BurnInInteractor.kt
+@@ -28,6 +28,7 @@ import com.android.systemui.res.R
+ import com.android.systemui.shade.ShadeDisplayAware
+ import javax.inject.Inject
+ import kotlinx.coroutines.CoroutineScope
++import kotlinx.coroutines.flow.flowOf
+ import kotlinx.coroutines.flow.Flow
+ import kotlinx.coroutines.flow.SharingStarted
+ import kotlinx.coroutines.flow.StateFlow
+@@ -64,16 +65,15 @@ constructor(
+                 burnInHelperWrapper.burnInProgressOffset(),
+             )
+ 
+-    /** Given the max x,y dimens, determine the current translation shifts. */
++    /** Kompakt: Given the max x,y dimens, determine the current translation shifts. */
+     fun burnIn(xDimenResourceId: Int, yDimenResourceId: Int): Flow<BurnInModel> {
+-        return combine(
+-                burnInOffset(xDimenResourceId, isXAxis = true),
+-                burnInOffset(yDimenResourceId, isXAxis = false).map {
+-                    it * 2 - context.resources.getDimensionPixelSize(yDimenResourceId)
+-                },
+-            ) { translationX, translationY ->
+-                BurnInModel(translationX, translationY, burnInHelperWrapper.burnInScale())
+-            }
++        return flowOf(
++                BurnInModel(
++                    translationX = 0,
++                    translationY = 0,
++                    scale = BurnInModel.MAX_LARGE_CLOCK_SCALE,
++                )
++            )
+             .distinctUntilChanged()
+     }
+ 
+diff --git a/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/AlternateBouncerToGoneTransitionViewModel.kt b/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/AlternateBouncerToGoneTransitionViewModel.kt
+index f42d74e153e0..59b7e80034eb 100644
+--- a/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/AlternateBouncerToGoneTransitionViewModel.kt
++++ b/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/AlternateBouncerToGoneTransitionViewModel.kt
+@@ -75,13 +75,10 @@ constructor(
+                 startAlpha = viewState.alpha()
+             },
+             onStep = {
+-                if (leaveShadeOpen) {
+-                    1f
+-                } else {
+-                    MathUtils.lerp(startAlpha, 0f, it)
+-                }
++                // Kompakt: binary, and it stays gone. See LockscreenToGone.
++                if (leaveShadeOpen) 1f else 0f
+             },
+-            onFinish = { 1f },
++            onFinish = { if (leaveShadeOpen) 1f else 0f },
+         )
+     }
+ 
+diff --git a/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/AodToGoneTransitionViewModel.kt b/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/AodToGoneTransitionViewModel.kt
+index e21400d0a207..3206c9315ed6 100644
+--- a/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/AodToGoneTransitionViewModel.kt
++++ b/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/AodToGoneTransitionViewModel.kt
+@@ -65,7 +65,8 @@ constructor(animationFlow: KeyguardTransitionAnimationFlow) : DeviceEntryIconTra
+             return transitionAnimation.sharedFlow(
+                 duration = 200.milliseconds,
+                 onStep = { 0f },
+-                onFinish = { 1f },
++                // Kompakt: stays 0. See LockscreenToGone.
++                onFinish = { 0f },
+             )
+         } else {
+             var startAlpha = 1f
+diff --git a/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/DozingToGoneTransitionViewModel.kt b/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/DozingToGoneTransitionViewModel.kt
+index e083926bdfc3..41d2bd2c0545 100644
+--- a/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/DozingToGoneTransitionViewModel.kt
++++ b/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/DozingToGoneTransitionViewModel.kt
+@@ -47,6 +47,16 @@ constructor(animationFlow: KeyguardTransitionAnimationFlow) : DeviceEntryIconTra
+         )
+     }
+ 
++    /** Kompakt: hide the notification stack for the whole transition, and leave it hidden. */
++    fun notificationAlpha(viewState: ViewStateAccessor): Flow<Float> {
++        return transitionAnimation.sharedFlow(
++            duration = 200.milliseconds,
++            onStep = { 0f },
++            onFinish = { 0f },
++            onCancel = { 1f },
++        )
++    }
++
+     val nonAuthUIAlpha: Flow<Float> =
+         transitionAnimation.sharedFlow(
+             duration = TO_GONE_DURATION,
+diff --git a/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/KeyguardRootViewModel.kt b/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/KeyguardRootViewModel.kt
+index c4c0057af1b4..cf7241d40d32 100644
+--- a/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/KeyguardRootViewModel.kt
++++ b/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/KeyguardRootViewModel.kt
+@@ -34,6 +34,7 @@ import com.android.systemui.keyguard.domain.interactor.KeyguardTransitionInterac
+ import com.android.systemui.keyguard.domain.interactor.PulseExpansionInteractor
+ import com.android.systemui.keyguard.shared.model.Edge
+ import com.android.systemui.keyguard.shared.model.KeyguardState.AOD
++import com.android.systemui.keyguard.shared.model.KeyguardState.DOZING
+ import com.android.systemui.keyguard.shared.model.KeyguardState.GONE
+ import com.android.systemui.keyguard.shared.model.KeyguardState.LOCKSCREEN
+ import com.android.systemui.keyguard.shared.model.KeyguardState.OFF
+@@ -58,6 +59,7 @@ import com.android.systemui.util.kotlin.sample
+ import com.android.systemui.util.ui.AnimatableEvent
+ import com.android.systemui.util.ui.AnimatedValue
+ import com.android.systemui.util.ui.toAnimatedValueFlow
++import com.android.systemui.util.ui.value
+ import com.android.systemui.util.ui.zip
+ import com.android.systemui.utils.coroutines.flow.flatMapLatestConflated
+ import java.util.Optional
+@@ -435,46 +437,19 @@ constructor(
+             .traceAs("KeyguardRootVM#aodRONVisible")
+ 
+     /** Is the notification icon container visible? */
++    // Kompakt: the AOD icon row follows the current state.
+     val isNotifIconContainerVisible: StateFlow<AnimatedValue<Boolean>> =
+         combine(
+-                goneToAodTransitionRunning,
+-                keyguardTransitionInteractor.isFinishedIn(
+-                    content = Scenes.Gone,
+-                    stateWithoutSceneContainer = GONE,
+-                ),
+-                areNotifsFullyHiddenAnimated(),
++                keyguardTransitionInteractor.currentKeyguardState.map {
++                    it == AOD || it == DOZING
++                },
+                 isPulseExpandingAnimated(),
+                 aodNotificationIconViewModel.icons.map { it.visibleIcons.isNotEmpty() },
+-            ) { flows ->
+-                val goneToAodTransitionRunning = flows[0] as Boolean
+-                val isOnGone = flows[1] as Boolean
+-                val notifsFullyHidden = flows[2] as AnimatedValue<Boolean>
+-                val pulseExpanding = flows[3] as AnimatedValue<Boolean>
+-                val hasAodIcons = flows[4] as Boolean
+-
+-                when {
+-                    // Hide the AOD icons if we're not in the KEYGUARD state unless the screen off
+-                    // animation is playing, in which case we want them to be visible if we're
+-                    // animating in the AOD UI and will be switching to KEYGUARD shortly.
+-                    goneToAodTransitionRunning ||
+-                        (isOnGone && !screenOffAnimationController.shouldShowAodIconsWhenShade()) ->
+-                        AnimatedValue.NotAnimating(false)
+-                    else ->
+-                        zip(notifsFullyHidden, pulseExpanding) {
+-                            areNotifsFullyHidden,
+-                            isPulseExpanding ->
+-                            when {
+-                                // If there are no notification icons to show, then it can be hidden
+-                                !hasAodIcons -> false
+-                                // If we are pulsing (and not bypassing), then we are hidden
+-                                isPulseExpanding -> false
+-                                // If notifs are fully gone, then we're visible
+-                                areNotifsFullyHidden -> true
+-                                // Otherwise, we're hidden
+-                                else -> false
+-                            }
+-                        }
+-                }
++            ) { onAmbientSurface, pulseExpanding, hasAodIcons ->
++                val isPulseExpanding = pulseExpanding.value
++                AnimatedValue.NotAnimating(
++                    onAmbientSurface && hasAodIcons && !isPulseExpanding
++                )
+             }
+             .stateIn(
+                 scope = applicationScope,
+diff --git a/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/LockscreenToGoneTransitionViewModel.kt b/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/LockscreenToGoneTransitionViewModel.kt
+index 6715d19a0e4d..829c6c8f2371 100644
+--- a/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/LockscreenToGoneTransitionViewModel.kt
++++ b/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/LockscreenToGoneTransitionViewModel.kt
+@@ -76,17 +76,10 @@ constructor(
+                     startAlpha = viewState.alpha()
+                 },
+                 onStep = {
+-                    if (leaveShadeOpen) {
+-                        1f
+-                    } else if (bypassEnabled) {
+-                        // Keep notifications hidden until the end of the transition if bypass is
+-                        // enabled, to prevent flickers.
+-                        0f
+-                    } else {
+-                        MathUtils.lerp(startAlpha, 0f, it)
+-                    }
++                    // Kompakt: binary, and it stays gone.
++                    if (leaveShadeOpen) 1f else 0f
+                 },
+-                onFinish = { 1f },
++                onFinish = { if (leaveShadeOpen) 1f else 0f },
+                 onCancel = { 1f },
+             )
+         } else {
+diff --git a/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/PrimaryBouncerToGoneTransitionViewModel.kt b/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/PrimaryBouncerToGoneTransitionViewModel.kt
+index 9a5446918138..ba25743ba756 100644
+--- a/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/PrimaryBouncerToGoneTransitionViewModel.kt
++++ b/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/PrimaryBouncerToGoneTransitionViewModel.kt
+@@ -75,13 +75,10 @@ constructor(
+                 willRunDismissFromKeyguard = primaryBouncerInteractor.willRunDismissFromKeyguard()
+             },
+             onStep = {
+-                if (willRunDismissFromKeyguard || leaveShadeOpen) {
+-                    1f
+-                } else {
+-                    MathUtils.lerp(startAlpha, 0f, it)
+-                }
++                // Kompakt: binary, and it stays gone. See LockscreenToGone.
++                if (willRunDismissFromKeyguard || leaveShadeOpen) 1f else 0f
+             },
+-            onFinish = { 1f },
++            onFinish = { if (willRunDismissFromKeyguard || leaveShadeOpen) 1f else 0f },
+         )
+     }
+ 
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/NotificationStackSizeCalculator.kt b/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/NotificationStackSizeCalculator.kt
+index 13583fd35628..c6e2659e1ce0 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/NotificationStackSizeCalculator.kt
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/NotificationStackSizeCalculator.kt
+@@ -83,7 +83,7 @@ constructor(
+ 
+     /** Whether we allow keyguard to show less important notifications above the shelf. */
+     private val limitLockScreenToOneImportant
+-        get() = NotificationMinimalism.isEnabled && minimalismSettingEnabled
++        get() = false
+ 
+     /** Minimum space between two notifications, see [calculateGapAndDividerHeight]. */
+     private var dividerHeight by notNull<Float>()
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/ui/viewmodel/NotificationScrollViewModel.kt b/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/ui/viewmodel/NotificationScrollViewModel.kt
+index 569b593dbecf..a0cf22bcd69b 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/ui/viewmodel/NotificationScrollViewModel.kt
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/ui/viewmodel/NotificationScrollViewModel.kt
+@@ -269,8 +269,11 @@ constructor(
+             blurFraction,
+             brightnessMirrorShowing,
+             headsUpNotificationInteractor.hasPinnedRows,
+-        ) { blurFraction, brightnessMirrorShowing, hasPinnedHun ->
+-            (blurFraction != 1f || hasPinnedHun) && !brightnessMirrorShowing
++            // Kompakt: the bouncer owns every touch while it is up at all.
++            bouncerInteractor.bouncerExpansion,
++        ) { blurFraction, brightnessMirrorShowing, hasPinnedHun, bouncerExpansion ->
++            (blurFraction != 1f || hasPinnedHun) && !brightnessMirrorShowing &&
++                bouncerExpansion == 0f
+         }
+             .distinctUntilChanged()
+             .dumpWhileCollecting("interactive")
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/ui/viewmodel/SharedNotificationContainerViewModel.kt b/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/ui/viewmodel/SharedNotificationContainerViewModel.kt
+index cd9cb4694408..4c2c3d5f54b7 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/ui/viewmodel/SharedNotificationContainerViewModel.kt
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/ui/viewmodel/SharedNotificationContainerViewModel.kt
+@@ -59,6 +59,7 @@ import com.android.systemui.keyguard.ui.viewmodel.AodToLockscreenTransitionViewM
+ import com.android.systemui.keyguard.ui.viewmodel.AodToOccludedTransitionViewModel
+ import com.android.systemui.keyguard.ui.viewmodel.AodToPrimaryBouncerTransitionViewModel
+ import com.android.systemui.keyguard.ui.viewmodel.DozingToGlanceableHubTransitionViewModel
++import com.android.systemui.keyguard.ui.viewmodel.DozingToGoneTransitionViewModel
+ import com.android.systemui.keyguard.ui.viewmodel.DozingToLockscreenTransitionViewModel
+ import com.android.systemui.keyguard.ui.viewmodel.DozingToOccludedTransitionViewModel
+ import com.android.systemui.keyguard.ui.viewmodel.DozingToPrimaryBouncerTransitionViewModel
+@@ -164,6 +165,7 @@ constructor(
+     private val aodToGlanceableHubTransitionViewModel: AodToGlanceableHubTransitionViewModel,
+     private val aodToPrimaryBouncerTransitionViewModel: AodToPrimaryBouncerTransitionViewModel,
+     dozingToGlanceableHubTransitionViewModel: DozingToGlanceableHubTransitionViewModel,
++    private val dozingToGoneTransitionViewModel: DozingToGoneTransitionViewModel,
+     private val dozingToLockscreenTransitionViewModel: DozingToLockscreenTransitionViewModel,
+     private val dozingToOccludedTransitionViewModel: DozingToOccludedTransitionViewModel,
+     private val dozingToPrimaryBouncerTransitionViewModel:
+@@ -566,7 +568,9 @@ constructor(
+                                 shadeInteractor.shadeExpansion,
+                                 shadeInteractor.qsExpansion,
+                                 bouncerInteractor.bouncerExpansion,
+-                            ) { shadeExpansion, qsExpansion, bouncerExpansion ->
++                                isOnLockscreen,
++                                headsUpNotificationInteractor.get().isHeadsUpOrAnimatingAway,
++                            ) { shadeExpansion, qsExpansion, bouncerExpansion, onLockscreen, headsUp ->
+                                 if (bouncerExpansion > 0f) {
+                                     emit(alphaForBouncerExpansion(bouncerExpansion))
+                                 } else if (qsExpansion == 1f) {
+@@ -576,16 +580,23 @@ constructor(
+                                 } else if (shadeExpansion > 0f || qsExpansion > 0f) {
+                                     // Fade as QS shade expands
+                                     emit(1f - qsExpansion)
++                                } else {
++                                    // Kompakt: always emit.
++                                    emit(if (onLockscreen || headsUp) 1f else 0f)
+                                 }
+                             }
+                         Split ->
+-                            combineTransform(isAnyExpanded, bouncerInteractor.bouncerExpansion) {
++                            combineTransform(
+                                 isAnyExpanded,
+-                                bouncerExpansion ->
++                                bouncerInteractor.bouncerExpansion,
++                                isOnLockscreen,
++                                headsUpNotificationInteractor.get().isHeadsUpOrAnimatingAway,
++                            ) { isAnyExpanded, bouncerExpansion, onLockscreen, headsUp ->
+                                 if (bouncerExpansion > 0f) {
+                                     emit(alphaForBouncerExpansion(bouncerExpansion))
+-                                } else if (isAnyExpanded) {
+-                                    emit(1f)
++                                } else {
++                                    // Kompakt: see the Single branch.
++                                    emit(if (isAnyExpanded || onLockscreen || headsUp) 1f else 0f)
+                                 }
+                             }
+                         Dual ->
+@@ -594,11 +605,13 @@ constructor(
+                                 shadeInteractor.shadeExpansion,
+                                 shadeInteractor.qsExpansion,
+                                 bouncerInteractor.bouncerExpansion,
++                                isOnLockscreen,
+                             ) {
+                                 isHeadsUpOrAnimatingAway,
+                                 shadeExpansion,
+                                 qsExpansion,
+-                                bouncerExpansion ->
++                                bouncerExpansion,
++                                onLockscreen ->
+                                 if (bouncerExpansion > 0f) {
+                                     emit(alphaForBouncerExpansion(bouncerExpansion))
+                                 } else if (isHeadsUpOrAnimatingAway) {
+@@ -609,6 +622,9 @@ constructor(
+                                     // On a narrow screen, the QS shade overlaps with lockscreen
+                                     // notifications. Fade them out as the QS shade expands.
+                                     emit(1f - qsExpansion)
++                                } else {
++                                    // Kompakt: see the Single branch.
++                                    emit(if (onLockscreen) 1f else 0f)
+                                 }
+                             }
+                     }
+@@ -658,10 +674,8 @@ constructor(
+             .dumpWhileCollecting("alphaForShadeAndQsExpansion")
+ 
+     private fun alphaForBouncerExpansion(bouncerExpansion: Float): Float {
+-        // The shade content fades out faster than the bouncer comes in.
+-        // See lockscreenToOverlayTransition for the definition of how
+-        // the rest of the content behaves during the transition.
+-        return maxOf(0f, 1f - bouncerExpansion * 5f)
++        // Kompakt: binary, and late.
++        return 0f
+     }
+ 
+     val panelAlpha = keyguardInteractor.panelAlpha
+@@ -687,6 +701,7 @@ constructor(
+             aodToOccludedTransitionViewModel.lockscreenAlpha(viewState),
+             aodToGlanceableHubTransitionViewModel.lockscreenAlpha(viewState),
+             aodToPrimaryBouncerTransitionViewModel.notificationAlpha,
++            dozingToGoneTransitionViewModel.notificationAlpha(viewState),
+             dozingToLockscreenTransitionViewModel.lockscreenAlpha,
+             dozingToOccludedTransitionViewModel.lockscreenAlpha(viewState),
+             dozingToPrimaryBouncerTransitionViewModel.notificationAlpha,
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimController.java b/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimController.java
+index 3060a5ddb77e..04ba5d3012c7 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimController.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimController.java
+@@ -127,7 +127,7 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
+     /**
+      * General scrim animation duration.
+      */
+-    // Kompakt: instant. Scrims have their own animator, outside the scales.
++    // Kompakt: instant. Scrims have their own animator, outside the scales.
+     public static final long ANIMATION_DURATION = 0;
+     /**
+      * Longer duration, currently only used when going to AOD.
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimState.java b/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimState.java
+index 6c20ebc23225..aa9dff92fa9a 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimState.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimState.java
+@@ -262,8 +262,8 @@ public enum ScrimState {
+             mBlankScreen = mDisplayRequiresBlanking;
+ 
+             mFrontTint = mBackgroundColor;
+-            mFrontAlpha = (alwaysOnEnabled || isDocked || quickPickupEnabled)
+-                    ? mAodFrontScrimAlpha : 1f;
++            // Kompakt: the else branch is 0f, not 1f.
++            mFrontAlpha = 0f;
+ 
+             mBehindTint = mBackgroundColor;
+             mBehindAlpha = ScrimController.TRANSPARENT;
+@@ -340,10 +340,14 @@ public enum ScrimState {
+                 mBehindTint = mBackgroundColor;
+                 mBlankScreen = true;
+             } else if (Flags.notificationShadeBlur()) {
++                // Kompakt: read a wash strength off this colour only when it IS a wash.
++                final boolean panelColorIsAWash = Color.alpha(mShadePanelColor) < 255;
+                 mBehindTint = mShadePanelColor;
+-                mBehindAlpha = getColorAlpha(mBehindTint);
+                 mNotifTint = mNotificationScrimColor;
+-                mNotifAlpha = getColorAlpha(mNotifTint);
++                if (panelColorIsAWash) {
++                    mBehindAlpha = getColorAlpha(mBehindTint);
++                    mNotifAlpha = getColorAlpha(mNotifTint);
++                }
+                 mFrontAlpha = 0.0f;
+                 return;
+             }
+@@ -358,7 +362,10 @@ public enum ScrimState {
+             super.setShadePanelColor(shadePanelColor);
+             if (Flags.notificationShadeBlur()) {
+                 mBehindTint = mShadePanelColor;
+-                mBehindAlpha = getColorAlpha(mBehindTint);
++                // Kompakt: see prepare().
++                if (Color.alpha(mShadePanelColor) < 255) {
++                    mBehindAlpha = getColorAlpha(mBehindTint);
++                }
+             }
+         }
+ 
+@@ -367,7 +374,10 @@ public enum ScrimState {
+             super.setNotificationScrimColor(notificationScrimColor);
+             if (Flags.notificationShadeBlur()) {
+                 mNotifTint = mNotificationScrimColor;
+-                mNotifAlpha = getColorAlpha(mNotifTint);
++                // Kompakt: see prepare().
++                if (Color.alpha(mNotificationScrimColor) < 255) {
++                    mNotifAlpha = getColorAlpha(mNotifTint);
++                }
+             }
+         }
+     },

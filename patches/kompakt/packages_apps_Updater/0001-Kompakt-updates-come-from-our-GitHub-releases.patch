@@ -1,0 +1,68 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Thu, 1 Oct 2026 14:30:00 +0200
+Subject: [PATCH 1/1] Kompakt: updates come from our GitHub releases
+
+---
+diff --git a/app/src/main/java/org/lineageos/updater/data/source/network/UpdatesNetworkDataSource.kt b/app/src/main/java/org/lineageos/updater/data/source/network/UpdatesNetworkDataSource.kt
+index 2f1407f..0cb019e 100644
+--- a/app/src/main/java/org/lineageos/updater/data/source/network/UpdatesNetworkDataSource.kt
++++ b/app/src/main/java/org/lineageos/updater/data/source/network/UpdatesNetworkDataSource.kt
+@@ -22,7 +22,12 @@ class UpdatesNetworkDataSource(private val context: Context) {
+             require(base.startsWith("https://")) {
+                 "Update server URL must use HTTPS: $base"
+             }
++            val region = DeviceInfoUtils.region
++            if (base.contains("{region}") && region.isEmpty()) {
++                throw IOException("Modem version not available yet")
++            }
+             return base
++                .replace("{region}", region)
+                 .replace("{device}", DeviceInfoUtils.device)
+                 .replace("{type}", DeviceInfoUtils.releaseType.lowercase())
+                 .replace("{incr}", DeviceInfoUtils.buildVersionIncremental)
+@@ -30,7 +35,9 @@ class UpdatesNetworkDataSource(private val context: Context) {
+ 
+     private val client = OkHttpClient.Builder()
+         .callTimeout(10, TimeUnit.SECONDS)
+-        .followRedirects(false)
++        // Kompakt: GitHub serves release files through an HTTPS redirect
++        .followRedirects(true)
++        .followSslRedirects(false)
+         .build()
+ 
+     fun fetchUpdates(): List<NetworkUpdate> {
+diff --git a/app/src/main/java/org/lineageos/updater/deviceinfo/DeviceInfoUtils.kt b/app/src/main/java/org/lineageos/updater/deviceinfo/DeviceInfoUtils.kt
+index 126a7a4..d4f6498 100644
+--- a/app/src/main/java/org/lineageos/updater/deviceinfo/DeviceInfoUtils.kt
++++ b/app/src/main/java/org/lineageos/updater/deviceinfo/DeviceInfoUtils.kt
+@@ -12,6 +12,7 @@ import com.android.settingslib.DeviceInfoUtils as SettingsLibDeviceInfoUtils
+ object DeviceInfoUtils : SettingsLibDeviceInfoUtils() {
+ 
+     private const val PROP_AB_DEVICE = "ro.build.ab_update"
++    private const val PROP_BASEBAND = "gsm.version.baseband"
+     private const val PROP_ALLOW_MAJOR_UPGRADES = "lineage.updater.allow_major_upgrades"
+     private const val PROP_BUILD_DATE = "ro.build.date.utc"
+     private const val PROP_BUILD_VERSION = "ro.lineage.build.version"
+@@ -62,6 +63,18 @@ object DeviceInfoUtils : SettingsLibDeviceInfoUtils() {
+         get() = SystemProperties.getBoolean(PROP_UPDATE_RECOVERY, false)
+         set(value) = SystemProperties.set(PROP_UPDATE_RECOVERY, value.toString())
+ 
++    // Kompakt: the modem names the region, V236.P6 North American, V236.P8 Global
++    @JvmStatic
++    val region: String
++        get() {
++            val baseband = SystemProperties.get(PROP_BASEBAND, "")
++            return when {
++                baseband.isEmpty() -> ""
++                baseband.contains(".P6") -> "usa"
++                else -> "global"
++            }
++        }
++
+     @JvmStatic
+     val updaterUri: String
+         get() = SystemProperties.get(PROP_UPDATER_URI, "")
+-- 
+2.43.0
+

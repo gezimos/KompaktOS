@@ -1,0 +1,194 @@
+From 72ff0b9a6a4bf5c504cebc36ca3e7c2d6c8219ff Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Wed, 9 Sep 2026 17:44:34 +0200
+Subject: [PATCH 11/38] SystemUI: dual shade, outlined QS tiles, flat header
+
+---
+ .../shade/ui/composable/ShadeScene.kt         |  6 ++++-
+ .../quick_status_bar_expanded_header.xml      |  2 +-
+ packages/SystemUI/res/values/dimens.xml       |  2 +-
+ .../qs/composefragment/QSFragmentCompose.kt   | 12 ++++++++++
+ .../panels/ui/compose/PaginatedGridLayout.kt  | 12 ++++++++++
+ .../panels/ui/compose/QuickQuickSettings.kt   | 15 ++++++++++++-
+ .../ui/compose/infinitegrid/CommonTile.kt     |  4 +++-
+ .../qs/panels/ui/compose/infinitegrid/Tile.kt | 22 +++++++++++++++++++
+ .../NotificationPanelViewController.java      | 12 ++++++++++
+ .../domain/interactor/ShadeModeInteractor.kt  | 17 ++++++++++++++
+ 10 files changed, 99 insertions(+), 5 deletions(-)
+
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/ShadeScene.kt b/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/ShadeScene.kt
+index 6d0ab557b60f..3a063a81c104 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/ShadeScene.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/ShadeScene.kt
+@@ -309,7 +309,8 @@ private fun ContentScope.SingleShade(
+                                 rememberViewModel(traceName = "shade_scene_qqs") {
+                                     viewModel.quickQuickSettingsViewModel.create()
+                                 }
+-                            if (viewModel.isQsEnabled) {
++                            // e-ink: no compact tile row in the notification shade.
++                            if (false) {
+                                 QuickQuickSettings(
+                                     qqsViewModel,
+                                     listening = { true },
+diff --git a/packages/SystemUI/res/layout/quick_status_bar_expanded_header.xml b/packages/SystemUI/res/layout/quick_status_bar_expanded_header.xml
+index 8c9ec506a560..b0228bf2e370 100644
+--- a/packages/SystemUI/res/layout/quick_status_bar_expanded_header.xml
++++ b/packages/SystemUI/res/layout/quick_status_bar_expanded_header.xml
+@@ -21,7 +21,6 @@
+     android:id="@+id/header"
+     android:layout_width="match_parent"
+     android:layout_height="wrap_content"
+-    android:minHeight="1.0px"
+     android:layout_gravity="@integer/notification_panel_layout_gravity"
+     android:background="@android:color/transparent"
+     android:importantForAccessibility="no"
+@@ -36,6 +35,7 @@
+ 
+     <com.android.systemui.qs.QuickQSPanel
+         android:id="@+id/quick_qs_panel"
++        android:visibility="gone"
+         android:layout_width="match_parent"
+         android:layout_height="wrap_content"
+         android:layout_marginTop="@dimen/qqs_layout_margin_top"
+diff --git a/packages/SystemUI/res/values/dimens.xml b/packages/SystemUI/res/values/dimens.xml
+index be4fcb95e54c..26ffada7a017 100644
+--- a/packages/SystemUI/res/values/dimens.xml
++++ b/packages/SystemUI/res/values/dimens.xml
+@@ -769,7 +769,7 @@
+     <dimen name="qs_dual_tile_padding_horizontal">6dp</dimen>
+     <dimen name="qs_panel_elevation">4dp</dimen>
+     <dimen name="qs_panel_padding_bottom">@dimen/footer_actions_height</dimen>
+-    <dimen name="qs_panel_padding_top">8dp</dimen>
++    <dimen name="qs_panel_padding_top">80dp</dimen>
+ 
+     <!-- Size is in sp because the icon is inlined in text -->
+     <dimen name="qs_edit_mode_app_icon">14sp</dimen>
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/composefragment/QSFragmentCompose.kt b/packages/SystemUI/src/com/android/systemui/qs/composefragment/QSFragmentCompose.kt
+index 84ee87b427be..d5b8c4376ce2 100644
+--- a/packages/SystemUI/src/com/android/systemui/qs/composefragment/QSFragmentCompose.kt
++++ b/packages/SystemUI/src/com/android/systemui/qs/composefragment/QSFragmentCompose.kt
+@@ -765,6 +765,8 @@ constructor(
+                                 }
+                                 .let { state -> { state.value } }
+ 
++                        // e-ink: the QQS row is emptied inside QuickQuickSettings, never skipped
++                        // here; skipping it drops GridAnchor and crashes SystemUI.
+                         QuickQuickSettings(
+                             viewModel = viewModel.quickQuickSettingsViewModel,
+                             listening = isListening,
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/PaginatedGridLayout.kt b/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/PaginatedGridLayout.kt
+index 899cf6bdddef..fb9e66f1b660 100644
+--- a/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/PaginatedGridLayout.kt
++++ b/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/PaginatedGridLayout.kt
+@@ -24,7 +24,9 @@ import androidx.compose.foundation.layout.Spacer
+ import androidx.compose.foundation.layout.fillMaxWidth
+ import androidx.compose.foundation.layout.requiredHeight
+ import androidx.compose.foundation.layout.wrapContentWidth
++import androidx.compose.animation.core.snap
+ import androidx.compose.foundation.pager.HorizontalPager
++import androidx.compose.foundation.pager.PagerDefaults
+ import androidx.compose.foundation.pager.PagerState
+ import androidx.compose.foundation.pager.rememberPagerState
+ import androidx.compose.material3.MaterialTheme
+@@ -136,6 +138,12 @@ constructor(
+                 pageSpacing = if (pages.size > 1) InterPageSpacing else 0.dp,
+                 beyondViewportPageCount = 1,
+                 verticalAlignment = Alignment.Top,
++                // e-ink: pages snap instead of gliding.
++                flingBehavior =
++                    PagerDefaults.flingBehavior(
++                        state = pagerState,
++                        snapAnimationSpec = snap(),
++                    ),
+             ) {
+                 val page = pages[it]
+ 
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/QuickQuickSettings.kt b/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/QuickQuickSettings.kt
+index 84869c71eac5..0e1396a4792f 100644
+--- a/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/QuickQuickSettings.kt
++++ b/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/QuickQuickSettings.kt
+@@ -44,7 +44,8 @@ fun ContentScope.QuickQuickSettings(
+     listening: () -> Boolean,
+ ) {
+     val columns = viewModel.columns
+-    val sizedTiles = viewModel.tileViewModels
++    // e-ink: no compact tile row. Emptied, not skipped: GridAnchor must still compose.
++    val sizedTiles = viewModel.tileViewModels.take(0)
+     val tiles = sizedTiles.fastMap { it.tile }
+     val squishiness by viewModel.squishinessViewModel.squishiness.collectAsStateWithLifecycle()
+     val scope = rememberCoroutineScope()
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/CommonTile.kt b/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/CommonTile.kt
+index 0ae396615b4f..8a4842837737 100644
+--- a/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/CommonTile.kt
++++ b/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/CommonTile.kt
+@@ -358,8 +358,9 @@ private fun TileLabel(
+                         }
+                     }
+                 }
++                // e-ink: 0 iterations disables the marquee.
+                 .basicMarquee(
+-                    iterations = iterations,
++                    iterations = 0,
+                     initialDelayMillis = TILE_INITIAL_DELAY_MILLIS,
+                 ),
+     )
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/Tile.kt b/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/Tile.kt
+index 1d254bff91a3..c689df04a61f 100644
+--- a/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/Tile.kt
++++ b/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/Tile.kt
+@@ -28,6 +28,7 @@ import androidx.compose.animation.animateColorAsState
+ import androidx.compose.animation.core.animateDpAsState
+ import androidx.compose.foundation.ExperimentalFoundationApi
+ import androidx.compose.foundation.background
++import androidx.compose.foundation.border
+ import androidx.compose.foundation.combinedClickable
+ import androidx.compose.foundation.gestures.Orientation
+ import androidx.compose.foundation.interaction.MutableInteractionSource
+@@ -109,6 +110,9 @@ import com.android.systemui.qs.ui.compose.borderOnFocus
+ import com.android.systemui.res.R
+ import kotlinx.coroutines.CoroutineScope
+ 
++/** Outline width for QS tiles. */
++private val QsTileOutlineWidth = 2.dp
++
+ @Composable
+ fun TileLazyGrid(
+     columns: GridCells,
+@@ -225,6 +229,12 @@ fun ContentScope.Tile(
+                     .then(surfaceRevealModifier)
+                     .borderOnFocus(color = MaterialTheme.colorScheme.secondary, tileShape.topEnd)
+                     .fillMaxWidth()
++                    // Every tile gets an outline; a white tile on a white shade has no edge.
++                    .border(
++                        width = QsTileOutlineWidth,
++                        color = MaterialTheme.colorScheme.onSurface,
++                        shape = tileShape,
++                    )
+                     .thenIf(currentBounceableInfo != null) {
+                         Modifier.bounceable(
+                             currentBounceableInfo!!.bounceable,
+diff --git a/packages/SystemUI/src/com/android/systemui/shade/NotificationPanelViewController.java b/packages/SystemUI/src/com/android/systemui/shade/NotificationPanelViewController.java
+index 7f4965936a0a..da7281ccf1a4 100644
+--- a/packages/SystemUI/src/com/android/systemui/shade/NotificationPanelViewController.java
++++ b/packages/SystemUI/src/com/android/systemui/shade/NotificationPanelViewController.java
+@@ -1528,6 +1528,8 @@ public final class NotificationPanelViewController implements
+         if (!mScrimController.isScreenOn()) {
+             animator.setDuration(1);
+         }
++        // e-ink: the shade opens instantly. Set last so it wins over every branch.
++        animator.setDuration(0);
+         setAnimator(animator);
+         animator.start();
+     }
+diff --git a/packages/SystemUI/src/com/android/systemui/shade/domain/interactor/ShadeModeInteractor.kt b/packages/SystemUI/src/com/android/systemui/shade/domain/interactor/ShadeModeInteractor.kt
+index e299a553812c..ac7c5e9e20d1 100644
+--- a/packages/SystemUI/src/com/android/systemui/shade/domain/interactor/ShadeModeInteractor.kt
++++ b/packages/SystemUI/src/com/android/systemui/shade/domain/interactor/ShadeModeInteractor.kt
+@@ -160,6 +160,7 @@ constructor(
+         private const val TAG = "ShadeModeInteractorImpl"
+ 
+         /* Whether the Dual Shade setting is enabled by default. */
++        // e-ink: default to Dual shade; only read with the scene container on.
+         private const val DUAL_SHADE_ENABLED_DEFAULT = false
+     }
+ }

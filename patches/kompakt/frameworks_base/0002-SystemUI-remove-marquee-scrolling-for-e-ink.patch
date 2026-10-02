@@ -1,0 +1,293 @@
+From 083a4bacda8e712f155bcee5020422d1b166a58e Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Tue, 8 Sep 2026 14:18:24 +0200
+Subject: [PATCH 02/38] SystemUI: remove marquee scrolling for e-ink
+
+---
+ packages/SystemUI/res/layout/bluetooth_device_item.xml      | 3 +--
+ packages/SystemUI/res/layout/controls_base_item.xml         | 2 +-
+ packages/SystemUI/res/layout/foreground_service_item.xml    | 2 +-
+ .../SystemUI/res/layout/global_actions_grid_item_lite.xml   | 3 +--
+ .../SystemUI/res/layout/global_actions_grid_item_v2.xml     | 1 -
+ packages/SystemUI/res/layout/global_actions_power_item.xml  | 3 +--
+ packages/SystemUI/res/layout/heads_up_status_bar_layout.xml | 2 +-
+ .../SystemUI/res/layout/internet_connectivity_details.xml   | 4 ++--
+ packages/SystemUI/res/layout/keyguard_status_bar.xml        | 2 +-
+ packages/SystemUI/res/layout/media_long_press_menu.xml      | 3 +--
+ .../SystemUI/res/layout/media_output_list_item_advanced.xml | 3 +--
+ packages/SystemUI/res/layout/qs_footer_impl.xml             | 3 +--
+ packages/SystemUI/res/layout/qs_tile_label.xml              | 6 ++----
+ .../res/layout/screen_share_dialog_spinner_item_text.xml    | 4 ++--
+ .../res/layout/screen_share_dialog_spinner_text.xml         | 2 +-
+ packages/SystemUI/res/layout/shade_carrier.xml              | 1 -
+ packages/SystemUI/res/layout/shade_carrier_group.xml        | 1 -
+ packages/SystemUI/res/layout/super_notification_shade.xml   | 2 +-
+ 18 files changed, 18 insertions(+), 29 deletions(-)
+
+diff --git a/packages/SystemUI/res/layout/bluetooth_device_item.xml b/packages/SystemUI/res/layout/bluetooth_device_item.xml
+index da2ec43e470c..0f2dd33d22fe 100644
+--- a/packages/SystemUI/res/layout/bluetooth_device_item.xml
++++ b/packages/SystemUI/res/layout/bluetooth_device_item.xml
+@@ -60,8 +60,7 @@
+         android:paddingEnd="10dp"
+         android:paddingBottom="15dp"
+         android:maxLines="1"
+-        android:ellipsize="marquee"
+-        android:marqueeRepeatLimit="1"
++        android:ellipsize="end"
+         android:singleLine="true"
+         app:layout_constraintTop_toBottomOf="@+id/bluetooth_device_name"
+         app:layout_constraintStart_toEndOf="@+id/bluetooth_device_icon"
+diff --git a/packages/SystemUI/res/layout/controls_base_item.xml b/packages/SystemUI/res/layout/controls_base_item.xml
+index f1939bb278e8..1a73befc383d 100644
+--- a/packages/SystemUI/res/layout/controls_base_item.xml
++++ b/packages/SystemUI/res/layout/controls_base_item.xml
+@@ -48,7 +48,7 @@
+         android:clickable="false"
+         android:focusable="false"
+         android:singleLine="true"
+-        android:ellipsize="marquee"
++        android:ellipsize="end"
+         android:marqueeRepeatLimit = "marquee_forever"
+         android:textDirection="locale"
+         app:layout_constraintEnd_toEndOf="parent"
+diff --git a/packages/SystemUI/res/layout/foreground_service_item.xml b/packages/SystemUI/res/layout/foreground_service_item.xml
+index 0a1dea05413f..795bec34cdb4 100644
+--- a/packages/SystemUI/res/layout/foreground_service_item.xml
++++ b/packages/SystemUI/res/layout/foreground_service_item.xml
+@@ -41,7 +41,7 @@
+         android:layout_height="wrap_content"
+         android:layout_gravity="fill_horizontal|center_vertical"
+         android:singleLine="true"
+-        android:ellipsize="marquee"
++        android:ellipsize="end"
+         android:textAppearance="?android:attr/textAppearanceMedium"
+         android:textAlignment="viewStart" />
+ 
+diff --git a/packages/SystemUI/res/layout/global_actions_grid_item_lite.xml b/packages/SystemUI/res/layout/global_actions_grid_item_lite.xml
+index 2895941d403b..c1d7a6d3462b 100644
+--- a/packages/SystemUI/res/layout/global_actions_grid_item_lite.xml
++++ b/packages/SystemUI/res/layout/global_actions_grid_item_lite.xml
+@@ -36,8 +36,7 @@
+             android:id="@*android:id/message"
+             android:layout_width="match_parent"
+             android:layout_height="wrap_content"
+-            android:ellipsize="marquee"
+-            android:marqueeRepeatLimit="marquee_forever"
++            android:ellipsize="end"
+             android:singleLine="true"
+             android:textSize="14sp"
+             android:gravity="center"
+diff --git a/packages/SystemUI/res/layout/global_actions_grid_item_v2.xml b/packages/SystemUI/res/layout/global_actions_grid_item_v2.xml
+index 14a5e584a06d..5d1698f1b5a1 100644
+--- a/packages/SystemUI/res/layout/global_actions_grid_item_v2.xml
++++ b/packages/SystemUI/res/layout/global_actions_grid_item_v2.xml
+@@ -41,7 +41,6 @@
+             android:layout_width="match_parent"
+             android:layout_height="wrap_content"
+             android:ellipsize="end"
+-            android:marqueeRepeatLimit="marquee_forever"
+             android:maxLines="2"
+             android:textSize="12sp"
+             android:gravity="center"
+diff --git a/packages/SystemUI/res/layout/global_actions_power_item.xml b/packages/SystemUI/res/layout/global_actions_power_item.xml
+index 84153a8d0592..c91417c1648a 100644
+--- a/packages/SystemUI/res/layout/global_actions_power_item.xml
++++ b/packages/SystemUI/res/layout/global_actions_power_item.xml
+@@ -33,8 +33,7 @@
+         android:id="@*android:id/message"
+         android:layout_width="match_parent"
+         android:layout_height="wrap_content"
+-        android:marqueeRepeatLimit="marquee_forever"
+-        android:ellipsize="marquee"
++        android:ellipsize="end"
+         android:layout_marginBottom="16dp"
+         android:maxLines="1"
+         android:textSize="12sp"
+diff --git a/packages/SystemUI/res/layout/heads_up_status_bar_layout.xml b/packages/SystemUI/res/layout/heads_up_status_bar_layout.xml
+index 49744e75eeb6..df442b6bb00d 100644
+--- a/packages/SystemUI/res/layout/heads_up_status_bar_layout.xml
++++ b/packages/SystemUI/res/layout/heads_up_status_bar_layout.xml
+@@ -37,7 +37,7 @@
+         android:layout_width="match_parent"
+         android:layout_height="wrap_content"
+         android:singleLine="true"
+-        android:ellipsize="marquee"
++        android:ellipsize="end"
+         android:fadingEdge="horizontal"
+         android:textAlignment="viewStart"
+         android:paddingStart="6dp"
+diff --git a/packages/SystemUI/res/layout/internet_connectivity_details.xml b/packages/SystemUI/res/layout/internet_connectivity_details.xml
+index f5ba4e2bdfa1..4c499e91a8e5 100644
+--- a/packages/SystemUI/res/layout/internet_connectivity_details.xml
++++ b/packages/SystemUI/res/layout/internet_connectivity_details.xml
+@@ -534,7 +534,7 @@
+                             android:text="@string/turn_off_airplane_mode"
+                             android:layout_width="wrap_content"
+                             android:layout_height="wrap_content"
+-                            android:ellipsize="marquee"
++                            android:ellipsize="end"
+                             android:singleLine="true"
+                             android:textAppearance="@style/TextAppearance.TileDetailsEntryTitle" />
+                     </FrameLayout>
+@@ -577,7 +577,7 @@
+                             android:text="@string/share_wifi_button_text"
+                             android:layout_width="wrap_content"
+                             android:layout_height="wrap_content"
+-                            android:ellipsize="marquee"
++                            android:ellipsize="end"
+                             android:singleLine="true"
+                             android:textAppearance="@style/TextAppearance.TileDetailsEntryTitle" />
+                     </FrameLayout>
+diff --git a/packages/SystemUI/res/layout/keyguard_status_bar.xml b/packages/SystemUI/res/layout/keyguard_status_bar.xml
+index e9cf524b826f..c18c096a54cb 100644
+--- a/packages/SystemUI/res/layout/keyguard_status_bar.xml
++++ b/packages/SystemUI/res/layout/keyguard_status_bar.xml
+@@ -81,7 +81,7 @@
+         android:layout_marginStart="@dimen/keyguard_carrier_text_margin"
+         android:layout_toStartOf="@id/system_icons_container"
+         android:gravity="center_vertical"
+-        android:ellipsize="marquee"
++        android:ellipsize="end"
+         android:textDirection="locale"
+         android:textAppearance="@style/TextAppearance.StatusBar.Default"
+         android:textColor="?attr/wallpaperTextColorSecondary"
+diff --git a/packages/SystemUI/res/layout/media_long_press_menu.xml b/packages/SystemUI/res/layout/media_long_press_menu.xml
+index a8ddd4cb93ef..481295642058 100644
+--- a/packages/SystemUI/res/layout/media_long_press_menu.xml
++++ b/packages/SystemUI/res/layout/media_long_press_menu.xml
+@@ -28,8 +28,7 @@
+         android:id="@+id/remove_text"
+         android:fontFamily="@*android:string/config_headlineFontFamilyMedium"
+         android:singleLine="true"
+-        android:ellipsize="marquee"
+-        android:marqueeRepeatLimit="marquee_forever"
++        android:ellipsize="end"
+         android:text="@string/controls_media_close_session"
+         android:gravity="center_horizontal|top"
+         app:layout_constraintTop_toBottomOf="@id/settings"
+diff --git a/packages/SystemUI/res/layout/media_output_list_item_advanced.xml b/packages/SystemUI/res/layout/media_output_list_item_advanced.xml
+index ec80cf0d2f54..bea18bbed508 100644
+--- a/packages/SystemUI/res/layout/media_output_list_item_advanced.xml
++++ b/packages/SystemUI/res/layout/media_output_list_item_advanced.xml
+@@ -101,8 +101,7 @@
+                 android:focusable="false"
+                 android:layout_width="wrap_content"
+                 android:layout_height="wrap_content"
+-                android:marqueeRepeatLimit="marquee_forever"
+-                android:ellipsize="marquee"
++                android:ellipsize="end"
+                 android:singleLine="true"
+                 android:maxLines="1"
+                 android:textColor="@color/media_dialog_item_main_content"
+diff --git a/packages/SystemUI/res/layout/qs_footer_impl.xml b/packages/SystemUI/res/layout/qs_footer_impl.xml
+index 5e8a8a570466..97c9b67b6c32 100644
+--- a/packages/SystemUI/res/layout/qs_footer_impl.xml
++++ b/packages/SystemUI/res/layout/qs_footer_impl.xml
+@@ -40,9 +40,8 @@
+                 android:layout_height="match_parent"
+                 android:paddingEnd="4dp"
+                 android:layout_weight="1"
+-                android:marqueeRepeatLimit="1"
+                 android:clickable="false"
+-                android:ellipsize="marquee"
++                android:ellipsize="end"
+                 android:focusable="true"
+                 android:gravity="center_vertical"
+                 android:textDirection="locale"
+diff --git a/packages/SystemUI/res/layout/qs_tile_label.xml b/packages/SystemUI/res/layout/qs_tile_label.xml
+index 974cad32f937..cccdff65accf 100644
+--- a/packages/SystemUI/res/layout/qs_tile_label.xml
++++ b/packages/SystemUI/res/layout/qs_tile_label.xml
+@@ -34,8 +34,7 @@
+         android:layout_height="wrap_content"
+         android:gravity="start"
+         android:textDirection="locale"
+-        android:ellipsize="marquee"
+-        android:marqueeRepeatLimit="1"
++        android:ellipsize="end"
+         android:singleLine="true"
+         android:focusable="false"
+         android:importantForAccessibility="no"
+@@ -47,8 +46,7 @@
+         android:layout_height="wrap_content"
+         android:gravity="start"
+         android:textDirection="locale"
+-        android:ellipsize="marquee"
+-        android:marqueeRepeatLimit="1"
++        android:ellipsize="end"
+         android:singleLine="true"
+         android:visibility="gone"
+         android:focusable="false"
+diff --git a/packages/SystemUI/res/layout/screen_share_dialog_spinner_item_text.xml b/packages/SystemUI/res/layout/screen_share_dialog_spinner_item_text.xml
+index 1ef010b62d81..9a9e3b78974d 100644
+--- a/packages/SystemUI/res/layout/screen_share_dialog_spinner_item_text.xml
++++ b/packages/SystemUI/res/layout/screen_share_dialog_spinner_item_text.xml
+@@ -27,7 +27,7 @@
+         android:id="@android:id/text1"
+         android:layout_width="match_parent"
+         android:layout_height="wrap_content"
+-        android:ellipsize="marquee"
++        android:ellipsize="end"
+         android:singleLine="true"
+         android:textAppearance="?android:attr/textAppearanceMedium"
+         android:textColor="@color/menu_item_text" />
+@@ -36,7 +36,7 @@
+         android:id="@android:id/text2"
+         android:layout_width="match_parent"
+         android:layout_height="wrap_content"
+-        android:ellipsize="marquee"
++        android:ellipsize="end"
+         android:singleLine="true"
+         android:textAppearance="?android:attr/textAppearanceSmall"
+         android:textColor="@androidprv:color/materialColorError" />
+diff --git a/packages/SystemUI/res/layout/screen_share_dialog_spinner_text.xml b/packages/SystemUI/res/layout/screen_share_dialog_spinner_text.xml
+index 32eab3e40d16..a1a99a87bb11 100644
+--- a/packages/SystemUI/res/layout/screen_share_dialog_spinner_text.xml
++++ b/packages/SystemUI/res/layout/screen_share_dialog_spinner_text.xml
+@@ -21,6 +21,6 @@
+     android:layout_width="match_parent"
+     android:layout_height="match_parent"
+     android:gravity="center_vertical"
+-    android:ellipsize="marquee"
++    android:ellipsize="end"
+     android:paddingStart="@dimen/screenrecord_spinner_text_padding_start"
+     android:paddingEnd="@dimen/screenrecord_spinner_text_padding_end"/>
+\ No newline at end of file
+diff --git a/packages/SystemUI/res/layout/shade_carrier.xml b/packages/SystemUI/res/layout/shade_carrier.xml
+index 6a5df9c3ed10..9b2503d47396 100644
+--- a/packages/SystemUI/res/layout/shade_carrier.xml
++++ b/packages/SystemUI/res/layout/shade_carrier.xml
+@@ -35,7 +35,6 @@
+         android:layout_weight="1"
+         android:textAppearance="@style/TextAppearance.QS.Status"
+         android:textDirection="locale"
+-        android:marqueeRepeatLimit="marquee_forever"
+         android:singleLine="true"
+         android:maxEms="7"/>
+ 
+diff --git a/packages/SystemUI/res/layout/shade_carrier_group.xml b/packages/SystemUI/res/layout/shade_carrier_group.xml
+index 6551f3b8160d..f5b875a8168a 100644
+--- a/packages/SystemUI/res/layout/shade_carrier_group.xml
++++ b/packages/SystemUI/res/layout/shade_carrier_group.xml
+@@ -34,7 +34,6 @@
+         android:gravity="center_vertical"
+         android:textAppearance="@style/TextAppearance.QS.Status"
+         android:textDirection="locale"
+-        android:marqueeRepeatLimit="marquee_forever"
+         android:singleLine="true"
+         android:visibility="gone"/>
+ 
+diff --git a/packages/SystemUI/res/layout/super_notification_shade.xml b/packages/SystemUI/res/layout/super_notification_shade.xml
+index 1708ec647c3c..e0e4ed60b0ae 100644
+--- a/packages/SystemUI/res/layout/super_notification_shade.xml
++++ b/packages/SystemUI/res/layout/super_notification_shade.xml
+@@ -102,7 +102,7 @@
+             android:layout_marginTop="@dimen/keyguard_lock_padding"
+             android:gravity="center"
+             android:singleLine="true"
+-            android:ellipsize="marquee"
++            android:ellipsize="end"
+             android:focusable="true" />
+     </LinearLayout>
+ 

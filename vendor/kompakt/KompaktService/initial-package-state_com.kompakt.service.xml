@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: Android 16 starts new system apps in the stopped state on a fresh data partition, and a stopped app. -->
+<config>
+    <initial-package-state package="com.kompakt.service" stopped="false"/>
+</config>

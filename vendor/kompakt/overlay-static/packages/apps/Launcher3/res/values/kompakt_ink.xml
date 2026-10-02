@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: the two inks, as launcher local names. -->
+<resources>
+    <color name="kompakt_ink">#ff000000</color>
+    <color name="kompakt_paper">#fffffffe</color>
+</resources>

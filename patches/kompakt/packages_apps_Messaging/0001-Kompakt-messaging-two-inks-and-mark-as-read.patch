@@ -1,0 +1,202 @@
+From 13bd020b50bff858a462455ba46959bb5b0a3734 Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Thu, 17 Sep 2026 21:26:35 +0200
+Subject: [PATCH] Kompakt: messaging: two inks, and mark as read
+
+---
+ .../datamodel/media/AvatarRequest.java        | 13 ++++++
+ .../messaging/ui/BugleActionBarActivity.java  |  7 ++-
+ .../messaging/ui/ConversationDrawables.java   | 44 ++++++++-----------
+ .../ui/conversation/ConversationFragment.java |  3 +-
+ .../conversation/ConversationMessageView.java |  3 +-
+ .../ui/mediapicker/MediaChooser.java          |  2 +-
+ .../messaging/ui/mediapicker/MediaPicker.java |  5 ++-
+ 7 files changed, 44 insertions(+), 33 deletions(-)
+
+diff --git a/src/com/android/messaging/datamodel/media/AvatarRequest.java b/src/com/android/messaging/datamodel/media/AvatarRequest.java
+index d3915fe..586de12 100644
+--- a/src/com/android/messaging/datamodel/media/AvatarRequest.java
++++ b/src/com/android/messaging/datamodel/media/AvatarRequest.java
+@@ -119,10 +119,22 @@ public class AvatarRequest extends UriImageRequest<AvatarRequestDescriptor> {
+         return new DecodedImageResource(getKey(), bitmap, orientation);
+     }
+ 
++    /** A ring around the avatar, in the same ink as the glyph inside it. */
++    private void drawKompaktRing(final Canvas canvas, final int width, final int height) {
++        final float stroke = mContext.getResources().getDisplayMetrics().density;
++        final Paint ring = new Paint(Paint.ANTI_ALIAS_FLAG);
++        ring.setStyle(Paint.Style.STROKE);
++        ring.setStrokeWidth(stroke);
++        ring.setColor(mContext.getResources().getColor(R.color.letter_tile_font_color));
++        canvas.drawCircle(width / 2f, height / 2f,
++                Math.min(width, height) / 2f - stroke / 2f, ring);
++    }
++
+     private Bitmap renderDefaultAvatar(final int width, final int height) {
+         final Bitmap bitmap = getBitmapPool().createOrReuseBitmap(width, height,
+                 getBackgroundColor(AvatarUriUtil.getIdentifier(mDescriptor.uri)));
+         final Canvas canvas = new Canvas(bitmap);
++        drawKompaktRing(canvas, width, height);
+         final VectorDrawable defaultPerson = (VectorDrawable) ResourcesCompat.getDrawable(
+                 mContext.getResources(), R.drawable.ic_person_light, mContext.getTheme());
+         float dstWidth = Math.min(defaultPerson.getIntrinsicWidth() * SCALING_FACTOR, width);
+@@ -153,6 +165,7 @@ public class AvatarRequest extends UriImageRequest<AvatarRequestDescriptor> {
+         paint.getTextBounds(firstCharString, 0, 1, textBound);
+ 
+         final Canvas canvas = new Canvas(bitmap);
++        drawKompaktRing(canvas, width, height);
+         final float xOffset = halfWidth - textBound.centerX();
+         final float yOffset = halfHeight - textBound.centerY();
+         canvas.drawText(firstCharString, xOffset, yOffset, paint);
+diff --git a/src/com/android/messaging/ui/BugleActionBarActivity.java b/src/com/android/messaging/ui/BugleActionBarActivity.java
+index 98d1ad5..37d2b94 100644
+--- a/src/com/android/messaging/ui/BugleActionBarActivity.java
++++ b/src/com/android/messaging/ui/BugleActionBarActivity.java
+@@ -338,8 +338,11 @@ public class BugleActionBarActivity extends AppCompatActivity implements ImeUtil
+             actionBar.setDisplayShowTitleEnabled(false);
+             actionBar.setDisplayShowCustomEnabled(false);
+             mActionMode.getCallback().onPrepareActionMode(mActionMode, mActionBarMenu);
+-            actionBar.setBackgroundDrawable(new ColorDrawable(
+-                    getResources().getColor(R.color.contextual_action_bar_background_color)));
++            final int contextualColor =
++                    getResources().getColor(R.color.contextual_action_bar_background_color);
++            actionBar.setBackgroundDrawable(new ColorDrawable(contextualColor));
++            // Kompakt: and the status bar with it.
++            getWindow().setStatusBarColor(contextualColor);
+             actionBar.setHomeAsUpIndicator(R.drawable.ic_cancel_small_light);
+             actionBar.show();
+         }
+diff --git a/src/com/android/messaging/ui/ConversationDrawables.java b/src/com/android/messaging/ui/ConversationDrawables.java
+index a9f30c4..0b6de5a 100644
+--- a/src/com/android/messaging/ui/ConversationDrawables.java
++++ b/src/com/android/messaging/ui/ConversationDrawables.java
+@@ -20,6 +20,7 @@ import android.content.Context;
+ import android.content.res.Resources;
+ import android.content.res.TypedArray;
+ import android.graphics.drawable.Drawable;
++import android.graphics.drawable.GradientDrawable;
+ 
+ import androidx.core.content.res.ResourcesCompat;
+ 
+@@ -47,6 +48,9 @@ public class ConversationDrawables {
+     private Drawable mFastScrollThumbPressedDrawable;
+     private Drawable mFastScrollPreviewDrawableLeft;
+     private Drawable mFastScrollPreviewDrawableRight;
++    /** Kompakt: the edge a selected bubble draws, against 1dp for an unselected one. */
++    private static final float KOMPAKT_SELECTED_STROKE_DP = 3f;
++
+     private final Context mContext;
+     private int mOutgoingBubbleColor;
+     private int mIncomingErrorBubbleColor;
+@@ -110,33 +114,21 @@ public class ConversationDrawables {
+ 
+     public Drawable getBubbleDrawable(final boolean selected, final boolean incoming,
+                                       final boolean isError, final String identifier) {
+-        final Drawable protoDrawable;
+-        if (incoming) {
+-            protoDrawable = mIncomingBubbleNoArrowDrawable;
+-        } else {
+-            protoDrawable = mOutgoingBubbleNoArrowDrawable;
+-        }
+-
+-        int color;
+-        if (selected) {
+-            color = mSelectedBubbleColor;
+-        } else if (incoming) {
+-            if (isError) {
+-                color = mIncomingErrorBubbleColor;
+-            } else {
+-                if (identifier != null &&
+-                        mContext.getResources().getBoolean(R.bool.contact_colors)) {
+-                    int idcolor = Math.abs(identifier.hashCode()) % mColors.length();
+-                    color = mColors.getColor(idcolor, mThemeColor);
+-                } else {
+-                    color = mThemeColor;
+-                }
+-            }
+-        } else {
+-            color = mOutgoingBubbleColor;
++        // Kompakt: never tinted.
++        final Drawable protoDrawable = incoming
++                ? mIncomingBubbleNoArrowDrawable
++                : mOutgoingBubbleNoArrowDrawable;
++
++        final Drawable.ConstantState state = protoDrawable.getConstantState();
++        final Drawable out = state != null
++                ? state.newDrawable(mContext.getResources()).mutate()
++                : protoDrawable;
++        if (selected && out instanceof GradientDrawable) {
++            final float density = mContext.getResources().getDisplayMetrics().density;
++            ((GradientDrawable) out).setStroke(
++                    Math.round(KOMPAKT_SELECTED_STROKE_DP * density), mSelectedBubbleColor);
+         }
+-
+-        return ImageUtils.getTintedDrawable(mContext, protoDrawable, color);
++        return out;
+     }
+ 
+     private int getAudioButtonColor(final boolean incoming) {
+diff --git a/src/com/android/messaging/ui/conversation/ConversationFragment.java b/src/com/android/messaging/ui/conversation/ConversationFragment.java
+index 68fbb21..06940e4 100644
+--- a/src/com/android/messaging/ui/conversation/ConversationFragment.java
++++ b/src/com/android/messaging/ui/conversation/ConversationFragment.java
+@@ -1467,7 +1467,8 @@ public class ConversationFragment extends Fragment implements ConversationDataLi
+     }
+ 
+     private void updateActionAndStatusBarColor(final ActionBar actionBar) {
+-        final int themeColor = ConversationDrawables.get().getConversationThemeColor();
++        // Kompakt: the bar colour, not the conversation's.
++        final int themeColor = getResources().getColor(R.color.action_bar_background_color, null);
+         actionBar.setBackgroundDrawable(new ColorDrawable(themeColor));
+         UiUtils.setStatusBarColor(getActivity(), themeColor);
+     }
+diff --git a/src/com/android/messaging/ui/conversation/ConversationMessageView.java b/src/com/android/messaging/ui/conversation/ConversationMessageView.java
+index c58dd0e..ae2e720 100644
+--- a/src/com/android/messaging/ui/conversation/ConversationMessageView.java
++++ b/src/com/android/messaging/ui/conversation/ConversationMessageView.java
+@@ -887,7 +887,8 @@ public class ConversationMessageView extends FrameLayout implements View.OnClick
+         int timestampColorResId;
+         int subjectLabelColorResId;
+         if (isSelected()) {
+-            messageColorResId = R.color.message_text_color_incoming;
++            // Kompakt: a selected bubble fills with the ink, so its text takes the selected colour.
++            messageColorResId = R.color.message_text_color_selected;
+             statusColorResId = R.color.message_action_status_text;
+             infoColorResId = R.color.message_action_info_text;
+             if (shouldShowMessageTextBubble()) {
+diff --git a/src/com/android/messaging/ui/mediapicker/MediaChooser.java b/src/com/android/messaging/ui/mediapicker/MediaChooser.java
+index eb66cc2..cf16019 100644
+--- a/src/com/android/messaging/ui/mediapicker/MediaChooser.java
++++ b/src/com/android/messaging/ui/mediapicker/MediaChooser.java
+@@ -76,7 +76,7 @@ abstract class MediaChooser extends BasePagerViewHolder
+         }
+         if (mTabButton != null) {
+             mTabButton.setSelected(selected);
+-            mTabButton.setAlpha(selected ? 1 : 0.5f);
++            // Kompakt: every tab icon stays opaque.
+         }
+     }
+ 
+diff --git a/src/com/android/messaging/ui/mediapicker/MediaPicker.java b/src/com/android/messaging/ui/mediapicker/MediaPicker.java
+index c362398..9dead26 100644
+--- a/src/com/android/messaging/ui/mediapicker/MediaPicker.java
++++ b/src/com/android/messaging/ui/mediapicker/MediaPicker.java
+@@ -211,7 +211,9 @@ public class MediaPicker extends Fragment implements DraftMessageSubscriptionDat
+                 false);
+         mMediaPickerPanel.setMediaPicker(this);
+         mTabStrip = mMediaPickerPanel.findViewById(R.id.mediapicker_tabstrip);
+-        mTabStrip.setBackgroundColor(mThemeColor);
++        // Kompakt: the ground, not the conversation colour.
++        mTabStrip.setBackgroundColor(
++                mTabStrip.getResources().getColor(R.color.kompakt_ground, null));
+         for (final MediaChooser chooser : mChoosers) {
+             chooser.onCreateTabButton(inflater, mTabStrip);
+             final ImageButton tabButton = chooser.getTabButton();
+@@ -292,7 +294,6 @@ public class MediaPicker extends Fragment implements DraftMessageSubscriptionDat
+     public void setConversationThemeColor(final int themeColor) {
+         mThemeColor = themeColor;
+         if (mTabStrip != null) {
+-            mTabStrip.setBackgroundColor(mThemeColor);
+         }
+ 
+         for (final MediaChooser chooser : mEnabledChoosers) {

@@ -1,0 +1,174 @@
+From e14f75da473b42bdd3e3fb6485a9d1f327930821 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sat, 26 Sep 2026 02:52:40 +0200
+Subject: [PATCH 35/38] Kompakt: policy: light boot dialog, and long press home
+ flushes the panel
+
+---
+ .../android/internal/policy/PhoneWindow.java  |  18 +--
+ .../server/policy/PhoneWindowManager.java     | 140 ++++++++++--------
+ 2 files changed, 83 insertions(+), 75 deletions(-)
+
+diff --git a/core/java/com/android/internal/policy/PhoneWindow.java b/core/java/com/android/internal/policy/PhoneWindow.java
+index c4dfa533d835..1d8265ad9280 100644
+--- a/core/java/com/android/internal/policy/PhoneWindow.java
++++ b/core/java/com/android/internal/policy/PhoneWindow.java
+@@ -2754,7 +2754,10 @@ public class PhoneWindow extends Window implements MenuBuilder.Callback {
+             }
+             if (!haveDimAmount()) {
+                 // e-ink: no dim behind dialogs; an explicit dimAmount is still honoured.
+                 params.dimAmount = 0f;
++
++                // And stop declaring a dim that is no longer drawn.
++                params.flags &= ~WindowManager.LayoutParams.FLAG_DIM_BEHIND;
+             }
+         }
+ 
+diff --git a/services/core/java/com/android/server/policy/PhoneWindowManager.java b/services/core/java/com/android/server/policy/PhoneWindowManager.java
+index b126056db393..078b7f18ec18 100644
+--- a/services/core/java/com/android/server/policy/PhoneWindowManager.java
++++ b/services/core/java/com/android/server/policy/PhoneWindowManager.java
+@@ -194,6 +194,7 @@ import android.os.Trace;
+ import android.os.UEventObserver;
+ import android.os.UserHandle;
+ import android.os.VibrationAttributes;
++import android.os.VibrationEffect;
+ import android.os.Vibrator;
+ import android.provider.MediaStore;
+ import android.provider.Settings;
+@@ -2279,11 +2280,11 @@ public class PhoneWindowManager implements WindowManagerPolicy {
+         mInputManager.injectInputEvent(upEvent, InputManager.INJECT_INPUT_EVENT_MODE_ASYNC);
+     }
+ 
+-    /** Start the Kompakt panel flush; false falls back to the key action. */
++    /** Kompakt: start the panel flush, if KompaktService is on this build. */
+     private boolean launchEinkRefresh() {
+-        // A broadcast, not an Activity: the flush must not animate or relayout.
+-        final Intent intent = new Intent("com.dumbita.service.action.REFRESH")
+-                .setPackage("com.dumbita.service");
++        // A broadcast, not an Activity.
++        final Intent intent = new Intent("com.kompakt.service.action.REFRESH")
++                .setPackage("com.kompakt.service");
+         if (mContext.getPackageManager().queryBroadcastReceivers(intent, 0).isEmpty()) {
+             return false;
+         }
+@@ -2480,10 +2481,9 @@ public class PhoneWindowManager implements WindowManagerPolicy {
+                     }
+                     mHomePressed = true;
+                     performHapticFeedback(HapticFeedbackConstants.LONG_PRESS, "Home - Long Press");
+-                    // e-ink: long press home flushes the panel, launched directly.
++                    // Kompakt: long press home flushes the panel.
+                     if (!launchEinkRefresh()) {
+-                        // If long press home will launch assistant,
+-                        // it should pass this right invocation type.
++                        // If long press home will launch assistant, it should pass this right invocation type.
+                         performKeyAction(mHomeLongPressAction, event,
+                                 AssistUtils.INVOCATION_TYPE_HOME_BUTTON_LONG_PRESS);
+                     }
+@@ -3840,6 +3840,28 @@ public class PhoneWindowManager implements WindowManagerPolicy {
+                 ServiceManager.checkService(DreamService.DREAM_SERVICE));
+     }
+ 
++    /** Kompakt: records the switch position somewhere anything can read it, then announces the change. */
++    void kompaktSetHWSwitchLock(boolean enable) {
++        final long ident = Binder.clearCallingIdentity();
++        try {
++            Settings.Global.putInt(mContext.getContentResolver(),
++                    "HWSwitch_lock", enable ? 1 : 0);
++            mContext.sendBroadcastAsUser(
++                    new Intent("android.intent.action.HWSWITCH_LOCK"), UserHandle.ALL);
++        } finally {
++            Binder.restoreCallingIdentity(ident);
++        }
++    }
++
++    /** Kompakt: a 150 ms one-shot, the length stock uses to acknowledge the switch. */
++    void kompaktSwitchVibrate() {
++        Vibrator vibrator = mContext.getSystemService(Vibrator.class);
++        if (vibrator != null) {
++            vibrator.vibrate(
++                    VibrationEffect.createOneShot(150L, VibrationEffect.DEFAULT_AMPLITUDE));
++        }
++    }
++
+     TelecomManager getTelecommService() {
+         return (TelecomManager) mContext.getSystemService(Context.TELECOM_SERVICE);
+     }
+@@ -5411,6 +5433,46 @@ public class PhoneWindowManager implements WindowManagerPolicy {
+                 break;
+             }
+ 
++            // Kompakt: the Offline+ hardware switch.
++            case KeyEvent.KEYCODE_F6: {
++                if (down) {
++                    kompaktSetHWSwitchLock(false);
++                }
++                break;
++            }
++
++            case KeyEvent.KEYCODE_F7: {
++                if (down) {
++                    kompaktSetHWSwitchLock(true);
++                }
++                break;
++            }
++
++            case KeyEvent.KEYCODE_GUIDE: {
++                if (down) {
++                    mContext.sendOrderedBroadcastAsUser(
++                            new Intent("android.intent.action.ACTION_HWSWITCH_UNLOCKED"),
++                            UserHandle.CURRENT, null, null, null, 0, null, null);
++                    kompaktSwitchVibrate();
++                }
++                break;
++            }
++
++            case KeyEvent.KEYCODE_DVR: {
++                if (down) {
++                    // Engaging the switch cuts the modem, so hang up first.
++                    TelecomManager kompaktTelecomManager = getTelecommService();
++                    if (kompaktTelecomManager != null) {
++                        kompaktTelecomManager.endCall();
++                    }
++                    mContext.sendOrderedBroadcastAsUser(
++                            new Intent("android.intent.action.ACTION_HWSWITCH_LOCKED"),
++                            UserHandle.CURRENT, null, null, null, 0, null, null);
++                    kompaktSwitchVibrate();
++                }
++                break;
++            }
++
+             case KeyEvent.KEYCODE_TV_POWER: {
+                 notifyKeyGestureCompletedOnActionUp(event,
+                         KeyGestureEvent.KEY_GESTURE_TYPE_TOGGLE_POWER);
+@@ -6844,6 +6906,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
+                     if (mPackageManager.hasSystemFeature(FEATURE_LEANBACK)) {
+                         theme = com.android.internal.R.style.Theme_Leanback_Dialog_Alert;
+                     } else {
++                        // Kompakt: 0 means the context's dialogTheme, as ShutdownThread uses.
+                         theme = 0;
+                     }
+ 
+@@ -6880,18 +6943,12 @@ public class PhoneWindowManager implements WindowManagerPolicy {
+                     mBootMsgDialog.getWindow().setType(
+                             WindowManager.LayoutParams.TYPE_BOOT_PROGRESS);
+                     mBootMsgDialog.getWindow().addFlags(
+-                            WindowManager.LayoutParams.FLAG_DIM_BEHIND
+-                            | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN);
+-                    // e-ink: no dim behind the boot dialog.
++                            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN);
++                    // Kompakt: no dim layer; a dim renders as a moving dither.
++                    mBootMsgDialog.getWindow().clearFlags(
++                            WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+                     mBootMsgDialog.getWindow().setDimAmount(0);
+ 
+-                    // Kompakt: the boot dialog window fills the screen with the theme background.
+-                    final android.util.TypedValue bg = new android.util.TypedValue();
+-                    mBootMsgDialog.getContext().getTheme().resolveAttribute(
+-                            android.R.attr.colorBackground, bg, true);
+-                    mBootMsgDialog.getWindow().setBackgroundDrawable(
+-                            new ColorDrawable(bg.data));
+-
+                     WindowManager.LayoutParams lp = mBootMsgDialog.getWindow().getAttributes();
+                     lp.width = WindowManager.LayoutParams.MATCH_PARENT;
+                     lp.height = WindowManager.LayoutParams.MATCH_PARENT;

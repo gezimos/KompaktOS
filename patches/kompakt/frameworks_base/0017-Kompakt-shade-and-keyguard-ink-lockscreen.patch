@@ -1,0 +1,1588 @@
+From 4a10c80993a6d408201629efd27eea12a9cba312 Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Fri, 11 Sep 2026 19:44:38 +0200
+Subject: [PATCH 17/38] Kompakt: shade and keyguard ink, lockscreen
+ centring, brightness slider, MTP as the unlocked USB default
+
+---
+ core/java/android/widget/Editor.java          |  14 +
+ .../bouncer/ui/composable/BouncerContent.kt   |   7 +-
+ .../AmbientIndicationElementProvider.kt       |  69 +++
+ .../LockscreenUpperRegionElementProvider.kt   |  10 +-
+ .../elements/OEMElementProviderModule.kt      |  17 +
+ .../composable/NotificationsShadeOverlay.kt   |   8 +-
+ .../qs/footer/ui/compose/FooterActions.kt     |  14 +-
+ .../composable/QuickSettingsShadeOverlay.kt   |  70 +--
+ .../FromLockscreenToBouncerTransition.kt      |   7 +-
+ .../shade/ui/composable/OverlayShade.kt       |  11 +-
+ .../shade/ui/composable/ShadeHeader.kt        |   7 +-
+ .../shade/ui/composable/ShadeHighlightChip.kt |  23 +-
+ .../src/com/android/keyguard/CarrierText.java |  15 +-
+ .../systemui/battery/BatteryMeterView.java    |  13 +-
+ .../battery/unified/BatteryDrawableState.kt   |  39 +-
+ .../battery/unified/BatteryLayersDrawable.kt  |  54 ++-
+ .../brightness/ui/compose/BrightnessSlider.kt | 400 ++++++++++++------
+ .../GlobalActionsDialogLite.java              |  16 +-
+ .../LockscreenBehindScrimViewModel.kt         |   9 +-
+ .../ui/compose/infinitegrid/CommonTile.kt     |  17 +
+ .../compose/infinitegrid/KompaktTileIcons.kt  | 213 ++++++++++
+ .../qs/panels/ui/compose/infinitegrid/Tile.kt |  46 +-
+ .../systemui/shade/ShadeHeaderController.kt   |  36 +-
+ .../domain/interactor/ShadeModeInteractor.kt  |   2 +-
+ .../phone/DarkIconDispatcherImpl.java         |   5 -
+ .../phone/KeyguardStatusBarView.java          |  45 +-
+ .../KeyguardStatusBarViewController.java      |  21 +-
+ .../statusbar/phone/ScrimController.java      |  11 +-
+ .../com/android/server/BatteryService.java    |  20 +
+ .../server/policy/PhoneWindowManager.java     |  47 +-
+ .../android/server/usb/UsbDeviceManager.java  |  10 +-
+ 31 files changed, 993 insertions(+), 283 deletions(-)
+ create mode 100644 packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/AmbientIndicationElementProvider.kt
+ create mode 100644 packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/KompaktTileIcons.kt
+
+diff --git a/core/java/android/widget/Editor.java b/core/java/android/widget/Editor.java
+index 88eb3392a532..aa3abd53da86 100644
+--- a/core/java/android/widget/Editor.java
++++ b/core/java/android/widget/Editor.java
+@@ -2975,6 +2975,11 @@ public class Editor {
+      * @return True when the TextView isFocused and has a valid zero-length selection (cursor).
+      */
+     private boolean shouldBlink() {
++        // e-ink: a zero blink interval stops the blink runnable; the caret stays drawn.
++        if (mBlinkInterval == ViewConfiguration.NO_BLINK_TEXT_CURSOR_BLINK_INTERVAL_MS) {
++            return false;
++        }
++
+         if (!isCursorVisible() || !mTextView.isFocused()
+                 || mTextView.getWindowVisibility() != mTextView.VISIBLE) return false;
+ 
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/bouncer/ui/composable/BouncerContent.kt b/packages/SystemUI/compose/features/src/com/android/systemui/bouncer/ui/composable/BouncerContent.kt
+index 000494199e08..81500808c154 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/bouncer/ui/composable/BouncerContent.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/bouncer/ui/composable/BouncerContent.kt
+@@ -304,7 +304,8 @@ private fun StandardLayout(
+         )
+ 
+     FoldAware(
+-        modifier = modifier.padding(top = 92.dp, bottom = 32.dp),
++        // e-ink: less fixed padding, so four rows of keys fit the 601dp panel.
++        modifier = modifier.padding(top = 24.dp, bottom = 16.dp),
+         viewModel = viewModel,
+         aboveFold = {
+             Column(
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/AmbientIndicationElementProvider.kt b/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/AmbientIndicationElementProvider.kt
+new file mode 100644
+index 000000000000..22756b774fdd
+--- /dev/null
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/AmbientIndicationElementProvider.kt
+@@ -0,0 +1,49 @@
++/*
++ * Copyright (C) 2025 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package com.android.systemui.keyguard.ui.composable.elements
++
++import android.content.Context
++import androidx.compose.foundation.layout.Spacer
++import androidx.compose.foundation.layout.height
++import androidx.compose.runtime.Composable
++import androidx.compose.ui.Modifier
++import androidx.compose.ui.unit.dp
++import com.android.compose.animation.scene.ElementContentScope
++import com.android.systemui.plugins.keyguard.ui.composable.elements.LockscreenElement
++import com.android.systemui.plugins.keyguard.ui.composable.elements.LockscreenElementKeys
++import com.android.systemui.plugins.keyguard.ui.composable.elements.LockscreenScope
++import com.android.systemui.shade.ShadeDisplayAware
++import javax.inject.Inject
++
++/** Supplies the ambient indication area; the lockscreen layout needs all six elements. */
++class AmbientIndicationElementProvider
++@Inject
++constructor(@ShadeDisplayAware private val context: Context) : OEMElementProvider {
++
++    override val elements: List<LockscreenElement> by lazy { listOf(AmbientIndicationElement()) }
++
++    private inner class AmbientIndicationElement : LockscreenElement {
++        override val key = LockscreenElementKeys.AmbientIndicationArea
++        override val context = this@AmbientIndicationElementProvider.context
++
++        @Composable
++        override fun LockscreenScope<ElementContentScope>.LockscreenElement() {
++            // Present for the key, measuring to nothing.
++            Spacer(Modifier.height(0.dp))
++        }
++    }
++}
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/LockscreenUpperRegionElementProvider.kt b/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/LockscreenUpperRegionElementProvider.kt
+index a6e26a48e665..80a95aced9e2 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/LockscreenUpperRegionElementProvider.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/LockscreenUpperRegionElementProvider.kt
+@@ -19,6 +19,7 @@ package com.android.systemui.keyguard.ui.composable.elements
+ import android.content.Context
+ import androidx.compose.animation.AnimatedVisibility
+ import androidx.compose.animation.core.tween
++import androidx.compose.foundation.layout.Arrangement
+ import androidx.compose.foundation.layout.Box
+ import androidx.compose.foundation.layout.BoxScope
+ import androidx.compose.foundation.layout.Column
+@@ -98,7 +99,11 @@ constructor(
+ 
+         @Composable
+         protected fun LockscreenScope<ContentScope>.Notifications(modifier: Modifier = Modifier) {
+-            Column(modifier = modifier.fillMaxHeight()) {
++            Column(
++                modifier = modifier.fillMaxHeight(),
++                // Kompakt: centre the stack in the band it is given.
++                verticalArrangement = Arrangement.Center,
++            ) {
+                 AODNotifications()
+                 AnimatedVisibility(viewModel.isNotificationStackActive) {
+                     LockscreenElement(Notifications.Stack)
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/OEMElementProviderModule.kt b/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/OEMElementProviderModule.kt
+index 50c7cc10b2b8..c02c6f0e0fe7 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/OEMElementProviderModule.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/OEMElementProviderModule.kt
+@@ -16,7 +16,9 @@
+ 
+ package com.android.systemui.keyguard.ui.composable.elements
+ 
++import dagger.Binds
+ import dagger.Module
++import dagger.multibindings.IntoSet
+ import dagger.multibindings.Multibinds
+ 
+ /**
+@@ -26,4 +28,11 @@ import dagger.multibindings.Multibinds
+ @Module
+ interface OEMElementProviderModule {
+     @Multibinds fun oemElementProviders(): Set<OEMElementProvider>
++
++    /** Kompakt: contribute the ambient indication area. */
++    @Binds
++    @IntoSet
++    fun ambientIndicationElementProvider(
++        provider: AmbientIndicationElementProvider
++    ): OEMElementProvider
+ }
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/notifications/ui/composable/NotificationsShadeOverlay.kt b/packages/SystemUI/compose/features/src/com/android/systemui/notifications/ui/composable/NotificationsShadeOverlay.kt
+index 0537d9de3068..294403fd712d 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/notifications/ui/composable/NotificationsShadeOverlay.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/notifications/ui/composable/NotificationsShadeOverlay.kt
+@@ -125,7 +125,8 @@ constructor(
+                         viewModel = headerViewModel,
+                         notificationsHighlight = ChipHighlightModel.Strong,
+                         quickSettingsHighlight = headerViewModel.inactiveChipHighlight,
+-                        showClock = !isFullWidth,
++                        // Kompakt: the clock shows here too; this shade covers the status bar.
++                        showClock = true,
+                         modifier = Modifier.element(NotificationsShade.Elements.StatusBar),
+                     )
+                 }
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/qs/footer/ui/compose/FooterActions.kt b/packages/SystemUI/compose/features/src/com/android/systemui/qs/footer/ui/compose/FooterActions.kt
+index be5d95bd73b8..3a28f798e7ec 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/qs/footer/ui/compose/FooterActions.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/qs/footer/ui/compose/FooterActions.kt
+@@ -387,14 +387,18 @@ private fun IconButton(
+     useModifierBasedExpandable: Boolean,
+     modifier: Modifier = Modifier,
+ ) {
+-    val colors = buttonColorsForModel(model)
++    // Kompakt: outline, never invert.
++    val face = MaterialTheme.colorScheme.surface
++    val ink = MaterialTheme.colorScheme.onSurface
+     CircleExpandable(
+-        color = colors.background,
++        color = face,
++        contentColor = ink,
++        borderStroke = BorderStroke(1.dp, ink),
+         onClick = model.onClick,
+         modifier = modifier,
+         useModifierBasedImplementation = useModifierBasedExpandable,
+     ) {
+-        FooterIcon(model.icon, Modifier.size(20.dp), colors.icon)
++        FooterIcon(model.icon, Modifier.size(20.dp), ink)
+     }
+ }
+ 
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/qs/ui/composable/QuickSettingsShadeOverlay.kt b/packages/SystemUI/compose/features/src/com/android/systemui/qs/ui/composable/QuickSettingsShadeOverlay.kt
+index 10dce56fd1f5..c240400874cd 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/qs/ui/composable/QuickSettingsShadeOverlay.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/qs/ui/composable/QuickSettingsShadeOverlay.kt
+@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.Box
+ import androidx.compose.foundation.layout.Column
+ import androidx.compose.foundation.layout.Row
+ import androidx.compose.foundation.layout.Spacer
++import androidx.compose.foundation.layout.fillMaxHeight
+ import androidx.compose.foundation.layout.fillMaxWidth
+ import androidx.compose.foundation.layout.height
+ import androidx.compose.foundation.layout.padding
+@@ -344,36 +345,21 @@ private fun ContentScope.QuickSettingsLayout(
+     Column(
+         horizontalAlignment = Alignment.CenterHorizontally,
+         modifier =
+-            modifier.padding(
+-                start = QuickSettingsShade.Dimensions.Padding,
+-                end = QuickSettingsShade.Dimensions.Padding,
+-            ),
++            modifier
++                .fillMaxHeight()
++                .padding(
++                    start = QuickSettingsShade.Dimensions.Padding,
++                    end = QuickSettingsShade.Dimensions.Padding,
++                ),
+     ) {
+-        if (isFullWidthShade()) {
+-            VerticalSeparator(QuickSettingsShade.Dimensions.ShortPadding)
+-            QuickSettingsOverlayHeader(
+-                viewModel = qsContainerViewModel.shadeHeaderViewModel,
+-                modifier = Modifier.element(QuickSettingsShade.Elements.Header),
+-            )
+-
+-            VerticalSeparator(QuickSettingsShade.Dimensions.ShortPadding)
+-        } else {
+-            VerticalSeparator(QuickSettingsShade.Dimensions.Padding)
+-        }
+-
+-        val toolbarViewModel =
+-            rememberViewModel("QuickSettingsLayout") { toolbarViewModelFactory.create() }
+-
+-        Toolbar(
++        // Kompakt: no carrier header row.
++        VerticalSeparator(QuickSettingsShade.Dimensions.Padding)
++
++        // weight(1f): the toolbar sits on the bottom edge.
++        Column(
+             modifier =
+-                Modifier.fillMaxWidth().requiredHeight(QuickSettingsShade.Dimensions.ToolbarHeight),
+-            viewModel = toolbarViewModel,
+-            isFullyVisible = { layoutState.isIdle(contentKey) },
+-        )
+-
+-        VerticalSeparator(QuickSettingsShade.Dimensions.ShortPadding)
+-
+-        Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
++                Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState())
++        ) {
+             Media(
+                 viewModelFactory = qsContainerViewModel.mediaViewModelFactory,
+                 presentationStyle = MediaPresentationStyle.Compact,
+@@ -478,6 +464,21 @@ private fun ContentScope.QuickSettingsLayout(
+ 
+             VerticalSeparator(QuickSettingsShade.Dimensions.Padding)
+         }
++
++        // Kompakt: the toolbar goes under the tiles, not over them.
++
++        val toolbarViewModel =
++            rememberViewModel("QuickSettingsLayout") { toolbarViewModelFactory.create() }
++
++        Toolbar(
++            modifier =
++                Modifier.fillMaxWidth().requiredHeight(QuickSettingsShade.Dimensions.ToolbarHeight),
++            viewModel = toolbarViewModel,
++            isFullyVisible = { layoutState.isIdle(contentKey) },
++        )
++
++        VerticalSeparator(QuickSettingsShade.Dimensions.ShortPadding)
++
+     }
+ }
+ 
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/FromLockscreenToBouncerTransition.kt b/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/FromLockscreenToBouncerTransition.kt
+index 52740d665b7f..2ad5a1f8c93c 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/FromLockscreenToBouncerTransition.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/FromLockscreenToBouncerTransition.kt
+@@ -17,8 +17,7 @@ fun TransitionBuilder.lockscreenToBouncerTransition(durationScale: Double = 1.0)
+         fade(LockscreenElementKeys.Region.Lower)
+         fade(LockscreenElementKeys.SettingsMenu)
+         fade(LockscreenElementKeys.BehindScrim)
+-        translate(LockscreenElementKeys.Region.Upper, y = (-48).dp)
+-        translate(LockscreenElementKeys.Notifications.Stack, y = (-72).dp)
++        // Kompakt: no translation.
+     }
+ }
+ 
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/OverlayShade.kt b/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/OverlayShade.kt
+index 8d135a111c4c..6476753c619a 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/OverlayShade.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/OverlayShade.kt
+@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.Column
+ import androidx.compose.foundation.layout.PaddingValues
+ import androidx.compose.foundation.layout.Spacer
+ import androidx.compose.foundation.layout.WindowInsets
++import androidx.compose.foundation.layout.fillMaxHeight
+ import androidx.compose.foundation.layout.fillMaxSize
+ import androidx.compose.foundation.layout.safeContent
+ import androidx.compose.foundation.layout.union
+@@ -157,13 +158,16 @@ private fun ContentScope.Panel(
+     header: (@Composable () -> Unit)?,
+     content: @Composable () -> Unit,
+ ) {
++    // Kompakt: full height, not content height.
++    val fullHeight = isFullWidthShade()
+     Box(
+         modifier =
+             modifier
++                .then(if (fullHeight) Modifier.fillMaxHeight() else Modifier)
+                 .disableSwipesWhenScrolling()
+                 .verticalExpandContainerBackground(Colors.panelBackground(enableTransparency), spec)
+     ) {
+-        Column {
++        Column(modifier = if (fullHeight) Modifier.fillMaxHeight() else Modifier) {
+             header?.invoke()
+             content()
+         }
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/ShadeHeader.kt b/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/ShadeHeader.kt
+index 7d6fb865a42a..605e2dbc30e5 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/ShadeHeader.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/ShadeHeader.kt
+@@ -363,7 +363,8 @@ fun ContentScope.OverlayShadeHeader(
+                     modifier =
+                         Modifier.align(Alignment.CenterStart)
+                             .bouncy(
+-                                isEnabled = viewModel.animateNotificationsChipBounce,
++                                // Kompakt: never bounce.
++                                isEnabled = false,
+                                 onBoundsChange = { bounds ->
+                                     viewModel.onDualShadeEducationElementBoundsChange(
+                                         element = DualShadeEducationElement.Notifications,
+@@ -395,7 +396,8 @@ fun ContentScope.OverlayShadeHeader(
+                     onClick = viewModel::onSystemIconChipClicked,
+                     modifier =
+                         Modifier.bouncy(
+-                            isEnabled = viewModel.animateSystemIconChipBounce,
++                            // Kompakt: never bounce.
++                            isEnabled = false,
+                             onBoundsChange = { bounds ->
+                                 viewModel.onDualShadeEducationElementBoundsChange(
+                                     element = DualShadeEducationElement.QuickSettings,
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/ShadeHighlightChip.kt b/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/ShadeHighlightChip.kt
+index cc8e23b6f82c..23a854ff0555 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/ShadeHighlightChip.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/ShadeHighlightChip.kt
+@@ -51,8 +51,9 @@ sealed interface ChipHighlightModel {
+         @Composable @ReadOnlyComposable get
+ 
+     data object Weak : ChipHighlightModel {
++        // Kompakt: no fill; partial alpha dithers.
+         override val backgroundColor: Color
+-            @Composable get() = MaterialTheme.colorScheme.surface.copy(alpha = 0.3f)
++            @Composable get() = Color.Transparent
+ 
+         override val foregroundColor: Color
+             @Composable get() = MaterialTheme.colorScheme.onSurface
+@@ -62,11 +63,13 @@ sealed interface ChipHighlightModel {
+     }
+ 
+     data object Strong : ChipHighlightModel {
++        // Kompakt: no fill.
+         override val backgroundColor: Color
+-            @Composable get() = MaterialTheme.colorScheme.secondary
++            @Composable get() = Color.Transparent
+ 
++        // Kompakt: onSurface, not onSecondary, which is white with no fill.
+         override val foregroundColor: Color
+-            @Composable get() = MaterialTheme.colorScheme.onSecondary
++            @Composable get() = MaterialTheme.colorScheme.onSurface
+ 
+         override val onHoveredBackgroundColor: Color
+             @Composable get() = backgroundColor
+@@ -79,8 +82,9 @@ sealed interface ChipHighlightModel {
+         override val foregroundColor: Color
+             @Composable get() = MaterialTheme.colorScheme.onSurface
+ 
++        // Kompakt: no hover fill.
+         override val onHoveredBackgroundColor: Color
+-            @Composable get() = MaterialTheme.colorScheme.surface.copy(alpha = 0.3f)
++            @Composable get() = Color.Transparent
+     }
+ }
+ 
+diff --git a/packages/SystemUI/src/com/android/keyguard/CarrierText.java b/packages/SystemUI/src/com/android/keyguard/CarrierText.java
+index e2ac6a494020..ef080bb5c833 100644
+--- a/packages/SystemUI/src/com/android/keyguard/CarrierText.java
++++ b/packages/SystemUI/src/com/android/keyguard/CarrierText.java
+@@ -58,12 +58,8 @@ public class CarrierText extends TextView {
+     @Override
+     protected void onVisibilityChanged(View changedView, int visibility) {
+         super.onVisibilityChanged(changedView, visibility);
+-        // Only show marquee when visible
+-        if (visibility == VISIBLE) {
+-            setEllipsize(TextUtils.TruncateAt.MARQUEE);
+-        } else {
+-            setEllipsize(TextUtils.TruncateAt.END);
+-        }
++        // Kompakt: never marquee. This overrides any ellipsize set in XML.
++        setEllipsize(TextUtils.TruncateAt.END);
+     }
+ 
+     @Override
+diff --git a/packages/SystemUI/src/com/android/systemui/battery/BatteryMeterView.java b/packages/SystemUI/src/com/android/systemui/battery/BatteryMeterView.java
+index 1806e4e60b56..1e8053bc453e 100644
+--- a/packages/SystemUI/src/com/android/systemui/battery/BatteryMeterView.java
++++ b/packages/SystemUI/src/com/android/systemui/battery/BatteryMeterView.java
+@@ -244,10 +244,8 @@ public class BatteryMeterView extends LinearLayout implements DarkReceiver {
+         updatePercentText();
+ 
+         if (NewStatusBarIcons.isEnabled()) {
+-            Drawable attr = mUnifiedBatteryState.getAttribution();
+-            if (isCharging != wasCharging) {
+-                attr = getBatteryAttribution(isCharging);
+-            }
++            // Kompakt: always recompute; power save and defend share the slot.
++            Drawable attr = getBatteryAttribution(isCharging);
+ 
+             BatteryDrawableState newState =
+                     new BatteryDrawableState(
+diff --git a/packages/SystemUI/src/com/android/systemui/battery/unified/BatteryDrawableState.kt b/packages/SystemUI/src/com/android/systemui/battery/unified/BatteryDrawableState.kt
+index 9f594feb03ab..58e8fc3a65fa 100644
+--- a/packages/SystemUI/src/com/android/systemui/battery/unified/BatteryDrawableState.kt
++++ b/packages/SystemUI/src/com/android/systemui/battery/unified/BatteryDrawableState.kt
+@@ -93,32 +93,15 @@ sealed interface BatteryColors {
+      */
+     val fillOnly: Int
+ 
+-    /** Used when charging */
+-    val activeFill: Int
+-
+-    /** Warning color is used for battery saver mode */
+-    val warnFill: Int
+-
+-    /** Error colors are used for low battery states typically */
+-    val errorFill: Int
+-
+     /** Color scheme appropriate for light mode (dark icons) */
+     data object LightThemeColors : BatteryColors {
+         override val fg = Color.BLACK
+         // 22% alpha white
+         override val bg: Int = Color.valueOf(1f, 1f, 1f, 0.22f).toArgb()
+ 
+-        // GM Gray 500
+-        override val fill = Color.parseColor("#9AA0A6")
+-        // GM Gray 600
+-        override val fillOnly = Color.parseColor("#80868B")
+-
+-        // GM Green 500
+-        override val activeFill = Color.parseColor("#34A853")
+-        // GM Yellow 500
+-        override val warnFill = Color.parseColor("#FBBC04")
+-        // GM Red 500
+-        override val errorFill = Color.parseColor("#EA4335")
++        // Kompakt: black, not GM Gray 500/600.
++        override val fill = Color.BLACK
++        override val fillOnly = Color.BLACK
+     }
+ 
+     /** Color scheme appropriate for dark mode (light icons) */
+@@ -127,17 +110,9 @@ sealed interface BatteryColors {
+         // 18% alpha black
+         override val bg: Int = Color.valueOf(0f, 0f, 0f, 0.18f).toArgb()
+ 
+-        // GM Gray 700
+-        override val fill = Color.parseColor("#5F6368")
+-        // GM Gray 400
+-        override val fillOnly = Color.parseColor("#BDC1C6")
+-
+-        // GM Green 700
+-        override val activeFill = Color.parseColor("#188038")
+-        // GM Yellow 700
+-        override val warnFill = Color.parseColor("#F29900")
+-        // GM Red 700
+-        override val errorFill = Color.parseColor("#C5221F")
++        // Kompakt: white, for the same reason the light theme is black.
++        override val fill = Color.WHITE
++        override val fillOnly = Color.WHITE
+     }
+ 
+     companion object {
+diff --git a/packages/SystemUI/src/com/android/systemui/battery/unified/BatteryLayersDrawable.kt b/packages/SystemUI/src/com/android/systemui/battery/unified/BatteryLayersDrawable.kt
+index a179c35e4927..5f106a913f31 100644
+--- a/packages/SystemUI/src/com/android/systemui/battery/unified/BatteryLayersDrawable.kt
++++ b/packages/SystemUI/src/com/android/systemui/battery/unified/BatteryLayersDrawable.kt
+@@ -17,8 +17,10 @@
+ package com.android.systemui.battery.unified
+ 
+ import android.content.Context
++import android.graphics.BlendMode
+ import android.graphics.Canvas
+ import android.graphics.Matrix
++import android.graphics.Paint
+ import android.graphics.Rect
+ import android.graphics.RectF
+ import android.graphics.Typeface
+@@ -68,6 +70,9 @@ class BatteryLayersDrawable(
+     batteryState: BatteryDrawableState,
+ ) : LayerDrawable(arrayOf(frameBg, frame, fill, textOnly, spaceSharingText, attribution)) {
+ 
++    /** Punches the foreground shapes back out of the solid fill. See draw(). */
++    private val clearPaint = Paint().also { it.blendMode = BlendMode.CLEAR }
++
+     private val scaleMatrix = Matrix().also { it.setScale(1f, 1f) }
+ 
+     private val attrFullCanvas = RectF()
+@@ -88,7 +93,7 @@ class BatteryLayersDrawable(
+     var colors: BatteryColors = BatteryColors.LightThemeColors
+         set(value) {
+             field = value
+-            updateColorProfile(batteryState.hasForegroundContent(), batteryState.color, value)
++            updateColorProfile(batteryState.hasForegroundContent(), value)
+         }
+ 
+     init {
+@@ -120,13 +125,13 @@ class BatteryLayersDrawable(
+         // Finally, update colors last if any of the above conditions were met, so that everything
+         // is properly tinted
+         if (shouldUpdateColors) {
+-            updateColorProfile(new.hasForegroundContent(), new.color, colors)
++            updateColorProfile(new.hasForegroundContent(), colors)
+         }
+     }
+ 
++    /** Kompakt: the fill no longer depends on the state. */
+     private fun updateColorProfile(
+         hasFg: Boolean,
+-        color: ColorProfile,
+         colorInfo: BatteryColors,
+     ) {
+         frame.setTint(colorInfo.fg)
+@@ -135,20 +140,7 @@ class BatteryLayersDrawable(
+         spaceSharingText.setTint(colorInfo.fg)
+         attribution.setTint(colorInfo.fg)
+ 
+-        when (color) {
+-            ColorProfile.None -> {
+-                fill.fillColor = if (hasFg) colorInfo.fill else colorInfo.fillOnly
+-            }
+-            ColorProfile.Active -> {
+-                fill.fillColor = colorInfo.activeFill
+-            }
+-            ColorProfile.Warning -> {
+-                fill.fillColor = colorInfo.warnFill
+-            }
+-            ColorProfile.Error -> {
+-                fill.fillColor = colorInfo.errorFill
+-            }
+-        }
++        fill.fillColor = if (hasFg) colorInfo.fill else colorInfo.fillOnly
+     }
+ 
+     private fun setFillInsets(
+@@ -210,10 +202,20 @@ class BatteryLayersDrawable(
+         // 2. Then the frame itself
+         frame.draw(canvas)
+ 
+-        // 3. Fill it the appropriate amount
++        // 3. The contents first, on the light interior; the fill is solid black.
++        drawForeground(canvas)
++
++        // 4. Fill to the level, then clear the same shapes back out of it.
++        val layer = canvas.saveLayer(null, null)
+         fill.draw(canvas)
++        val punch = canvas.saveLayer(null, clearPaint)
++        drawForeground(canvas)
++        canvas.restoreToCount(punch)
++        canvas.restoreToCount(layer)
++    }
+ 
+-        // 4. Decide what goes inside
++    /** The bolt, the percentage, or both, at whichever bounds the state implies. */
++    private fun drawForeground(canvas: Canvas) {
+         if (batteryState.showPercent && batteryState.attribution != null) {
+             // 4a. percent & attribution. Implies space-sharing
+ 
+diff --git a/packages/SystemUI/src/com/android/systemui/brightness/ui/compose/BrightnessSlider.kt b/packages/SystemUI/src/com/android/systemui/brightness/ui/compose/BrightnessSlider.kt
+index 9ee47cf16767..7bf39b931f3b 100644
+--- a/packages/SystemUI/src/com/android/systemui/brightness/ui/compose/BrightnessSlider.kt
++++ b/packages/SystemUI/src/com/android/systemui/brightness/ui/compose/BrightnessSlider.kt
+@@ -71,12 +71,17 @@ import androidx.compose.ui.draw.clip
+ import androidx.compose.ui.draw.drawWithCache
+ import androidx.compose.ui.draw.drawWithContent
+ import androidx.compose.ui.geometry.CornerRadius
++import androidx.compose.ui.geometry.Rect
++import androidx.compose.ui.geometry.RoundRect
++import androidx.compose.ui.graphics.Path
++import androidx.compose.ui.graphics.drawscope.clipPath
+ import androidx.compose.ui.geometry.Offset
+ import androidx.compose.ui.geometry.Size
+ import androidx.compose.ui.graphics.Color
+ import androidx.compose.ui.graphics.ColorFilter
+ import androidx.compose.ui.graphics.asImageBitmap
+ import androidx.compose.ui.graphics.drawscope.DrawScope
++import androidx.compose.ui.graphics.drawscope.Stroke
+ import androidx.compose.ui.graphics.drawscope.scale
+ import androidx.compose.ui.graphics.drawscope.translate
+ import androidx.compose.ui.graphics.painter.BitmapPainter
+@@ -112,6 +117,9 @@ import com.android.systemui.brightness.ui.compose.Dimensions.IconSize
+ import com.android.systemui.brightness.ui.compose.Dimensions.SliderBackgroundFrameSize
+ import com.android.systemui.brightness.ui.compose.Dimensions.SliderBackgroundRoundedCorner
+ import com.android.systemui.brightness.ui.compose.Dimensions.ThumbHeight
++import com.android.systemui.brightness.ui.compose.Dimensions.KompaktDotRadius
++import com.android.systemui.brightness.ui.compose.Dimensions.KompaktTrackStroke
++import com.android.systemui.brightness.ui.compose.Dimensions.KompaktDotSpacing
+ import com.android.systemui.brightness.ui.compose.Dimensions.SliderTrackRoundedCorner
+ import com.android.systemui.brightness.ui.compose.Dimensions.ThumbTrackGapSize
+ import com.android.systemui.brightness.ui.compose.Dimensions.ThumbWidth
+@@ -145,6 +153,7 @@ fun BrightnessSlider(
+     onDrag: (Int) -> Unit,
+     onStop: (Int) -> Unit,
+     onIconClick: suspend () -> Unit,
++    onIconCycle: () -> Unit,
+     overriddenByAppState: Boolean,
+     modifier: Modifier = Modifier,
+     showToast: () -> Unit = {},
+@@ -200,6 +209,10 @@ fun BrightnessSlider(
+         }
+     val activeIconColor = colors.activeTickColor
+     val inactiveIconColor = colors.inactiveTickColor
++    // Read out here because the track is drawn in a DrawScope, which cannot ask
++    // a composable for anything.
++    val activeTrackColor = colors.activeTrackColor
++    val inactiveTrackColor = colors.inactiveTrackColor
+     // Offset from the right
+     val trackIcon: DrawScope.(Offset, Color, Float) -> Unit = remember {
+         { offset, color, alpha ->
+@@ -247,139 +260,201 @@ fun BrightnessSlider(
+         verticalAlignment = Alignment.CenterVertically,
+         modifier = modifier
+     ) {
+-        Slider(
+-            value = animatedValue,
+-            valueRange = floatValueRange,
+-            enabled = enabled,
+-            colors = colors,
+-            onValueChange = {
+-                if (enabled) {
+-                    if (!overriddenByAppState) {
+-                        hapticsViewModel.onValueChange(it)
+-                        value = it.toInt()
+-                        onDrag(value)
+-                    }
+-                }
+-            },
+-            onValueChangeFinished = {
+-                if (enabled) {
+-                    if (!overriddenByAppState) {
+-                        hapticsViewModel.onValueChangeEnded()
+-                        onStop(value)
+-                    }
+-                }
+-            },
+-            modifier =
+-                modifier
+-                    .weight(1f)
+-                    .sysuiResTag("slider")
+-                    .semantics(mergeDescendants = true) {
+-                        this.text = AnnotatedString(contentDescription)
++        // Kompakt: box the Slider so the icon's tap target stays on the track.
++        Box(modifier = Modifier.weight(1f)) {
++            Slider(
++                value = animatedValue,
++                valueRange = floatValueRange,
++                enabled = enabled,
++                colors = colors,
++                onValueChange = {
++                    if (enabled) {
++                        if (!overriddenByAppState) {
++                            hapticsViewModel.onValueChange(it)
++                            value = it.toInt()
++                            onDrag(value)
++                        }
+                     }
+-                    .sliderPercentage {
+-                        (value - valueRange.first).toFloat() / (valueRange.last - valueRange.first)
++                },
++                onValueChangeFinished = {
++                    if (enabled) {
++                        if (!overriddenByAppState) {
++                            hapticsViewModel.onValueChangeEnded()
++                            onStop(value)
++                        }
+                     }
+-                    .thenIf(isRestricted) {
+-                        Modifier.clickable {
+-                            if (restriction is PolicyRestriction.Restricted) {
+-                                onRestrictedClick(restriction)
+-                            }
++                },
++                modifier =
++                    modifier
++                        .fillMaxWidth()
++                        .sysuiResTag("slider")
++                        .semantics(mergeDescendants = true) {
++                            this.text = AnnotatedString(contentDescription)
+                         }
+-                    },
+-            interactionSource = interactionSource,
+-            thumb = {
+-                SliderDefaults.Thumb(
+-                    interactionSource = interactionSource,
+-                    enabled = enabled,
+-                    thumbSize = DpSize(ThumbWidth, ThumbHeight),
+-                    colors = colors,
+-                )
+-            },
+-            track = { sliderState ->
+-                var showIconActive by remember { mutableStateOf(true) }
+-                val iconActiveAlphaAnimatable = remember {
+-                    Animatable(
+-                        initialValue = 1f,
+-                        typeConverter = Float.VectorConverter,
+-                        label = "iconActiveAlpha",
+-                    )
+-                }
++                        .sliderPercentage {
++                            (value - valueRange.first).toFloat() / (valueRange.last - valueRange.first)
++                        }
++                        .thenIf(isRestricted) {
++                            Modifier.clickable {
++                                if (restriction is PolicyRestriction.Restricted) {
++                                    onRestrictedClick(restriction)
++                                }
++                            }
++                        },
++                interactionSource = interactionSource,
++                thumb = {
++                    // Kompakt: no thumb.
++                    Spacer(Modifier.width(0.dp).height(0.dp))
++                },
++                track = { sliderState ->
++                    var showIconActive by remember { mutableStateOf(true) }
++                    val iconActiveAlphaAnimatable = remember {
++                        Animatable(
++                            initialValue = 1f,
++                            typeConverter = Float.VectorConverter,
++                            label = "iconActiveAlpha",
++                        )
++                    }
+ 
+-                val iconInactiveAlphaAnimatable = remember {
+-                    Animatable(
+-                        initialValue = 0f,
+-                        typeConverter = Float.VectorConverter,
+-                        label = "iconInactiveAlpha",
+-                    )
+-                }
++                    val iconInactiveAlphaAnimatable = remember {
++                        Animatable(
++                            initialValue = 0f,
++                            typeConverter = Float.VectorConverter,
++                            label = "iconInactiveAlpha",
++                        )
++                    }
+ 
+-                LaunchedEffect(iconActiveAlphaAnimatable, iconInactiveAlphaAnimatable, showIconActive) {
+-                    if (showIconActive) {
+-                        launch { iconActiveAlphaAnimatable.appear() }
+-                        launch { iconInactiveAlphaAnimatable.disappear() }
+-                    } else {
+-                        launch { iconActiveAlphaAnimatable.disappear() }
+-                        launch { iconInactiveAlphaAnimatable.appear() }
++                    LaunchedEffect(iconActiveAlphaAnimatable, iconInactiveAlphaAnimatable, showIconActive) {
++                        if (showIconActive) {
++                            launch { iconActiveAlphaAnimatable.appear() }
++                            launch { iconInactiveAlphaAnimatable.disappear() }
++                        } else {
++                            launch { iconActiveAlphaAnimatable.disappear() }
++                            launch { iconInactiveAlphaAnimatable.appear() }
++                        }
+                     }
+-                }
+ 
+-                SliderDefaults.Track(
+-                    sliderState = sliderState,
+-                    modifier =
+-                        Modifier.motionTestValues {
+-                                (iconActiveAlphaAnimatable.isRunning ||
+-                                    iconInactiveAlphaAnimatable.isRunning) exportAs
+-                                    BrightnessSliderMotionTestKeys.AnimatingIcon
+-
+-                                iconActiveAlphaAnimatable.value exportAs
+-                                    BrightnessSliderMotionTestKeys.ActiveIconAlpha
+-                                iconInactiveAlphaAnimatable.value exportAs
+-                                    BrightnessSliderMotionTestKeys.InactiveIconAlpha
+-                            }
+-                            .height(TrackHeight)
+-                            .drawWithContent {
+-                                drawContent()
+-
+-                                val yOffset = size.height / 2 - IconSize.toSize().height / 2
+-                                val activeTrackStart = 0f
+-                                val activeTrackEnd =
+-                                    size.width * sliderState.coercedValueAsFraction -
+-                                        ThumbTrackGapSize.toPx()
+-                                val inactiveTrackStart = activeTrackEnd + ThumbTrackGapSize.toPx() * 2
+-                                val inactiveTrackEnd = size.width
+-
+-                                val activeTrackWidth = activeTrackEnd - activeTrackStart
+-                                val inactiveTrackWidth = inactiveTrackEnd - inactiveTrackStart
+-
+-                                if (
+-                                    IconSize.toSize().width <
+-                                        inactiveTrackWidth - IconPadding.toPx() * 2
+-                                ) {
+-                                    showIconActive = false
+-                                    trackIcon(
+-                                        Offset(inactiveTrackEnd, yOffset),
+-                                        inactiveIconColor,
+-                                        iconInactiveAlphaAnimatable.value,
++                    SliderDefaults.Track(
++                        sliderState = sliderState,
++                        modifier =
++                            Modifier.motionTestValues {
++                                    (iconActiveAlphaAnimatable.isRunning ||
++                                        iconInactiveAlphaAnimatable.isRunning) exportAs
++                                        BrightnessSliderMotionTestKeys.AnimatingIcon
++
++                                    iconActiveAlphaAnimatable.value exportAs
++                                        BrightnessSliderMotionTestKeys.ActiveIconAlpha
++                                    iconInactiveAlphaAnimatable.value exportAs
++                                        BrightnessSliderMotionTestKeys.InactiveIconAlpha
++                                }
++                                .height(TrackHeight)
++                                .drawWithContent {
++                                    // Kompakt: the track is one pill drawn here; drawContent() is not called.
++                                    val pill =
++                                        Path().apply {
++                                            addRoundRect(
++                                                RoundRect(
++                                                    Rect(0f, 0f, size.width, size.height),
++                                                    CornerRadius(
++                                                        SliderTrackRoundedCorner.toPx()
++                                                    ),
++                                                )
++                                            )
++                                        }
++                                    clipPath(pill) {
++                                        drawRect(color = inactiveTrackColor, size = size)
++
++                                        // Dots for the whole length, so they stay put as the level moves.
++                                        val step = KompaktDotSpacing.toPx()
++                                        val dotRadius = KompaktDotRadius.toPx()
++                                        var y = step / 2f
++                                        while (y < size.height) {
++                                            var x = step / 2f
++                                            while (x < size.width) {
++                                                drawCircle(
++                                                    color = inactiveIconColor,
++                                                    radius = dotRadius,
++                                                    center = Offset(x, y),
++                                                )
++                                                x += step
++                                            }
++                                            y += step
++                                        }
++
++                                        // The level, over the dots.
++                                        val fillEnd =
++                                            size.width * sliderState.coercedValueAsFraction
++                                        if (fillEnd > 0f) {
++                                            drawRect(
++                                                color = activeTrackColor,
++                                                size = Size(fillEnd, size.height),
++                                            )
++                                        }
++                                    }
++
++                                    // Kompakt: outline the pill, inset by half the stroke.
++                                    val strokePx = KompaktTrackStroke.toPx()
++                                    val halfStroke = strokePx / 2f
++                                    drawRoundRect(
++                                        color = activeTrackColor,
++                                        topLeft = Offset(halfStroke, halfStroke),
++                                        size =
++                                            Size(
++                                                size.width - strokePx,
++                                                size.height - strokePx,
++                                            ),
++                                        cornerRadius =
++                                            CornerRadius(
++                                                SliderTrackRoundedCorner.toPx() - halfStroke
++                                            ),
++                                        style = Stroke(width = strokePx),
+                                     )
+-                                } else if (
+-                                    IconSize.toSize().width < activeTrackWidth - IconPadding.toPx() * 2
+-                                ) {
+-                                    showIconActive = true
++
++                                    val yOffset = size.height / 2 - IconSize.toSize().height / 2
++                                    val activeTrackStart = 0f
++                                    val activeTrackEnd =
++                                        size.width * sliderState.coercedValueAsFraction -
++                                            ThumbTrackGapSize.toPx()
++                                    val inactiveTrackStart = activeTrackEnd + ThumbTrackGapSize.toPx() * 2
++                                    val inactiveTrackEnd = size.width
++
++                                    val activeTrackWidth = activeTrackEnd - activeTrackStart
++                                    val inactiveTrackWidth = inactiveTrackEnd - inactiveTrackStart
++
++                                    // Kompakt: one icon at the end of the track, flipping ink under the fill.
++                                    val iconLeft =
++                                        size.width - IconPadding.toPx() - IconSize.toSize().width
++                                    val fillReachesIcon =
++                                        size.width * sliderState.coercedValueAsFraction > iconLeft
+                                     trackIcon(
+-                                        Offset(activeTrackEnd, yOffset),
+-                                        activeIconColor,
+-                                        iconActiveAlphaAnimatable.value,
++                                        Offset(size.width, yOffset),
++                                        if (fillReachesIcon) activeIconColor else inactiveIconColor,
++                                        1f,
+                                     )
+-                                }
+-                            },
+-                    trackCornerSize = SliderTrackRoundedCorner,
+-                    trackInsideCornerSize = 2.dp,
+-                    drawStopIndicator = null,
+-                    thumbTrackGapSize = ThumbTrackGapSize,
+-                    colors = colors,
+-                )
+-            },
+-        )
++                                },
++                        trackCornerSize = SliderTrackRoundedCorner,
++                        trackInsideCornerSize = 2.dp,
++                        drawStopIndicator = null,
++                        thumbTrackGapSize = ThumbTrackGapSize,
++                        colors = colors,
++                    )
++                },
++            )
++
++            Box(
++                modifier =
++                    Modifier.align(Alignment.CenterEnd)
++                        .size(
++                            width = IconSize.width + IconPadding * 2,
++                            height = IconSize.height + IconPadding * 2,
++                        )
++                        .clickable(
++                            interactionSource = null,
++                            indication = null,
++                            onClick = onIconCycle,
++                        )
++            )
++        }
+ 
+         if (hasAutoBrightness && showAutoBrightness) {
+             Spacer(modifier = Modifier.width(10.dp))
+@@ -538,6 +613,19 @@ fun BrightnessSliderContainer(
+                 coroutineScope.launch { viewModel.onDrag(Drag.Stopped(GammaBrightness(it))) }
+             },
+             onIconClick = { viewModel.onIconClick() },
++            onIconCycle = {
++                val lo = viewModel.minBrightness.value
++                val hi = viewModel.maxBrightness.value
++                val span = (hi - lo).toFloat()
++                val fraction = if (span > 0f) (gamma - lo) / span else 0f
++                // The first step strictly below, wrapping to the top.
++                val next =
++                    KompaktBrightnessSteps.firstOrNull { it < fraction - 0.01f }
++                        ?: KompaktBrightnessSteps.first()
++                coroutineScope.launch {
++                    viewModel.onDrag(Drag.Stopped(GammaBrightness((lo + next * span).toInt())))
++                }
++            },
+             modifier =
+                 Modifier.borderOnFocus(
+                         color = MaterialTheme.colorScheme.secondary,
+@@ -573,13 +661,23 @@ data class ContainerColors(val idleColor: Color, val mirrorColor: Color) {
+     }
+ }
+ 
++/** Levels the icon tap walks down through, in order, wrapping at the end. */
++private val KompaktBrightnessSteps = listOf(1f, 0.75f, 0.5f, 0.25f, 0f)
++
+ private object Dimensions {
+     val SliderBackgroundFrameSize = DpSize(10.dp, 6.dp)
+     val SliderBackgroundRoundedCorner = 24.dp
+-    val SliderTrackRoundedCorner = 12.dp
++    // Half the track height, so the ends are true semicircles.
++    val SliderTrackRoundedCorner = 20.dp
++
++    // Halftone under the level.
++    val KompaktTrackStroke = 1.dp
++    val KompaktDotSpacing = 8.dp
++    val KompaktDotRadius = 0.5.dp
+     val IconSize = DpSize(28.dp, 28.dp)
+     val IconPadding = 6.dp
+-    val ThumbTrackGapSize = 6.dp
++    // Zero: one pill with no thumb.
++    val ThumbTrackGapSize = 0.dp
+ 
+     val ThumbHeight : Dp
+         @Composable
+diff --git a/packages/SystemUI/src/com/android/systemui/globalactions/GlobalActionsDialogLite.java b/packages/SystemUI/src/com/android/systemui/globalactions/GlobalActionsDialogLite.java
+index 2a12c0d59c87..f38feee7cae2 100644
+--- a/packages/SystemUI/src/com/android/systemui/globalactions/GlobalActionsDialogLite.java
++++ b/packages/SystemUI/src/com/android/systemui/globalactions/GlobalActionsDialogLite.java
+@@ -3159,12 +3159,7 @@ public class GlobalActionsDialogLite implements DialogInterface.OnDismissListene
+                 mBackgroundDrawable = new ScrimDrawable();
+                 mScrimAlpha = 1.0f;
+             }
+-            if (QsInCompose.isEnabled()) {
+-                View v = findViewById(R.id.list);
+-                v.setBackgroundTintList(ColorStateList.valueOf(
+-                        getContext().getColor(R.color.materialColorSurfaceContainerLow)
+-                ));
+-            }
++            // Kompakt: no background tint; it would paint over the border.
+ 
+             // If user entered from the lock screen and smart lock was enabled, disable it
+             int user = mSelectedUserInteractor.getSelectedUserId();
+diff --git a/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/LockscreenBehindScrimViewModel.kt b/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/LockscreenBehindScrimViewModel.kt
+index c4cca6ead63c..7654b7f816b1 100644
+--- a/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/LockscreenBehindScrimViewModel.kt
++++ b/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/LockscreenBehindScrimViewModel.kt
+@@ -40,6 +40,7 @@ constructor(private val aodDimInteractor: AodDimInteractor) {
+     }
+ 
+     companion object {
+-        private const val LOCKSCREEN_WALLPAPER_DIM_AMOUNT = .2f
++        /** e-ink: no dim. */
++        private const val LOCKSCREEN_WALLPAPER_DIM_AMOUNT = 0f
+     }
+ }
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/CommonTile.kt b/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/CommonTile.kt
+index 8a4842837737..79ad82b710c9 100644
+--- a/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/CommonTile.kt
++++ b/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/CommonTile.kt
+@@ -71,6 +71,7 @@ import androidx.compose.ui.graphics.TransformOrigin
+ import androidx.compose.ui.graphics.drawscope.DrawScope
+ import androidx.compose.ui.graphics.graphicsLayer
+ import androidx.compose.ui.graphics.painter.Painter
++import androidx.compose.ui.graphics.vector.ImageVector
+ import androidx.compose.ui.layout.ContentScale
+ import androidx.compose.ui.layout.Layout
+ import androidx.compose.ui.platform.LocalContext
+@@ -130,6 +131,7 @@ fun LargeTileContent(
+     textScale: () -> Float = { 1f },
+     toggleClick: (() -> Unit)? = null,
+     onLongClick: (() -> Unit)? = null,
++    kompaktVector: ImageVector? = null,
+ ) {
+     val isDualTarget = toggleClick != null
+     Row(
+@@ -171,6 +173,7 @@ fun LargeTileContent(
+         ) {
+             SmallTileContent(
+                 iconProvider = iconProvider,
++                kompaktVector = kompaktVector,
+                 color = colors.icon,
+                 size = { CommonTileDefaults.LargeTileIconSize },
+                 modifier = Modifier.align(Alignment.Center),
+@@ -242,11 +245,23 @@ fun SmallTileContent(
+     modifier: Modifier = Modifier,
+     size: () -> Dp = { CommonTileDefaults.IconSize },
+     animateToEnd: Boolean = false,
++    kompaktVector: ImageVector? = null,
+ ) {
+     val context = LocalContext.current
+     val icon = iconProvider(context)
+     val animatedColor by animateColorAsState(color, label = "QSTileIconColor")
+     val iconModifier = modifier.size({ size().roundToPx() }, { size().roundToPx() })
++
++    // e-ink: a filled or outlined Material icon for the tile state; null falls through.
++    if (kompaktVector != null) {
++        androidx.compose.material3.Icon(
++            imageVector = kompaktVector,
++            contentDescription = null,
++            tint = animatedColor,
++            modifier = iconModifier,
++        )
++        return
++    }
+     val loadedDrawable =
+         remember(icon, context) {
+             when (icon) {
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/KompaktTileIcons.kt b/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/KompaktTileIcons.kt
+new file mode 100644
+index 000000000000..341576d03d64
+--- /dev/null
++++ b/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/KompaktTileIcons.kt
+@@ -0,0 +1,179 @@
++/* Kompakt e-ink: a filled icon when a QS tile is on, an outlined one when off.
++ * Generated by vendor/kompakt/tools/gen_symbols.py; do not hand edit. */
++package com.android.systemui.qs.panels.ui.compose.infinitegrid
++
++import androidx.compose.ui.graphics.Color
++import androidx.compose.ui.graphics.SolidColor
++import androidx.compose.ui.graphics.vector.ImageVector
++import androidx.compose.ui.graphics.vector.PathParser
++import androidx.compose.ui.unit.dp
++
++/** Build an ImageVector from Material Symbols path data. */
++private fun symbol(pathData: String): ImageVector =
++    ImageVector.Builder(
++            name = "KompaktSymbol",
++            defaultWidth = 24.dp,
++            defaultHeight = 24.dp,
++            viewportWidth = 960f,
++            viewportHeight = 960f,
++        )
++        .addGroup(name = "s", translationY = 960f)
++        .addPath(
++            pathData = PathParser().parsePathString(pathData).toNodes(),
++            fill = SolidColor(Color.Black),
++        )
++        .clearGroup()
++        .build()
++
++/** Material Symbols `bluetooth`, on and off. */
++private val BluetoothOn by lazy { symbol("M440-80v-304L256-200l-56-56 224-224-224-224 56-56 184 184v-304h40l228 228-172 172 172 172L480-80h-40Zm80-496 76-76-76-74v150Zm0 342 76-74-76-76v150Z") }
++private val BluetoothOff by lazy { symbol("M792-56 624-224 480-80h-40v-304L256-200l-56-56 196-196L56-792l56-56 736 736-56 56ZM520-234l46-46-46-46v92Zm44-274-56-56 88-88-76-74v174l-80-80v-248h40l228 228-144 144Z") }
++
++/** Material Symbols `airplanemode_active`, on and off. */
++private val AirplaneOn by lazy { symbol("M280-80v-100l120-84v-144L80-280v-120l320-224v-176q0-33 23.5-56.5T480-880q33 0 56.5 23.5T560-800v176l320 224v120L560-408v144l120 84v100l-200-60-200 60Z") }
++private val AirplaneOff by lazy { symbol("m880-280-141-57-339-337v-126q0-33 23.5-56.5T480-880q33 0 56.5 23.5T560-800v176l320 224v120ZM480-140 280-80v-100l120-84v-144L80-280v-120l216-152L56-792l56-56 736 736-56 56-232-232v24l120 84v100l-200-60Z") }
++
++/** Material Symbols `wifi_tethering`, on and off. */
++private val HotspotOn by lazy { symbol("M204-150q-57-55-90.5-129.5T80-440q0-83 31.5-156T197-723q54-54 127-85.5T480-840q83 0 156 31.5T763-723q54 54 85.5 127T880-440q0 86-33.5 161T756-150l-56-56q46-44 73-104.5T800-440q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 69 27 129t74 104l-57 57Zm113-113q-35-33-56-78.5T240-440q0-100 70-170t170-70q100 0 170 70t70 170q0 53-21 99t-56 78l-57-57q25-23 39.5-54t14.5-66q0-66-47-113t-113-47q-66 0-113 47t-47 113q0 36 14.5 66.5T374-320l-57 57Zm106.5-120.5Q400-407 400-440t23.5-56.5Q447-520 480-520t56.5 23.5Q560-473 560-440t-23.5 56.5Q513-360 480-360t-56.5-23.5Z") }
++private val HotspotOff by lazy { symbol("M791-55 325-521q-2 10-3.5 20t-1.5 21q0 36 14.5 66.5T374-360l-57 57q-35-33-56-78.5T240-480q0-28 6-54t17-49l-59-59q-21 36-32.5 76.5T160-480q0 69 27 129t74 104l-57 57q-57-55-90.5-129.5T80-480q0-62 17-117t49-103l-91-91 57-57 736 736-57 57Zm23-205-58-58q21-35 32.5-76t11.5-86q0-134-93-227t-227-93q-45 0-85.5 11.5T318-756l-58-58q48-32 103.5-49T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 61-17 116.5T814-260ZM697-377l-62-62q2-10 3.5-20t1.5-21q0-66-47-113t-113-47q-11 0-21 1.5t-20 3.5l-62-62q23-11 49-17t54-6q100 0 170 70t70 170q0 28-6 54t-17 49Z") }
++
++/** Material Symbols `flashlight_on`, on and off. */
++private val FlashlightOn by lazy { symbol("M240-760v-120h480v120H240Zm282.5 402.5Q540-375 540-400t-17.5-42.5Q505-460 480-460t-42.5 17.5Q420-425 420-400t17.5 42.5Q455-340 480-340t42.5-17.5ZM320-80v-440l-80-120v-40h480v40l-80 120v440H320Z") }
++private val FlashlightOff by lazy { symbol("M320-80v-440l-80-120v-240h480v240l-80 120v440H320Zm117.5-277.5Q420-375 420-400t17.5-42.5Q455-460 480-460t42.5 17.5Q540-425 540-400t-17.5 42.5Q505-340 480-340t-42.5-17.5ZM320-760h320v-40H320v40Zm320 80H320v16l80 120v384h160v-384l80-120v-16ZM480-480Z") }
++
++/** Material Symbols `screen_rotation`, on and off. */
++private val ScreenRotationOn by lazy { symbol("M480 0q-99 0-186.5-37.5t-153-103Q75-206 37.5-293.5T0-480h80q0 71 24 136t66.5 117Q213-175 272-138.5T401-87L296-192l56-56L588-12q-26 6-53.5 9T480 0Zm400-480q0-71-24-136t-66.5-117Q747-785 688-821.5T559-873l105 105-56 56-236-236q26-6 53.5-9t54.5-3q99 0 186.5 37.5t153 103q65.5 65.5 103 153T960-480h-80ZM496.05-182 182-496q-10.52-11-16.26-25-5.74-14-5.74-29t5.74-29q5.74-14 16.26-25l173.62-174q11.03-11 25.08-16.5 14.05-5.5 29.11-5.5 15.05 0 29.1 5.5T464-778l313.97 313.97Q789-453 794.5-439q5.5 14 5.5 29t-5.74 29q-5.74 14-16.26 25L604.42-182q-11.04 11-25.09 16.5-14.04 5.5-29.09 5.5t-29.1-5.5q-14.05-5.5-25.09-16.5ZM373-556q13 0 21.5-9t8.5-21q0-13-8.5-21.5T373-616q-12 0-21 8.5t-9 21.5q0 12 9 21t21 9Z") }
++private val ScreenRotationOff by lazy { symbol("M496-182 183-496q-11-11-17-25t-6-29q0-15 6-29t17-25l173-173q11-11 25-16.5t29-5.5q15 0 29 5.5t25 16.5l313 313q11 11 17 25t6 29q0 15-6 29t-17 25L604-182q-11 11-25 16.5t-29 5.5q-15 0-29-5.5T496-182Zm54-58 170-170-310-310-170 170 310 310ZM480 0q-99 0-186.5-37.5t-153-103Q75-206 37.5-293.5T0-480h80q0 71 24 136t66.5 117Q213-175 272-138.5T401-87L296-192l56-56L588-12q-26 6-53.5 9T480 0Zm400-480q0-71-24-136t-66.5-117Q747-785 688-821.5T559-873l105 105-56 56-236-236q26-6 53.5-9t54.5-3q99 0 186.5 37.5t153 103q65.5 65.5 103 153T960-480h-80Zm-400 0Zm-107-76q13 0 21.5-9t8.5-21q0-13-8.5-21.5T373-616q-12 0-21 8.5t-9 21.5q0 12 9 21t21 9Z") }
++
++/** Material Symbols `cast`, on and off. */
++private val CastOn by lazy { symbol("M80-160v-120q50 0 85 35t35 85H80Zm200 0q0-83-58.5-141.5T80-360v-80q117 0 198.5 81.5T360-160h-80Zm160 0q0-75-28.5-140.5t-77-114q-48.5-48.5-114-77T80-520v-80q91 0 171 34.5T391-471q60 60 94.5 140T520-160h-80Zm160 0q0-108-41-202.5t-111.5-165Q377-598 282.5-639T80-680v-40q0-33 23.5-56.5T160-800h640q33 0 56.5 23.5T880-720v480q0 33-23.5 56.5T800-160H600Z") }
++private val CastOff by lazy { symbol("M480-480Zm320 320H600q0-20-1.5-40t-4.5-40h206v-480H160v46q-20-3-40-4.5T80-680v-40q0-33 23.5-56.5T160-800h640q33 0 56.5 23.5T880-720v480q0 33-23.5 56.5T800-160Zm-720 0v-120q50 0 85 35t35 85H80Zm200 0q0-83-58.5-141.5T80-360v-80q117 0 198.5 81.5T360-160h-80Zm160 0q0-75-28.5-140.5t-77-114q-48.5-48.5-114-77T80-520v-80q91 0 171 34.5T391-471q60 60 94.5 140T520-160h-80Z") }
++
++/** Material Symbols `battery_saver`, on and off. */
++private val BatterySaverOn by lazy { symbol("M640-80v-120H520v-80h120v-120h80v120h120v80H720v120h-80Zm-320 0q-17 0-28.5-11.5T280-120v-640q0-17 11.5-28.5T320-800h80v-80h160v80h80q17 0 28.5 11.5T680-760v280q-100 1-170 70.5T440-240q0 46 16 87t45 73H320Z") }
++private val BatterySaverOff by lazy { symbol("M640-80v-120H520v-80h120v-120h80v120h120v80H720v120h-80Zm-280-80Zm-40 80q-17 0-28.5-11.5T280-120v-640q0-17 11.5-28.5T320-800h80v-80h160v80h80q17 0 28.5 11.5T680-760v280q-21 0-41 3.5T600-466v-254H360v560h94q8 23 19.5 43T501-80H320Z") }
++
++/** Material Symbols `do_not_disturb_on`, on and off. */
++private val DoNotDisturbOn by lazy { symbol("M280-440h400v-80H280v80ZM480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Z") }
++private val DoNotDisturbOff by lazy { symbol("M280-440h400v-80H280v80ZM480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z") }
++
++/** Material Symbols `alarm`, on and off. */
++private val AlarmOn by lazy { symbol("M339.5-108.5q-65.5-28.5-114-77t-77-114Q120-365 120-440t28.5-140.5q28.5-65.5 77-114t114-77Q405-800 480-800t140.5 28.5q65.5 28.5 114 77t77 114Q840-515 840-440t-28.5 140.5q-28.5 65.5-77 114t-114 77Q555-80 480-80t-140.5-28.5ZM592-272l56-56-128-128v-184h-80v216l152 152ZM224-866l56 56-170 170-56-56 170-170Zm512 0 170 170-56 56-170-170 56-56Z") }
++private val AlarmOff by lazy { symbol("M339.5-108.5q-65.5-28.5-114-77t-77-114Q120-365 120-440t28.5-140.5q28.5-65.5 77-114t114-77Q405-800 480-800t140.5 28.5q65.5 28.5 114 77t77 114Q840-515 840-440t-28.5 140.5q-28.5 65.5-77 114t-114 77Q555-80 480-80t-140.5-28.5ZM480-440Zm112 168 56-56-128-128v-184h-80v216l152 152ZM224-866l56 56-170 170-56-56 170-170Zm512 0 170 170-56 56-170-170 56-56ZM480-160q117 0 198.5-81.5T760-440q0-117-81.5-198.5T480-720q-117 0-198.5 81.5T200-440q0 117 81.5 198.5T480-160Z") }
++
++/** Material Symbols `location_on`, on and off. */
++private val LocationOn by lazy { symbol("M536.5-503.5Q560-527 560-560t-23.5-56.5Q513-640 480-640t-56.5 23.5Q400-593 400-560t23.5 56.5Q447-480 480-480t56.5-23.5ZM480-80Q319-217 239.5-334.5T160-552q0-150 96.5-239T480-880q127 0 223.5 89T800-552q0 100-79.5 217.5T480-80Z") }
++private val LocationOff by lazy { symbol("M536.5-503.5Q560-527 560-560t-23.5-56.5Q513-640 480-640t-56.5 23.5Q400-593 400-560t23.5 56.5Q447-480 480-480t56.5-23.5ZM480-186q122-112 181-203.5T720-552q0-109-69.5-178.5T480-800q-101 0-170.5 69.5T240-552q0 71 59 162.5T480-186Zm0 106Q319-217 239.5-334.5T160-552q0-150 96.5-239T480-880q127 0 223.5 89T800-552q0 100-79.5 217.5T480-80Zm0-480Z") }
++
++/** Material Symbols `dark_mode`, on and off. */
++private val DarkModeOn by lazy { symbol("M480-120q-150 0-255-105T120-480q0-150 105-255t255-105q14 0 27.5 1t26.5 3q-41 29-65.5 75.5T444-660q0 90 63 153t153 63q55 0 101-24.5t75-65.5q2 13 3 26.5t1 27.5q0 150-105 255T480-120Z") }
++private val DarkModeOff by lazy { symbol("M480-120q-150 0-255-105T120-480q0-150 105-255t255-105q14 0 27.5 1t26.5 3q-41 29-65.5 75.5T444-660q0 90 63 153t153 63q55 0 101-24.5t75-65.5q2 13 3 26.5t1 27.5q0 150-105 255T480-120Zm0-80q88 0 158-48.5T740-375q-20 5-40 8t-40 3q-123 0-209.5-86.5T364-660q0-20 3-40t8-40q-78 32-126.5 102T200-480q0 116 82 198t198 82Zm-10-270Z") }
++
++/** Material Symbols `nfc`, on and off. */
++private val NfcOn by lazy { symbol("M280-280h400v-400H520q-33 0-56.5 23.5T440-600v52q-20 11-30 28t-10 40q0 33 23.5 56.5T480-400q33 0 56.5-23.5T560-480q0-23-11-40t-29-28v-52h80v240H360v-240h40v-80H280v400Zm-80 160q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h560q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Z") }
++private val NfcOff by lazy { symbol("M280-280h400v-400H520q-33 0-56.5 23.5T440-600v52q-20 11-30 28t-10 40q0 33 23.5 56.5T480-400q33 0 56.5-23.5T560-480q0-23-11-40t-29-28v-52h80v240H360v-240h40v-80H280v400Zm-80 160q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h560q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Zm0-80h560v-560H200v560Zm0-560v560-560Z") }
++
++/** Material Symbols `videocam`, on and off. */
++private val VideocamOn by lazy { symbol("M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h480q33 0 56.5 23.5T720-720v180l160-160v440L720-420v180q0 33-23.5 56.5T640-160H160Z") }
++private val VideocamOff by lazy { symbol("M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h480q33 0 56.5 23.5T720-720v180l160-160v440L720-420v180q0 33-23.5 56.5T640-160H160Zm0-80h480v-480H160v480Zm0 0v-480 480Z") }
++
++/** Material Symbols `nightlight`, on and off. */
++private val NightlightOn by lazy { symbol("M560-80q-82 0-155-31.5t-127.5-86Q223-252 191.5-325T160-480.5q0-82.5 31.5-155t86-127Q332-817 405-848.5T560-880q54 0 105 14t95 40q-91 53-145.5 143.5T560-480q0 112 54.5 202.5T760-134q-44 26-95 40T560-80Z") }
++private val NightlightOff by lazy { symbol("M560-80q-82 0-155-31.5t-127.5-86Q223-252 191.5-325T160-480.5q0-82.5 31.5-155t86-127Q332-817 405-848.5T560-880q54 0 105 14t95 40q-91 53-145.5 143.5T560-480q0 112 54.5 202.5T760-134q-44 26-95 40T560-80Zm0-80h21q10 0 19-2-57-66-88.5-147.5T480-480q0-89 31.5-170.5T600-798q-9-2-19-2h-21q-133 0-226.5 93.5T240-480q0 133 93.5 226.5T560-160Zm-80-320Z") }
++
++/** Material Symbols `invert_colors`, on and off. */
++private val InvertColorsOn by lazy { symbol("M480-120q-133 0-226.5-92T160-435q0-66 25-122.5T254-658l226-222 226 222q44 44 69 100.5T800-435q0 131-93.5 223T480-120Zm0-80v-568L310-600q-35 33-52.5 75T240-435q0 97 70 166t170 69Z") }
++private val InvertColorsOff by lazy { symbol("M480-120q-133 0-226.5-92.5T160-436q0-66 25-122t69-100l226-222 226 222q44 44 69 100t25 122q0 131-93.5 223.5T480-120Zm0-80v-568L310-600q-35 33-52.5 74.5T240-436q0 97 70 166.5T480-200Z") }
++
++/** Material Symbols `mic`, on and off. */
++private val MicOn by lazy { symbol("M395-435q-35-35-35-85v-240q0-50 35-85t85-35q50 0 85 35t35 85v240q0 50-35 85t-85 35q-50 0-85-35Zm45 315v-123q-104-14-172-93t-68-184h80q0 83 58.5 141.5T480-320q83 0 141.5-58.5T680-520h80q0 105-68 184t-172 93v123h-80Z") }
++private val MicOff by lazy { symbol("M395-435q-35-35-35-85v-240q0-50 35-85t85-35q50 0 85 35t35 85v240q0 50-35 85t-85 35q-50 0-85-35Zm85-205Zm-40 520v-123q-104-14-172-93t-68-184h80q0 83 58.5 141.5T480-320q83 0 141.5-58.5T680-520h80q0 105-68 184t-172 93v123h-80Zm68.5-371.5Q520-503 520-520v-240q0-17-11.5-28.5T480-800q-17 0-28.5 11.5T440-760v240q0 17 11.5 28.5T480-480q17 0 28.5-11.5Z") }
++
++/** Material Symbols `photo_camera`, on and off. */
++private val PhotoCameraOn by lazy { symbol("M480-260q75 0 127.5-52.5T660-440q0-75-52.5-127.5T480-620q-75 0-127.5 52.5T300-440q0 75 52.5 127.5T480-260Zm0-80q-42 0-71-29t-29-71q0-42 29-71t71-29q42 0 71 29t29 71q0 42-29 71t-71 29ZM160-120q-33 0-56.5-23.5T80-200v-480q0-33 23.5-56.5T160-760h126l74-80h240l74 80h126q33 0 56.5 23.5T880-680v480q0 33-23.5 56.5T800-120H160Z") }
++private val PhotoCameraOff by lazy { symbol("M480-260q75 0 127.5-52.5T660-440q0-75-52.5-127.5T480-620q-75 0-127.5 52.5T300-440q0 75 52.5 127.5T480-260Zm0-80q-42 0-71-29t-29-71q0-42 29-71t71-29q42 0 71 29t29 71q0 42-29 71t-71 29ZM160-120q-33 0-56.5-23.5T80-200v-480q0-33 23.5-56.5T160-760h126l74-80h240l74 80h126q33 0 56.5 23.5T880-680v480q0 33-23.5 56.5T800-120H160Zm0-80h640v-480H638l-73-80H395l-73 80H160v480Zm320-240Z") }
++
++/** Material Symbols `screenshot`, on and off. */
++private val ScreenshotOn by lazy { symbol("M640-360h-80v120H440v80h200v-200ZM280-40q-33 0-56.5-23.5T200-120v-720q0-33 23.5-56.5T280-920h400q33 0 56.5 23.5T760-840v124q18 7 29 22t11 34v80q0 19-11 34t-29 22v404q0 33-23.5 56.5T680-40H280Zm40-560h80v-120h120v-80H320v200Z") }
++private val ScreenshotOff by lazy { symbol("M640-360h-80v120H440v80h200v-200ZM280-40q-33 0-56.5-23.5T200-120v-720q0-33 23.5-56.5T280-920h400q33 0 56.5 23.5T760-840v124q18 7 29 22t11 34v80q0 19-11 34t-29 22v404q0 33-23.5 56.5T680-40H280Zm0-80h400v-720H280v720Zm0 0v-720 720Zm40-480h80v-120h120v-80H320v200Z") }
++
++/** Material Symbols `widgets`, on and off. */
++private val WidgetsOn by lazy { symbol("M666-440 440-666l226-226 226 226-226 226Zm-546-80v-320h320v320H120Zm400 400v-320h320v320H520Zm-400 0v-320h320v320H120Z") }
++private val WidgetsOff by lazy { symbol("M666-440 440-666l226-226 226 226-226 226Zm-546-80v-320h320v320H120Zm400 400v-320h320v320H520Zm-400 0v-320h320v320H120Zm80-480h160v-160H200v160Zm467 48 113-113-113-113-113 113 113 113Zm-67 352h160v-160H600v160Zm-400 0h160v-160H200v160Zm160-400Zm194-65ZM360-360Zm240 0Z") }
++
++/** Material Symbols `sim_card`, on and off. */
++private val SimCardOn by lazy { symbol("M280-200h80v-80h-80v80Zm0-160h80v-160h-80v160Zm160 160h80v-160h-80v160Zm0-240h80v-80h-80v80Zm160 240h80v-80h-80v80Zm0-160h80v-160h-80v160ZM240-80q-33 0-56.5-23.5T160-160v-480l240-240h320q33 0 56.5 23.5T800-800v640q0 33-23.5 56.5T720-80H240Z") }
++private val SimCardOff by lazy { symbol("M280-200h80v-80h-80v80Zm0-160h80v-160h-80v160Zm160 160h80v-160h-80v160Zm0-240h80v-80h-80v80Zm160 240h80v-80h-80v80Zm0-160h80v-160h-80v160ZM240-80q-33 0-56.5-23.5T160-160v-480l240-240h320q33 0 56.5 23.5T800-800v640q0 33-23.5 56.5T720-80H240Zm0-80h480v-640H434L240-606v446Zm0 0h480-480Z") }
++
++/** Material Symbols `qr_code_scanner`, on and off. */
++private val QrCodeOn by lazy { symbol("M80-680v-200h200v80H160v120H80Zm0 600v-200h80v120h120v80H80Zm600 0v-80h120v-120h80v200H680Zm120-600v-120H680v-80h200v200h-80ZM700-260h60v60h-60v-60Zm0-120h60v60h-60v-60Zm-60 60h60v60h-60v-60Zm-60 60h60v60h-60v-60Zm-60-60h60v60h-60v-60Zm120-120h60v60h-60v-60Zm-60 60h60v60h-60v-60Zm-60-60h60v60h-60v-60Zm240-320v240H520v-240h240ZM440-440v240H200v-240h240Zm0-320v240H200v-240h240Zm-60 500v-120H260v120h120Zm0-320v-120H260v120h120Zm320 0v-120H580v120h120Z") }
++private val QrCodeOff by lazy { symbol("M80-680v-200h200v80H160v120H80Zm0 600v-200h80v120h120v80H80Zm600 0v-80h120v-120h80v200H680Zm120-600v-120H680v-80h200v200h-80ZM700-260h60v60h-60v-60Zm0-120h60v60h-60v-60Zm-60 60h60v60h-60v-60Zm-60 60h60v60h-60v-60Zm-60-60h60v60h-60v-60Zm120-120h60v60h-60v-60Zm-60 60h60v60h-60v-60Zm-60-60h60v60h-60v-60Zm240-320v240H520v-240h240ZM440-440v240H200v-240h240Zm0-320v240H200v-240h240Zm-60 500v-120H260v120h120Zm0-320v-120H260v120h120Zm320 0v-120H580v120h120Z") }
++
++/** Material Symbols `wallet`, on and off. */
++private val WalletOn by lazy { symbol("M240-160q-66 0-113-47T80-320v-320q0-66 47-113t113-47h480q66 0 113 47t47 113v320q0 66-47 113t-113 47H240Zm0-480h480q22 0 42 5t38 16v-21q0-33-23.5-56.5T720-720H240q-33 0-56.5 23.5T160-640v21q18-11 38-16t42-5Zm-74 130 445 108q9 2 18 0t17-8l139-116q-11-15-28-24.5t-37-9.5H240q-26 0-45.5 13.5T166-510Z") }
++private val WalletOff by lazy { symbol("M240-160q-66 0-113-47T80-320v-320q0-66 47-113t113-47h480q66 0 113 47t47 113v320q0 66-47 113t-113 47H240Zm0-480h480q22 0 42 5t38 16v-21q0-33-23.5-56.5T720-720H240q-33 0-56.5 23.5T160-640v21q18-11 38-16t42-5Zm-74 130 445 108q9 2 18 0t17-8l139-116q-11-15-28-24.5t-37-9.5H240q-26 0-45.5 13.5T166-510Z") }
++
++/** Material Symbols `refresh`, on and off. */
++private val RefreshOn by lazy { symbol("M480-160q-134 0-227-93t-93-227q0-134 93-227t227-93q69 0 132 28.5T720-690v-110h80v280H520v-80h168q-32-56-87.5-88T480-720q-100 0-170 70t-70 170q0 100 70 170t170 70q77 0 139-44t87-116h84q-28 106-114 173t-196 67Z") }
++private val RefreshOff by lazy { symbol("M480-160q-134 0-227-93t-93-227q0-134 93-227t227-93q69 0 132 28.5T720-690v-110h80v280H520v-80h168q-32-56-87.5-88T480-720q-100 0-170 70t-70 170q0 100 70 170t170 70q77 0 139-44t87-116h84q-28 106-114 173t-196 67Z") }
++
++/** Material Symbols `tonality`, on and off. */
++private val EinkModeOn by lazy { symbol("M324-111.5Q251-143 197-197t-85.5-127Q80-397 80-480t31.5-156Q143-709 197-763t127-85.5Q397-880 480-880t156 31.5Q709-817 763-763t85.5 127Q880-563 880-480t-31.5 156Q817-251 763-197t-127 85.5Q563-80 480-80t-156-31.5ZM520-162q30-5 59-13.5t55-24.5H520v38Zm0-118h210q8-9 14-19t12-21H520v40Zm0-120h270l4-20 4-20H520v40Zm0-120h278l-4-20-4-20H520v40Zm0-120h236q-6-11-12-21t-14-19H520v40Zm0-120h114q-26-16-55-24.5T520-798v38Z") }
++private val EinkModeOff by lazy { symbol("M324-111.5Q251-143 197-197t-85.5-127Q80-397 80-480t31.5-156Q143-709 197-763t127-85.5Q397-880 480-880t156 31.5Q709-817 763-763t85.5 127Q880-563 880-480t-31.5 156Q817-251 763-197t-127 85.5Q563-80 480-80t-156-31.5ZM440-162v-636q-121 15-200.5 106T160-480q0 121 79.5 212T440-162Zm80 0q30-5 59-13.5t55-24.5H520v38Zm0-118h210q8-9 14-19t12-21H520v40Zm0-120h270l4-20 4-20H520v40Zm0-120h278l-4-20-4-20H520v40Zm0-120h236q-6-11-12-21t-14-19H520v40Zm0-120h114q-26-16-55-24.5T520-798v38Zm-80 280Z") }
++
++/** The icon pair for a tile spec, or null to leave the tile's own drawable alone. */
++fun kompaktTileIcon(spec: String, active: Boolean): ImageVector? {
++    val key =
++        if (spec.startsWith("custom(")) spec.substringAfter("custom(").lowercase() else spec
++    return when {
++        key.startsWith("bt") || key.contains("bluetooth") ->
++            if (active) BluetoothOn else BluetoothOff
++        key.startsWith("flashlight") || key.contains("torch") ->
++            if (active) FlashlightOn else FlashlightOff
++        key.startsWith("airplane") ->
++            if (active) AirplaneOn else AirplaneOff
++        key.startsWith("rotation") ->
++            if (active) ScreenRotationOn else ScreenRotationOff
++        key.startsWith("cast") ->
++            if (active) CastOn else CastOff
++        key.startsWith("saver") || key.startsWith("battery") ->
++            if (active) BatterySaverOn else BatterySaverOff
++        key.startsWith("dnd") || key.startsWith("modes") ->
++            if (active) DoNotDisturbOn else DoNotDisturbOff
++        key.startsWith("alarm") ->
++            if (active) AlarmOn else AlarmOff
++        key.startsWith("location") ->
++            if (active) LocationOn else LocationOff
++        key.startsWith("hotspot") ->
++            if (active) HotspotOn else HotspotOff
++        key.startsWith("dark") ->
++            if (active) DarkModeOn else DarkModeOff
++        key.startsWith("nfc") ->
++            if (active) NfcOn else NfcOff
++        key.startsWith("qr") ->
++            if (active) QrCodeOn else QrCodeOff
++        key.startsWith("screenrecord") ->
++            if (active) VideocamOn else VideocamOff
++        key.startsWith("night") ->
++            if (active) NightlightOn else NightlightOff
++        key.startsWith("inversion") || key.startsWith("color") ->
++            if (active) InvertColorsOn else InvertColorsOff
++        key.startsWith("mictoggle") ->
++            if (active) MicOn else MicOff
++        key.startsWith("cameratoggle") ->
++            if (active) PhotoCameraOn else PhotoCameraOff
++        key.startsWith("screenshot") ->
++            if (active) ScreenshotOn else ScreenshotOff
++        key.startsWith("wallet") ->
++            if (active) WalletOn else WalletOff
++        key.startsWith("controls") ->
++            if (active) WidgetsOn else WidgetsOff
++        key.contains("einktileservice") ->
++            if (active) EinkModeOn else EinkModeOff
++        key.contains("refreshtileservice") ->
++            if (active) RefreshOn else RefreshOff
++        key.contains("esimtileservice") ->
++            if (active) SimCardOn else SimCardOff
++        else -> null
++    }
++}
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/Tile.kt b/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/Tile.kt
+index 3fbb89cb1dc5..64ecac8c97f7 100644
+--- a/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/Tile.kt
++++ b/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/Tile.kt
+@@ -328,9 +328,13 @@ fun ContentScope.Tile(
+                 modifier = contentRevealModifier,
+             ) {
+                 val iconProvider: Context.() -> Icon = { getTileIcon(icon = icon) }
++                // e-ink: filled when the tile is on, outlined when off.
++                val kompaktVector =
++                    kompaktTileIcon(tile.spec.spec, uiState.state == STATE_ACTIVE)
+                 if (iconOnly) {
+                     SmallTileContent(
+                         iconProvider = iconProvider,
++                        kompaktVector = kompaktVector,
+                         color = colors.icon,
+                         modifier =
+                             Modifier.align(Alignment.Center).bounceScale {
+@@ -351,6 +355,7 @@ fun ContentScope.Tile(
+                         label = uiState.label,
+                         secondaryLabel = uiState.secondaryLabel,
+                         iconProvider = iconProvider,
++                        kompaktVector = kompaktVector,
+                         sideDrawable = uiState.sideDrawable,
+                         colors = colors,
+                         iconShape = iconShape,
+@@ -502,8 +507,9 @@ data class TileColors(
+ )
+ 
+ private object TileDefaults {
+-    val ActiveIconCornerRadius = 16.dp
+-    val ActiveTileCornerRadius = 24.dp
++    // e-ink: an active tile is the same shape as an inactive one.
++    val ActiveIconCornerRadius = InactiveCornerRadius
++    val ActiveTileCornerRadius = InactiveCornerRadius
+ 
+     /** An active tile uses the active color as background */
+     @Composable
+@@ -523,8 +529,9 @@ private object TileDefaults {
+-            background = MaterialTheme.colorScheme.onSurface,
+-            iconBackground = MaterialTheme.colorScheme.onSurface,
+-            label = MaterialTheme.colorScheme.surface,
+-            secondaryLabel = MaterialTheme.colorScheme.surface,
+-            icon = MaterialTheme.colorScheme.surface,
++            // The icon carries the state; the tile keeps one fill.
++            background = MaterialTheme.colorScheme.surface,
++            iconBackground = Color.Transparent,
++            label = MaterialTheme.colorScheme.onSurface,
++            secondaryLabel = MaterialTheme.colorScheme.onSurface,
++            icon = MaterialTheme.colorScheme.onSurface,
+         )
+ 
+     /** An active tile with dual target only show the active color on the icon */
+@@ -537,11 +544,12 @@ private object TileDefaults {
+     @ReadOnlyComposable
+     fun activeDualTargetTileColors(): TileColors =
+         TileColors(
++            // No black disc behind the icon.
+             background = MaterialTheme.colorScheme.surface,
+-            iconBackground = MaterialTheme.colorScheme.onSurface,
++            iconBackground = Color.Transparent,
+             label = MaterialTheme.colorScheme.onSurface,
+             secondaryLabel = MaterialTheme.colorScheme.onSurface,
+-            icon = MaterialTheme.colorScheme.surface,
++            icon = MaterialTheme.colorScheme.onSurface,
+         )
+ 
+     @Composable
+@@ -549,7 +557,7 @@ private object TileDefaults {
+     fun inactiveDualTargetTileColors(): TileColors =
+         TileColors(
+             background = MaterialTheme.colorScheme.surface,
+-            iconBackground = MaterialTheme.colorScheme.surface,
++            iconBackground = Color.Transparent,
+             label = MaterialTheme.colorScheme.onSurface,
+             secondaryLabel = MaterialTheme.colorScheme.onSurface,
+             icon = MaterialTheme.colorScheme.onSurface,
+diff --git a/packages/SystemUI/src/com/android/systemui/shade/ShadeHeaderController.kt b/packages/SystemUI/src/com/android/systemui/shade/ShadeHeaderController.kt
+index 2bf377e69c3b..cea4f0f52f6d 100644
+--- a/packages/SystemUI/src/com/android/systemui/shade/ShadeHeaderController.kt
++++ b/packages/SystemUI/src/com/android/systemui/shade/ShadeHeaderController.kt
+@@ -306,14 +306,11 @@ constructor(
+     private val configurationControllerListener =
+         object : ConfigurationController.ConfigurationListener {
+             override fun onConfigChanged(newConfig: Configuration?) {
+-                val left =
+-                    header.resources.getDimensionPixelSize(
+-                        R.dimen.large_screen_shade_header_left_padding
+-                    )
+-                header.setPadding(
+-                    left,
++                // Kompakt: the status bar's own padding, as updateResources() uses.
++                header.setPaddingRelative(
++                    header.resources.getDimensionPixelSize(R.dimen.status_bar_padding_start),
+                     header.paddingTop,
+-                    header.paddingRight,
++                    header.resources.getDimensionPixelSize(R.dimen.status_bar_padding_end),
+                     header.paddingBottom,
+                 )
+                 systemIconsHoverContainer.setPaddingRelative(
+@@ -716,8 +713,12 @@ constructor(
+         roundedCorners = SystemProperties.getInt("persist.sys.phh.rounded_corners_padding", -1);
+         if(roundedCorners == -1)
+             roundedCorners = resources.getDimensionPixelSize(R.dimen.rounded_corner_content_padding)
+-        val padding = resources.getDimensionPixelSize(R.dimen.qs_panel_padding)
+-        header.setPadding(padding, header.paddingTop, padding, header.paddingBottom)
++        // Kompakt: pad with the status bar's own dimensions so the header lines up.
++        // Set here, not in the layout: this method overwrites it.
++        val paddingStart = resources.getDimensionPixelSize(R.dimen.status_bar_padding_start)
++        val paddingEnd = resources.getDimensionPixelSize(R.dimen.status_bar_padding_end)
++        header.setPaddingRelative(
++            paddingStart, header.paddingTop, paddingEnd, header.paddingBottom)
+         updateQQSPaddings()
+         qsBatteryModeController.updateResources()
+     }
+diff --git a/packages/SystemUI/src/com/android/systemui/shade/domain/interactor/ShadeModeInteractor.kt b/packages/SystemUI/src/com/android/systemui/shade/domain/interactor/ShadeModeInteractor.kt
+index ac7c5e9e20d1..3e4df82e377e 100644
+--- a/packages/SystemUI/src/com/android/systemui/shade/domain/interactor/ShadeModeInteractor.kt
++++ b/packages/SystemUI/src/com/android/systemui/shade/domain/interactor/ShadeModeInteractor.kt
+@@ -177,4 +177,4 @@ constructor(
+-        private const val DUAL_SHADE_ENABLED_DEFAULT = false
++        private const val DUAL_SHADE_ENABLED_DEFAULT = true
+     }
+ }
+ 
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/phone/DarkIconDispatcherImpl.java b/packages/SystemUI/src/com/android/systemui/statusbar/phone/DarkIconDispatcherImpl.java
+index cc3a0078f90b..09cf935df893 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/phone/DarkIconDispatcherImpl.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/phone/DarkIconDispatcherImpl.java
+@@ -157,8 +157,6 @@ public class DarkIconDispatcherImpl implements SysuiDarkIconDispatcher,
+ 
+     @Override
+     public void applyDarkIntensity(float darkIntensity) {
+-        // e-ink: icons are always dark; the status bar is always near-white.
+-        darkIntensity = 1f;
+         mDarkIntensity = darkIntensity;
+         ArgbEvaluator evaluator = ArgbEvaluator.getInstance();
+ 
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/phone/KeyguardStatusBarView.java b/packages/SystemUI/src/com/android/systemui/statusbar/phone/KeyguardStatusBarView.java
+index 3c2a925b9530..f70eb6b5386f 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/phone/KeyguardStatusBarView.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/phone/KeyguardStatusBarView.java
+@@ -489,10 +489,9 @@ public class KeyguardStatusBarView extends RelativeLayout {
+         @ColorInt int textColor = Utils.getColorAttrDefaultColor(mContext,
+                 R.attr.wallpaperTextColor);
+         float luminance = Color.luminance(textColor);
++        // Kompakt: black, in every configuration.
+         @ColorInt int iconColor = Utils.getColorStateListDefaultColor(mContext,
+-                    luminance < 0.5
+-                        ? com.android.settingslib.R.color.dark_mode_icon_color_single_tone
+-                        : com.android.settingslib.R.color.light_mode_icon_color_single_tone);
++                    com.android.settingslib.R.color.dark_mode_icon_color_single_tone);
+         @ColorInt int contrastColor = luminance < 0.5
+                 ? DarkIconDispatcherImpl.DEFAULT_ICON_TINT
+                 : DarkIconDispatcherImpl.DEFAULT_INVERSE_ICON_TINT;
+@@ -510,3 +509,4 @@ public class KeyguardStatusBarView extends RelativeLayout {
++        // Kompakt: pinned to 1, not keyed off night mode.
+         float intensity = 1f;
+         mCarrierLabel.setTextColor(iconColor);
+ 
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/phone/KeyguardStatusBarViewController.java b/packages/SystemUI/src/com/android/systemui/statusbar/phone/KeyguardStatusBarViewController.java
+index 014432dee69c..d7ccc08fb1a3 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/phone/KeyguardStatusBarViewController.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/phone/KeyguardStatusBarViewController.java
+@@ -477,4 +477,7 @@ public class KeyguardStatusBarViewController extends ViewController<KeyguardStat
+-        mBatteryMeterViewController.init();
++        // Kompakt: exactly one battery; the legacy view only without the Compose one.
++        if (mBatteryComposeView == null) {
++            mBatteryMeterViewController.init();
++        }
+         if (isMigrationEnabled()) {
+             KeyguardStatusBarViewBinder.bind(mView, mKeyguardStatusBarViewModel);
+         }
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimController.java b/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimController.java
+index 0c36fc0044aa..3060a5ddb77e 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimController.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimController.java
+@@ -127,11 +127,13 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
+     /**
+      * General scrim animation duration.
+      */
+-    public static final long ANIMATION_DURATION = 220;
++    // Kompakt: instant. Scrims have their own animator, outside the scales.
++    public static final long ANIMATION_DURATION = 0;
+     /**
+      * Longer duration, currently only used when going to AOD.
+      */
+-    public static final long ANIMATION_DURATION_LONG = 1000;
++    /** Zero, as ANIMATION_DURATION above. */
++    public static final long ANIMATION_DURATION_LONG = 0;
+     /**
+      * When both scrims have 0 alpha.
+      */
+diff --git a/services/core/java/com/android/server/BatteryService.java b/services/core/java/com/android/server/BatteryService.java
+index f4b69f16c71e..99504331a451 100644
+--- a/services/core/java/com/android/server/BatteryService.java
++++ b/services/core/java/com/android/server/BatteryService.java
+@@ -752,6 +752,11 @@ public final class BatteryService extends SystemService {
+     }
+ 
+     private static int plugType(HealthInfo healthInfo) {
++        // Kompakt: mtk_charger_type latches; only DISCHARGING proves no charger.
++        if (healthInfo.batteryStatus == BatteryManager.BATTERY_STATUS_DISCHARGING) {
++            return BATTERY_PLUGGED_NONE;
++        }
++
+         if (healthInfo.chargerAcOnline) {
+             return BatteryManager.BATTERY_PLUGGED_AC;
+         } else if (healthInfo.chargerUsbOnline) {
+diff --git a/services/core/java/com/android/server/policy/PhoneWindowManager.java b/services/core/java/com/android/server/policy/PhoneWindowManager.java
+index b14756eccf0a..b126056db393 100644
+--- a/services/core/java/com/android/server/policy/PhoneWindowManager.java
++++ b/services/core/java/com/android/server/policy/PhoneWindowManager.java
+@@ -151,6 +151,7 @@ import android.content.pm.ApplicationInfo;
+ import android.content.pm.PackageManager;
+ import android.content.pm.ResolveInfo;
+ import android.content.res.Configuration;
++import android.graphics.drawable.ColorDrawable;
+ import android.content.res.Resources;
+ import android.database.ContentObserver;
+ import android.graphics.Rect;
+@@ -2285,18 +2286,12 @@ public class PhoneWindowManager implements WindowManagerPolicy {
+     private boolean launchEinkRefresh() {
++        // A broadcast, not an Activity: the flush must not animate or relayout.
+         final Intent intent = new Intent("com.dumbita.service.action.REFRESH")
+-                .setPackage("com.dumbita.service")
+-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+-                        | Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS);
+-        if (mContext.getPackageManager().resolveActivity(intent, 0) == null) {
+-            return false;
+-        }
+-        try {
+-            mContext.startActivityAsUser(intent, UserHandle.CURRENT);
+-            return true;
+-        } catch (ActivityNotFoundException e) {
+-            Slog.w(TAG, "e-ink refresh activity went away", e);
++                .setPackage("com.dumbita.service");
++        if (mContext.getPackageManager().queryBroadcastReceivers(intent, 0).isEmpty()) {
+             return false;
+         }
++        mContext.sendBroadcastAsUser(intent, UserHandle.CURRENT);
++        return true;
+     }
+ 
+     private void performKeyAction(Action action, KeyEvent event) {
+@@ -6887,5 +6882,16 @@ public class PhoneWindowManager implements WindowManagerPolicy {
+                     mBootMsgDialog.getWindow().setDimAmount(0);
++
++                    // Kompakt: the boot dialog window fills the screen with the theme background.
++                    final android.util.TypedValue bg = new android.util.TypedValue();
++                    mBootMsgDialog.getContext().getTheme().resolveAttribute(
++                            android.R.attr.colorBackground, bg, true);
++                    mBootMsgDialog.getWindow().setBackgroundDrawable(
++                            new ColorDrawable(bg.data));
++
+                     WindowManager.LayoutParams lp = mBootMsgDialog.getWindow().getAttributes();
++                    lp.width = WindowManager.LayoutParams.MATCH_PARENT;
++                    lp.height = WindowManager.LayoutParams.MATCH_PARENT;
++                    lp.gravity = android.view.Gravity.CENTER;
+                     lp.screenOrientation = ActivityInfo.SCREEN_ORIENTATION_NOSENSOR;
+                     lp.setFitInsetsTypes(0 /* types */);
+                     mBootMsgDialog.getWindow().setAttributes(lp);
+diff --git a/services/usb/java/com/android/server/usb/UsbDeviceManager.java b/services/usb/java/com/android/server/usb/UsbDeviceManager.java
+index 9a2183128c3f..392e58de237a 100644
+--- a/services/usb/java/com/android/server/usb/UsbDeviceManager.java
++++ b/services/usb/java/com/android/server/usb/UsbDeviceManager.java
+@@ -141,6 +141,8 @@ public class UsbDeviceManager implements ActivityTaskManagerInternal.ScreenObser
+      * sessions.
+      */
+     static final String UNLOCKED_CONFIG_PREF = "usb-screen-unlocked-config-%d";
++    // Kompakt: an unset USB default means MTP, for Mudita Center.
++    static final String DEFAULT_UNLOCKED_CONFIG = "mtp";
+ 
+     /**
+      * ro.bootmode value when phone boots into usual Android.
+@@ -741,7 +743,7 @@ public class UsbDeviceManager implements ActivityTaskManagerInternal.ScreenObser
+                 mScreenUnlockedFunctions = UsbManager.usbFunctionsFromString(
+                         mSettings.getString(
+                                 String.format(Locale.ENGLISH, UNLOCKED_CONFIG_PREF, mCurrentUser),
+-                                ""));
++                                DEFAULT_UNLOCKED_CONFIG));
+             }
+ 
+             // We do not show the USB notification if the primary volume supports mass storage.
+@@ -1504,7 +1506,8 @@ public class UsbDeviceManager implements ActivityTaskManagerInternal.ScreenObser
+                         if (mSettings != null) {
+                             mScreenUnlockedFunctions = UsbManager.usbFunctionsFromString(
+                                     mSettings.getString(String.format(Locale.ENGLISH,
+-                                            UNLOCKED_CONFIG_PREF, mCurrentUser), ""));
++                                            UNLOCKED_CONFIG_PREF, mCurrentUser),
++                                            DEFAULT_UNLOCKED_CONFIG));
+                         }
+                         setEnabledFunctions(UsbManager.FUNCTION_NONE, false, operationId);
+                     }

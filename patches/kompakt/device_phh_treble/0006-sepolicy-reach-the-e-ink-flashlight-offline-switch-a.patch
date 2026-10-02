@@ -1,0 +1,38 @@
+From acc2e0e54786f07fc80c435eaccfb78db0b734dc Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Wed, 9 Sep 2026 17:44:35 +0200
+Subject: [PATCH 06/12] sepolicy: reach the e-ink, flashlight, offline switch
+ and FM nodes
+
+---
+ sepolicy/dumbita.te | 123 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 123 insertions(+)
+ create mode 100755 sepolicy/dumbita.te
+
+diff --git a/sepolicy/dumbita.te b/sepolicy/dumbita.te
+new file mode 100755
+index 0000000..73cb5e0
+--- /dev/null
++++ b/sepolicy/dumbita.te
+@@ -0,0 +1,21 @@
++# DumbitaService: SELinux rules.
++
++###
++### The hardware nodes: e-ink panel, both flash LEDs, offline-switch position
++###
++# Keep sysfs_type bare: any subtraction expands to plat types only and grants nothing.
++allow system_app sysfs_type:file rw_file_perms;
++allow system_app sysfs_type:dir r_dir_perms;
++
++###
++### The offline switch itself
++###
++# /dev/input/event0, read only.
++allow system_app input_device:dir search;
++allow system_app input_device:chr_file r_file_perms;
++
++###
++### FM radio: /dev/fm
++###
++# RevampedFMRadio opens /dev/fm directly; fm_device is vendor-declared, so only dev_type reaches it.
++allow system_app dev_type:chr_file rw_file_perms;

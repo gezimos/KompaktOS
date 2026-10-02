@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: copies of the app's own Material 3 themes with the elevation overlay switched off. -->
+<resources>
+    <style name="BaseTheme.Twelve.Dialog" parent="Theme.Material3Expressive.Light.Dialog.Alert" />
+
+    <!-- Dialog theme -->
+    <style name="Theme.Twelve.Dialog" parent="BaseTheme.Twelve.Dialog">
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="materialSwitchStyle">@style/Widget.SettingsLib.MaterialSwitch</item>
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        <item name="elevationOverlayEnabled">false</item>
+    </style>
+    <style name="Theme.Twelve.AppWidgetContainer" parent="Theme.Material3Expressive.DynamicColors.DayNight">
+        <item name="appWidgetRadius">28dp</item>
+        <item name="elevationOverlayEnabled">false</item>
+    </style>
+    <!-- Kompakt: flat, like the transport controls above it. -->
+    <style name="Theme.Twelve.NowPlayingFragment.BottomBarButton" parent="@style/Theme.Twelve.Kompakt.IconButton">
+        <item name="android:layout_width">48dp</item>
+        <item name="android:layout_height">48dp</item>
+        <item name="android:layout_gravity">center</item>
+        <item name="android:padding">0dp</item>
+        <item name="android:insetLeft">0dp</item>
+        <item name="android:insetRight">0dp</item>
+        <item name="android:textAppearance">?attr/textAppearanceLabelLarge</item>
+        <item name="iconGravity">textStart</item>
+        <item name="elevationOverlayEnabled">false</item>
+    </style>
+</resources>

@@ -1,0 +1,25 @@
+From 97854028ab5363853bc05f6fc85a4ac3a477f0ad Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Tue, 8 Sep 2026 14:45:26 +0200
+Subject: [PATCH 05/12] Size the boot animation to the Kompakt's 480x800 panel
+
+---
+ lineage.mk | 21 ++++++++++++++++++++-
+ 1 file changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/lineage.mk b/lineage.mk
+index 3795e4b..75b6e80 100644
+--- a/lineage.mk
++++ b/lineage.mk
+@@ -8,7 +8,10 @@ PRODUCT_DEVICE := generic_arm64
+ PRODUCT_MANUFACTURER := google
+ 
+ # Bootanimation
+-TARGET_BOOT_ANIMATION_RES := 1080
++# Kompakt: size the generated boot animation to the 480x800 panel.
++# Set here so := lands before common.mk's ?= and before BoardConfigSoong.mk reads it.
++TARGET_SCREEN_WIDTH := 480
++TARGET_SCREEN_HEIGHT := 800
+ 
+ # APN
+ PRODUCT_PACKAGES += apns-conf.xml

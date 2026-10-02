@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Kompakt: selected text in the URL bar. Solid and near the paper end. -->
+    <color name="kompakt_url_highlight">#ffd4d4d4</color>
+</resources>

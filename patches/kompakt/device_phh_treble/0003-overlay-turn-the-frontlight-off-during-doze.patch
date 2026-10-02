@@ -1,0 +1,24 @@
+From aa282660153c5f88bcd8245c1625552dc4e3f61a Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Tue, 8 Sep 2026 14:35:16 +0200
+Subject: [PATCH 03/12] overlay: turn the frontlight off during doze
+
+---
+ overlay/frameworks/base/core/res/res/values/config.xml | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/overlay/frameworks/base/core/res/res/values/config.xml b/overlay/frameworks/base/core/res/res/values/config.xml
+index 616051b..febf53a 100644
+--- a/overlay/frameworks/base/core/res/res/values/config.xml
++++ b/overlay/frameworks/base/core/res/res/values/config.xml
+@@ -35,6 +35,10 @@
+ 
+ 	<bool name="config_cellBroadcastAppLinks">true</bool>
+ 
++	<!-- Kompakt: the panel holds its image unpowered, so no frontlight in doze.
++	     Float is already 0.0. -->
++	<integer name="config_screenBrightnessDoze">0</integer>
++
+     <array name="config_availableColorModes">
+         <!-- ColorDisplayManager.COLOR_MODE_NATURAL -->
+         <item>0</item>

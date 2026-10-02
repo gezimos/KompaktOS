@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The in call screen, in light mode. -->
+<resources>
+    <color name="incall_background_gradient_top">#ffffffff</color>
+    <color name="incall_background_gradient_middle">#ffffffff</color>
+    <color name="incall_background_gradient_bottom">#ffffffff</color>
+    <color name="incall_background_multiwindow">#ffffffff</color>
+
+    <!-- Referenced by the theme below so one style covers both modes. -->
+    <color name="kompakt_incall_background">#ffffffff</color>
+    <color name="kompakt_incall_text_primary">#ff000000</color>
+    <color name="kompakt_incall_text_secondary">#dd000000</color>
+</resources>

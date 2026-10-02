@@ -1,0 +1,76 @@
+From d878628328787232385110404d228acc5f3fbcef Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Sat, 26 Sep 2026 02:10:00 +0200
+Subject: [PATCH 33/38] Kompakt: a hard border on every dialog, drawn over its
+ content
+
+---
+ .../android/internal/policy/DecorView.java    | 68 +++++++++++++++++++
+ 1 file changed, 68 insertions(+)
+
+diff --git a/core/java/com/android/internal/policy/DecorView.java b/core/java/com/android/internal/policy/DecorView.java
+index fdc5631f4cb1..694c37b3a2de 100644
+--- a/core/java/com/android/internal/policy/DecorView.java
++++ b/core/java/com/android/internal/policy/DecorView.java
+@@ -819,6 +819,61 @@ public class DecorView extends FrameLayout implements RootViewSurfaceTaker, Wind
+         if (mMenuBackground != null) {
+             mMenuBackground.draw(canvas);
+         }
++        drawKompaktDialogFrame(canvas);
++    }
++
++    /* Kompakt: a hard border on every dialog, drawn over its content.
++     * persist.sys.kompakt.dialog_frame=0 turns it off (read once per process). */
++    private static final boolean KOMPAKT_DIALOG_FRAME =
++            android.os.SystemProperties.getBoolean("persist.sys.kompakt.dialog_frame", true);
++    private final Outline mKompaktOutline = new Outline();
++    private final Rect mKompaktFrameRect = new Rect();
++    private final TypedValue mKompaktInkValue = new TypedValue();
++    private Paint mKompaktFramePaint;
++
++    private void drawKompaktDialogFrame(Canvas canvas) {
++        if (!KOMPAKT_DIALOG_FRAME || mWindow == null || !mWindow.isFloating()) {
++            return;
++        }
++        if (mWindow.getAttributes().type == TYPE_INPUT_METHOD) {
++            return;
++        }
++        final Drawable background = getBackground();
++        if (background == null) {
++            return;
++        }
++        mKompaktOutline.setEmpty();
++        background.getOutline(mKompaktOutline);
++        if (mKompaktOutline.getAlpha() == 0f
++                || !mKompaktOutline.getRect(mKompaktFrameRect)
++                || mKompaktFrameRect.isEmpty()) {
++            return;
++        }
++        if (mKompaktFramePaint == null) {
++            mKompaktFramePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
++            mKompaktFramePaint.setStyle(Paint.Style.STROKE);
++            mKompaktFramePaint.setStrokeWidth(
++                    3f * getResources().getDisplayMetrics().density);
++        }
++        mKompaktFramePaint.setColor(kompaktDialogInk());
++        final float half = mKompaktFramePaint.getStrokeWidth() / 2f;
++        final float radius = Math.max(0f, mKompaktOutline.getRadius() - half);
++        canvas.drawRoundRect(mKompaktFrameRect.left + half, mKompaktFrameRect.top + half,
++                mKompaktFrameRect.right - half, mKompaktFrameRect.bottom - half,
++                radius, radius, mKompaktFramePaint);
++    }
++
++    private int kompaktDialogInk() {
++        final TypedValue v = mKompaktInkValue;
++        if (getContext().getTheme().resolveAttribute(android.R.attr.colorForeground, v, true)
++                && v.type >= TypedValue.TYPE_FIRST_COLOR_INT
++                && v.type <= TypedValue.TYPE_LAST_COLOR_INT) {
++            return Color.luminance(v.data) >= 0.5f ? Color.WHITE : Color.BLACK;
++        }
++        final int night = getResources().getConfiguration().uiMode
++                & android.content.res.Configuration.UI_MODE_NIGHT_MASK;
++        return night == android.content.res.Configuration.UI_MODE_NIGHT_YES
++                ? Color.WHITE : Color.BLACK;
+     }
+ 
+     @Override

@@ -1,0 +1,52 @@
+From 2faf0219f7da248142e6f9ba5c968f193f91eeed Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Tue, 8 Sep 2026 15:09:39 +0200
+Subject: [PATCH 08/38] SystemUI: outlined brightness slider, visible icon
+
+---
+ .../drawable/brightness_progress_drawable.xml   | 17 +++++++----------
+ .../brightness_progress_full_drawable.xml       |  2 +-
+ 2 files changed, 8 insertions(+), 11 deletions(-)
+
+diff --git a/packages/SystemUI/res/drawable/brightness_progress_drawable.xml b/packages/SystemUI/res/drawable/brightness_progress_drawable.xml
+index d38da7b766c1..13077b32a691 100644
+--- a/packages/SystemUI/res/drawable/brightness_progress_drawable.xml
++++ b/packages/SystemUI/res/drawable/brightness_progress_drawable.xml
+@@ -18,16 +18,13 @@
+     xmlns:androidprv="http://schemas.android.com/apk/prv/res/android"
+             android:paddingMode="stack" >
+     <item android:id="@android:id/background"
+-        android:gravity="center_vertical|fill_horizontal">
+-        <inset
+-            android:insetLeft="@dimen/rounded_slider_track_inset"
+-            android:insetRight="@dimen/rounded_slider_track_inset" >
+-            <shape>
+-                <size android:height="@dimen/rounded_slider_track_width" />
+-                <corners android:radius="@dimen/rounded_slider_track_corner_radius" />
+-                <solid android:color="@color/brightness_slider_track" />
+-            </shape>
+-        </inset>
++        android:gravity="fill">
++        <shape>
++            <size android:height="@dimen/rounded_slider_height" />
++            <corners android:radius="@dimen/rounded_slider_corner_radius" />
++            <solid android:color="#00000000" />
++            <stroke android:width="2.0px" android:color="#ff000000" />
++        </shape>
+     </item>
+     <item android:id="@android:id/progress"
+           android:gravity="center_vertical|fill_horizontal">
+diff --git a/packages/SystemUI/res/drawable/brightness_progress_full_drawable.xml b/packages/SystemUI/res/drawable/brightness_progress_full_drawable.xml
+index a9e7adf668a9..34d6e46de27e 100644
+--- a/packages/SystemUI/res/drawable/brightness_progress_full_drawable.xml
++++ b/packages/SystemUI/res/drawable/brightness_progress_full_drawable.xml
+@@ -41,7 +41,7 @@
+         android:right="@dimen/rounded_slider_icon_inset">
+         <com.android.systemui.util.AlphaTintDrawableWrapper
+             android:drawable="@drawable/ic_brightness"
+-            android:tint="?attr/onShadeActive"
++            android:tint="#ffffffff"
+         />
+     </item>
+ </layer-list>
+\ No newline at end of file

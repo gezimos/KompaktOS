@@ -1,0 +1,22 @@
+From a4965eb05b58d1cbdc0cf82602adc21a3add58da Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Tue, 8 Sep 2026 15:11:57 +0200
+Subject: [PATCH 1/2] Default to right-side quick QS pulldown
+
+---
+ packages/LineageSettingsProvider/res/values/defaults.xml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/packages/LineageSettingsProvider/res/values/defaults.xml b/packages/LineageSettingsProvider/res/values/defaults.xml
+index 1d59bacd..ea3dacef 100644
+--- a/packages/LineageSettingsProvider/res/values/defaults.xml
++++ b/packages/LineageSettingsProvider/res/values/defaults.xml
+@@ -29,7 +29,7 @@
+          0. Off
+          1. Right
+          2. Left -->
+-    <integer name="def_qs_quick_pulldown">0</integer>
++    <integer name="def_qs_quick_pulldown">1</integer>
+ 
+     <!-- Default value for the battery LEDs brightness -->
+     <integer name="def_battery_brightness_level">255</integer>

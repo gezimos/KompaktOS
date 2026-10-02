@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: the app declares these themes as empty self closing tags; here they are again with the elevation overlay. -->
+<resources>
+    <style name="Theme.Camelot" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="elevationOverlayEnabled">false</item>
+    </style>
+</resources>

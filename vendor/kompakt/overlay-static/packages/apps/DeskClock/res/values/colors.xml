@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- e ink: DeskClock uses @color/white as its FOREGROUND colour. -->
+<resources>
+    <color name="white">#FF000000</color>
+    <color name="white_63p">#FF000000</color>
+    <color name="white_50p">#FF000000</color>
+    <color name="white_08p">#14000000</color>
+    <color name="black_54p">#FF000000</color>
+    <color name="no_alarms">#FF000000</color>
+    <!-- Kompakt: what you write with, and what you write on. -->
+    <color name="kompakt_ink">#FF000000</color>
+    <color name="kompakt_ground">#FFFFFFFE</color>
+</resources>
