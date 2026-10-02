@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: two inks. -->
+<resources>
+
+    <!-- The header fill and the status bar behind it. Was #D93025 / #C62828. -->
+    <color name="emergency_primary">#FFFFFFFF</color>
+    <color name="emergency_primary_dark">#FFFFFFFF</color>
+
+    <!-- Everything drawn on that header. -->
+    <color name="tab_text_color">#FF000000</color>
+    <color name="emergency_accent">#FF000000</color>
+    <color name="emergency_owner_text_color">#FF000000</color>
+
+    <!-- Category headings in the body. Was #E53935. -->
+    <color name="emergency_contacts_text_color">#FF000000</color>
+
+</resources>

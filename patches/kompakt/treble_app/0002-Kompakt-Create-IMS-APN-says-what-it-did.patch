@@ -1,0 +1,47 @@
+From b8970c2f07247eeec81928eae7b6fb4b178e0845 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sat, 3 Oct 2026 01:31:58 +0300
+Subject: [PATCH] Kompakt: Create IMS APN says what it did
+
+---
+ app/src/main/java/me/phh/treble/app/ImsSettings.kt | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/app/src/main/java/me/phh/treble/app/ImsSettings.kt b/app/src/main/java/me/phh/treble/app/ImsSettings.kt
+index 25e09a0..d3a2e27 100644
+--- a/app/src/main/java/me/phh/treble/app/ImsSettings.kt
++++ b/app/src/main/java/me/phh/treble/app/ImsSettings.kt
+@@ -63,6 +63,7 @@ class ImsSettingsFragment : SettingsFragment() {
+             val operator = tm.simOperator
+             if(tm.simOperator == null || tm.simOperator == "") {
+                 Log.d("PHH","No current carrier bailing out")
++                Toast.makeText(activity, "No SIM: insert a SIM to add the IMS APN", Toast.LENGTH_LONG).show()
+                 return@setOnPreferenceClickListener true
+             }
+ 
+@@ -80,6 +81,7 @@ class ImsSettingsFragment : SettingsFragment() {
+ 
+             if(cursor != null && cursor.moveToFirst()) {
+                 Log.d("PHH", "PHH IMS APN for this provider is already here with data $cursor")
++                Toast.makeText(activity, "IMS APN already added for $operator", Toast.LENGTH_LONG).show()
+                 return@setOnPreferenceClickListener true
+             }
+ 
+@@ -101,6 +103,14 @@ class ImsSettingsFragment : SettingsFragment() {
+ 
+             val res = cr.insert(Uri.parse("content://telephony/carriers"), cv)
+             Log.d("PHH", "Insert APN returned $res")
++            // The insert can return null although the row was written, so check the table.
++            val added = res != null || cr.query(
++                    Uri.parse("content://telephony/carriers/current"),
++                    arrayOf("name"), "name = ?", arrayOf("PHH IMS"), null
++            )?.use { it.moveToFirst() } == true
++            Toast.makeText(activity,
++                    if (added) "IMS APN added for $operator" else "Could not add the IMS APN",
++                    Toast.LENGTH_LONG).show()
+ 
+             return@setOnPreferenceClickListener true
+         }
+-- 
+2.50.1 (Apple Git-155)
+

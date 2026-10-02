@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Kompakt: the disc is the page ground rather than transparent. -->
+    <!-- The "Fingerprint added" illustration. -->
+    <color name="fingerprint_enrollment_finish_color_outline">#ff000000</color>
+
+    <!-- Kompakt: the homepage search bar. -->
+    <color name="kompakt_search_bar_ground">#fffffffe</color>
+    <color name="kompakt_search_bar_ink">#ff000000</color>
+
+    <!-- Kompakt: "Device is starting" after a reboot (FallbackHome). -->
+    <color name="kompakt_fallback_home_paper">#fffffffe</color>
+    <color name="kompakt_fallback_home_ink">#ff000000</color>
+
+    <!-- Kompakt: homepage icons are a plain glyph, no coloured disc. -->
+    <color name="homepage_blue_variant_bg">#fffffffe</color>
+    <color name="homepage_blue_bg">#fffffffe</color>
+    <color name="homepage_pink_bg">#fffffffe</color>
+    <color name="homepage_orange_bg">#fffffffe</color>
+    <color name="homepage_yellow_bg">#fffffffe</color>
+    <color name="homepage_green_bg">#fffffffe</color>
+    <color name="homepage_grey_bg">#fffffffe</color>
+    <color name="homepage_cyan_bg">#fffffffe</color>
+    <color name="homepage_red_bg">#fffffffe</color>
+    <color name="homepage_purple_bg">#fffffffe</color>
+    <color name="homepage_blue_variant_fg">#ff000000</color>
+    <color name="homepage_blue_fg">#ff000000</color>
+    <color name="homepage_pink_fg">#ff000000</color>
+    <color name="homepage_orange_fg">#ff000000</color>
+    <color name="homepage_yellow_fg">#ff000000</color>
+    <color name="homepage_green_fg">#ff000000</color>
+    <color name="homepage_grey_fg">#ff000000</color>
+    <color name="homepage_cyan_fg">#ff000000</color>
+    <color name="homepage_red_fg">#ff000000</color>
+    <color name="homepage_purple_fg">#ff000000</color>
+    <color name="homepage_generic_icon_background">#fffffffe</color>
+</resources>

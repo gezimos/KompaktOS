@@ -1,0 +1,225 @@
+From f8430b906b9e2f0535dd5b28594b82afa57a8079 Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Fri, 18 Sep 2026 18:56:27 +0200
+Subject: [PATCH 20/38] Kompakt: display: hold the panel off until the first
+ frame is the real one
+
+---
+ .../keyguard/mediator/ScreenOnCoordinator.kt  | 67 ++++++++++++++++++-
+ .../display/DisplayPowerController.java       | 53 ++++++++++-----
+ 2 files changed, 104 insertions(+), 16 deletions(-)
+
+diff --git a/packages/SystemUI/src/com/android/keyguard/mediator/ScreenOnCoordinator.kt b/packages/SystemUI/src/com/android/keyguard/mediator/ScreenOnCoordinator.kt
+index ad49fc94ad6a..239f3e2e2ae6 100644
+--- a/packages/SystemUI/src/com/android/keyguard/mediator/ScreenOnCoordinator.kt
++++ b/packages/SystemUI/src/com/android/keyguard/mediator/ScreenOnCoordinator.kt
+@@ -19,16 +19,34 @@ package com.android.keyguard.mediator
+ import android.annotation.BinderThread
+ import android.os.Handler
+ import android.os.Trace
++import android.util.Log
++import android.view.Choreographer
++import com.android.compose.animation.scene.ObservableTransitionState
+ import com.android.systemui.Flags
+ import com.android.systemui.dagger.SysUISingleton
++import com.android.systemui.dagger.qualifiers.Application
+ import com.android.systemui.dagger.qualifiers.Main
++import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor
++import com.android.systemui.keyguard.shared.model.BiometricUnlockMode
++import com.android.systemui.scene.domain.interactor.SceneInteractor
++import com.android.systemui.scene.shared.flag.SceneContainerFlag
++import com.android.systemui.scene.shared.model.Scenes
+ import com.android.systemui.shade.display.EnsureWallpaperDrawnOnDisplaySwitch
+ import com.android.systemui.shade.display.PendingDisplayChangeController
+ import com.android.systemui.unfold.SysUIUnfoldComponent
+ import com.android.systemui.util.concurrency.PendingTasksContainer
+ import com.android.systemui.util.kotlin.getOrNull
++import dagger.Lazy
+ import java.util.Optional
+ import javax.inject.Inject
++import kotlin.coroutines.resume
++import kotlinx.coroutines.CoroutineDispatcher
++import kotlinx.coroutines.CoroutineScope
++import kotlinx.coroutines.Job
++import kotlinx.coroutines.flow.first
++import kotlinx.coroutines.launch
++import kotlinx.coroutines.suspendCancellableCoroutine
++import kotlinx.coroutines.withTimeoutOrNull
+ 
+ /**
+  * Coordinates screen on/turning on animations for the KeyguardViewMediator. Specifically for screen
+@@ -42,7 +60,11 @@ class ScreenOnCoordinator
+ constructor(
+     unfoldComponent: Optional<SysUIUnfoldComponent>,
+     @Main private val mainHandler: Handler,
+-    private val pendingDisplayChangeController: PendingDisplayChangeController
++    private val pendingDisplayChangeController: PendingDisplayChangeController,
++    private val sceneInteractor: Lazy<SceneInteractor>,
++    private val keyguardInteractor: Lazy<KeyguardInteractor>,
++    @Application private val applicationScope: CoroutineScope,
++    @Main private val mainDispatcher: CoroutineDispatcher,
+ ) {
+ 
+     private val foldAodAnimationController =
+@@ -51,6 +73,9 @@ constructor(
+         unfoldComponent.map(SysUIUnfoldComponent::getFullScreenLightRevealAnimations).getOrNull()
+     private val pendingTasks = PendingTasksContainer()
+ 
++    /** Kompakt: the wake-and-unlock hold, see [onScreenTurningOn]. */
++    private var kompaktHoldJob: Job? = null
++
+     /**
+      * When turning on, registers tasks that may need to run before invoking [onDrawn]. This is
+      * called on a binder thread from [com.android.systemui.keyguard.KeyguardService].
+@@ -59,6 +84,8 @@ constructor(
+     fun onScreenTurningOn(reason: Int, onDrawn: Runnable) {
+         Trace.beginSection("ScreenOnCoordinator#onScreenTurningOn")
+ 
++        kompaktHoldJob?.cancel()
++        kompaktHoldJob = null
+         pendingTasks.reset()
+ 
+         foldAodAnimationController?.onScreenTurningOn(pendingTasks.registerTask("fold-to-aod"))
+@@ -71,6 +98,30 @@ constructor(
+                 pendingTasks.registerTask("pending-display-change-controller"));
+         }
+ 
++        // Kompakt: on a wake-and-unlock, hold the screen until the keyguard is gone.
++        if (SceneContainerFlag.isEnabled &&
++            BiometricUnlockMode.isWakeAndUnlock(
++                keyguardInteractor.get().biometricUnlockState.value.mode
++            )
++        ) {
++            val done = pendingTasks.registerTask("kompakt-wake-and-unlock-gone")
++            kompaktHoldJob =
++                applicationScope.launch(mainDispatcher) {
++                    val reached =
++                        withTimeoutOrNull(WAKE_AND_UNLOCK_GONE_TIMEOUT_MS) {
++                            sceneInteractor.get().transitionState.first {
++                                it is ObservableTransitionState.Idle &&
++                                    it.currentScene == Scenes.Gone
++                            }
++                            // Two frames: the first draws Gone, the second commits it.
++                            awaitFrame()
++                            awaitFrame()
++                        }
++                    Log.i(TAG, "Kompakt wake-and-unlock hold released, gone=" + (reached != null))
++                    done.run()
++                }
++        }
++
+         pendingTasks.onTasksComplete {
+             if (Flags.enableBackgroundKeyguardOndrawnCallback()) {
+                 // called by whatever thread completes the last task registered.
+@@ -93,6 +144,20 @@ constructor(
+ 
+     @BinderThread
+     fun onScreenTurnedOff() {
++        kompaktHoldJob?.cancel()
++        kompaktHoldJob = null
+         pendingTasks.reset()
+     }
++
++    private suspend fun awaitFrame() =
++        suspendCancellableCoroutine<Unit> { cont ->
++            val callback = Choreographer.FrameCallback { if (cont.isActive) cont.resume(Unit) }
++            Choreographer.getInstance().postFrameCallback(callback)
++            cont.invokeOnCancellation { Choreographer.getInstance().removeFrameCallback(callback) }
++        }
++
++    companion object {
++        private const val TAG = "ScreenOnCoordinator"
++        private const val WAKE_AND_UNLOCK_GONE_TIMEOUT_MS = 1200L
++    }
+ }
+diff --git a/services/core/java/com/android/server/display/DisplayPowerController.java b/services/core/java/com/android/server/display/DisplayPowerController.java
+index bc99da745f11..d5245abdb627 100644
+--- a/services/core/java/com/android/server/display/DisplayPowerController.java
++++ b/services/core/java/com/android/server/display/DisplayPowerController.java
+@@ -1379,7 +1379,9 @@ final class DisplayPowerController implements AutomaticBrightnessController.Call
+         final DisplayState displayState = mDisplayStateController.updateDisplayState(
+                 mPowerRequest, mIsEnabled, mIsInTransition);
+         int state = displayState.state();
+-        boolean disableDisplayDozeSuspend = SystemProperties.get("persist.sys.phh.disable_display_doze_suspend", "0").equals("1");
++        boolean disableDisplayDozeSuspend = SystemProperties.get("persist.sys.phh.disable_display_doze_suspend", "0")
++                // Kompakt: accept "true" too.
++                .matches("1|true");
+ 
+         if (disableDisplayDozeSuspend && state == Display.STATE_DOZE_SUSPEND) {
+             state = Display.STATE_DOZE;
+@@ -2220,6 +2222,8 @@ final class DisplayPowerController implements AutomaticBrightnessController.Call
+         final boolean isOff = (state == Display.STATE_OFF);
+         final boolean isOn = (state == Display.STATE_ON);
+         final boolean changed = mPowerState.getScreenState() != state;
++        // Kompakt: see applyScreenStateLocked().
++        boolean kompaktApplyAfterPolicy = false;
+ 
+         // If the screen is turning on, give displayoffload a chance to do something before the
+         // screen actually turns on.
+@@ -2252,21 +2256,15 @@ final class DisplayPowerController implements AutomaticBrightnessController.Call
+             if (!reportOnly && changed && readyToUpdateDisplayState()
+                     && mPendingScreenOffUnblocker == null
+                     && mPendingScreenOnUnblockerByDisplayOffload == null) {
+-                Trace.traceCounter(Trace.TRACE_TAG_POWER, "ScreenState", state);
+-
+-                String propertyKey = "debug.tracing.screen_state";
+-                String propertyValue = String.valueOf(state);
+-                try {
+-                    // TODO(b/153319140) remove when we can get this from the above trace invocation
+-                    SystemProperties.set(propertyKey, propertyValue);
+-                } catch (RuntimeException e) {
+-                    Slog.e(mTag, "Failed to set a system property: key=" + propertyKey
+-                            + " value=" + propertyValue + " " + e.getMessage());
++                if (isOn
++                        && !mDisplayPowerProximityStateController.isScreenOffBecauseOfProximity()
++                        && (mPendingScreenOnUnblocker != null
++                                || mReportedScreenStateToPolicy == REPORTED_TO_POLICY_SCREEN_OFF)) {
++                    // Kompakt: OFF to ON is applied once the policy unblocks the screen.
++                    kompaktApplyAfterPolicy = true;
++                } else {
++                    applyScreenStateLocked(state, reason);
+                 }
+-
+-                mPowerState.setScreenState(state, reason);
+-                // Tell battery stats about the transition.
+-                noteScreenState(state, reason);
+             }
+         }
+ 
+@@ -2303,11 +2301,36 @@ final class DisplayPowerController implements AutomaticBrightnessController.Call
+             Slog.i(TAG, "Window Manager Policy screenTurningOn complete");
+         }
+ 
++        if (kompaktApplyAfterPolicy && mPendingScreenOnUnblocker == null
++                && mPendingScreenOnUnblockerByDisplayOffload == null) {
++            // Kompakt: the policy did not block after all, so there is nothing to wait for.
++            applyScreenStateLocked(state, reason);
++        }
++
+         // Return true if the screen isn't blocked.
+         return mPendingScreenOnUnblocker == null
+                 && mPendingScreenOnUnblockerByDisplayOffload == null;
+     }
+ 
++    // Kompakt: the stock state change body, split out to run now or after the policy.
++    private void applyScreenStateLocked(int state, @Display.StateReason int reason) {
++        Trace.traceCounter(Trace.TRACE_TAG_POWER, "ScreenState", state);
++
++        String propertyKey = "debug.tracing.screen_state";
++        String propertyValue = String.valueOf(state);
++        try {
++            // TODO(b/153319140) remove when we can get this from the above trace invocation
++            SystemProperties.set(propertyKey, propertyValue);
++        } catch (RuntimeException e) {
++            Slog.e(mTag, "Failed to set a system property: key=" + propertyKey
++                    + " value=" + propertyValue + " " + e.getMessage());
++        }
++
++        mPowerState.setScreenState(state, reason);
++        // Tell battery stats about the transition.
++        noteScreenState(state, reason);
++    }
++
+     private void setReportedScreenState(int state) {
+         Trace.traceCounter(Trace.TRACE_TAG_POWER, "ReportedScreenStateToPolicy", state);
+         mReportedScreenStateToPolicy = state;

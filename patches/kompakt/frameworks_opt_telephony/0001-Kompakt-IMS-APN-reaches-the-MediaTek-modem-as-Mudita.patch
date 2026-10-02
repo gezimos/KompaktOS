@@ -1,0 +1,104 @@
+From d475374cf69dd130089484c1b9046bc750bdc072 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sat, 3 Oct 2026 00:24:29 +0300
+Subject: [PATCH] Kompakt: IMS APN reaches the MediaTek modem as MuditaOS sends
+ it
+
+---
+ .../android/internal/telephony/RILUtils.java  | 41 ++++++++++++++++---
+ 1 file changed, 35 insertions(+), 6 deletions(-)
+
+diff --git a/src/java/com/android/internal/telephony/RILUtils.java b/src/java/com/android/internal/telephony/RILUtils.java
+index 7179521..b5058cc 100644
+--- a/src/java/com/android/internal/telephony/RILUtils.java
++++ b/src/java/com/android/internal/telephony/RILUtils.java
+@@ -898,6 +898,35 @@ public class RILUtils {
+         return new SmsMessage(addr, env);
+     }
+ 
++    /**
++     * The network types an APN may use, as sent to the modem. An APN without
++     * network_type_bitmask means every network to the framework, but a MediaTek
++     * modem reads an empty bearer bitmap as none, so it refused to bring IMS up
++     * over Wi-Fi. IMS and XCAP get every network type, as MuditaOS's APN list sets.
++     */
++    private static int networkTypeBitmaskForModem(DataProfile dp) {
++        int bitmask = dp.getBearerBitmask();
++        if (bitmask == 0 && (dp.getSupportedApnTypesBitmask()
++                & (ApnSetting.TYPE_IMS | ApnSetting.TYPE_XCAP)) != 0) {
++            return (1 << TelephonyManager.NETWORK_TYPE_NR) - 1;
++        }
++        return bitmask;
++    }
++
++    /**
++     * The IMS APN's profile id, as sent to the modem. The MediaTek RIL names the
++     * APN type after it, and an APN without profile_id went out as "default".
++     * Android 12 derived it from the APN type; MuditaOS sends 2 for IMS.
++     */
++    private static int profileIdForModem(DataProfile dp) {
++        int types = dp.getSupportedApnTypesBitmask();
++        if (dp.getProfileId() == RILConstants.DATA_PROFILE_DEFAULT
++                && (types & ApnSetting.TYPE_IMS) != 0 && (types & ApnSetting.TYPE_DEFAULT) == 0) {
++            return RILConstants.DATA_PROFILE_IMS;
++        }
++        return dp.getProfileId();
++    }
++
+     /**
+      * Convert to DataProfileInfo defined in radio/1.4/types.hal
+      * @param dp Data profile
+@@ -924,13 +953,13 @@ public class RILUtils {
+         // android.hardware.radio.V1_0.RadioAccessFamily and the bitmask version of
+         // ServiceState.RIL_RADIO_TECHNOLOGY_XXXX.
+         dpi.bearerBitmap = ServiceState.convertNetworkTypeBitmaskToBearerBitmask(
+-                dp.getBearerBitmask()) << 1;
++                networkTypeBitmaskForModem(dp)) << 1;
+         dpi.mtu = dp.getMtuV4();
+         dpi.persistent = dp.isPersistent();
+         dpi.preferred = dp.isPreferred();
+ 
+         // profile id is only meaningful when it's persistent on the modem.
+-        dpi.profileId = (dpi.persistent) ? dp.getProfileId()
++        dpi.profileId = (dpi.persistent) ? profileIdForModem(dp)
+                 : android.hardware.radio.V1_0.DataProfileId.INVALID;
+ 
+         return dpi;
+@@ -962,14 +991,14 @@ public class RILUtils {
+         // android.hardware.radio.V1_0.RadioAccessFamily and the bitmask version of
+         // ServiceState.RIL_RADIO_TECHNOLOGY_XXXX.
+         dpi.bearerBitmap = ServiceState.convertNetworkTypeBitmaskToBearerBitmask(
+-                dp.getBearerBitmask()) << 1;
++                networkTypeBitmaskForModem(dp)) << 1;
+         dpi.mtuV4 = dp.getMtuV4();
+         dpi.mtuV6 = dp.getMtuV6();
+         dpi.persistent = dp.isPersistent();
+         dpi.preferred = dp.isPreferred();
+ 
+         // profile id is only meaningful when it's persistent on the modem.
+-        dpi.profileId = (dpi.persistent) ? dp.getProfileId()
++        dpi.profileId = (dpi.persistent) ? profileIdForModem(dp)
+                 : android.hardware.radio.V1_0.DataProfileId.INVALID;
+ 
+         return dpi;
+@@ -1001,7 +1030,7 @@ public class RILUtils {
+         // Shift by 1 bit due to the discrepancy between RadioAccessFamily.aidl and the bitmask
+         // version of ServiceState.RIL_RADIO_TECHNOLOGY_XXXX.
+         dpi.bearerBitmap = ServiceState.convertNetworkTypeBitmaskToBearerBitmask(
+-                dp.getBearerBitmask()) << 1;
++                networkTypeBitmaskForModem(dp)) << 1;
+         dpi.mtuV4 = dp.getMtuV4();
+         dpi.mtuV6 = dp.getMtuV6();
+         dpi.persistent = dp.isPersistent();
+@@ -1016,7 +1045,7 @@ public class RILUtils {
+         dpi.trafficDescriptor = convertToHalTrafficDescriptorAidl(dp.getTrafficDescriptor());
+ 
+         // profile id is only meaningful when it's persistent on the modem.
+-        dpi.profileId = (dpi.persistent) ? dp.getProfileId()
++        dpi.profileId = (dpi.persistent) ? profileIdForModem(dp)
+                 : android.hardware.radio.data.DataProfileInfo.ID_INVALID;
+ 
+         return dpi;
+-- 
+2.50.1 (Apple Git-155)
+

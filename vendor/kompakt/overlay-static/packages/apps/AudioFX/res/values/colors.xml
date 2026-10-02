@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- AudioFX in black and white. -->
+<resources>
+    <!-- The panel, the action bar, the nav bar. -->
+    <color name="knob_container_background">#ffffffff</color>
+
+    <!-- Everything drawn on that panel: icons, labels, accent. -->
+    <color name="white">#ff000000</color>
+
+    <!-- The EQ band that is currently selected. Was #ffffffff on the dark panel. -->
+    <color name="band_bar_color_selected">#ff000000</color>
+
+    <!-- Was a translucent grey wash. -->
+    <color name="highlight">#ff000000</color>
+
+    <!-- Disabled. Light enough to read as faded rather than as a second black. -->
+    <color name="disabled_eq">#fffffffe</color>
+
+    <!-- The unfilled part of a knob's arc, and the same when disabled. -->
+    <color name="radial_knob_arc_bg">#ff000000</color>
+    <color name="radial_knob_arc_bg_disabled">#ff000000</color>
+
+    <!-- The preset swatches. -->
+    <color name="preset_custom">#fffffffe</color>
+    <color name="preset_normal">#fffffffe</color>
+    <color name="preset_classical">#fffffffe</color>
+    <color name="preset_dance">#fffffffe</color>
+    <color name="preset_flat">#fffffffe</color>
+    <color name="preset_folk">#fffffffe</color>
+    <color name="preset_metal">#fffffffe</color>
+    <color name="preset_hiphop">#fffffffe</color>
+    <color name="preset_jazz">#fffffffe</color>
+    <color name="preset_pop">#fffffffe</color>
+    <color name="preset_rock">#fffffffe</color>
+    <color name="preset_electronic">#fffffffe</color>
+    <color name="preset_small_speakers">#fffffffe</color>
+    <color name="eq_ink">#ff000000</color>
+    <color name="default_circle_indicator_fill_color">#ff000000</color>
+    <color name="default_circle_indicator_page_color">#fffffffe</color>
+    <color name="default_circle_indicator_stroke_color">#ff000000</color>
+    <!-- Kompakt: preset colours are the equaliser canvas (white by day); eq_ink is its paint; page dots outlined ink. -->
+    <!-- Kompakt: the knob track is the ink, drawn dotted; the page keeps its ground when off. -->
+</resources>

@@ -1,0 +1,21 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Thu, 1 Oct 2026 14:30:00 +0200
+Subject: [PATCH 1/1] Kompakt: the Treble app no longer replaces the Updater
+
+---
+diff --git a/TrebleApp/Android.mk b/TrebleApp/Android.mk
+index 1627f2d..289ec8e 100644
+--- a/TrebleApp/Android.mk
++++ b/TrebleApp/Android.mk
+@@ -9,7 +9,6 @@ LOCAL_MODULE_SUFFIX := .apk
+ LOCAL_BUILT_MODULE_STEM := package.apk
+ LOCAL_CERTIFICATE := platform
+ LOCAL_PRIVILEGED_MODULE := true
+-LOCAL_OVERRIDES_PACKAGES := Updater
+ ifeq ($(shell test $(PLATFORM_SDK_VERSION) -ge 31 && echo OK),OK)
+ LOCAL_ENFORCE_USES_LIBRARIES := false
+ endif
+-- 
+2.43.0
+

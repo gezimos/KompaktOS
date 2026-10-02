@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Two inks, for a panel that has no others. -->
+<resources>
+
+    <!-- The two inks. Everything below is one of these. -->
+    <color name="fm_ink">#FF000000</color>
+    <color name="fm_paper">#FFFFFFFF</color>
+    <!-- Above the dithering band, for disabled only. -->
+    <color name="fm_disabled">#bf000000</color>
+
+    <!-- Launcher icon -->
+    <color name="launcher_background_color">@color/fm_paper</color>
+    <color name="launcher_foreground_color">@color/fm_ink</color>
+
+    <!-- Surfaces. -->
+    <color name="main_background_darker">@color/fm_paper</color>
+    <color name="main_background_lighter">@color/fm_paper</color>
+
+    <!-- No ripple. See the note above about translucency. -->
+    <color name="ripple_color">@color/fm_paper</color>
+
+    <!-- Action bar, untitled variant -->
+    <color name="actionbar_untitled_statusbar_bg_color">@color/fm_paper</color>
+    <color name="actionbar_untitled_bg_color">@color/actionbar_untitled_statusbar_bg_color</color>
+    <color name="actionbar_untitled_popup_bg_color">@color/fm_paper</color>
+    <color name="actionbar_untitled_popup_text_color">@color/fm_ink</color>
+    <color name="actionbar_untitled_popup_text_disable_color">@color/fm_disabled</color>
+
+    <!-- Action bar, titled variant -->
+    <color name="actionbar_statusbar_bg_color">@color/fm_paper</color>
+    <color name="actionbar_bg_color">@color/fm_paper</color>
+    <color name="actionbar_title_color">@color/fm_ink</color>
+
+    <!-- Dialogs -->
+    <color name="alertdialog_title_color">@color/fm_ink</color>
+    <color name="alertdialog_input_color">@color/text_input_color</color>
+    <color name="alertdialog_cancel_btn_color">@color/fm_ink</color>
+    <color name="alertdialog_ok_btn_color">@color/fm_ink</color>
+    <color name="alertdialog_ok_btn_disable_color">@color/fm_disabled</color>
+
+    <!-- Text entry. -->
+    <color name="text_input_color">@color/fm_ink</color>
+    <color name="text_input_hint_color">@color/fm_disabled</color>
+    <color name="text_selection_color">@color/fm_ink</color>
+    <color name="text_selection_highlight_color">@color/fm_disabled</color>
+
+    <!-- Toolbar glyphs -->
+    <color name="toolbar_fm_station_list_color">@color/fm_ink</color>
+    <color name="toolbar_fm_headset_color">@color/fm_ink</color>
+    <color name="toolbar_more_dots_color">@color/fm_ink</color>
+
+    <!-- The frequency read-out -->
+    <color name="header_bg_color">@color/fm_paper</color>
+    <color name="header_fm_label_color">@color/fm_ink</color>
+    <color name="header_station_value_color">@color/fm_ink</color>
+    <color name="header_station_name_color">@color/fm_ink</color>
+    <color name="header_station_rds_color">@color/fm_ink</color>
+
+    <!-- Transport row. -->
+    <color name="prevstation_button_color">@color/fm_ink</color>
+    <color name="decrstation_button_color">@color/fm_ink</color>
+    <color name="addstation_on_button_color">@color/fm_ink</color>
+    <color name="addstation_off_button_color">@color/fm_ink</color>
+    <color name="incstation_button_color">@color/fm_ink</color>
+    <color name="nextstation_button_color">@color/fm_ink</color>
+
+    <!-- Play button: an ink glyph on paper, with its border in the drawable. -->
+    <color name="play_button_color">@color/fm_ink</color>
+    <color name="play_button_selector_color">@color/fm_paper</color>
+    <color name="play_button_ripple_tint">@color/fm_paper</color>
+
+    <!-- Favourites -->
+    <color name="fav_container_bg_color">@color/fm_paper</color>
+    <color name="fav_container_favorite_label_color">@color/fm_ink</color>
+    <color name="favorite_tile_bg_color">@color/fm_paper</color>
+    <color name="favorite_popup_bg_color">@color/fm_paper</color>
+    <color name="favorite_popup_text_color">@color/fm_ink</color>
+    <color name="favorite_fm_label_color">@color/header_fm_label_color</color>
+    <color name="favorite_station_more_accent_color">@color/fm_ink</color>
+    <color name="favorite_station_more_accent_playing_color">@color/fm_ink</color>
+    <color name="favorite_station_more_ripple_color">@color/fm_paper</color>
+    <color name="favorite_station_freq_color">@color/fm_ink</color>
+    <color name="favorite_station_name_color">@color/fm_ink</color>
+    <color name="favorite_station_accent_playing_color">@color/fm_ink</color>
+
+    <!-- Snackbar -->
+    <color name="snackbar_bg_color">@color/fm_paper</color>
+    <color name="snackbar_text_color">@color/fm_ink</color>
+
+    <!-- Notification -->
+    <color name="notification_icon_bg_color">@color/fm_paper</color>
+    <color name="notification_icon_text_color">@color/fm_ink</color>
+
+    <!-- Station list -->
+    <color name="station_list_actionbar_reload_color">@color/actionbar_title_color</color>
+    <color name="station_list_empty_tint">@color/actionbar_title_color</color>
+
+    <!-- Recording -->
+    <color name="recording_minutes_color">@color/fm_ink</color>
+    <color name="recording_seconds_color">@color/fm_ink</color>
+    <color name="recording_fsize_color">@color/fm_ink</color>
+    <color name="recording_fm_label_color">@color/fm_ink</color>
+    <color name="recording_frequency_color">@color/fm_ink</color>
+    <color name="recording_station_color">@color/fm_ink</color>
+    <color name="recording_rds_color">@color/recording_station_color</color>
+    <!-- A rule, not a surface: this one is ink on purpose. -->
+    <color name="recording_line_bg_color">@color/fm_ink</color>
+    <color name="recording_dot_tint">@color/fm_ink</color>
+    <color name="recording_stop_btn_color">@color/fm_ink</color>
+
+</resources>

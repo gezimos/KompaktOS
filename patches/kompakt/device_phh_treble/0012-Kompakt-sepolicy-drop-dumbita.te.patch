@@ -1,0 +1,37 @@
+From 49a4437b2e889ebe573642789d5a36acad732078 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sat, 26 Sep 2026 02:53:11 +0200
+Subject: [PATCH 12/12] Kompakt: sepolicy: drop dumbita.te
+
+---
+ sepolicy/dumbita.te | 123 --------------------------------------------
+ 1 file changed, 123 deletions(-)
+ delete mode 100755 sepolicy/dumbita.te
+
+diff --git a/sepolicy/dumbita.te b/sepolicy/dumbita.te
+deleted file mode 100755
+index 3403377..0000000
+--- a/sepolicy/dumbita.te
++++ /dev/null
+@@ -1,21 +0,0 @@
+-# DumbitaService: SELinux rules.
+-
+-###
+-### The hardware nodes: e-ink panel, both flash LEDs, offline-switch position
+-###
+-# Keep sysfs_type bare: any subtraction expands to plat types only and grants nothing.
+-allow system_app sysfs_type:file rw_file_perms;
+-allow system_app sysfs_type:dir r_dir_perms;
+-
+-###
+-### The offline switch itself
+-###
+-# /dev/input/event0, read only.
+-allow system_app input_device:dir search;
+-allow system_app input_device:chr_file r_file_perms;
+-
+-###
+-### FM radio: /dev/fm
+-###
+-# DumbitaFMRadio opens /dev/fm directly; fm_device is vendor-declared, so only dev_type reaches it.
+-allow system_app dev_type:chr_file rw_file_perms;

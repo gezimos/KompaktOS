@@ -1,0 +1,109 @@
+From 9ead7b4eb95c704d4cf58dfa8c3aafbf7283bc75 Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Wed, 9 Sep 2026 17:44:34 +0200
+Subject: [PATCH 10/38] SystemUI: take the shade and PIN-pad animations to zero
+
+---
+ .../composable/SceneContainerTransitions.kt   | 14 ++++++-------
+ .../com/android/keyguard/NumPadAnimator.java  | 21 ++++++++++++++++++-
+ 2 files changed, 27 insertions(+), 8 deletions(-)
+
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/SceneContainerTransitions.kt b/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/SceneContainerTransitions.kt
+index fb5b26a1ea4c..19ab6f12f407 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/SceneContainerTransitions.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/SceneContainerTransitions.kt
+@@ -95,7 +95,7 @@ class SceneContainerTransitions : SceneContainerTransitionsBuilder {
+                 key = SlightlyFasterShadeCollapse,
+                 cuj = Cuj.CUJ_NOTIFICATION_SHADE_EXPAND_COLLAPSE, // NOTYPO
+             ) {
+-                goneToShadeSceneTransition(durationScale = 0.9)
++                goneToShadeSceneTransition(durationScale = 0.0)
+             }
+             from(
+                 Scenes.Gone,
+@@ -110,7 +110,7 @@ class SceneContainerTransitions : SceneContainerTransitionsBuilder {
+                 key = SlightlyFasterShadeCollapse,
+                 cuj = Cuj.CUJ_NOTIFICATION_SHADE_QS_EXPAND_COLLAPSE, // NOTYPO
+             ) {
+-                goneToQuickSettingsTransition(durationScale = 0.9)
++                goneToQuickSettingsTransition(durationScale = 0.0)
+             }
+ 
+             from(Scenes.Lockscreen, to = Scenes.Communal) { lockscreenToCommunalTransition() }
+@@ -138,7 +138,7 @@ class SceneContainerTransitions : SceneContainerTransitionsBuilder {
+                 key = SlightlyFasterShadeCollapse,
+                 cuj = Cuj.CUJ_NOTIFICATION_SHADE_EXPAND_COLLAPSE, // NOTYPO
+             ) {
+-                lockscreenToShadeSceneTransition(durationScale = 0.9)
++                lockscreenToShadeSceneTransition(durationScale = 0.0)
+             }
+             from(
+                 Scenes.Lockscreen,
+@@ -243,7 +243,7 @@ class SceneContainerTransitions : SceneContainerTransitionsBuilder {
+                 cuj = Cuj.CUJ_NOTIFICATION_SHADE_EXPAND_COLLAPSE, // NOTYPO
+             ) {
+                 toNotificationsShadeTransition(
+-                    durationScale = 0.9,
++                    durationScale = 0.0,
+                     shadeExpansionMotion = shadeExpansionMotion,
+                     revealHaptics = revealHaptics,
+                 )
+@@ -255,7 +255,7 @@ class SceneContainerTransitions : SceneContainerTransitionsBuilder {
+                 cuj = Cuj.CUJ_NOTIFICATION_SHADE_QS_EXPAND_COLLAPSE, // NOTYPO
+             ) {
+                 toQuickSettingsShadeTransition(
+-                    durationScale = 0.9,
++                    durationScale = 0.0,
+                     shadeExpansionMotion = shadeExpansionMotion,
+                     revealHaptics = revealHaptics,
+                 )
+@@ -277,7 +277,7 @@ class SceneContainerTransitions : SceneContainerTransitionsBuilder {
+                 cuj = Cuj.CUJ_NOTIFICATION_SHADE_EXPAND_COLLAPSE, // NOTYPO
+             ) {
+                 lockscreenToNotificationsShadeTransition(
+-                    durationScale = 0.9,
++                    durationScale = 0.0,
+                     shadeExpansionMotion = shadeExpansionMotion,
+                     revealHaptics = revealHaptics,
+                 )
+@@ -299,7 +299,7 @@ class SceneContainerTransitions : SceneContainerTransitionsBuilder {
+                 cuj = Cuj.CUJ_NOTIFICATION_SHADE_QS_EXPAND_COLLAPSE, // NOTYPO
+             ) {
+                 lockscreenToQuickSettingsOverlayTransition(
+-                    durationScale = 0.9,
++                    durationScale = 0.0,
+                     shadeExpansionMotion = shadeExpansionMotion,
+                     revealHaptics = revealHaptics,
+                 )
+diff --git a/packages/SystemUI/src/com/android/keyguard/NumPadAnimator.java b/packages/SystemUI/src/com/android/keyguard/NumPadAnimator.java
+index 9b265c347165..19af592b98d7 100644
+--- a/packages/SystemUI/src/com/android/keyguard/NumPadAnimator.java
++++ b/packages/SystemUI/src/com/android/keyguard/NumPadAnimator.java
+@@ -175,7 +175,8 @@ class NumPadAnimator {
+         expandAnimators.add(expandBackgroundColorAnimator);
+         expandAnimators.add(expandTextColorAnimator);
+ 
+-        if (Flags.bouncerUiRevamp2()) {
++        // e-ink: no text-scale animation on the PIN digits.
++        if (false) {
+             ValueAnimator expandTextScaleAnimator = ValueAnimator.ofFloat(
+                     Animation.normalTextScaleX, Animation.pressedTextScaleX);
+             expandTextScaleAnimator.setInterpolator(Animation.expansionInterpolator);
+@@ -190,6 +191,8 @@ class NumPadAnimator {
+ 
+         mExpandAnimatorSet = new AnimatorSet();
+         mExpandAnimatorSet.playTogether(expandAnimators);
++        // e-ink: instant. The set's duration overrides every child animator.
++        mExpandAnimatorSet.setDuration(0);
+ 
+         List<Animator> contractAnimators = new ArrayList<>();
+         mContractAnimator = ValueAnimator.ofFloat(1f, 0f);
+@@ -239,6 +242,8 @@ class NumPadAnimator {
+         }
+         mContractAnimatorSet = new AnimatorSet();
+         mContractAnimatorSet.playTogether(contractAnimators);
++        // e-ink: instant, matching the expand side above.
++        mContractAnimatorSet.setDuration(0);
+     }
+ }
+ 

@@ -1,0 +1,164 @@
+From d656873add9fa8b74002fb91e889c742db369687 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sat, 26 Sep 2026 02:52:40 +0200
+Subject: [PATCH 36/38] Kompakt: keyguard: AOD ink follows the surface it is
+ painted on
+
+---
+ .../keyguard/ui/clocks/ClockFaceEvents.kt     |  5 ++-
+ .../android/keyguard/ClockEventController.kt  | 40 ++++---------------
+ .../KeyguardIndicationController.java         |  5 ++-
+ .../systemui/statusbar/StatusBarIconView.java | 14 ++++++-
+ 4 files changed, 27 insertions(+), 37 deletions(-)
+
+diff --git a/packages/SystemUI/plugin/src/com/android/systemui/plugins/keyguard/ui/clocks/ClockFaceEvents.kt b/packages/SystemUI/plugin/src/com/android/systemui/plugins/keyguard/ui/clocks/ClockFaceEvents.kt
+index f0699f4298c5..affd095682d2 100644
+--- a/packages/SystemUI/plugin/src/com/android/systemui/plugins/keyguard/ui/clocks/ClockFaceEvents.kt
++++ b/packages/SystemUI/plugin/src/com/android/systemui/plugins/keyguard/ui/clocks/ClockFaceEvents.kt
+@@ -75,7 +75,10 @@ data class ThemeConfig(
+     }
+ 
+     fun getAodColor(context: Context): Int {
+-        return if (!ambientAod()) {
++        // Kompakt: the ink of the lock wallpaper, which AOD shows.
++        return if (true) {
++            if (isDarkTheme) Color.WHITE else Color.BLACK
++        } else if (!ambientAod()) {
+             Color.WHITE
+         } else {
+             seedColor?.let {
+diff --git a/packages/SystemUI/src/com/android/keyguard/ClockEventController.kt b/packages/SystemUI/src/com/android/keyguard/ClockEventController.kt
+index 680b0a873f9e..3b4731ebcad4 100644
+--- a/packages/SystemUI/src/com/android/keyguard/ClockEventController.kt
++++ b/packages/SystemUI/src/com/android/keyguard/ClockEventController.kt
+@@ -85,6 +85,7 @@ import kotlinx.coroutines.CoroutineScope
+ import kotlinx.coroutines.DisposableHandle
+ import kotlinx.coroutines.Job
+ import kotlinx.coroutines.flow.MutableStateFlow
++import kotlinx.coroutines.flow.distinctUntilChanged
+ import kotlinx.coroutines.flow.filter
+ import kotlinx.coroutines.flow.map
+ import kotlinx.coroutines.flow.merge
+@@ -252,15 +253,9 @@ constructor(
+     val smallClockMaxSize = MutableStateFlow<VPointF>(VPointF.ZERO)
+     val largeClockMaxSize = MutableStateFlow<VPointF>(VPointF.ZERO)
+ 
+-    /** Doze fraction past which the clock sits over AOD's black rather than white paper. */
+-    private val kompaktDarkSurfaceDoze = 0.5f
+-
+-    /** Tracks the last answer, so handleDoze only repaints on an actual crossing. */
+-    private var kompaktOverDarkSurface = false
+-
+     private fun isDarkTheme(): Boolean {
+         // Kompakt: the ink follows the surface under the clock, not the theme.
+-        return dozeAmount.value >= kompaktDarkSurfaceDoze
++        return com.android.systemui.wallpapers.KompaktInk.isDarkSurface(context)
+     }
+ 
+     private fun updateColors() {
+@@ -348,6 +343,9 @@ constructor(
+             }
+         }
+ 
++    /** Kompakt: repaint when the wallpaper or ui mode changes the ink. */
++    private val kompaktInkListener = Runnable { updateColors() }
++
+     private val configListener =
+         object : ConfigurationController.ConfigurationListener {
+             override fun onThemeChanged() {
+@@ -505,6 +503,7 @@ constructor(
+             IntentFilter(Intent.ACTION_LOCALE_CHANGED),
+         )
+         configurationController.addCallback(configListener)
++        com.android.systemui.wallpapers.KompaktInk.addListener(context, kompaktInkListener)
+         batteryController.addCallback(batteryCallback)
+         keyguardUpdateMonitor.registerCallback(keyguardUpdateMonitorCallback)
+         zenModeController.addCallback(zenModeCallback)
+@@ -533,6 +532,7 @@ constructor(
+ 
+         broadcastDispatcher.unregisterReceiver(localeBroadcastReceiver)
+         configurationController.removeCallback(configListener)
++        com.android.systemui.wallpapers.KompaktInk.removeListener(kompaktInkListener)
+         batteryController.removeCallback(batteryCallback)
+         keyguardUpdateMonitor.removeCallback(keyguardUpdateMonitorCallback)
+         zenModeController.removeCallback(zenModeCallback)
+@@ -626,12 +626,6 @@ constructor(
+         largeTimeListener?.update(doze < DOZE_TICKRATE_THRESHOLD)
+         dozeAmount.value = doze
+ 
+-        // Kompakt: recolour only when doze crosses the threshold.
+-        val overDark = doze >= kompaktDarkSurfaceDoze
+-        if (overDark != kompaktOverDarkSurface) {
+-            kompaktOverDarkSurface = overDark
+-            updateColors()
+-        }
+     }
+ 
+     @DeprecatedSysuiVisibleForTesting
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/KeyguardIndicationController.java b/packages/SystemUI/src/com/android/systemui/statusbar/KeyguardIndicationController.java
+index 7f0926a44e01..1fd22010ea87 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/KeyguardIndicationController.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/KeyguardIndicationController.java
+@@ -122,6 +122,7 @@ import com.android.systemui.statusbar.phone.StatusBarKeyguardViewManager;
+ import com.android.systemui.statusbar.policy.KeyguardStateController;
+ import com.android.systemui.user.domain.interactor.UserLogoutInteractor;
+ import com.android.systemui.util.AlarmTimeout;
++import com.android.systemui.wallpapers.KompaktInk;
+ import com.android.systemui.util.concurrency.DelayableExecutor;
+ import com.android.systemui.util.wakelock.SettableWakeLock;
+ import com.android.systemui.util.wakelock.WakeLock;
+@@ -1135,10 +1136,12 @@ public class KeyguardIndicationController {
+                 mWakeLock.setAcquired(true);
+                 final KeyguardIndication.Builder builder = new KeyguardIndication.Builder()
+                         .setMessage(newIndication)
++                        // Kompakt: the ink of the surface AOD shows, not a constant.
+                         .setTextColor(ColorStateList.valueOf(
+                                 useMisalignmentColor
+                                         ? mContext.getColor(R.color.misalignment_text_color)
+-                                        : Color.WHITE));
++                                        : (KompaktInk.isDarkSurface(mContext)
++                                                ? Color.WHITE : Color.BLACK)));
+                 if (mBiometricMessage != null && newIndication == mBiometricMessage) {
+                     builder.setForceAccessibilityLiveRegionAssertive();
+                 }
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/StatusBarIconView.java b/packages/SystemUI/src/com/android/systemui/statusbar/StatusBarIconView.java
+index bdf215c7f85b..6edc97cf5385 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/StatusBarIconView.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/StatusBarIconView.java
+@@ -646,8 +646,15 @@ public class StatusBarIconView extends AnimatedImageView implements StatusIconDi
+         }
+     }
+ 
++    /** Kompakt: white on a dark lock wallpaper, black on a light one. */
++    private int kompaktDozeInk() {
++        return com.android.systemui.wallpapers.KompaktInk.isDarkSurface(getContext())
++                ? Color.WHITE : Color.BLACK;
++    }
++
+     private void updateDecorColor() {
+-        int color = NotificationUtils.interpolateColors(mDecorColor, Color.WHITE, mDozeAmount);
++        // Kompakt: toward the lock wallpaper's ink.
++        int color = NotificationUtils.interpolateColors(mDecorColor, kompaktDozeInk(), mDozeAmount);
+         if (mDotPaint.getColor() != color) {
+             mDotPaint.setColor(color);
+ 
+@@ -684,8 +691,9 @@ public class StatusBarIconView extends AnimatedImageView implements StatusIconDi
+                 mMatrix = new float[4 * 5];
+                 mMatrixColorFilter = new ColorMatrixColorFilter(mMatrix);
+             }
++            // Kompakt: toward the lock wallpaper's ink. See updateDecorColor().
+             int color = NotificationUtils.interpolateColors(
+-                    mCurrentSetColor, Color.WHITE, mDozeAmount);
++                    mCurrentSetColor, kompaktDozeInk(), mDozeAmount);
+             updateTintMatrix(mMatrix, color, DARK_ALPHA_BOOST * mDozeAmount);
+             mMatrixColorFilter.setColorMatrixArray(mMatrix);
+             setColorFilter(null);  // setColorFilter only invalidates if the instance changed.
+@@ -807,6 +815,8 @@ public class StatusBarIconView extends AnimatedImageView implements StatusIconDi
+      */
+     public void setVisibleState(int visibleState, boolean animate, Runnable endRunnable,
+             long duration) {
++        // Kompakt: never animate an icon in or out.
++        animate = false;
+         boolean runnableAdded = false;
+         if (visibleState != mVisibleState) {
+             mVisibleState = visibleState;

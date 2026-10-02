@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: the same two inks, swapped. -->
+<resources>
+    <color name="lineage_accent">#fffffffe</color>
+
+    <color name="button_bar_text_enabled">#fffffffe</color>
+    <color name="button_bar_text_disabled">#ff555555</color>
+
+    <color name="divider">#fffffffe</color>
+</resources>

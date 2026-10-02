@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 1 = RGB only, no breathing or pulsing. See the notification LED doc in KompaktService. -->
+    <integer name="config_deviceLightCapabilities">1</integer>
+</resources>

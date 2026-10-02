@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Window animation scale seeded at first boot. -->
+    <fraction name="def_window_animation_scale">0%</fraction>
+
+    <!-- The other two scales, so accessibility's "Remove animations" is on out of the box rather than something to go. -->
+    <fraction name="def_window_transition_scale">0%</fraction>
+    <fraction name="def_animator_duration_scale">0%</fraction>
+
+    <!-- Seeds Settings.System.NOTIFICATION_LIGHT_PULSE: the notification light is on out of the box. -->
+    <bool name="def_notification_pulse">true</bool>
+    <!-- Default text size: second of seven stops; larger overflows the status bar. -->
+    <item name="def_device_font_scale" format="float" type="dimen">1.0</item>
+</resources>

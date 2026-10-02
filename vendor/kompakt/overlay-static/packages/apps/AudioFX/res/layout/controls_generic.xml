@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: copy of the stock layout. -->
+<!--
+     SPDX-FileCopyrightText: 2015-2016 The CyanogenMod Project
+     SPDX-FileCopyrightText: The LineageOS Project
+     SPDX-License-Identifier: Apache-2.0
+-->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="164dp"
+    android:background="@color/knob_container_background"
+    android:elevation="0dp"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:padding="4dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="36dp"
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_margin="@dimen/preset_text_padding"
+            android:ellipsize="end"
+            android:fontFamily="sans-serif"
+            android:maxLines="1"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp"
+            android:text="@string/reverb"
+            android:textColor="@color/white"
+            android:textSize="@dimen/reverb_switch_label_size" />
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/reverb_switch"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:theme="@style/Theme.Material3.DayNight" />
+
+    </LinearLayout>
+
+    <org.lineageos.audiofx.knobs.KnobContainer
+        android:id="@+id/knob_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:animateLayoutChanges="true"
+        android:gravity="center"
+        android:orientation="horizontal" />
+
+</LinearLayout>

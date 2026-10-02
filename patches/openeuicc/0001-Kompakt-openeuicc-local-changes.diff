@@ -1,0 +1,47 @@
+diff --git a/app-common/src/main/java/im/angry/openeuicc/util/PreferenceUtils.kt b/app-common/src/main/java/im/angry/openeuicc/util/PreferenceUtils.kt
+index 7f2663c..8987b50 100644
+--- a/app-common/src/main/java/im/angry/openeuicc/util/PreferenceUtils.kt
++++ b/app-common/src/main/java/im/angry/openeuicc/util/PreferenceUtils.kt
+@@ -66,6 +66,10 @@ internal object PreferenceConstants {
+         # LinksField
+         A000000559104C696E6B736669656C64
+ 
++        # Mudita Kompakt: the two extra ISD-R AIDs its own LPA (com.mudita.esim) uses.
++        A0000005591010FFFFFFFF8900000200
++        A0000005592222FFFFFFFF8922222200
++
+         # ESTKme SE0
+         # For multi-SE eSTK.me products, this will always be attempted even if removed from the list
+         ${ESTKme.ESTK_SE0_AID.encodeHex()}
+diff --git a/app-common/src/main/java/im/angry/openeuicc/util/TelephonyCompat.kt b/app-common/src/main/java/im/angry/openeuicc/util/TelephonyCompat.kt
+index c124b32..ec6d789 100644
+--- a/app-common/src/main/java/im/angry/openeuicc/util/TelephonyCompat.kt
++++ b/app-common/src/main/java/im/angry/openeuicc/util/TelephonyCompat.kt
+@@ -13,11 +13,23 @@ val TelephonyManager.activeModemCountCompat: Int
+     }
+ 
+ fun SEService.getUiccReaderCompat(slotNumber: Int): Reader {
+-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+-        return getUiccReader(slotNumber)
+-    } else {
+-        return readers.first { it.name == "SIM${slotNumber}" || (slotNumber == 1 && it.name == "SIM") }
++    // Kompakt: fall back to the embedded secure element when no SIM reader exists.
++    val simReader = try {
++        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
++            getUiccReader(slotNumber)
++        } else {
++            readers.first { it.name == "SIM${slotNumber}" || (slotNumber == 1 && it.name == "SIM") }
++        }
++    } catch (_: Exception) {
++        null
+     }
++
++    if (simReader != null) return simReader
++
++    return readers.firstOrNull { it.name.startsWith("eSE") }
++        ?: throw IllegalArgumentException(
++            "No OMAPI reader for slot $slotNumber, and no embedded SE to fall back to"
++        )
+ }
+ 
+ /*

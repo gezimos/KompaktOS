@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: copies of the app's own Material 3 themes with the elevation overlay switched off. -->
+<resources>
+    <style name="Theme.Jelly.AlertDialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="android:colorBackground">?attr/colorSurface</item>
+        <item name="dialogCornerRadius">16dp</item>
+        <item name="elevationOverlayEnabled">false</item>
+    </style>
+    <style name="Theme.Jelly.ToolbarTheme" parent="Widget.Material3.Toolbar">
+        <item name="contentInsetStart">0dp</item>
+        <item name="elevationOverlayEnabled">false</item>
+    </style>
+</resources>

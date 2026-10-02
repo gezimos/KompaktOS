@@ -1,0 +1,30 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Fri, 25 Sep 2026 17:50:32 +0300
+Subject: [PATCH] Kompakt: call screen status bar icons follow the mode
+
+---
+diff --git a/java/com/android/incallui/InCallActivity.java b/java/com/android/incallui/InCallActivity.java
+index e95bbaf2e..bf6b6e8fa 100644
+--- a/java/com/android/incallui/InCallActivity.java
++++ b/java/com/android/incallui/InCallActivity.java
+@@ -245,6 +245,17 @@ public class InCallActivity extends TransactionSafeFragmentActivity
+         .getDecorView()
+         .setSystemUiVisibility(
+             View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
++    // Kompakt: set the bar icons from code; the flags above wipe the theme's.
++    android.view.WindowInsetsController kompaktBars = getWindow().getInsetsController();
++    if (kompaktBars != null) {
++      int light =
++          android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
++              | android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;
++      boolean kompaktNight =
++          (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)
++              == Configuration.UI_MODE_NIGHT_YES;
++      kompaktBars.setSystemBarsAppearance(kompaktNight ? 0 : light, light);
++    }
+ 
+     pseudoBlackScreenOverlay = findViewById(R.id.psuedo_black_screen_overlay);
+     sendBroadcast(CallPendingActivity.getFinishBroadcast());
+-- 
+2.43.0

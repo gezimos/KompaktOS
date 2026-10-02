@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: setup sized for a 4.3 inch screen. -->
+<resources>
+    <dimen name="welcome_title_text_size">28sp</dimen>
+    <dimen name="welcome_title_line_height">34dp</dimen>
+
+    <dimen name="sud_glif_margin_start">16dp</dimen>
+    <dimen name="sud_glif_margin_end">16dp</dimen>
+    <dimen name="sud_glif_margin_start_material_you">16dp</dimen>
+    <dimen name="sud_glif_margin_end_material_you">16dp</dimen>
+    <dimen name="sud_glif_expressive_margin_start">16dp</dimen>
+    <dimen name="sud_glif_expressive_margin_end">16dp</dimen>
+
+    <dimen name="sud_glif_icon_margin_top">12dp</dimen>
+    <dimen name="sud_glif_icon_margin_top_material_you">12dp</dimen>
+    <dimen name="sud_glif_expressive_icon_margin_top">8dp</dimen>
+    <dimen name="sud_glif_icon_max_height">20dp</dimen>
+    <dimen name="sud_glif_icon_max_height_material_you">20dp</dimen>
+
+    <dimen name="sud_header_title_size">24sp</dimen>
+    <dimen name="sud_glif_header_title_size_material_you">24sp</dimen>
+    <dimen name="sud_glif_expressive_header_title_size">24sp</dimen>
+    <dimen name="sud_glif_expressive_header_title_line_height">30sp</dimen>
+    <dimen name="sud_header_title_max_size_material_you">24sp</dimen>
+    <dimen name="sud_header_title_min_size_material_you">20sp</dimen>
+    <dimen name="sud_header_title_line_spacing_extra_material_you">2sp</dimen>
+    <dimen name="sud_glif_header_title_margin_top">8dp</dimen>
+    <dimen name="sud_glif_header_title_margin_top_material_you">8dp</dimen>
+    <dimen name="sud_header_container_margin_bottom_material_you">8dp</dimen>
+
+    <dimen name="sud_description_text_size">15sp</dimen>
+    <dimen name="sud_glif_description_text_size_material_you">15sp</dimen>
+    <dimen name="sud_glif_expressive_description_text_size">15sp</dimen>
+    <dimen name="sud_glif_expressive_description_line_height">20sp</dimen>
+    <dimen name="sud_glif_description_margin_top_material_you">8dp</dimen>
+</resources>

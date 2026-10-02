@@ -1,0 +1,247 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- versionCode is the build number and must rise every build. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.kompakt.service"
+    android:sharedUserId="android.uid.system"
+    android:versionCode="282"
+    android:versionName="282">
+
+    <!-- uid system is what makes the sysfs writes possible at all. -->
+
+    <!-- The refresh flash is a window added straight to WindowManager. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- To enable our own notification listener. -->
+    <uses-permission android:name="android.permission.MANAGE_NOTIFICATION_LISTENERS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+
+    <!-- signature|privileged. -->
+    <uses-permission android:name="android.permission.CONTROL_DEVICE_LIGHTS" />
+    <!-- Only for the software LED burst, and only if this device turns out to have no hardware blink. -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.STATUS_BAR" />
+    <!-- Airplane mode is written directly rather than toggled, so the switch position and the radio state cannot. -->
+    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" />
+
+    <!-- LedMigration writes the per app colours into the stock Lineage settings
+         once. protectionLevel normal, so no privapp allowlist entry. -->
+    <uses-permission android:name="lineageos.permission.WRITE_SETTINGS" />
+
+    <!-- Check in id for Diagnostics; the queries entry makes the provider visible. -->
+    <uses-permission android:name="com.google.android.providers.gsf.permission.READ_GSERVICES" />
+    <!-- The SIM mux only takes effect at modem init, so switching it means restarting. -->
+    <uses-permission android:name="android.permission.REBOOT" />
+    <!-- Turning the tray SIM off is what makes the eSIM switch a single restart. -->
+    <uses-permission android:name="android.permission.MODIFY_PHONE_STATE" />
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <!-- Contacts, for Mudita Center. -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <uses-permission android:name="android.permission.WRITE_CONTACTS" />
+    <!-- Walking the volumes for the file manager, and writing files the desktop sends. -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+    <!-- Installing an apk the desktop sent. -->
+    <uses-permission android:name="android.permission.INSTALL_PACKAGES" />
+    <!-- For Build.getSerial(). -->
+    <uses-permission android:name="android.permission.READ_PRIVILEGED_PHONE_STATE" />
+    <!-- What the offline switch turns off besides the modem. See OfflineExtras. -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.MANAGE_SENSOR_PRIVACY" />
+    <uses-permission android:name="android.permission.OBSERVE_SENSOR_PRIVACY" />
+
+    <queries>
+        <package android:name="com.google.android.gsf" />
+        <package android:name="com.google.android.gms" />
+        <!-- MediaTek's IMS app, for the Calls over 4G rows in Diagnostics. -->
+        <package android:name="com.mediatek.ims" />
+        <provider android:authorities="com.google.android.gsf.gservices" />
+        <provider android:authorities="com.google.android.gms.gservices" />
+    </queries>
+
+    <application
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@android:style/Theme.DeviceDefault.DayNight">
+
+        <!-- Tap cycles the mode: Fast, Fast + dither, Text, Quality. -->
+        <service
+            android:name=".EinkTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_mode_dither"
+            android:label="@string/tile_eink"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <!-- Kompakt: Only the warm LED gets a tile. -->
+        <service
+            android:name=".WarmTorchTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_torch"
+            android:label="@string/tile_torch_warm"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <!-- Kompakt: an on and off switch. Without this SystemUI treats a custom tile as a button: no switch role, and no name in the toolbar when tapped. -->
+            <meta-data
+                android:name="android.service.quicksettings.TOGGLEABLE_TILE"
+                android:value="true" />
+        </service>
+
+
+        <!-- Ghosting refresh. -->
+        <receiver
+            android:name=".RefreshReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.kompakt.service.action.REFRESH" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Refresh on unlock: the framework says when the unlocked screen is drawn. -->
+        <receiver
+            android:name=".UnlockReceiver"
+            android:exported="true"
+            android:permission="android.permission.STATUS_BAR_SERVICE">
+            <intent-filter>
+                <action android:name="com.kompakt.service.action.UNLOCKED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Cycles smallest width, i.e. how much fits on screen. See Width. -->
+        <service
+            android:name=".WidthTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_width"
+            android:label="@string/tile_width_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <service
+            android:name=".RefreshTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_refresh"
+            android:label="@string/tile_refresh"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <!-- The eSIM slot switch. -->
+        <service
+            android:name=".ESimTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_esim"
+            android:label="@string/tile_esim"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <!-- The one screen this app has: e ink waveform, the notification LED, and a readout of the sysfs nodes behind. -->
+        <activity
+            android:name=".KompaktActivity"
+            android:exported="true"
+            android:enableOnBackInvokedCallback="true"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.Kompakt">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Watches the offline switch. -->
+        <service
+            android:name=".OfflineWatcherService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Reports the hardware offline switch position" />
+        </service>
+
+        <!-- Applies the per app e ink mode on every app switch. -->
+        <!-- Lights the notification LED. -->
+        <!-- Holds /dev/ttyGS0 open and answers Mudita Center. -->
+        <service
+            android:name=".link.LinkService"
+            android:exported="false" />
+
+        <service
+            android:name=".NotifLight"
+            android:exported="true"
+            android:label="@string/notif_light_label"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
+        <service
+            android:name=".EinkAppWatcher"
+            android:exported="true"
+            android:label="@string/eink_watcher_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/eink_app_watcher" />
+        </service>
+
+        <receiver
+            android:name=".BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Slot 2: physical tray or eSIM. -->
+        <activity
+            android:name=".SimModeActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:theme="@style/Theme.SimMode">
+            <intent-filter>
+                <action android:name="com.kompakt.service.action.SIM_MODE" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <!-- The GSF id for adb, as broadcast result data. Behind DUMP, so only the
+             shell and the system can ask. -->
+        <receiver
+            android:name=".GsfIdReceiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP" />
+
+        <!-- Hardware check for the notification LED. See Leds in Hardware.kt. -->
+        <receiver
+            android:name=".LedTestReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.kompakt.service.action.LED_TEST" />
+            </intent-filter>
+        </receiver>
+
+    </application>
+</manifest>

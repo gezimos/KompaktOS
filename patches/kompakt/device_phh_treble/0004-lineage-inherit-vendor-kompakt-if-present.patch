@@ -1,0 +1,21 @@
+From cae4f3b6b9f66fd096ac52d90b80196e0d5160ca Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Tue, 8 Sep 2026 14:40:19 +0200
+Subject: [PATCH 04/12] lineage: inherit vendor/kompakt if present
+
+---
+ lineage.mk | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/lineage.mk b/lineage.mk
+index 527e4a1..3795e4b 100644
+--- a/lineage.mk
++++ b/lineage.mk
+@@ -17,3 +17,7 @@ PRODUCT_PACKAGES += apns-conf.xml
+ $(call soong_config_set,surfaceflinger,udfps_lib,//hardware/oplus:libudfps_extension.oplus)
+ 
+ TARGET_SYSTEM_PROP += device/phh/treble/system.prop
++
++# Kompakt additions: e-ink launchers, and anything else device-specific.
++# -if-exists so a tree without vendor/kompakt still builds.
++$(call inherit-product-if-exists, vendor/kompakt/kompakt.mk)

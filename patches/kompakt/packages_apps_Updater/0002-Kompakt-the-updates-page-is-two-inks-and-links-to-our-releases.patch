@@ -1,0 +1,130 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Thu, 1 Oct 2026 16:45:00 +0200
+Subject: [PATCH 1/1] Kompakt: the updates page is two inks and links to our releases
+
+---
+diff --git a/app/src/main/java/org/lineageos/updater/deviceinfo/UpdaterCard.kt b/app/src/main/java/org/lineageos/updater/deviceinfo/UpdaterCard.kt
+--- a/app/src/main/java/org/lineageos/updater/deviceinfo/UpdaterCard.kt
++++ b/app/src/main/java/org/lineageos/updater/deviceinfo/UpdaterCard.kt
+@@ -7,6 +7,7 @@
+ 
+ import android.graphics.RuntimeShader
+ import androidx.compose.foundation.Image
++import androidx.compose.foundation.BorderStroke
+ import androidx.compose.foundation.background
+ import androidx.compose.foundation.layout.Arrangement
+ import androidx.compose.foundation.layout.Box
+@@ -199,10 +200,9 @@
+     modifier: Modifier = Modifier,
+     shape: Shape = CornerExtraLarge1,
+ ) {
+-    val brandColor = colorResource(R.color.brand_primary)
+-    val onBrandColor = colorResource(R.color.on_brand_surface)
+-    val patternColor = colorResource(R.color.brand_pattern)
+-    val sheenColor = colorResource(R.color.brand_sheen)
++    // Kompakt: two inks, the page colour with an outline in the text colour
++    val brandColor = MaterialTheme.colorScheme.surface
++    val onBrandColor = MaterialTheme.colorScheme.onSurface
+ 
+     val density = LocalDensity.current
+     val displayLarge = MaterialTheme.typography.displayLarge
+@@ -231,15 +231,12 @@
+             containerColor = Color.Transparent,
+             contentColor = onBrandColor,
+         ),
++        border = BorderStroke(2.dp, onBrandColor),
+     ) {
+         Box(
+             modifier = Modifier
+                 .fillMaxWidth()
+-                .background(brandColor)
+-                .updaterHeaderPattern(
+-                    patternColor = patternColor,
+-                    sheenColor = sheenColor,
+-                ),
++                .background(brandColor),
+         ) {
+             Column(modifier = Modifier.fillMaxWidth()) {
+                 Row(
+diff --git a/app/src/main/java/org/lineageos/updater/updatescheck/UpdatesCheck.kt b/app/src/main/java/org/lineageos/updater/updatescheck/UpdatesCheck.kt
+--- a/app/src/main/java/org/lineageos/updater/updatescheck/UpdatesCheck.kt
++++ b/app/src/main/java/org/lineageos/updater/updatescheck/UpdatesCheck.kt
+@@ -17,7 +17,8 @@
+ import androidx.compose.foundation.layout.padding
+ import androidx.compose.foundation.layout.size
+ import androidx.compose.material3.ButtonDefaults
+-import androidx.compose.material3.FilledTonalButton
++import androidx.compose.foundation.BorderStroke
++import androidx.compose.material3.OutlinedButton
+ import androidx.compose.material3.MaterialTheme
+ import androidx.compose.material3.Text
+ import androidx.compose.runtime.Composable
+@@ -131,11 +132,13 @@
+     onClick: () -> Unit,
+     modifier: Modifier = Modifier,
+ ) {
+-    FilledTonalButton(
++    // Kompakt: outlined, a tonal fill is the page colour here
++    OutlinedButton(
+         onClick = onClick,
+         modifier = modifier.fillMaxWidth(),
+-        colors = ButtonDefaults.filledTonalButtonColors(
+-            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
++        border = BorderStroke(2.dp, MaterialTheme.colorScheme.onSurface),
++        colors = ButtonDefaults.outlinedButtonColors(
++            contentColor = MaterialTheme.colorScheme.onSurface,
+         ),
+     ) {
+         Text(text = stringResource(R.string.check_for_updates))
+diff --git a/app/src/main/java/org/lineageos/updater/updates/action/UpdateAction.kt b/app/src/main/java/org/lineageos/updater/updates/action/UpdateAction.kt
+--- a/app/src/main/java/org/lineageos/updater/updates/action/UpdateAction.kt
++++ b/app/src/main/java/org/lineageos/updater/updates/action/UpdateAction.kt
+@@ -26,10 +26,8 @@
+ 
+     DELETE(R.string.menu_delete_update),
+     EXPORT(R.string.menu_export_update),
+-    VIEW_DOWNLOADS(R.string.menu_view_downloads) {
+-        override fun title(context: Context) =
+-            context.getString(titleRes, context.getString(R.string.brand_name))
+-    };
++    // Kompakt: our releases on GitHub, not LineageOS Downloads
++    VIEW_DOWNLOADS(R.string.menu_view_releases);
+ 
+     open fun title(context: Context) = context.getString(titleRes)
+ }
+diff --git a/app/src/main/res/values/config.xml b/app/src/main/res/values/config.xml
+--- a/app/src/main/res/values/config.xml
++++ b/app/src/main/res/values/config.xml
+@@ -17,5 +17,5 @@
+     <color name="brand_sheen">#EADDFF</color>
+ 
+     <!-- URL template for opening the device-specific downloads page from the update menu. -->
+-    <string name="menu_downloads_url" translatable="false">https://download.lineageos.org/devices/<xliff:g id="device_name">%1$s</xliff:g>/builds</string>
++    <string name="menu_downloads_url" translatable="false">https://github.com/gezimos/KompaktOS/releases</string>
+ </resources>
+diff --git a/app/src/main/res/values/strings.xml b/app/src/main/res/values/strings.xml
+--- a/app/src/main/res/values/strings.xml
++++ b/app/src/main/res/values/strings.xml
+@@ -91,7 +91,7 @@
+     <string name="menu_stream_updates_summary">Install updates while downloading. Disable to save update packages for export.</string>
+     <string name="menu_delete_update">Delete</string>
+     <string name="menu_export_update">Export update</string>
+-    <string name="menu_changelog_url" translatable="false">https://download.lineageos.org/<xliff:g id="device_name">%1$s</xliff:g>/changes</string>
++    <string name="menu_changelog_url" translatable="false">https://github.com/gezimos/KompaktOS/releases</string>
+     <string name="menu_view_downloads">View on <xliff:g id="brand_name" example="LineageOS">%1$s</xliff:g> Downloads</string>
+     <string name="menu_metered_network_warning">Metered network warning</string>
+     <string name="menu_metered_network_warning_summary">Warn before downloading over mobile data</string>
+@@ -118,7 +118,8 @@
+     <string name="security_update">Security update</string>
+     <string name="show_changelog">Recent changes</string>
+     <string name="report_issues">Report issues</string>
+-    <string name="report_issue_url" translatable="false">https://wiki.lineageos.org/how-to/bugreport/</string>
++    <string name="report_issue_url" translatable="false">https://github.com/gezimos/KompaktOS/issues</string>
++    <string name="menu_view_releases" translatable="false">View on GitHub</string>
+     <string name="header_review_updates">Review updates and recent changes on</string>
+     <string name="header_download_url" translatable="false">download.lineageos.org</string>
+     <string name="found_bug">Found a bug? Report it with our bug report guide:</string>
+-- 
+2.43.0
+

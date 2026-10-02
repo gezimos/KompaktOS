@@ -1,0 +1,703 @@
+From ced07e78855ac5eb76d082c86b0c52d8ec31fa78 Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Thu, 17 Sep 2026 21:26:34 +0200
+Subject: [PATCH] Kompakt: launcher: two inks, no animation
+
+---
+ AndroidManifest.xml                           |  2 +-
+ .../overview_action_button_background.xml     |  2 +
+ ...overview_action_button_background_blur.xml |  2 +
+ quickstep/res/values-night/colors.xml         |  3 ++
+ quickstep/res/values/colors.xml               |  4 ++
+ quickstep/res/values/dimens.xml               |  7 +++-
+ quickstep/res/values/styles.xml               |  6 +--
+ .../states/OverviewModalTaskState.java        |  3 +-
+ .../uioverrides/states/OverviewState.java     | 11 +----
+ .../states/SplitScreenSelectState.java        |  9 +---
+ .../quickstep/views/IconAppChipView.kt        | 41 +++++++++++++++++--
+ .../android/quickstep/views/RecentsView.java  | 32 ++++++++++++++-
+ .../views/TaskThumbnailViewDeprecated.java    | 17 ++++++++
+ .../com/android/quickstep/views/TaskView.kt   | 34 +++++++++++++++
+ res/values/config.xml                         |  2 +-
+ res/values/styles.xml                         |  6 ++-
+ src/com/android/launcher3/BubbleTextView.java | 11 +++++
+ src/com/android/launcher3/DeviceProfile.java  |  5 +--
+ src/com/android/launcher3/Launcher.java       | 11 +++++
+ src/com/android/launcher3/PagedView.java      |  3 +-
+ .../launcher3/ShortcutAndWidgetContainer.java |  9 ++++
+ .../allapps/AllAppsRecyclerView.java          |  1 +
+ .../launcher3/statemanager/StateManager.java  |  5 +--
+ .../launcher3/util/SystemUiController.java    | 10 +++--
+ src/com/kompakt/eink/IconInk.java             | 39 ++++++++++++++++++
+ 25 files changed, 234 insertions(+), 41 deletions(-)
+ create mode 100644 src/com/kompakt/eink/IconInk.java
+
+diff --git a/AndroidManifest.xml b/AndroidManifest.xml
+index bce808b5a2..5bd7b69ff1 100644
+--- a/AndroidManifest.xml
++++ b/AndroidManifest.xml
+@@ -62,7 +62,7 @@
+             android:taskAffinity=""
+             android:exported="true"
+             android:enabled="true">
+-            <intent-filter>
++            <intent-filter android:priority="-999">
+                 <action android:name="android.intent.action.MAIN" />
+                 <action android:name="android.intent.action.SHOW_WORK_APPS" />
+                 <action android:name="android.intent.action.ALL_APPS" />
+diff --git a/quickstep/res/drawable/overview_action_button_background.xml b/quickstep/res/drawable/overview_action_button_background.xml
+index b12fcd1505..24aa71f608 100644
+--- a/quickstep/res/drawable/overview_action_button_background.xml
++++ b/quickstep/res/drawable/overview_action_button_background.xml
+@@ -18,6 +18,8 @@
+     <item>
+         <shape android:shape="rectangle">
+             <corners android:radius="@dimen/overview_actions_button_radius" />
++            <!-- Kompakt: the pill needs an edge, and the edge has to flip with the mode. -->
++            <stroke android:width="2dp" android:color="@color/kompakt_overview_button_outline" />
+             <solid android:color="@color/materialColorSurfaceBright"/>
+         </shape>
+     </item>
+diff --git a/quickstep/res/drawable/overview_action_button_background_blur.xml b/quickstep/res/drawable/overview_action_button_background_blur.xml
+index b1e4001f27..1311455a1d 100644
+--- a/quickstep/res/drawable/overview_action_button_background_blur.xml
++++ b/quickstep/res/drawable/overview_action_button_background_blur.xml
+@@ -18,6 +18,8 @@
+     <item>
+         <shape android:shape="rectangle">
+             <corners android:radius="@dimen/overview_actions_button_radius" />
++            <!-- Kompakt: the pill needs an edge, and the edge has to flip with the mode. -->
++            <stroke android:width="2dp" android:color="@color/kompakt_overview_button_outline" />
+             <solid android:color="@*android:color/surface_effect_1" />
+         </shape>
+     </item>
+diff --git a/quickstep/res/values-night/colors.xml b/quickstep/res/values-night/colors.xml
+index 293c00c877..efe941b6dc 100644
+--- a/quickstep/res/values-night/colors.xml
++++ b/quickstep/res/values-night/colors.xml
+@@ -25,4 +25,7 @@
+ 
+     <!-- Turn on work apps button -->
+     <color name="work_turn_on_stroke">@color/materialColorPrimary</color>
++    <!-- Kompakt: the permanent edge round a task card, dark mode. -->
++    <color name="kompakt_task_outline">#fffffffe</color>
++    <color name="kompakt_overview_button_outline">#fffffffe</color>
+ </resources>
+\ No newline at end of file
+diff --git a/quickstep/res/values/colors.xml b/quickstep/res/values/colors.xml
+index 819988b7f7..8969abf78b 100644
+--- a/quickstep/res/values/colors.xml
++++ b/quickstep/res/values/colors.xml
+@@ -101,4 +101,8 @@
+     <color name="nudge_pill_color2">#7430E2</color>
+     <color name="nudge_pill_color3">#2A7EC8</color>
+     <color name="nudge_pill_color4">#2DB8BD</color>
++    <!-- Kompakt: the permanent edge round a task card, light mode. -->
++    <color name="kompakt_task_outline">#ff000000</color>
++    <!-- Kompakt: the edge on the Screenshot and Clear all pills -->
++    <color name="kompakt_overview_button_outline">#ff000000</color>
+ </resources>
+\ No newline at end of file
+diff --git a/quickstep/res/values/dimens.xml b/quickstep/res/values/dimens.xml
+index 1b0a6ed695..7564ef00f5 100644
+--- a/quickstep/res/values/dimens.xml
++++ b/quickstep/res/values/dimens.xml
+@@ -16,9 +16,9 @@
+ 
+ <resources>
+     <!-- For screens without rounded corners -->
+-    <dimen name="task_corner_radius_small">2dp</dimen>
++    <dimen name="task_corner_radius_small">12dp</dimen>
+     <!-- For Launchers that want to override the default dialog corner radius -->
+-    <dimen name="task_corner_radius_override">-1dp</dimen>
++    <dimen name="task_corner_radius_override">12dp</dimen>
+ 
+     <!--  Task Menu View  -->
+     <dimen name="task_menu_corner_radius">26dp</dimen>
+@@ -628,4 +628,7 @@
+     -->
+     <dimen name="desktop_windowing_freeform_task_rounded_corner_radius">16dp</dimen>
+ 
++
++    <!-- Kompakt: the permanent outline round a task thumbnail. -->
++    <dimen name="kompakt_task_outline_width">2dp</dimen>
+ </resources>
+diff --git a/quickstep/res/values/styles.xml b/quickstep/res/values/styles.xml
+index 2e4567a055..3c02bebb60 100644
+--- a/quickstep/res/values/styles.xml
++++ b/quickstep/res/values/styles.xml
+@@ -404,9 +404,9 @@
+         <item name="overviewScrimColor">?attr/overviewScrimColorBlur</item>
+         <item name="overviewActionsContainerStyle">@style/OverviewActionsContainerBlur</item>
+         <item name="overviewActionButtonStyle">@style/OverviewActionButton.Blur</item>
+-        <item name="overviewScrimForegroundPrimary">?attr/overviewScrimForegroundPrimaryBlur</item>
+-        <item name="overviewScrimForegroundSecondary">?attr/overviewScrimForegroundSecondaryBlur
+-        </item>
++        <!-- Kompakt: the foreground washes are translucent too. -->
++        <item name="overviewScrimForegroundPrimary">@android:color/transparent</item>
++        <item name="overviewScrimForegroundSecondary">@android:color/transparent</item>
+         <item name="addDesktopButtonBackgroundDrawable">@drawable/overview_action_button_background_blur</item>
+ 
+     </style>
+diff --git a/quickstep/src/com/android/launcher3/uioverrides/states/OverviewModalTaskState.java b/quickstep/src/com/android/launcher3/uioverrides/states/OverviewModalTaskState.java
+index bd17d17379..bdfc0b51ac 100644
+--- a/quickstep/src/com/android/launcher3/uioverrides/states/OverviewModalTaskState.java
++++ b/quickstep/src/com/android/launcher3/uioverrides/states/OverviewModalTaskState.java
+@@ -40,7 +40,8 @@ public class OverviewModalTaskState extends OverviewState {
+ 
+     @Override
+     public int getTransitionDuration(ActivityContext launcher, boolean isToState) {
+-        return 300;
++        // Kompakt: instant.
++        return 0;
+     }
+ 
+     @Override
+diff --git a/quickstep/src/com/android/launcher3/uioverrides/states/OverviewState.java b/quickstep/src/com/android/launcher3/uioverrides/states/OverviewState.java
+index 6191afd20e..d20ce12570 100644
+--- a/quickstep/src/com/android/launcher3/uioverrides/states/OverviewState.java
++++ b/quickstep/src/com/android/launcher3/uioverrides/states/OverviewState.java
+@@ -70,15 +70,8 @@ public class OverviewState extends LauncherState {
+ 
+     @Override
+     public int getTransitionDuration(ActivityContext context, boolean isToState) {
+-        if (isToState) {
+-            // In gesture modes, overview comes in all the way from the side, so give it more time.
+-            return DisplayController.getNavigationMode(context.asContext()).hasGestures
+-                    ? OVERVIEW_SLIDE_IN_DURATION
+-                    : OVERVIEW_POP_IN_DURATION;
+-        } else {
+-            // When exiting Overview, exit quickly.
+-            return OVERVIEW_EXIT_DURATION;
+-        }
++        // Kompakt: instant.
++        return 0;
+     }
+ 
+     @Override
+diff --git a/quickstep/src/com/android/launcher3/uioverrides/states/SplitScreenSelectState.java b/quickstep/src/com/android/launcher3/uioverrides/states/SplitScreenSelectState.java
+index e64b23d93f..92e732876e 100644
+--- a/quickstep/src/com/android/launcher3/uioverrides/states/SplitScreenSelectState.java
++++ b/quickstep/src/com/android/launcher3/uioverrides/states/SplitScreenSelectState.java
+@@ -44,13 +44,8 @@ public class SplitScreenSelectState extends OverviewState {
+ 
+     @Override
+     public int getTransitionDuration(ActivityContext context, boolean isToState) {
+-        if (isToState && context.getDeviceProfile().getDeviceProperties().isTablet()) {
+-            return SplitAnimationTimings.TABLET_ENTER_DURATION;
+-        } else if (isToState) {
+-            return SplitAnimationTimings.PHONE_ENTER_DURATION;
+-        } else {
+-            return SplitAnimationTimings.ABORT_DURATION;
+-        }
++        // Kompakt: instant.
++        return 0;
+     }
+ 
+     @Override
+diff --git a/quickstep/src/com/android/quickstep/views/IconAppChipView.kt b/quickstep/src/com/android/quickstep/views/IconAppChipView.kt
+index e14e6effe2..1f834705b2 100644
+--- a/quickstep/src/com/android/quickstep/views/IconAppChipView.kt
++++ b/quickstep/src/com/android/quickstep/views/IconAppChipView.kt
+@@ -22,7 +22,9 @@ import android.animation.ValueAnimator
+ import android.content.Context
+ import android.graphics.Canvas
+ import android.graphics.Outline
++import android.graphics.Paint
+ import android.graphics.Rect
++import android.graphics.RectF
+ import android.graphics.drawable.Drawable
+ import android.text.TextUtils.TruncateAt
+ import android.util.AttributeSet
+@@ -117,6 +119,16 @@ constructor(
+         resources.getDimensionPixelSize(R.dimen.app_chip_keyboard_border_width)
+     private val cornerRadius = resources.getDimensionPixelSize(R.dimen.app_chip_round_corner_radius)
+ 
++    /** Kompakt: the chip's own edge. */
++    private val kompaktOutlinePaint =
++        Paint(Paint.ANTI_ALIAS_FLAG).apply {
++            style = Paint.Style.STROKE
++            strokeWidth = resources.getDimension(R.dimen.kompakt_task_outline_width)
++            color = resources.getColor(R.color.kompakt_overview_button_outline, context.theme)
++        }
++
++    private val kompaktOutlineBounds = RectF()
++
+     private var animator: AnimatorSet? = null
+ 
+     private val multiValueAlpha: MultiValueAlpha =
+@@ -220,9 +232,30 @@ constructor(
+ 
+     override fun draw(canvas: Canvas) {
+         super.draw(canvas)
++        drawKompaktOutline(canvas)
+         focusBorderAnimator.drawBorder(canvas)
+     }
+ 
++    /** Kompakt: trace the chip's edge, every frame. */
++    private fun drawKompaktOutline(canvas: Canvas) {
++        val bounds = backgroundRelativeLtrLocation
++        if (bounds.isEmpty) return
++        if (isLayoutRtl) {
++            kompaktOutlineBounds.set(
++                (width - bounds.right).toFloat(),
++                bounds.top.toFloat(),
++                (width - bounds.left).toFloat(),
++                bounds.bottom.toFloat(),
++            )
++        } else {
++            kompaktOutlineBounds.set(bounds)
++        }
++        val half = kompaktOutlinePaint.strokeWidth / 2f
++        kompaktOutlineBounds.inset(half, half)
++        val radius = cornerRadius - half
++        canvas.drawRoundRect(kompaktOutlineBounds, radius, radius, kompaktOutlinePaint)
++    }
++
+     override fun onFinishInflate() {
+         super.onFinishInflate()
+         iconView = findViewById(R.id.icon_view)
+@@ -335,12 +368,12 @@ constructor(
+         )
+     }
+ 
++    @Suppress("UNUSED_PARAMETER")
+     private fun enableMarquee(isEnabled: Boolean) {
+-        // Marquee should not be enabled when is running test harness.
+-        val isMarqueeEnabled = isEnabled && !Utilities.isRunningInTestHarness()
++        // Kompakt: never, whatever the caller asks for.
+         appTitle?.let {
+-            it.ellipsize = if (isMarqueeEnabled) TruncateAt.MARQUEE else null
+-            it.isSelected = isMarqueeEnabled
++            it.ellipsize = null
++            it.isSelected = false
+         }
+     }
+ 
+diff --git a/quickstep/src/com/android/quickstep/views/RecentsView.java b/quickstep/src/com/android/quickstep/views/RecentsView.java
+index 111c99b53a..f33e18203f 100644
+--- a/quickstep/src/com/android/quickstep/views/RecentsView.java
++++ b/quickstep/src/com/android/quickstep/views/RecentsView.java
+@@ -154,6 +154,8 @@ import com.android.launcher3.Insettable;
+ import com.android.launcher3.MotionEventsUtils;
+ import com.android.launcher3.PagedView;
+ import com.android.launcher3.R;
++import com.android.launcher3.util.Themes;
++import com.android.launcher3.util.SystemUiController;
+ import com.android.launcher3.Utilities;
+ import com.android.launcher3.anim.AnimatedFloat;
+ import com.android.launcher3.anim.AnimatorListeners;
+@@ -1686,8 +1688,29 @@ public abstract class RecentsView<
+                 && Arrays.stream(taskIds).noneMatch(taskId -> taskId == INVALID_TASK_ID);
+     }
+ 
++
++    /** Kompakt: take the status bar while Overview is up, and give it back after. */
++    private void kompaktClaimStatusBar(boolean enabled) {
++        SystemUiController controller = mContainer.getSystemUiController();
++        if (controller == null) {
++            return;
++        }
++        if (!enabled) {
++            controller.updateUiState(SystemUiController.UI_STATE_OVERVIEW, 0);
++            return;
++        }
++        int scrim = Themes.getAttrColor(getContext(), R.attr.overviewScrimColorBlur);
++        if (Color.alpha(scrim) < 230) {
++            controller.updateUiState(SystemUiController.UI_STATE_OVERVIEW, 0);
++            return;
++        }
++        controller.updateUiState(SystemUiController.UI_STATE_OVERVIEW,
++                Color.luminance(scrim) > 0.5f);
++    }
++
+     public void setOverviewStateEnabled(boolean enabled) {
+         mOverviewStateEnabled = enabled;
++        kompaktClaimStatusBar(enabled);
+         updateTaskStackListenerState();
+         mOrientationState.setRotationWatcherEnabled(enabled);
+         if (!enabled) {
+@@ -4569,7 +4592,14 @@ public abstract class RecentsView<
+     protected boolean snapToPage(int whichPage, int delta, int duration, boolean immediate) {
+         debugLog(TAG, "snapToPage, whichPage: " + whichPage + ", delta: " + delta + ", duration: "
+                 + duration + ", immediate: " + immediate);
+-        return super.snapToPage(whichPage, delta, duration, immediate);
++        // e-ink: always snap immediately.
++        return super.snapToPage(whichPage, delta, duration, true);
++    }
++
++    @Override
++    public void setEnableFreeScroll(boolean freeScroll) {
++        // e-ink: never free scroll; Overview moves a page at a time.
++        super.setEnableFreeScroll(false);
+     }
+ 
+     private int getNextPageInternal(int delta, TaskGridNavHelper.TaskNavDirection direction,
+diff --git a/quickstep/src/com/android/quickstep/views/TaskThumbnailViewDeprecated.java b/quickstep/src/com/android/quickstep/views/TaskThumbnailViewDeprecated.java
+index a39100ebc2..79bc70c7bc 100644
+--- a/quickstep/src/com/android/quickstep/views/TaskThumbnailViewDeprecated.java
++++ b/quickstep/src/com/android/quickstep/views/TaskThumbnailViewDeprecated.java
+@@ -289,6 +289,19 @@ public class TaskThumbnailViewDeprecated extends View implements ViewPool.Reusab
+         invalidate();
+     }
+ 
++    /** e-ink: an explicit border round task previews, which have no shadow. */
++    private final Paint mKompaktBorderPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
++    {
++        mKompaktBorderPaint.setStyle(Paint.Style.STROKE);
++        mKompaktBorderPaint.setStrokeWidth(2f);
++        mKompaktBorderPaint.setColor(0xFF000000);
++    }
++
++    private void kompaktDrawBorder(Canvas c, float x, float y, float w, float h, float r) {
++        float rr = Math.max(r - 1f, 0f);
++        c.drawRoundRect(x + 1f, y + 1f, w - 1f, h - 1f, rr, rr, mKompaktBorderPaint);
++    }
++
+     public void drawOnCanvas(Canvas canvas, float x, float y, float width, float height,
+             float cornerRadius) {
+         if (mTask != null && mTaskView.isRunningTask()
+@@ -296,6 +309,7 @@ public class TaskThumbnailViewDeprecated extends View implements ViewPool.Reusab
+             canvas.drawRoundRect(x, y, width, height, cornerRadius, cornerRadius, mClearPaint);
+             canvas.drawRoundRect(x, y, width, height, cornerRadius, cornerRadius,
+                     mDimmingPaintAfterClearing);
++            // Kompakt: no border here.
+             return;
+         }
+ 
+@@ -308,6 +322,7 @@ public class TaskThumbnailViewDeprecated extends View implements ViewPool.Reusab
+         final boolean drawBackgroundOnly = mTask == null || mTask.isLocked || mBitmapShader == null
+                 || mThumbnailData == null;
+         if (drawBackgroundOnly) {
++            // Kompakt: no border here either.
+             return;
+         }
+ 
+@@ -331,6 +346,8 @@ public class TaskThumbnailViewDeprecated extends View implements ViewPool.Reusab
+                 mSplashView.draw(canvas);
+             }
+         }
++
++        kompaktDrawBorder(canvas, x, y, width, height, cornerRadius);
+     }
+ 
+     public void setOverlayEnabled(boolean overlayEnabled) {
+diff --git a/quickstep/src/com/android/quickstep/views/TaskView.kt b/quickstep/src/com/android/quickstep/views/TaskView.kt
+index effda1cea6..58fca7dc2c 100644
+--- a/quickstep/src/com/android/quickstep/views/TaskView.kt
++++ b/quickstep/src/com/android/quickstep/views/TaskView.kt
+@@ -25,6 +25,8 @@ import android.app.ActivityTaskManager.INVALID_TASK_ID
+ import android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN
+ import android.content.Context
+ import android.graphics.Canvas
++import android.graphics.Paint
++import android.graphics.Color
+ import android.graphics.PointF
+ import android.graphics.Rect
+ import android.graphics.drawable.Drawable
+@@ -281,6 +283,17 @@ constructor(
+             )
+ 
+     private val tempCoordinates = FloatArray(2)
++
++    // Kompakt: a permanent outline round each task thumbnail.
++    private val kompaktOutlinePaint =
++        Paint(Paint.ANTI_ALIAS_FLAG).apply {
++            style = Paint.Style.STROKE
++            // A resource, not Color.BLACK: the edge flips with the mode.
++            color = resources.getColor(R.color.kompakt_task_outline, context.theme)
++            strokeWidth = resources.getDimension(R.dimen.kompakt_task_outline_width)
++        }
++    private val kompaktOutlineBounds = Rect()
++
+     private val focusBorderAnimator: BorderAnimator? =
+         focusBorderAnimator
+             ?: createSimpleBorderAnimator(
+@@ -712,6 +725,27 @@ constructor(
+         focusBorderAnimator?.drawBorder(canvas)
+         hoverBorderAnimator?.drawBorder(canvas)
+         super.draw(canvas)
++        // Kompakt: AFTER super.draw(), which is what draws the children.
++        kompaktDrawOutline(canvas)
++    }
++
++    /** Strokes the thumbnail's own rounded rect. */
++    private fun kompaktDrawOutline(canvas: Canvas) {
++        // Kompakt: only once this is actually a card.
++        if (fullscreenProgress > 0f) return
++        getThumbnailBounds(kompaktOutlineBounds)
++        if (kompaktOutlineBounds.isEmpty) return
++        val half = kompaktOutlinePaint.strokeWidth / 2f
++        val radius = (TaskCornerRadius.get(context) - half).coerceAtLeast(0f)
++        canvas.drawRoundRect(
++            kompaktOutlineBounds.left + half,
++            kompaktOutlineBounds.top + half,
++            kompaktOutlineBounds.right - half,
++            kompaktOutlineBounds.bottom - half,
++            radius,
++            radius,
++            kompaktOutlinePaint,
++        )
+     }
+ 
+     override fun setLayoutDirection(layoutDirection: Int) {
+diff --git a/res/values/config.xml b/res/values/config.xml
+index cb6e50ba99..b3cd30e559 100644
+--- a/res/values/config.xml
++++ b/res/values/config.xml
+@@ -29,7 +29,7 @@
+ 
+     <!-- AllApps & Launcher transitions -->
+     <!-- The duration of the PagedView page snap animation -->
+-    <integer name="config_pageSnapAnimationDuration">750</integer>
++    <integer name="config_pageSnapAnimationDuration">1</integer>
+ 
+     <!-- The duration of the PagedView page snap animation -->
+     <integer name="config_keyboardTaskFocusSnapAnimationDuration">750</integer>
+diff --git a/res/values/styles.xml b/res/values/styles.xml
+index 63094a242b..6343a7ba50 100644
+--- a/res/values/styles.xml
++++ b/res/values/styles.xml
+@@ -87,7 +87,8 @@
+         <item name="overviewScrimColorFallback">@color/overview_scrim</item>
+         <item name="overviewScrimForegroundPrimaryBlur">@color/overview_scrim_foreground_primary</item>
+         <item name="overviewScrimForegroundSecondaryBlur">@color/overview_scrim_foreground_secondary</item>
+-        <item name="overviewScrimColorBlur">#80FFFFFF</item>
++        <!-- Kompakt: opaque; a 50% wash dithers on this panel. -->
++        <item name="overviewScrimColorBlur">#FFFFFFFF</item>
+         <item name="preloadIconAccentColor">@color/preload_icon_accent_color_light</item>
+         <item name="preloadIconBackgroundColor">@color/preload_icon_background_color_light</item>
+         <item name="android:windowTranslucentStatus">false</item>
+@@ -155,7 +156,8 @@
+         <item name="overviewScrimColorFallback">@color/overview_scrim_dark</item>
+         <item name="overviewScrimForegroundPrimaryBlur">@color/overview_scrim_foreground_primary_dark</item>
+         <item name="overviewScrimForegroundSecondaryBlur">@color/overview_scrim_foreground_secondary_dark</item>
+-        <item name="overviewScrimColorBlur">#80000000</item>
++        <!-- Kompakt: opaque, and black. -->
++        <item name="overviewScrimColorBlur">#FF000000</item>
+         <item name="preloadIconAccentColor">@color/preload_icon_accent_color_dark</item>
+         <item name="preloadIconBackgroundColor">@color/preload_icon_background_color_dark</item>
+     </style>
+diff --git a/src/com/android/launcher3/BubbleTextView.java b/src/com/android/launcher3/BubbleTextView.java
+index 553db6fd7f..a419cfde70 100644
+--- a/src/com/android/launcher3/BubbleTextView.java
++++ b/src/com/android/launcher3/BubbleTextView.java
+@@ -1052,6 +1052,17 @@ public class BubbleTextView extends TextView implements ItemInfoUpdateReceiver,
+         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+     }
+ 
++    /** Kompakt: keep the line as tall as the font, not as tall as the text size. */
++    @Override
++    public void setTextSize(int unit, float size) {
++        super.setTextSize(unit, size);
++        Paint.FontMetricsInt fm = getPaint().getFontMetricsInt();
++        int naturalLineHeight = fm.descent - fm.ascent;
++        if (naturalLineHeight > 0 && getLineHeight() < naturalLineHeight) {
++            setLineHeight(naturalLineHeight);
++        }
++    }
++
+     @Override
+     public void setTextColor(int color) {
+         mTextColor = color;
+diff --git a/src/com/android/launcher3/DeviceProfile.java b/src/com/android/launcher3/DeviceProfile.java
+index ce25f40ce6..042521865a 100644
+--- a/src/com/android/launcher3/DeviceProfile.java
++++ b/src/com/android/launcher3/DeviceProfile.java
+@@ -1398,9 +1398,8 @@ public class DeviceProfile {
+ 
+     /** Returns the number of pixels required below OverviewActions. */
+     public int getOverviewActionsClaimedSpaceBelow() {
+-        return isTaskbarPresent
+-                ? getTaskbarProfile().getTransientTaskbarClaimedSpace()
+-                : mInsets.bottom;
++        // Kompakt: nothing.
++        return 0;
+     }
+ 
+     /** Gets the space that the overview actions will take, including bottom margin. */
+diff --git a/src/com/android/launcher3/Launcher.java b/src/com/android/launcher3/Launcher.java
+index 66b4d70ed2..e0335bf20f 100644
+--- a/src/com/android/launcher3/Launcher.java
++++ b/src/com/android/launcher3/Launcher.java
+@@ -110,6 +110,7 @@ import android.animation.Animator;
+ import android.animation.AnimatorSet;
+ import android.animation.ValueAnimator;
+ import android.annotation.TargetApi;
++import android.app.ActivityManager;
+ import android.appwidget.AppWidgetHostView;
+ import android.appwidget.AppWidgetManager;
+ import android.content.ActivityNotFoundException;
+@@ -154,6 +155,7 @@ import android.window.BackEvent;
+ import android.window.OnBackAnimationCallback;
+ 
+ import androidx.annotation.CallSuper;
++import androidx.core.graphics.ColorUtils;
+ import androidx.annotation.NonNull;
+ import androidx.annotation.Nullable;
+ import androidx.annotation.RequiresApi;
+@@ -532,6 +534,15 @@ public class Launcher extends StatefulActivity<LauncherState>
+         getSystemUiController().updateUiState(SystemUiController.UI_STATE_BASE_WINDOW,
+                 Themes.getAttrBoolean(this, R.attr.isWorkspaceDarkText));
+ 
++        // Kompakt: give WindowManager a colour to paint behind us.
++        setTaskDescription(
++                new ActivityManager.TaskDescription.Builder()
++                        .setBackgroundColor(
++                                ColorUtils.setAlphaComponent(
++                                        Themes.getAttrColor(this, android.R.attr.colorBackground),
++                                        255))
++                        .build());
++
+         mOverlayManager = getDefaultOverlay();
+         PluginManagerWrapper.INSTANCE.get(this)
+                 .addPluginListener(this, LauncherOverlayPlugin.class);
+diff --git a/src/com/android/launcher3/PagedView.java b/src/com/android/launcher3/PagedView.java
+index ca8ed9564b..a8ccc4978d 100644
+--- a/src/com/android/launcher3/PagedView.java
++++ b/src/com/android/launcher3/PagedView.java
+@@ -1355,7 +1355,8 @@ public abstract class PagedView<T extends View & PageIndicator> extends ViewGrou
+                 mLastMotion = direction;
+ 
+                 if (delta != 0) {
+-                    mOrientationHandler.setPrimary(this, VIEW_SCROLL_BY, delta);
++                    // e-ink: do not scroll by the touch delta.
++                    mOrientationHandler.setPrimary(this, VIEW_SCROLL_BY, 0);
+ 
+                     if (mAllowOverScroll) {
+                         final float pulledToX = oldScroll + delta;
+diff --git a/src/com/android/launcher3/ShortcutAndWidgetContainer.java b/src/com/android/launcher3/ShortcutAndWidgetContainer.java
+index 57071bf9e4..0f36cdd3df 100644
+--- a/src/com/android/launcher3/ShortcutAndWidgetContainer.java
++++ b/src/com/android/launcher3/ShortcutAndWidgetContainer.java
+@@ -175,6 +175,15 @@ public class ShortcutAndWidgetContainer extends ViewGroup implements FolderIcon.
+                             ? dp.getWorkspaceIconProfile().getCellYPaddingPx()
+                             : (int) Math.max(0, ((lp.height - cHeight) / 2f));
+ 
++            // Kompakt: padding may only use slack that exists.
++            final int kompaktIconHeight =
++                    dp.getWorkspaceIconProfile().getIconSizePx()
++                            + dp.getWorkspaceIconProfile().getIconDrawablePaddingPx()
++                            + Utilities.calculateTextHeight(
++                                    dp.getWorkspaceIconProfile().getIconTextSizePx());
++            cellPaddingY = Math.max(0,
++                    Math.min(cellPaddingY, lp.height - kompaktIconHeight));
++
+             // No need to add padding when cell layout border spacing is present.
+             boolean noPaddingX =
+                     (dp.getWorkspaceIconProfile().getCellLayoutBorderSpacePx().x > 0
+diff --git a/src/com/android/launcher3/allapps/AllAppsRecyclerView.java b/src/com/android/launcher3/allapps/AllAppsRecyclerView.java
+index be94c610f3..779bf1b887 100644
+--- a/src/com/android/launcher3/allapps/AllAppsRecyclerView.java
++++ b/src/com/android/launcher3/allapps/AllAppsRecyclerView.java
+@@ -61,6 +61,7 @@ import java.util.List;
+  */
+ public class AllAppsRecyclerView extends FastScrollRecyclerView {
+     protected static final String TAG = "AllAppsRecyclerView";
++
+     private static final boolean DEBUG = false;
+     private static final boolean DEBUG_LATENCY = Utilities.isPropertyEnabled(SEARCH_LOGGING);
+     private Consumer<View> mChildAttachedConsumer;
+diff --git a/src/com/android/launcher3/statemanager/StateManager.java b/src/com/android/launcher3/statemanager/StateManager.java
+index 18ed8ade29..61e85ce9c0 100644
+--- a/src/com/android/launcher3/statemanager/StateManager.java
++++ b/src/com/android/launcher3/statemanager/StateManager.java
+@@ -319,9 +319,8 @@ public class StateManager<S extends BaseState<S>, T extends StatefulContainer<S>
+             AnimatorListener listener) {
+         // Since state mBaseState can be reached from multiple states, just assume that the
+         // transition plays in reverse and use the same duration as previous state.
+-        mConfig.duration = state == mBaseState
+-                ? fromState.getTransitionDuration(mContainer, false /* isToState */)
+-                : state.getTransitionDuration(mContainer, true /* isToState */);
++        // e-ink: every launcher state change is instant.
++        mConfig.duration = 0;
+         prepareForAtomicAnimation(fromState, state, mConfig);
+         AnimatorSet animation = createAnimationToNewWorkspaceInternal(state).buildAnim();
+         if (listener != null) {
+diff --git a/src/com/android/launcher3/util/SystemUiController.java b/src/com/android/launcher3/util/SystemUiController.java
+index 314a590e22..f7681de2f4 100644
+--- a/src/com/android/launcher3/util/SystemUiController.java
++++ b/src/com/android/launcher3/util/SystemUiController.java
+@@ -36,6 +36,8 @@ public class SystemUiController {
+     public static final int UI_STATE_WIDGET_BOTTOM_SHEET = 2;
+     public static final int UI_STATE_FULLSCREEN_TASK = 3;
+     public static final int UI_STATE_ALL_APPS = 4;
++    // Kompakt: Overview paints an opaque scrim of its own and has to say so.
++    public static final int UI_STATE_OVERVIEW = 5;
+ 
+     public static final int FLAG_LIGHT_NAV = 1 << 0;
+     public static final int FLAG_DARK_NAV = 1 << 1;
+@@ -55,7 +57,7 @@ public class SystemUiController {
+     public @interface SystemUiControllerFlags {}
+ 
+     private final View mView;
+-    private final int[] mStates = new int[5];
++    private final int[] mStates = new int[6];
+ 
+     public SystemUiController(View view) {
+         mView = view;
+@@ -73,8 +75,9 @@ public class SystemUiController {
+         mStates[uiState] = flags;
+ 
+         int oldFlags = mView.getSystemUiVisibility();
+-        // Apply the state flags in priority order
+-        int newFlags = oldFlags;
++        // Apply the state flags in priority order.
++        int newFlags = oldFlags & ~(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
++                | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
+         for (int stateFlag : mStates) {
+             newFlags = getSysUiVisibilityFlags(stateFlag, newFlags);
+         }
+@@ -121,6 +124,7 @@ public class SystemUiController {
+         writer.println("\t ScrimView: " + mStates[UI_STATE_SCRIM_VIEW]);
+         writer.println("\t WidgetBottomSheet: " + mStates[UI_STATE_WIDGET_BOTTOM_SHEET]);
+         writer.println("\t FullscreenTask: " + mStates[UI_STATE_FULLSCREEN_TASK]);
++        writer.println("\t Overview: " + mStates[UI_STATE_OVERVIEW]);
+         writer.println("\t AllApps: " + mStates[UI_STATE_ALL_APPS]);
+     }
+ }
+diff --git a/src/com/kompakt/eink/IconInk.java b/src/com/kompakt/eink/IconInk.java
+new file mode 100644
+index 0000000000..1f2812a96f
+--- /dev/null
++++ b/src/com/kompakt/eink/IconInk.java
+@@ -0,0 +1,39 @@
++package com.kompakt.eink;
++
++import android.content.Context;
++import android.graphics.ColorFilter;
++import android.graphics.ColorMatrix;
++import android.graphics.ColorMatrixColorFilter;
++
++/** Reduces an app icon to a single ink silhouette. */
++public final class IconInk {
++
++    private static final float BOOST = 1.5f;
++    private static final float ALPHA_GAIN = 2f;
++
++    private static ColorFilter sLight;
++    private static ColorFilter sDark;
++
++    private IconInk() {}
++
++    /** The filter for the current mode: black glyphs in light, white in dark. */
++    public static ColorFilter get(Context context) {
++        final boolean night = context.getResources().getConfiguration().isNightModeActive();
++        if (night) {
++            if (sDark == null) sDark = build(255f);
++            return sDark;
++        }
++        if (sLight == null) sLight = build(0f);
++        return sLight;
++    }
++
++    private static ColorFilter build(float inkOffset) {
++        return new ColorMatrixColorFilter(new ColorMatrix(new float[] {
++                0f, 0f, 0f, 0f, inkOffset,
++                0f, 0f, 0f, 0f, inkOffset,
++                0f, 0f, 0f, 0f, inkOffset,
++                -0.2126f * BOOST, -0.7152f * BOOST, -0.0722f * BOOST,
++                ALPHA_GAIN, 255f * BOOST - ALPHA_GAIN * 255f,
++        }));
++    }
++}

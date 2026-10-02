@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: copy of the stock layer list without the coloured disc. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item>
+        <com.android.settingslib.widget.AdaptiveIconShapeDrawable
+            android:width="@dimen/dashboard_tile_image_size"
+            android:height="@dimen/dashboard_tile_image_size"
+            android:color="@android:color/transparent" />
+    </item>
+
+    <item
+        android:width="@dimen/dashboard_tile_foreground_image_size"
+        android:height="@dimen/dashboard_tile_foreground_image_size"
+        android:start="@dimen/dashboard_tile_foreground_image_inset"
+        android:top="@dimen/dashboard_tile_foreground_image_inset"
+        android:drawable="@drawable/ic_settings_night_display" />
+</layer-list>

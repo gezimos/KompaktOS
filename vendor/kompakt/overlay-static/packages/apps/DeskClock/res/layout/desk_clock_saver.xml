@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: the screensaver needs its own two inks. -->
+
+
+<!-- Special "screen saver mode" with just the time/date on black. -->
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/saver_container"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/kompakt_ground">
+
+    <!--  Extra layout to let the clock float in the window -->
+    <LinearLayout
+        android:id="@+id/main_clock"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="@dimen/screensaver_margin"
+        android:layout_marginEnd="@dimen/screensaver_margin"
+        android:layout_marginStart="@dimen/screensaver_margin"
+        android:layout_marginTop="@dimen/time_margin_top"
+        android:orientation="vertical">
+
+        <com.android.deskclock.AnalogClock
+            android:id="@+id/analog_clock"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="@dimen/bottom_text_spacing_analog" />
+
+        <TextClock
+            android:id="@+id/digital_clock"
+            style="@style/big_thin"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginBottom="@dimen/bottom_text_spacing_digital"
+            android:ellipsize="none"
+            android:gravity="center"
+            android:singleLine="true"
+            android:textColor="@color/kompakt_ink"
+            android:textSize="@dimen/main_clock_font_size" />
+
+        <include layout="@layout/date_and_next_alarm_time" />
+
+    </LinearLayout>
+
+</FrameLayout>

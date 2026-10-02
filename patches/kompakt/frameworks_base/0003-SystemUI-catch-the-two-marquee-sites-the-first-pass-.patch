@@ -1,0 +1,38 @@
+From f052952e7b243ddb467ec71009210bf7cd0e9eaa Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Tue, 8 Sep 2026 14:19:17 +0200
+Subject: [PATCH 03/38] SystemUI: catch the two marquee sites the first pass
+ missed
+
+---
+ packages/SystemUI/res/layout/controls_base_item.xml | 1 -
+ packages/SystemUI/res/values/styles.xml             | 3 +--
+ 2 files changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/packages/SystemUI/res/layout/controls_base_item.xml b/packages/SystemUI/res/layout/controls_base_item.xml
+index 1a73befc383d..37e39597205d 100644
+--- a/packages/SystemUI/res/layout/controls_base_item.xml
++++ b/packages/SystemUI/res/layout/controls_base_item.xml
+@@ -49,7 +49,6 @@
+         android:focusable="false"
+         android:singleLine="true"
+         android:ellipsize="end"
+-        android:marqueeRepeatLimit = "marquee_forever"
+         android:textDirection="locale"
+         app:layout_constraintEnd_toEndOf="parent"
+         app:layout_constraintBottom_toBottomOf="@+id/icon"
+diff --git a/packages/SystemUI/res/values/styles.xml b/packages/SystemUI/res/values/styles.xml
+index 4aba03b2c146..e32aab4a6313 100644
+--- a/packages/SystemUI/res/values/styles.xml
++++ b/packages/SystemUI/res/values/styles.xml
+@@ -244,9 +244,8 @@
+     <style name="TextAppearance.AuthCredential.Indicator" parent="TextAppearance.Material3.BodyMedium">
+         <item name="android:fontFamily">@*android:string/config_bodyFontFamily</item>
+         <item name="android:textColor">@androidprv:color/materialColorOnSurface</item>
+-        <item name="android:marqueeRepeatLimit">marquee_forever</item>
+         <item name="android:singleLine">true</item>
+-        <item name="android:ellipsize">marquee</item>
++        <item name="android:ellipsize">end</item>
+     </style>
+ 
+     <style name="TextAppearance.AuthCredential.Error">

@@ -1,0 +1,20 @@
+From b7eddc1760331eb7b0f4fd5cd48201aaedc4d1b4 Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Fri, 11 Sep 2026 19:44:38 +0200
+Subject: [PATCH 07/12] sepolicy: dumbita.te follows the DumbitaFMRadio rename
+
+---
+ sepolicy/dumbita.te | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sepolicy/dumbita.te b/sepolicy/dumbita.te
+index 73cb5e0..3403377 100755
+--- a/sepolicy/dumbita.te
++++ b/sepolicy/dumbita.te
+@@ -17,5 +17,5 @@ allow system_app input_device:chr_file r_file_perms;
+ ###
+ ### FM radio: /dev/fm
+ ###
+-# RevampedFMRadio opens /dev/fm directly; fm_device is vendor-declared, so only dev_type reaches it.
++# DumbitaFMRadio opens /dev/fm directly; fm_device is vendor-declared, so only dev_type reaches it.
+ allow system_app dev_type:chr_file rw_file_perms;

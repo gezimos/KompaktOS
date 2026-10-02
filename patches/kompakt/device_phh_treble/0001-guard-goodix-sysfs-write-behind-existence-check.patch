@@ -1,0 +1,24 @@
+From 073fc54601d51b496ede83e77faa7007b58334f1 Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Tue, 8 Sep 2026 14:14:21 +0200
+Subject: [PATCH 01/12] guard goodix sysfs write behind existence check
+
+---
+ rw-system.sh | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/rw-system.sh b/rw-system.sh
+index 60b6901..8ca3209 100644
+--- a/rw-system.sh
++++ b/rw-system.sh
+@@ -1323,7 +1323,9 @@ if getprop ro.vendor.build.fingerprint | grep -iq -e Rebecco/K70_ROW; then
+ fi
+ 
+ # Enable pen mode on Lenovo/goodix
+-echo 1 > /sys/devices/platform/goodix_ts.0/support_pen
++if [ -e /sys/devices/platform/goodix_ts.0/support_pen ]; then
++    echo 1 > /sys/devices/platform/goodix_ts.0/support_pen
++fi
+ 
+ # Samsung's sw Codec2 service seccomp policy only allows mremap with
+ # MREMAP_MAYMOVE|MREMAP_FIXED, but the current bionic allocator uses other

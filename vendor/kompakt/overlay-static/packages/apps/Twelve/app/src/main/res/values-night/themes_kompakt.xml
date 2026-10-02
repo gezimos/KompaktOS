@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Music in two inks, and a play button that is an outline. -->
+<resources>
+    <!-- Kompakt: Kompakt night: generated twin of the values/ file by m3_overlay_night.py, inks inverted. -->
+    <style name="Theme.Twelve" parent="Theme.Material3Expressive.DayNight.NoActionBar">
+        <item name="colorOnSurface">#fffffffe</item>
+        <item name="colorOnSurfaceVariant">#fffffffe</item>
+        <item name="colorOnBackground">#fffffffe</item>
+        <item name="colorOutline">#fffffffe</item>
+        <item name="colorOutlineVariant">#fffffffe</item>
+        <item name="colorPrimaryContainer">#ff000000</item>
+        <item name="colorOnPrimaryContainer">#fffffffe</item>
+        <item name="colorSecondaryContainer">#ff000000</item>
+        <item name="colorOnSecondaryContainer">#fffffffe</item>
+        <item name="colorTertiaryContainer">#ff000000</item>
+        <item name="colorOnTertiaryContainer">#fffffffe</item>
+        <item name="colorSurfaceContainer">#ff000000</item>
+        <item name="colorSurfaceContainerHigh">#ff000000</item>
+        <item name="colorSurfaceContainerHighest">#ff000000</item>
+        <item name="colorSurfaceContainerLow">#ff000000</item>
+        <item name="colorSurfaceContainerLowest">#ff000000</item>
+        <item name="android:textColorSecondary">#fffffffe</item>
+        <item name="android:textColorTertiary">#fffffffe</item>
+        <item name="elevationOverlayEnabled">false</item>
+        <!-- Kompakt: the same flat controls as the day theme. -->
+        <item name="materialIconButtonFilledStyle">@style/Theme.Twelve.Kompakt.IconButton</item>
+        <item name="materialIconButtonFilledTonalStyle">@style/Theme.Twelve.Kompakt.IconButton</item>
+        <item name="materialIconButtonStyle">@style/Theme.Twelve.Kompakt.IconButton</item>
+        <item name="materialCardViewFilledStyle">@style/Theme.Twelve.Kompakt.FlatCard</item>
+    </style>
+
+    <style name="Theme.Twelve.NowPlayingFragment.MediaButton.Primary" parent="Widget.Material3Expressive.Button.IconButton">
+        <item name="android:layout_width">64dp</item>
+        <item name="android:layout_height">64dp</item>
+        <item name="android:padding">0dp</item>
+        <item name="iconGravity">textStart</item>
+        <item name="iconSize">32dp</item>
+        <!-- Outline, not fill. -->
+        <item name="backgroundTint">@android:color/transparent</item>
+        <item name="android:background">@android:color/transparent</item>
+        <item name="strokeColor">#fffffffe</item>
+        <item name="strokeWidth">2dp</item>
+        <item name="iconTint">#fffffffe</item>
+        <item name="rippleColor">#14ffffff</item>
+        <item name="elevation">0dp</item>
+        <!-- No press morph; see the header. -->
+        <item name="android:stateListAnimator">@null</item>
+        <item name="elevationOverlayEnabled">false</item>
+    </style>
+
+    <style name="Theme.Twelve.NowPlayingFragment.MediaButton.Tertiary" parent="Widget.Material3Expressive.Button.IconButton">
+        <item name="android:layout_width">64dp</item>
+        <item name="android:layout_height">64dp</item>
+        <item name="android:padding">0dp</item>
+        <item name="backgroundTint">@android:color/transparent</item>
+        <item name="strokeColor">#fffffffe</item>
+        <item name="strokeWidth">2dp</item>
+        <item name="iconTint">#fffffffe</item>
+        <item name="iconGravity">textStart</item>
+        <item name="iconSize">32dp</item>
+        <item name="rippleColor">#14ffffff</item>
+        <item name="elevation">0dp</item>
+        <item name="android:stateListAnimator">@null</item>
+        <item name="elevationOverlayEnabled">false</item>
+    </style>
+
+    <style name="Theme.Twelve.NowPlayingFragment.MediaButton.Standard" parent="Widget.Material3Expressive.Button.IconButton.Standard">
+        <item name="android:layout_width">44dp</item>
+        <item name="android:layout_height">44dp</item>
+        <item name="android:layout_gravity">center</item>
+        <item name="android:padding">0dp</item>
+        <item name="iconGravity">textStart</item>
+        <item name="iconSize">22dp</item>
+        <item name="iconTint">#fffffffe</item>
+        <item name="rippleColor">#14ffffff</item>
+        <item name="android:stateListAnimator">@null</item>
+        <item name="elevationOverlayEnabled">false</item>
+    </style>
+</resources>

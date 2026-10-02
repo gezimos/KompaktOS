@@ -1,0 +1,42 @@
+From f46490ff88ba139623e67f7ab04f6f888bc417f6 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sat, 3 Oct 2026 01:47:23 +0300
+Subject: [PATCH] Kompakt: 4G calling and Wi-Fi calling are available by
+ default
+
+---
+ app/src/main/java/me/phh/treble/app/Ims.kt | 4 +++-
+ app/src/main/res/xml/pref_ims.xml          | 2 +-
+ 2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/app/src/main/java/me/phh/treble/app/Ims.kt b/app/src/main/java/me/phh/treble/app/Ims.kt
+index 1dc9880..9947ac6 100644
+--- a/app/src/main/java/me/phh/treble/app/Ims.kt
++++ b/app/src/main/java/me/phh/treble/app/Ims.kt
+@@ -52,7 +52,9 @@ object Ims: EntryStartup {
+                 }
+             }
+             ImsSettings.forceEnableSettings -> {
+-                val value = if(sp.getBoolean(key, false)) "1" else "0"
++                // Kompakt: on by default, as the build sets these properties. Off, Android
++                // hides Wi-Fi calling and treats VoLTE as unavailable on carriers without it.
++                val value = if(sp.getBoolean(key, true)) "1" else "0"
+                 Misc.safeSetprop("persist.dbg.volte_avail_ovr", value)
+                 Misc.safeSetprop("persist.dbg.wfc_avail_ovr", value)
+                 Misc.safeSetprop("persist.dbg.allow_ims_off", value)
+diff --git a/app/src/main/res/xml/pref_ims.xml b/app/src/main/res/xml/pref_ims.xml
+index 3c5d646..c75261a 100644
+--- a/app/src/main/res/xml/pref_ims.xml
++++ b/app/src/main/res/xml/pref_ims.xml
+@@ -10,7 +10,7 @@
+         android:key="key_ims_request_network"
+         android:title="Request IMS network" />
+     <SwitchPreference
+-        android:defaultValue="false"
++        android:defaultValue="true"
+         android:key="key_ims_force_enable_setting"
+         android:title="Force the presence of 4G Calling setting" />
+ </PreferenceScreen>
+-- 
+2.50.1 (Apple Git-155)
+

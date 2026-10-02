@@ -1,0 +1,939 @@
+From d45630bc9f7bd201023d70045489c6d9e0c13b91 Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Thu, 17 Sep 2026 21:26:36 +0200
+Subject: [PATCH] Kompakt: calendar: two inks
+
+---
+ ...eline_indicator_activated_holo_light.9.png | Bin 364 -> 0 bytes
+ .../timeline_indicator_holo_light.9.png       | Bin 353 -> 0 bytes
+ ...eline_indicator_activated_holo_light.9.png | Bin 289 -> 0 bytes
+ .../timeline_indicator_holo_light.9.png       | Bin 303 -> 0 bytes
+ ...eline_indicator_activated_holo_light.9.png | Bin 463 -> 0 bytes
+ .../timeline_indicator_holo_light.9.png       | Bin 453 -> 0 bytes
+ ...imeline_indicator_activated_holo_light.xml |   6 +
+ .../timeline_indicator_holo_light.xml         |   6 +
+ app/src/main/res/values-night-v31/colors.xml  |   2 +-
+ app/src/main/res/values-night/colors.xml      | 118 ++++-
+ app/src/main/res/values-v31/colors.xml        |   2 +-
+ app/src/main/res/values/colors.xml            | 476 +++++++++---------
+ 12 files changed, 368 insertions(+), 242 deletions(-)
+ delete mode 100644 app/src/main/res/drawable-hdpi/timeline_indicator_activated_holo_light.9.png
+ delete mode 100644 app/src/main/res/drawable-hdpi/timeline_indicator_holo_light.9.png
+ delete mode 100644 app/src/main/res/drawable-mdpi/timeline_indicator_activated_holo_light.9.png
+ delete mode 100644 app/src/main/res/drawable-mdpi/timeline_indicator_holo_light.9.png
+ delete mode 100644 app/src/main/res/drawable-xhdpi/timeline_indicator_activated_holo_light.9.png
+ delete mode 100644 app/src/main/res/drawable-xhdpi/timeline_indicator_holo_light.9.png
+ create mode 100644 app/src/main/res/drawable/timeline_indicator_activated_holo_light.xml
+ create mode 100644 app/src/main/res/drawable/timeline_indicator_holo_light.xml
+
+diff --git a/app/src/main/res/drawable-hdpi/timeline_indicator_activated_holo_light.9.png b/app/src/main/res/drawable-hdpi/timeline_indicator_activated_holo_light.9.png
+deleted file mode 100644
+index 011d86eb0a4530dd93bfc81a945fe04e67ab6d1c..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+literal 364
+zcmeAS@N?(olHy`uVBq!ia0vp^A|TAc1|)ksWqE-VOR<w@2nP_<aHMnq`J4qFk;M!Q
+z+?^oIXnykaS_TG2K2I0N5R2ZkQw|ok81T5xH{5;P#DP(>!Dz*FBaLRZZ&E!)9jx}p
+zo=xycTO`SwENSZ<pKz@5>9I8rL#3Zj4PZOM^u4TMdgczb-p^895d!(4wLsnmWy|nq
+zCu5IZ{njO&aN6X;bJy?#RSHb&-FD|YFqv7hB)snycV=^aaIrzLdb*<K1??Woe|s41
+zSeNBq{v2DA`;&3c^Yk+dSZba`oO)Np*s{r~OG{QJ^}L1YyRJK@S?Y767IyD0_A5BO
+z{I`hdJe4}0Wh}c6NXJK&&an!7lPkiU$te7MLd<%x3#->K$-Z)kU0r$G?&+)Y6~7eU
+zX6!y;eKnr{->V{l6?*k0wSVim)7&`DzKgnEYkKg^50>XsYxn;B?7I{gTnwJBelF{r
+G5}E+f`;syM
+
+diff --git a/app/src/main/res/drawable-hdpi/timeline_indicator_holo_light.9.png b/app/src/main/res/drawable-hdpi/timeline_indicator_holo_light.9.png
+deleted file mode 100644
+index b401d0c529d5ad6567b3084ed8de81ed922517e1..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+literal 353
+zcmeAS@N?(olHy`uVBq!ia0vp^A|TAc1|)ksWqE-VTavfC3&Vd9T(EcfWS|IVfk$L9
+z0|R#_2s4_WJiQhu$X?><>&kwggONv9^zq#Mc|f6eo-U3d7N^fnJ<EC6fT#88{3ka=
+zYu<#N%sHDDxA1yYnSN1)XqTdDE0;?L&-^9o+Jz?D$^^<wz9o2`>@~`@+^#6V@T0`-
+z65GD=i^49-jpj0IrS1t_m^NikldBR}|D5?@(b-<+N=Zsu9CwS>g|#}?NO@SS{8rxW
+zw%hU1X9f%AH;dn{IC6a2a?_=|Lxfq5xO|x;(OoT*Vxra;>c;vd$aBh!>)VfBJ}TC`
+zc7?$~rJLGY?mXuCSjO^(N&MoeX1^upx=Q(V6%J3>73c0C$7nsp@yWlwV+_f){9pCz
+u_g1;@?y;Kp%i_<Q&tLyPTlbH3597X|g6qPow!Z`VoWax8&t;ucLK6VuZjF8b
+
+diff --git a/app/src/main/res/drawable-mdpi/timeline_indicator_activated_holo_light.9.png b/app/src/main/res/drawable-mdpi/timeline_indicator_activated_holo_light.9.png
+deleted file mode 100644
+index 0436a67cb669fedc0f9fb5855d65167a81a27798..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+literal 289
+zcmeAS@N?(olHy`uVBq!ia0vp^d?3uh1|;P@bT0xamSQK*5Dp-y;YjHK@;M7UB8wRq
+zxI00Z(fs7;wLrnco-U3d8WZPEI?dbcz~gd%lCQ-w2CWk_jaE!I(r9KXdb0gos*WU+
+z<&jGs4?gzf8syp+36&ktyH%%hR9t~`dYbd~2d!KFzG(8=!OF~Rwt&N|q&HPi@5BM-
+z3i(~Ojgk?mNs%sGhkm7;u`1D7VbE6*eo<S(rz(!MVaiSSOLdVBi;vD#obXXu=hdVA
+ziD7x%JLhi5nBw_v^QU>ywfi+pRHqxniSmdqthm0|Kxzr|^F4wdhhF~OCG)4~AOGg{
+g(q-RIE1MhJ<@bfm{Kr-10`v}pr>mdKI;Vst0Ox#a!2kdN
+
+diff --git a/app/src/main/res/drawable-mdpi/timeline_indicator_holo_light.9.png b/app/src/main/res/drawable-mdpi/timeline_indicator_holo_light.9.png
+deleted file mode 100644
+index 184e9702894b458c295143af15adf380782fdbd7..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+literal 303
+zcmeAS@N?(olHy`uVBq!ia0vp^d?3uh1|;P@bT0xawj^(N7l!{JxM1({$v_d#0*}aI
+z1_tg<5N0$#d3r5SkiEpy*OmP~2P2QJ#9SR=WuVX=PZ!4!jq^)`PV*fy;3?jAsISK9
+z{2!6uX5Z5Pvh-D(#>kw^5oPZX$t=#Y_D#-cm;c9mzrp?7H7k*%V9kGyB2LHOxE^49
+z!=QC}d63OUffkkrzjU514NE>}&cNN!t2FP3Wry?PvyL*_6#>zE7$lC(d9P&fxjLDt
+zVd=3ARa|bl_ID&FEaFRC>g`jYxb3yE=EhA^XTIY8cwpO(`9gCaXuT~}+F_KvBkJ+T
+t<bX1PwYylB>n=Q?S(5#a>v!qN`>lp<yW)ElHv|2_;OXk;vd$@?2>@(Ga!UXJ
+
+diff --git a/app/src/main/res/drawable-xhdpi/timeline_indicator_activated_holo_light.9.png b/app/src/main/res/drawable-xhdpi/timeline_indicator_activated_holo_light.9.png
+deleted file mode 100644
+index 121864e9aa16f38c362b1d28830d106378599b59..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+literal 463
+zcmV;=0WkiFP)<h;3K|Lk000e1NJLTq000^Q000^Y1^@s6sY*=F00004b3#c}2nYxW
+zd<bNS00009a7bBm000Y#000Y#0XNCZtpET4aY;l$R7i>4mdkC!Fc3tCB7IE*E+7TC
+z4A<*2T!tIS(U8a-vSW`{OHn`$0kQx=il2F&B}EyR+XDxp4a#m@ZV#lWQ(`lI;0FN!
+z?$`5bU?pUb)EVzVTd%FK6aciItUV1t)!J2HuljyHqqs#B^8nT!#yv`|U8N5IQ0#%i
+z6q~GMtG_yK7#|`|cPp?u@+ni$D6(_lorbAXP%)8FoB%9X@6{%Cd!T#}#5sNoUQwho
+zf)p#C@=SpSU^XWw>z@UvsY|_67wr?<3gU6j)}HWA-^NiC-es2JLDBq8^guqMd+qRD
+z7lF8_;wSeD-nr*kv`4eduTE<N^6vmsQw78g<~$Xz*t+Z<Z~mGE?;C@C(P1FuDbA{t
+z(2+V*M=*gLIMNhHjzW-5SftH&BD%o|qmwSMcNi!@;dubk61pm~K<}o-J^$)^1YNxI
+z@ngLQ3dJE`*}wVEFn|uji~sLPtu>@H+=|h~xhv3G!#88TyUkzUPyGM@002ovPDHLk
+FV1ld_!;1g_
+
+diff --git a/app/src/main/res/drawable-xhdpi/timeline_indicator_holo_light.9.png b/app/src/main/res/drawable-xhdpi/timeline_indicator_holo_light.9.png
+deleted file mode 100644
+index 0323b574288605029a42c0859dc037ebff485e11..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+literal 453
+zcmV;$0XqJPP)<h;3K|Lk000e1NJLTq000^Q000^Y1^@s6sY*=F00006VoOIv0RI60
+z0RN!9r;`8x010qNS#tmY3yA;#3yA?Y$;+((000McNliru-v|K=EgJ+SLYV*n0a8gs
+zK~zY`?N&>U!!QU1+uhC;yzH&ovrTX2E6lP=pc_1TA~<oTQdfgy*&&GM$1h=;6Fqp(
+z^p3%;R;Cm3XicYqoO7PIltyO{$^iiG$<FBjNbD>CrU+OD3_U>KIRH`9<5@uW>sW8K
+zMvfB^Wg<%7t^Mrf=3eWUIbUrTWcp}LO2B3VG*JiHG4M>o&>>JUCr5GtHWY>K2q;ei
+zWtZDcJ_{%#kU~V|Uh5T}8N#y|lZ)vW0L0MosOq9TCCCMqwVGbcMxwqeJB^Gh!{VTS
+zy!}SXiCL$?6wrw|7y>C&&1$R1UR_8qM+?|XG>A(8f;a8Wx47Quc5Be2>c>#TsNZHa
+zBTQ~o3?1YN%mmhMjyxkW2RUFQj@2-4B>+H1*b`|mR0Ws}0Y}B4Fh)9~Js{c1(`Ua&
+vJovgsJ0J8IjX*y7&+spQ7Ctdl-}3VU=WDOmcd@ql00000NkvXXu0mjf%I3IN
+
+diff --git a/app/src/main/res/drawable/timeline_indicator_activated_holo_light.xml b/app/src/main/res/drawable/timeline_indicator_activated_holo_light.xml
+new file mode 100644
+index 00000000..147c8134
+--- /dev/null
++++ b/app/src/main/res/drawable/timeline_indicator_activated_holo_light.xml
+@@ -0,0 +1,6 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Kompakt: the current time line, ink per mode; replaces the red nine patch. -->
++<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
++    <solid android:color="@color/kompakt_now_line" />
++    <size android:height="2dp" />
++</shape>
+diff --git a/app/src/main/res/drawable/timeline_indicator_holo_light.xml b/app/src/main/res/drawable/timeline_indicator_holo_light.xml
+new file mode 100644
+index 00000000..147c8134
+--- /dev/null
++++ b/app/src/main/res/drawable/timeline_indicator_holo_light.xml
+@@ -0,0 +1,6 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Kompakt: the current time line, ink per mode; replaces the red nine patch. -->
++<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
++    <solid android:color="@color/kompakt_now_line" />
++    <size android:height="2dp" />
++</shape>
+diff --git a/app/src/main/res/values-night-v31/colors.xml b/app/src/main/res/values-night-v31/colors.xml
+index e6008415..0cf28241 100644
+--- a/app/src/main/res/values-night-v31/colors.xml
++++ b/app/src/main/res/values-night-v31/colors.xml
+@@ -1,4 +1,4 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <resources>
+-    <color name="colorSecondaryContainer">@android:color/system_accent1_800</color>
++    <color name="colorSecondaryContainer">#fffffffe</color>
+ </resources>
+diff --git a/app/src/main/res/values-night/colors.xml b/app/src/main/res/values-night/colors.xml
+index 77b07b59..edac963a 100644
+--- a/app/src/main/res/values-night/colors.xml
++++ b/app/src/main/res/values-night/colors.xml
+@@ -1,6 +1,118 @@
+ <?xml version="1.0" encoding="utf-8"?>
++<!-- Kompakt: night: the inverse of the plain colour set. -->
+ <resources>
+-
+-    <color name="colorSecondaryContainer">#388d7f</color>
+-
++    <color name="agenda_day_bar_background_color">#ff000000</color>
++    <color name="agenda_day_item_text_color">#fffffffe</color>
++    <color name="agenda_general_background_color">#ff000000</color>
++    <color name="agenda_item_declined_color">#66ffffff</color>
++    <color name="agenda_item_standard_color">#fffffffe</color>
++    <color name="agenda_item_where_declined_text_color">#66ffffff</color>
++    <color name="agenda_item_where_text_color">#fffffffe</color>
++    <color name="agenda_list_separator_color">#fffffffe</color>
++    <color name="agenda_past_days_bar_background_color">#ff000000</color>
++    <color name="agenda_past_present_separator_color">#fffffffe</color>
++    <color name="agenda_selected_text_color">#fffffffe</color>
++    <color name="alert_event_other">#fffffffe</color>
++    <color name="alert_event_title">#fffffffe</color>
++    <color name="alert_past_event">#fffffffe</color>
++    <color name="app_bar">#ff000000</color>
++    <color name="appwidget_date">#fffffffe</color>
++    <color name="appwidget_item_allday_color">#fffffffe</color>
++    <color name="appwidget_item_declined_color">#66fffffe</color>
++    <color name="appwidget_item_standard_color">#fffffffe</color>
++    <color name="appwidget_month">#ff000000</color>
++    <color name="appwidget_no_events">#fffffffe</color>
++    <color name="appwidget_row_in_progress">#66fffffe</color>
++    <color name="appwidget_scrollbar">#99fffffe</color>
++    <color name="appwidget_title">#fffffffe</color>
++    <color name="appwidget_when">#fffffffe</color>
++    <color name="appwidget_where">#fffffffe</color>
++    <color name="autocomplete_bottom_shadow_start">#40fffffe</color>
++    <color name="autocomplete_divider_color">#fffffffe</color>
++    <color name="background_color">#ff000000</color>
++    <color name="calendar_date_banner_background">#ff000000</color>
++    <color name="calendar_date_banner_text_color">#fffffffe</color>
++    <color name="calendar_date_range_color">#fffffffe</color>
++    <color name="calendar_event_text_color">#ff000000</color>
++    <color name="calendar_future_bg_color">#ff000000</color>
++    <color name="calendar_grid_area_selected">#fffffffe</color>
++    <color name="calendar_grid_line_highlight_color">#fffffffe</color>
++    <color name="calendar_grid_line_inner_horizontal_color">#fffffffe</color>
++    <color name="calendar_grid_line_inner_vertical_color">#fffffffe</color>
++    <color name="calendar_hidden">#fffffffe</color>
++    <color name="calendar_hour_background">#ff000000</color>
++    <color name="calendar_hour_label">#fffffffe</color>
++    <color name="calendar_item_disabled">#61ffffff</color>
++    <color name="calendar_owner_text_color">#fffffffe</color>
++    <color name="calendar_secondary_hidden">#fffffffe</color>
++    <color name="calendar_secondary_visible">#fffffffe</color>
++    <color name="calendar_view_switch_menu_text_color">#fffffffe</color>
++    <color name="calendar_view_switch_menu_text_color_light">#fffffffe</color>
++    <color name="calendar_visible">#fffffffe</color>
++    <color name="chip_background_invalid">#ff000000</color>
++    <color name="chips_dropdown_background_activated">#ff000000</color>
++    <color name="chips_dropdown_background_pressed">#ff000000</color>
++    <color name="chips_dropdown_permission_text">#fffffffe</color>
++    <color name="chips_dropdown_text_default">#fffffffe</color>
++    <color name="colorAccent">#fffffffe</color>
++    <color name="colorPrimary">#fffffffe</color>
++    <color name="colorPrimaryDark">#ff000000</color>
++    <color name="colorSecondaryContainer">#fffffffe</color>
++    <color name="create_event_date_color">#fffffffe</color>
++    <color name="create_event_divider_color">#fffffffe</color>
++    <color name="create_event_more_details_color">#fffffffe</color>
++    <color name="day_clicked_background_color">#fffffffe</color>
++    <color name="day_event_clicked_background_color">#80ffffff</color>
++    <color name="day_past_background_color">#ff000000</color>
++    <color name="divider_select_calendars">#fffffffe</color>
++    <color name="done_text_color_disabled">#fffffffe</color>
++    <color name="edit_event_color">#ff000000</color>
++    <color name="edit_event_separator">#fffffffe</color>
++    <color name="event_background">#ff000000</color>
++    <color name="event_center">#fffffffe</color>
++    <color name="event_info_body_color">#fffffffe</color>
++    <color name="event_info_description_color">#fffffffe</color>
++    <color name="event_info_headline_color">#ff000000</color>
++    <color name="event_info_headline_link_color">#ff000000</color>
++    <color name="event_info_headline_transparent_color">#b3fffffe</color>
++    <color name="event_info_label_background_color">#ff000000</color>
++    <color name="event_info_label_color">#fffffffe</color>
++    <color name="event_info_organizer_color">#fffffffe</color>
++    <color name="fg_black_primary">#fffffffe</color>
++    <color name="fg_black_secondary">#fffffffe</color>
++    <color name="fg_dark_primary">#fffffffe</color>
++    <color name="fg_dark_secondary">#fffffffe</color>
++    <color name="kompakt_fab_icon">#ff000000</color>
++    <color name="mini_month_bg_color">#fffffffe</color>
++    <color name="mini_month_today_outline_color">#fffffffe</color>
++    <color name="month_bgcolor">#ff000000</color>
++    <color name="month_day_names_color">#fffffffe</color>
++    <color name="month_day_number">#fffffffe</color>
++    <color name="month_day_number_other">#fffffffe</color>
++    <color name="month_dna_conflict_time_color">#fffffffe</color>
++    <color name="month_event_color">#fffffffe</color>
++    <color name="month_event_extra_color">#fffffffe</color>
++    <color name="month_event_extra_other_color">#fffffffe</color>
++    <color name="month_event_other_color">#fffffffe</color>
++    <color name="month_focus_month_bgcolor">#ff000000</color>
++    <color name="month_grid_lines">#fffffffe</color>
++    <color name="month_mini_day_number">#ff000000</color>
++    <color name="month_other_bgcolor">#ff000000</color>
++    <color name="month_other_month_day_number">#fffffffe</color>
++    <color name="month_saturday">#fffffffe</color>
++    <color name="month_sunday">#fffffffe</color>
++    <color name="month_today_number">#fffffffe</color>
++    <color name="month_week_num_color">#fffffffe</color>
++    <color name="new_event_hint_text_color">#fffffffe</color>
++    <color name="panel_text_foreground">#fffffffe</color>
++    <color name="pressed">#33ffffff</color>
++    <color name="recurrence_bubble_text_normal">#fffffffe</color>
++    <color name="recurrence_picker_background">#ff000000</color>
++    <color name="spinner_privacy_popupBackground">#ff000000</color>
++    <color name="text_shadow_color">#4dfffffe</color>
++    <color name="titleTextColor">#ff000000</color>
++    <color name="week_saturday">#fffffffe</color>
++    <color name="week_sunday">#fffffffe</color>
++    <color name="week_today">#fffffffe</color>
++    <color name="kompakt_now_line">#fffffffe</color>
+ </resources>
+diff --git a/app/src/main/res/values-v31/colors.xml b/app/src/main/res/values-v31/colors.xml
+index 7ad8d645..63a562a8 100644
+--- a/app/src/main/res/values-v31/colors.xml
++++ b/app/src/main/res/values-v31/colors.xml
+@@ -1,5 +1,5 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <resources>
+     <color name="colorAccent">@android:color/system_accent1_500</color>
+-    <color name="colorSecondaryContainer">@android:color/system_accent1_200</color>
++    <color name="colorSecondaryContainer">#ff000000</color>
+ </resources>
+diff --git a/app/src/main/res/values/colors.xml b/app/src/main/res/values/colors.xml
+index 1849abd9..17ccfdce 100644
+--- a/app/src/main/res/values/colors.xml
++++ b/app/src/main/res/values/colors.xml
+@@ -19,391 +19,391 @@
+ -->
+ <resources>
+ 
+-    <color name="colorPrimary">#41c3b1</color>
+-    <color name="colorPrimaryDark">#388d7f</color>
+-    <color name="colorSecondaryContainer">#90eee2</color>
+-    <color name="colorAccent">#1dc1ab</color>
+-    <color name="titleTextColor">@android:color/white</color>
+-    <color name="app_bar">@color/colorPrimary</color>
++    <color name="colorPrimary">#ff000000</color>
++    <color name="colorPrimaryDark">#ff000000</color>
++    <color name="colorSecondaryContainer">#ff000000</color>
++    <color name="colorAccent">#ff000000</color>
++    <color name="titleTextColor">#fffffffe</color>
++    <color name="app_bar">#ff000000</color>
+ 
+-    <color name="pressed">#330066ff</color>
++    <color name="pressed">#33000000</color>
+ 
+-    <color name="selection">@android:color/holo_blue_light</color>
++    <color name="selection">#ff000000</color>
+ 
+-    <color name="today_highlight_color">#0033b5e5</color>
++    <color name="today_highlight_color">#00000000</color>
+ 
+     <!-- The app wide background color -->
+-    <color name="background_color">#fafafa</color>
+-    <color name="event_background">#ffc3d9ff</color>
+-    <color name="panel_text_foreground">#ffffffff</color>
+-    <color name="calendar_event_text_color">#ffFFFFFF</color>
++    <color name="background_color">#fffffffe</color>
++    <color name="event_background">#ff000000</color>
++    <color name="panel_text_foreground">#fffffffe</color>
++    <color name="calendar_event_text_color">#fffffffe</color>
+ 
+-    <color name="calendar_owner_text_color">#777777</color>
+-    <color name="calendar_date_range_color">#80000000</color>
++    <color name="calendar_owner_text_color">#ff000000</color>
++    <color name="calendar_date_range_color">#ff000000</color>
+ 
+ 
+-    <color name="week_today">#802979ff</color>
+-    <color name="week_saturday">#80333333</color>
+-    <color name="week_sunday">#80333333</color>
+-    <color name="calendar_future_bg_color">#ffffffff</color>
+-    <color name="calendar_hour_label">#ff666666</color>
+-    <color name="calendar_hour_background">#ffEEEEEE</color>
++    <color name="week_today">#ff000000</color>
++    <color name="week_saturday">#ff000000</color>
++    <color name="week_sunday">#ff000000</color>
++    <color name="calendar_future_bg_color">#fffffffe</color>
++    <color name="calendar_hour_label">#ff000000</color>
++    <color name="calendar_hour_background">#fffffffe</color>
+ 
+-    <color name="calendar_date_banner_background">#eeeeee</color>
++    <color name="calendar_date_banner_background">#fffffffe</color>
+ 
+-    <color name="calendar_date_banner_text_color">#ff666666</color>
++    <color name="calendar_date_banner_text_color">#ff000000</color>
+ 
+-    <color name="calendar_grid_area_selected">#e633b5e5</color>
++    <color name="calendar_grid_area_selected">#ff000000</color>
+ 
+ 
+-    <color name="calendar_grid_line_inner_horizontal_color">#FFCCCCCC</color>
+-    <color name="calendar_grid_line_inner_vertical_color">#FFCCCCCC</color>
+-    <color name="calendar_grid_line_highlight_color">#ff707070</color>
++    <color name="calendar_grid_line_inner_horizontal_color">#ff000000</color>
++    <color name="calendar_grid_line_inner_vertical_color">#ff000000</color>
++    <color name="calendar_grid_line_highlight_color">#ff000000</color>
+ 
+-    <color name="mini_month_bg_color">#FFFFFFFF</color>
++    <color name="mini_month_bg_color">#fffffffe</color>
+     <color name="mini_month_today_outline_color">#FF000000</color>
+ 
+-    <color name="month_day_number">#FF555555</color>
++    <color name="month_day_number">#ff000000</color>
+     <color name="month_mini_day_number">#FF000000</color>
+-    <color name="month_day_number_other">#FF999999</color>
+-    <color name="month_week_num_color">#41c3b1</color>
+-    <color name="month_day_names_color">#757575</color>
+-    <color name="month_today_number">#FF555555</color>
+-    <color name="month_event_color">#FF333333</color>
+-    <color name="month_event_extra_color">#FF666666</color>
+-    <color name="month_event_other_color">#FF666666</color>
+-    <color name="month_event_extra_other_color">#4C999999</color>
+-    <color name="month_saturday">#80333333</color>
+-    <color name="month_sunday">#80333333</color>
+-    <color name="month_grid_lines">#ffdedede</color>
+-    <color name="month_other_month_day_number">#ff939497</color>
++    <color name="month_day_number_other">#ff000000</color>
++    <color name="month_week_num_color">#ff000000</color>
++    <color name="month_day_names_color">#ff000000</color>
++    <color name="month_today_number">#ff000000</color>
++    <color name="month_event_color">#ff000000</color>
++    <color name="month_event_extra_color">#ff000000</color>
++    <color name="month_event_other_color">#ff000000</color>
++    <color name="month_event_extra_other_color">#ff000000</color>
++    <color name="month_saturday">#ff000000</color>
++    <color name="month_sunday">#ff000000</color>
++    <color name="month_grid_lines">#ff000000</color>
++    <color name="month_other_month_day_number">#ff000000</color>
+ 
+     <!-- Background Color of the selected week for the mini calendar on the tablet size -->
+-    <color name="month_selected_week_bgcolor">#FFDDDDDD</color>
+-    <color name="month_today_bgcolor">#25a2ff00</color>
+-    <color name="month_focus_month_bgcolor">#FFFFFFFF</color>
+-    <color name="month_bgcolor">#FFF2F2F2</color>
+-    <color name="month_other_bgcolor">#FFEEEEEE</color>
++    <color name="month_selected_week_bgcolor">#00000000</color>
++    <color name="month_today_bgcolor">#00000000</color>
++    <color name="month_focus_month_bgcolor">#fffffffe</color>
++    <color name="month_bgcolor">#fffffffe</color>
++    <color name="month_other_bgcolor">#fffffffe</color>
+ 
+-    <color name="month_dna_conflict_time_color">#FF333333</color>
++    <color name="month_dna_conflict_time_color">#ff000000</color>
+ 
+-    <color name="event_center">#ff6bd697</color>
+-    <color name="edit_event_separator">#FF555555</color>
+-    <color name="edit_event_small">#000000</color>
++    <color name="event_center">#ff000000</color>
++    <color name="edit_event_separator">#ff000000</color>
++    <color name="edit_event_small">#00000000</color>
+ 
+     <color name="calendar_visible">#ff000000</color>
+-    <color name="calendar_hidden">#ff808080</color>
+-    <color name="calendar_secondary_visible">#ff323232</color>
+-    <color name="calendar_secondary_hidden">#ff808080</color>
++    <color name="calendar_hidden">#ff000000</color>
++    <color name="calendar_secondary_visible">#ff000000</color>
++    <color name="calendar_secondary_hidden">#ff000000</color>
+     <color name="calendar_item_disabled">#61000000</color>
+ 
+     <!-- Text color of the date in the Calendar widget -->
+ 
+     <color name="agenda_item_not_selected">#00000000</color>
+     <!-- Text color of declined events in agenda view -->
+-    <color name="agenda_item_declined_color">#66333333</color>
++    <color name="agenda_item_declined_color">#66000000</color>
+     <!-- Text color of non-declined events in agenda view -->
+-    <color name="agenda_item_standard_color">#FF333333</color>
++    <color name="agenda_item_standard_color">#ff000000</color>
+     <!-- Background Color of present/future events in agenda view  -->
+-    <color name="agenda_day_bar_background_color">#FFFFFFFF</color>
++    <color name="agenda_day_bar_background_color">#fffffffe</color>
+     <!-- Background Color of past events in agenda view  -->
+-    <color name="agenda_past_days_bar_background_color">#FFDDDDDD</color>
++    <color name="agenda_past_days_bar_background_color">#fffffffe</color>
+     <!-- Color of the separator between the past and the present/future in agenda view  -->
+-    <color name="agenda_past_present_separator_color">#b2ff0000</color>
++    <color name="agenda_past_present_separator_color">#ff000000</color>
+     <!-- General background color in agenda view  -->
+-    <color name="agenda_general_background_color">#FFEEEEEE</color>
++    <color name="agenda_general_background_color">#fffffffe</color>
+     <!-- Agenda day item text color  -->
+-    <color name="agenda_day_item_text_color">#FF666666</color>
++    <color name="agenda_day_item_text_color">#ff000000</color>
+     <!-- Color of the event location's text in an agenda item  -->
+-    <color name="agenda_item_where_text_color">#FF666666</color>
++    <color name="agenda_item_where_text_color">#ff000000</color>
+     <!-- Color of the event location's text in an agenda item  -->
+-    <color name="agenda_item_where_declined_text_color">#66666666</color>
++    <color name="agenda_item_where_declined_text_color">#66000000</color>
+     <!-- Color of text in the calendar view selection menu -->
+-    <color name="calendar_view_switch_menu_text_color">#FF666666</color>
++    <color name="calendar_view_switch_menu_text_color">#ff000000</color>
+     <!-- Light color of text in the calendar view selection menu -->
+-    <color name="calendar_view_switch_menu_text_color_light">#FF888888</color>
++    <color name="calendar_view_switch_menu_text_color_light">#ff000000</color>
+     <!-- Color of the separator between items in the agenda list -->
+-    <color name="agenda_list_separator_color">#FFBBBBBB</color>
++    <color name="agenda_list_separator_color">#ff000000</color>
+     <!-- Text color of a selected items in the agenda list - trumps all other text colors -->
+-    <color name="agenda_selected_background_color">@android:color/holo_blue_dark</color>
++    <color name="agenda_selected_background_color">#ff000000</color>
+     <!-- Background color of a selected items in the agenda list -->
+-    <color name="agenda_selected_text_color">#FFFFFFFF</color>
++    <color name="agenda_selected_text_color">#fffffffe</color>
+     <!-- Text color of the "new event" hint in day and week views -->
+-    <color name="new_event_hint_text_color">#FFFFFFFF</color>
++    <color name="new_event_hint_text_color">#fffffffe</color>
+ 
+     <!-- Text color of a clicked event in the day/week view -->
+-    <color name="day_event_clicked_background_color">#8033B5E5</color>
++    <color name="day_event_clicked_background_color">#80000000</color>
+     <!-- background color for for clicked days in month view-->
+-    <color name="day_clicked_background_color">#FF33B5E5</color>
++    <color name="day_clicked_background_color">#ff000000</color>
+     <!-- background color for the past -->
+-    <color name="day_past_background_color">#22DDDDDD</color>
++    <color name="day_past_background_color">#00000000</color>
+ 
+     <!-- Event info colors -->
+-    <color name="event_info_headline_color">#FFFFFFFF</color>
+-    <color name="event_info_headline_transparent_color">#B3FFFFFF</color>
+-    <color name="event_info_headline_link_color">#FFFFFFFF</color>
+-    <color name="event_info_organizer_color">#99000000</color>
+-    <color name="event_info_description_color">#FF666666</color>
+-    <color name="event_info_body_color">#FF666666</color>
+-    <color name="event_info_label_color">#FF999999</color>
+-    <color name="event_info_label_background_color">#FFDDDDDD</color>
++    <color name="event_info_headline_color">#fffffffe</color>
++    <color name="event_info_headline_transparent_color">#b3fffffe</color>
++    <color name="event_info_headline_link_color">#fffffffe</color>
++    <color name="event_info_organizer_color">#ff000000</color>
++    <color name="event_info_description_color">#ff000000</color>
++    <color name="event_info_body_color">#ff000000</color>
++    <color name="event_info_label_color">#ff000000</color>
++    <color name="event_info_label_background_color">#fffffffe</color>
+ 
+     <!-- Create event colors -->
+-    <color name="edit_event_color">#fafafa</color>
++    <color name="edit_event_color">#fffffffe</color>
+     <color name="create_event_date_color">#FF000000</color>
+-    <color name="create_event_more_details_color">#FF888888</color>
+-    <color name="create_event_divider_color">#FFDDDDDD</color>
+-    <color name="spinner_privacy_popupBackground">#ffffff</color>
++    <color name="create_event_more_details_color">#ff000000</color>
++    <color name="create_event_divider_color">#ff000000</color>
++    <color name="spinner_privacy_popupBackground">#fffffffe</color>
+ 
+-    <color name="text_shadow_color">#4D000000</color>
++    <color name="text_shadow_color">#00000000</color>
+ 
+-    <color name="alert_event_title">#FFFFFFFF</color>
+-    <color name="alert_event_other">#FF999999</color>
+-    <color name="alert_past_event">#8F999999</color>
++    <color name="alert_event_title">#fffffffe</color>
++    <color name="alert_event_other">#ff000000</color>
++    <color name="alert_past_event">#ff000000</color>
+ 
+-    <color name="appwidget_row_in_progress">#6633b5e5</color>
++    <color name="appwidget_row_in_progress">#66000000</color>
+ 
+-    <color name="appwidget_date">#ff676767</color>
+-    <color name="appwidget_week">@android:color/white</color>
+-    <color name="appwidget_month">#ffEEEEEE</color>
++    <color name="appwidget_date">#ff000000</color>
++    <color name="appwidget_week">#fffffffe</color>
++    <color name="appwidget_month">#fffffffe</color>
+ 
+     <!-- Text color of declined events in widget view -->
+-    <color name="appwidget_item_declined_color">#66333333</color>
++    <color name="appwidget_item_declined_color">#66000000</color>
+     <!-- Text color of non-declined events in widget view -->
+-    <color name="appwidget_item_standard_color">#FFFFFF</color>
++    <color name="appwidget_item_standard_color">#fffffffe</color>
+     <!-- Text color for all day events in widget view -->
+-    <color name="appwidget_item_allday_color">#ffffffff</color>
++    <color name="appwidget_item_allday_color">#fffffffe</color>
+ 
+-    <color name="appwidget_title">#ffffffff</color>
+-    <color name="appwidget_when">#ffffffff</color>
+-    <color name="appwidget_where">#ffffffff</color>
+-    <color name="appwidget_no_events">#ffffffff</color>
+-    <color name="appwidget_scrollbar">#99A5A5A5</color>
++    <color name="appwidget_title">#fffffffe</color>
++    <color name="appwidget_when">#fffffffe</color>
++    <color name="appwidget_where">#fffffffe</color>
++    <color name="appwidget_no_events">#fffffffe</color>
++    <color name="appwidget_scrollbar">#99000000</color>
+ 
+-    <color name="recurrence_picker_background">#fff2f2f2</color>
+-    <color name="recurrence_bubble_text_normal">#ff737373</color>
++    <color name="recurrence_picker_background">#fffffffe</color>
++    <color name="recurrence_bubble_text_normal">#ff000000</color>
+ 
+     <!-- Chips specific colors -->
+-    <color name="chips_dropdown_background_activated">#4285f4</color>
+-    <color name="chips_dropdown_background_pressed">#ededed</color>
++    <color name="chips_dropdown_background_activated">#ff000000</color>
++    <color name="chips_dropdown_background_pressed">#fffffffe</color>
+ 
+-    <color name="autocomplete_divider_color">#cccccc</color>
+-    <color name="autocomplete_bottom_shadow_start">#40000000</color>
++    <color name="autocomplete_divider_color">#ff000000</color>
++    <color name="autocomplete_bottom_shadow_start">#00000000</color>
+ 
+-    <color name="chip_background">@color/colorAccent</color>
+-    <color name="chip_background_invalid">#db4437</color>
++    <color name="chip_background">#ff000000</color>
++    <color name="chip_background_invalid">#ff000000</color>
+ 
+-    <color name="chips_dropdown_text_default">#ffffff</color>
+-    <color name="chips_dropdown_text_activated">@android:color/white</color>
+-    <color name="chips_dropdown_permission_text">#4285f4</color>
++    <color name="chips_dropdown_text_default">#fffffffe</color>
++    <color name="chips_dropdown_text_activated">#fffffffe</color>
++    <color name="chips_dropdown_permission_text">#ff000000</color>
+ 
+     <!-- Tablet specific colors -->
+-    <color name="divider_select_calendars">#DEDEDE</color>
++    <color name="divider_select_calendars">#ff000000</color>
+ 
+     <!--
+         Black (AMOLED) Color Theme
+     -->
+ 
+     <!-- Black Color SimpleWeekView -->
+-    <color name="bg_black">#000000</color>
+-    <color name="fg_black_primary">#deffffff</color>
+-    <color name="fg_black_secondary">#99ffffff</color>
+-    <color name="app_bar_black">#ff111111</color>
++    <color name="bg_black">#ff000000</color>
++    <color name="fg_black_primary">#fffffffe</color>
++    <color name="fg_black_secondary">#fffffffe</color>
++    <color name="app_bar_black">#ff000000</color>
+ 
+-    <color name="grid_line_black">#303030</color>
++    <color name="grid_line_black">#fffffffe</color>
+ 
+     <color name="month_bgcolor_black">@color/bg_black</color>
+-    <color name="month_selected_week_bgcolor_black">#FFDDDDDD</color>
+-    <color name="month_mini_day_number_black">#FF000000</color>
+-    <color name="month_other_month_day_number_black">#ff939497</color>
++    <color name="month_selected_week_bgcolor_black">#00000000</color>
++    <color name="month_mini_day_number_black">#fffffffe</color>
++    <color name="month_other_month_day_number_black">#fffffffe</color>
+     <color name="month_grid_lines_black">@color/grid_line_black</color>
+-    <color name="mini_month_today_outline_color_black">@color/bg_black</color>
+-    <color name="month_week_num_color_black">@color/colorPrimary</color>
++    <color name="mini_month_today_outline_color_black">#fffffffe</color>
++    <color name="month_week_num_color_black">#fffffffe</color>
+ 
+     <!-- Black Color DayView -->
+-    <color name="week_today_black">#90caf9</color>
+-    <color name="week_saturday_black">#fafafa</color>
+-    <color name="week_sunday_black">#fafafa</color>
+-    <color name="calendar_date_banner_text_color_black">#ffffff</color>
++    <color name="week_today_black">#fffffffe</color>
++    <color name="week_saturday_black">#fffffffe</color>
++    <color name="week_sunday_black">#fffffffe</color>
++    <color name="calendar_date_banner_text_color_black">#fffffffe</color>
+     <color name="calendar_future_bg_color_black">@color/bg_black</color>
+     <color name="calendar_hour_background_black">@color/bg_black</color>
+-    <color name="calendar_hour_label_black">#ffffff</color>
+-    <color name="calendar_grid_area_selected_black">#e633b5e5</color>
++    <color name="calendar_hour_label_black">#fffffffe</color>
++    <color name="calendar_grid_area_selected_black">#fffffffe</color>
+     <color name="calendar_grid_line_inner_horizontal_color_black">@color/grid_line_black</color>
+     <color name="calendar_grid_line_inner_vertical_color_black">@color/grid_line_black</color>
+-    <color name="calendar_grid_line_highlight_color_black">#ff707070</color>
+-    <color name="pressed_black">#330066ff</color>
+-    <color name="day_event_clicked_background_color_black">#8033B5E5</color>
+-    <color name="calendar_event_text_color_black">#ffFFFFFF</color>
+-    <color name="month_event_other_color_black">#FF666666</color>
++    <color name="calendar_grid_line_highlight_color_black">#fffffffe</color>
++    <color name="pressed_black">#33ffffff</color>
++    <color name="day_event_clicked_background_color_black">#ff000000</color>
++    <color name="calendar_event_text_color_black">#fffffffe</color>
++    <color name="month_event_other_color_black">#fffffffe</color>
+ 
+     <!-- Black Color MonthView -->
+-    <color name="month_day_number_black">#ffffff</color>
+-    <color name="month_day_number_other_black">#616161</color>
+-    <color name="month_today_number_black">#ffffff</color>
+-    <color name="month_event_color_black">#ffffff</color>
+-    <color name="month_event_extra_color_black">#ffffff</color>
+-    <color name="month_event_extra_other_color_black">#000000</color>
+-    <color name="month_today_bgcolor_black">#6efffffa</color>
+-    <color name="month_focus_month_bgcolor_black">#212121</color>
+-    <color name="month_other_bgcolor_black">#ff111111</color>
+-    <color name="today_highlight_color_black">#0033b5e5</color>
+-    <color name="day_clicked_background_color_black">#FF33B5E5</color>
+-    <color name="month_day_names_color_black">#ffffff</color>
+-    <color name="month_saturday_black">#f5f5f5</color>
+-    <color name="month_sunday_black">#f5f5f5</color>
++    <color name="month_day_number_black">#fffffffe</color>
++    <color name="month_day_number_other_black">#fffffffe</color>
++    <color name="month_today_number_black">#fffffffe</color>
++    <color name="month_event_color_black">#fffffffe</color>
++    <color name="month_event_extra_color_black">#fffffffe</color>
++    <color name="month_event_extra_other_color_black">#fffffffe</color>
++    <color name="month_today_bgcolor_black">#00000000</color>
++    <color name="month_focus_month_bgcolor_black">#ff000000</color>
++    <color name="month_other_bgcolor_black">#ff000000</color>
++    <color name="today_highlight_color_black">#00000000</color>
++    <color name="day_clicked_background_color_black">#ff000000</color>
++    <color name="month_day_names_color_black">#fffffffe</color>
++    <color name="month_saturday_black">#fffffffe</color>
++    <color name="month_sunday_black">#fffffffe</color>
+ 
+     <!-- Black Color AgendaView -->
+-    <color name="agenda_item_declined_color_black">#616161</color>
+-    <color name="agenda_item_where_declined_text_color_black">#424242</color>
++    <color name="agenda_item_declined_color_black">#66ffffff</color>
++    <color name="agenda_item_where_declined_text_color_black">#66ffffff</color>
+     <color name="agenda_general_background_color_black">@color/bg_black</color>
+-    <color name="agenda_item_standard_color_black">#ffffff</color>
+-    <color name="agenda_item_where_text_color_black">#f5f5f5</color>
+-    <color name="agenda_day_item_text_color_black">#e0e0e0</color>
++    <color name="agenda_item_standard_color_black">#fffffffe</color>
++    <color name="agenda_item_where_text_color_black">#fffffffe</color>
++    <color name="agenda_day_item_text_color_black">#fffffffe</color>
+ 
+     <!-- Black Color EventView -->
+     <color name="edit_event_color_black">@color/bg_black</color>
+ 
+     <!-- Black Color EditEvent -->
+-    <color name="edit_event_small_black">#f5f5f5</color>
+-    <color name="spinner_button_color_black">#f5f5f5</color>
+-    <color name="spinner_privacy_popupBackground_black">#303030</color>
++    <color name="edit_event_small_black">#fffffffe</color>
++    <color name="spinner_button_color_black">#fffffffe</color>
++    <color name="spinner_privacy_popupBackground_black">#ff000000</color>
+ 
+     <!-- Recurrencepicker -->
+-    <color name="recurrence_picker_background_black">#303030</color>
+-    <color name="recurrence_picker_background_up_black">#212121</color>
+-    <color name="recurrence_bubble_text_normal_black">#ff737373</color>
+-    <color name="recurrence_done_black">#ffffff</color>
+-    <color name="done_text_color_disabled">#cccccc</color>
++    <color name="recurrence_picker_background_black">#ff000000</color>
++    <color name="recurrence_picker_background_up_black">#ff000000</color>
++    <color name="recurrence_bubble_text_normal_black">#fffffffe</color>
++    <color name="recurrence_done_black">#fffffffe</color>
++    <color name="done_text_color_disabled">#ff000000</color>
+ 
+     <!-- Create event colors -->
+-    <color name="create_event_date_color_black">#ffffff</color>
+-    <color name="calendar_owner_text_color_black">#bdbdbd</color>
++    <color name="create_event_date_color_black">#fffffffe</color>
++    <color name="calendar_owner_text_color_black">#fffffffe</color>
+ 
+     <!-- Event info colors -->
+-    <color name="event_info_headline_color_black">#FFFFFFFF</color>
+-    <color name="event_info_headline_transparent_color_black">#B3FFFFFF</color>
+-    <color name="event_info_headline_link_color_black">#FFFFFFFF</color>
+-    <color name="event_info_organizer_color_black">#DEFFFFFF</color>
+-    <color name="event_info_description_color_black">#bdbdbd</color>
+-    <color name="event_info_body_color_black">#bdbdbd</color>
+-    <color name="event_info_label_color_black">#ffffff</color>
+-    <color name="event_info_label_background_color_black">#FFDDDDDD</color>
++    <color name="event_info_headline_color_black">#fffffffe</color>
++    <color name="event_info_headline_transparent_color_black">#b3fffffe</color>
++    <color name="event_info_headline_link_color_black">#fffffffe</color>
++    <color name="event_info_organizer_color_black">#fffffffe</color>
++    <color name="event_info_description_color_black">#fffffffe</color>
++    <color name="event_info_body_color_black">#fffffffe</color>
++    <color name="event_info_label_color_black">#fffffffe</color>
++    <color name="event_info_label_background_color_black">#ff000000</color>
+ 
+     <!-- calendar_sync_item colors -->
+-    <color name="calendar_visible_black">#ffffff</color>
+-    <color name="calendar_hidden_black">#757575</color>
+-    <color name="calendar_secondary_visible_black">#ffffff</color>
+-    <color name="calendar_secondary_hidden_black">#757575</color>
++    <color name="calendar_visible_black">#fffffffe</color>
++    <color name="calendar_hidden_black">#fffffffe</color>
++    <color name="calendar_secondary_visible_black">#fffffffe</color>
++    <color name="calendar_secondary_hidden_black">#fffffffe</color>
+     <color name="calendar_item_disabled_black">#61ffffff</color>
+ 
+     <!-- timezone_GMT_background_color -->
+-    <color name="calendar_date_banner_background_black">#212121</color>
++    <color name="calendar_date_banner_background_black">#ff000000</color>
+ 
+     <!-- Tablet specific colors -->
+-    <color name="divider_select_calendars_black">#5C5C5C</color>
++    <color name="divider_select_calendars_black">#fffffffe</color>
+ 
+     <!--
+         Dark Color Theme
+     -->
+ 
+     <!-- Dark Color SimpleWeekView -->
+-    <color name="bg_dark">#141414</color>
+-    <color name="fg_dark_primary">#deffffff</color>
+-    <color name="fg_dark_secondary">#99ffffff</color>
++    <color name="bg_dark">#ff000000</color>
++    <color name="fg_dark_primary">#fffffffe</color>
++    <color name="fg_dark_secondary">#fffffffe</color>
+     <color name="app_bar_dark">@color/bg_dark</color>
+ 
+-    <color name="grid_line_dark">#FF6A6A6A</color>
++    <color name="grid_line_dark">#fffffffe</color>
+ 
+     <color name="month_bgcolor_dark">@color/bg_dark</color>
+-    <color name="month_selected_week_bgcolor_dark">#FFDDDDDD</color>
+-    <color name="month_mini_day_number_dark">#FF000000</color>
+-    <color name="month_other_month_day_number_dark">#ff939497</color>
++    <color name="month_selected_week_bgcolor_dark">#00000000</color>
++    <color name="month_mini_day_number_dark">#fffffffe</color>
++    <color name="month_other_month_day_number_dark">#fffffffe</color>
+     <color name="month_grid_lines_dark">@color/grid_line_dark</color>
+-    <color name="mini_month_today_outline_color_dark">@color/bg_dark</color>
+-    <color name="month_week_num_color_dark">@color/colorPrimary</color>
++    <color name="mini_month_today_outline_color_dark">#fffffffe</color>
++    <color name="month_week_num_color_dark">#fffffffe</color>
+ 
+     <!-- Dark Color DayView -->
+-    <color name="week_today_dark">#90caf9</color>
+-    <color name="week_saturday_dark">#fafafa</color>
+-    <color name="week_sunday_dark">#fafafa</color>
+-    <color name="calendar_date_banner_text_color_dark">#b2ffffff</color>
++    <color name="week_today_dark">#fffffffe</color>
++    <color name="week_saturday_dark">#fffffffe</color>
++    <color name="week_sunday_dark">#fffffffe</color>
++    <color name="calendar_date_banner_text_color_dark">#fffffffe</color>
+     <color name="calendar_future_bg_color_dark">@color/bg_dark</color>
+     <color name="calendar_hour_background_dark">@color/bg_dark</color>
+-    <color name="calendar_hour_label_dark">#b2ffffff</color>
+-    <color name="calendar_grid_area_selected_dark">#e633b5e5</color>
++    <color name="calendar_hour_label_dark">#fffffffe</color>
++    <color name="calendar_grid_area_selected_dark">#fffffffe</color>
+     <color name="calendar_grid_line_inner_horizontal_color_dark">@color/grid_line_dark</color>
+     <color name="calendar_grid_line_inner_vertical_color_dark">@color/grid_line_dark</color>
+-    <color name="calendar_grid_line_highlight_color_dark">#ff707070</color>
+-    <color name="pressed_dark">#330066ff</color>
+-    <color name="day_event_clicked_background_color_dark">#8033B5E5</color>
+-    <color name="calendar_event_text_color_dark">#ffFFFFFF</color>
+-    <color name="month_event_other_color_dark">#FF666666</color>
++    <color name="calendar_grid_line_highlight_color_dark">#fffffffe</color>
++    <color name="pressed_dark">#33ffffff</color>
++    <color name="day_event_clicked_background_color_dark">#ff000000</color>
++    <color name="calendar_event_text_color_dark">#fffffffe</color>
++    <color name="month_event_other_color_dark">#fffffffe</color>
+ 
+     <!-- Dark Color MonthView -->
+-    <color name="month_day_number_dark">#ffffff</color>
+-    <color name="month_day_number_other_dark">#616161</color>
+-    <color name="month_today_number_dark">#ffffff</color>
+-    <color name="month_event_color_dark">#ffffff</color>
+-    <color name="month_event_extra_color_dark">#ffffff</color>
+-    <color name="month_event_extra_other_color_dark">#000000</color>
+-    <color name="month_today_bgcolor_dark">#6efffffa</color>
+-    <color name="month_focus_month_bgcolor_dark">#212121</color>
+-    <color name="month_other_bgcolor_dark">#000000</color>
+-    <color name="today_highlight_color_dark">#0033b5e5</color>
+-    <color name="day_clicked_background_color_dark">#FF33B5E5</color>
+-    <color name="month_day_names_color_dark">#ffffff</color>
+-    <color name="month_saturday_dark">#f5f5f5</color>
+-    <color name="month_sunday_dark">#f5f5f5</color>
++    <color name="month_day_number_dark">#fffffffe</color>
++    <color name="month_day_number_other_dark">#fffffffe</color>
++    <color name="month_today_number_dark">#fffffffe</color>
++    <color name="month_event_color_dark">#fffffffe</color>
++    <color name="month_event_extra_color_dark">#fffffffe</color>
++    <color name="month_event_extra_other_color_dark">#fffffffe</color>
++    <color name="month_today_bgcolor_dark">#00000000</color>
++    <color name="month_focus_month_bgcolor_dark">#ff000000</color>
++    <color name="month_other_bgcolor_dark">#00000000</color>
++    <color name="today_highlight_color_dark">#00000000</color>
++    <color name="day_clicked_background_color_dark">#ff000000</color>
++    <color name="month_day_names_color_dark">#fffffffe</color>
++    <color name="month_saturday_dark">#fffffffe</color>
++    <color name="month_sunday_dark">#fffffffe</color>
+ 
+     <!-- Dark Color AgendaView -->
+-    <color name="agenda_item_declined_color_dark">#616161</color>
+-    <color name="agenda_item_where_declined_text_color_dark">#7fffffff</color>
++    <color name="agenda_item_declined_color_dark">#66ffffff</color>
++    <color name="agenda_item_where_declined_text_color_dark">#66ffffff</color>
+     <color name="agenda_general_background_color_dark">@color/bg_dark</color>
+-    <color name="agenda_item_standard_color_dark">#ffffff</color>
+-    <color name="agenda_item_where_text_color_dark">#f5f5f5</color>
+-    <color name="agenda_day_item_text_color_dark">#e0e0e0</color>
++    <color name="agenda_item_standard_color_dark">#fffffffe</color>
++    <color name="agenda_item_where_text_color_dark">#fffffffe</color>
++    <color name="agenda_day_item_text_color_dark">#fffffffe</color>
+ 
+     <!-- Dark Color EventView -->
+     <color name="edit_event_color_dark">@color/bg_dark</color>
+ 
+     <!-- Dark Color EditEvent -->
+-    <color name="edit_event_small_dark">#f5f5f5</color>
+-    <color name="spinner_button_color_dark">#f5f5f5</color>
+-    <color name="spinner_privacy_popupBackground_dark">#303030</color>
++    <color name="edit_event_small_dark">#fffffffe</color>
++    <color name="spinner_button_color_dark">#fffffffe</color>
++    <color name="spinner_privacy_popupBackground_dark">#ff000000</color>
+ 
+     <!-- Recurrencepicker -->
+-    <color name="recurrence_picker_background_dark">#303030</color>
+-    <color name="recurrence_picker_background_up_dark">#212121</color>
+-    <color name="recurrence_bubble_text_normal_dark">#ff737373</color>
+-    <color name="recurrence_done_dark">#ffffff</color>
++    <color name="recurrence_picker_background_dark">#ff000000</color>
++    <color name="recurrence_picker_background_up_dark">#ff000000</color>
++    <color name="recurrence_bubble_text_normal_dark">#fffffffe</color>
++    <color name="recurrence_done_dark">#fffffffe</color>
+ 
+     <!-- Create event colors -->
+-    <color name="create_event_date_color_dark">#ffffff</color>
+-    <color name="calendar_owner_text_color_dark">#bdbdbd</color>
++    <color name="create_event_date_color_dark">#fffffffe</color>
++    <color name="calendar_owner_text_color_dark">#fffffffe</color>
+ 
+     <!-- Event info colors -->
+-    <color name="event_info_headline_color_dark">#FFFFFFFF</color>
+-    <color name="event_info_headline_transparent_color_dark">#B3FFFFFF</color>
+-    <color name="event_info_headline_link_color_dark">#FFFFFFFF</color>
+-    <color name="event_info_organizer_color_dark">#DEFFFFFF</color>
+-    <color name="event_info_description_color_dark">#bdbdbd</color>
+-    <color name="event_info_body_color_dark">#bdbdbd</color>
+-    <color name="event_info_label_color_dark">#ffffff</color>
+-    <color name="event_info_label_background_color_dark">#FFDDDDDD</color>
++    <color name="event_info_headline_color_dark">#fffffffe</color>
++    <color name="event_info_headline_transparent_color_dark">#b3fffffe</color>
++    <color name="event_info_headline_link_color_dark">#fffffffe</color>
++    <color name="event_info_organizer_color_dark">#fffffffe</color>
++    <color name="event_info_description_color_dark">#fffffffe</color>
++    <color name="event_info_body_color_dark">#fffffffe</color>
++    <color name="event_info_label_color_dark">#fffffffe</color>
++    <color name="event_info_label_background_color_dark">#ff000000</color>
+ 
+     <!-- calendar_sync_item colors -->
+-    <color name="calendar_visible_dark">#ffffff</color>
+-    <color name="calendar_hidden_dark">#757575</color>
+-    <color name="calendar_secondary_visible_dark">#ffffff</color>
+-    <color name="calendar_secondary_hidden_dark">#757575</color>
++    <color name="calendar_visible_dark">#fffffffe</color>
++    <color name="calendar_hidden_dark">#fffffffe</color>
++    <color name="calendar_secondary_visible_dark">#fffffffe</color>
++    <color name="calendar_secondary_hidden_dark">#fffffffe</color>
+     <color name="calendar_item_disabled_dark">#61ffffff</color>
+ 
+     <!-- timezone_GMT_background_color -->
+-    <color name="calendar_date_banner_background_dark">#212121</color>
++    <color name="calendar_date_banner_background_dark">#ff000000</color>
+ 
+     <!-- Tablet specific colors -->
+-    <color name="divider_select_calendars_dark">#5C5C5C</color>
++    <color name="divider_select_calendars_dark">#fffffffe</color>
+ 
+     <!-- End Dark Color Theme -->
+ 
+@@ -435,4 +435,6 @@
+         <item>#FFCC770C</item>
+     </array>
+ 
++    <color name="kompakt_fab_icon">#fffffffe</color>
++    <color name="kompakt_now_line">#ff000000</color>
+ </resources>

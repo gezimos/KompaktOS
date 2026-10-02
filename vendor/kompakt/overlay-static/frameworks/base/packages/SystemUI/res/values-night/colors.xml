@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Kompakt: night is the inverse of values/. -->
+    <color name="global_actions_lite_emergency_background_new_color">#fffffffe</color>
+    <color name="global_actions_lite_emergency_icon_new_color">#ff000000</color>
+    <color name="global_actions_lite_emergency_background">#fffffffe</color>
+    <color name="global_actions_lite_emergency_icon">#ff000000</color>
+    <color name="kompakt_notification_outline">#fffffffe</color>
+    <color name="status_bar_icons_hover_color_light">#00000000</color>
+    <color name="status_bar_icons_hover_color_dark">#00000000</color>
+    <!-- Kompakt: notification row edge, night twin; hover pill off. -->
+</resources>

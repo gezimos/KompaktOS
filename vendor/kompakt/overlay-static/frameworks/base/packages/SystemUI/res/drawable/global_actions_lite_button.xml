@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: copy of the stock drawable with a 2dp outline in the on surface ink. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:androidprv="http://schemas.android.com/apk/prv/res/android"
+    android:shape="oval">
+  <solid android:color="@androidprv:color/materialColorSurfaceContainerHighest"/>
+  <stroke android:width="2dp" android:color="@androidprv:color/materialColorOnSurface"/>
+</shape>

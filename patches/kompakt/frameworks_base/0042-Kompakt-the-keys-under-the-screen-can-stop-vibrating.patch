@@ -1,0 +1,23 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Sun, 27 Sep 2026 16:00:00 +0200
+Subject: [PATCH 42/42] Kompakt: the keys under the screen can stop vibrating
+
+---
+--- a/services/core/java/com/android/server/policy/PhoneWindowManager.java
++++ b/services/core/java/com/android/server/policy/PhoneWindowManager.java
+@@ -5168,6 +5168,12 @@
+                 && (!isNavBarVirtKey || mNavBarVirtualKeyHapticFeedbackEnabled ||
+                         event.getDeviceId() > 0)
+                 && event.getRepeatCount() == 0;
++        // Kompakt: the keys under the screen vibrate unless the Kompakt app turned it off.
++        if (useHapticFeedback && event.getDeviceId() > 0 && Settings.Secure.getIntForUser(
++                mContext.getContentResolver(), "kompakt_key_vibration", 1,
++                UserHandle.USER_CURRENT) == 0) {
++            useHapticFeedback = false;
++        }
+ 
+         // Specific device key handling
+         if (dispatchKeyToKeyHandlers(event)) {
+-- 
+2.43.0

@@ -1,0 +1,63 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Thu, 1 Oct 2026 16:45:00 +0200
+Subject: [PATCH 1/1] Kompakt: SPA pages use a one row toolbar
+
+---
+diff --git a/packages/SettingsLib/Spa/spa/src/com/android/settingslib/spa/widget/scaffold/SettingsScaffold.kt b/packages/SettingsLib/Spa/spa/src/com/android/settingslib/spa/widget/scaffold/SettingsScaffold.kt
+--- a/packages/SettingsLib/Spa/spa/src/com/android/settingslib/spa/widget/scaffold/SettingsScaffold.kt
++++ b/packages/SettingsLib/Spa/spa/src/com/android/settingslib/spa/widget/scaffold/SettingsScaffold.kt
+@@ -55,8 +55,9 @@
+     ActivityTitle(title)
+     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+ 
++    // Kompakt: the one row bar never collapses, and an unlaid collapse limit
++    // would take every scroll away from the page
+     Scaffold(
+-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+         topBar = { SettingsTopAppBar(title, scrollBehavior, isFirstLayerPageWhenEmbedded, actions) },
+         containerColor = MaterialTheme.colorScheme.settingsBackground,
+         contentWindowInsets = WindowInsets.safeDrawing,
+diff --git a/packages/SettingsLib/Spa/spa/src/com/android/settingslib/spa/widget/scaffold/SettingsTopAppBar.kt b/packages/SettingsLib/Spa/spa/src/com/android/settingslib/spa/widget/scaffold/SettingsTopAppBar.kt
+--- a/packages/SettingsLib/Spa/spa/src/com/android/settingslib/spa/widget/scaffold/SettingsTopAppBar.kt
++++ b/packages/SettingsLib/Spa/spa/src/com/android/settingslib/spa/widget/scaffold/SettingsTopAppBar.kt
+@@ -19,9 +19,14 @@
+ import android.os.Build
+ import androidx.compose.foundation.layout.RowScope
+ import androidx.compose.material3.ExperimentalMaterial3Api
++import androidx.compose.material3.Text
+ import androidx.compose.material3.TopAppBarScrollBehavior
+ import androidx.compose.runtime.Composable
+ import androidx.compose.runtime.remember
++import androidx.compose.ui.Modifier
++import androidx.compose.ui.semantics.heading
++import androidx.compose.ui.semantics.semantics
++import androidx.compose.ui.text.style.TextOverflow
+ import androidx.window.embedding.ActivityEmbeddingController
+ import com.android.settingslib.spa.framework.compose.localActivity
+ 
+@@ -33,11 +38,18 @@
+     isFirstLayerPageWhenEmbedded: Boolean,
+     actions: @Composable RowScope.() -> Unit,
+ ) {
+-    CustomizedLargeTopAppBar(
+-        title = title,
++    // Kompakt: one row like the other Settings pages, the large title is empty space
++    CustomizedTopAppBar(
++        title = {
++            Text(
++                text = title,
++                modifier = Modifier.semantics { heading() },
++                overflow = TextOverflow.Ellipsis,
++                maxLines = 1,
++            )
++        },
+         navigationIcon = { NavigationIcon(isFirstLayerPageWhenEmbedded) },
+         actions = actions,
+-        scrollBehavior = scrollBehavior,
+     )
+ }
+ 
+-- 
+2.43.0
+

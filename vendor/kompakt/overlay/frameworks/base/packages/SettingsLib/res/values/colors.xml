@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt e ink: the status bar icon tones. -->
+<resources>
+    <color name="dark_mode_icon_color_single_tone">#ff000000</color>
+</resources>

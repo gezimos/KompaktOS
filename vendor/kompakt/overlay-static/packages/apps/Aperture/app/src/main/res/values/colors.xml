@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: Aperture names its light surface gray_10 and its chrome foreground gray_60 / dark_grey. -->
+<resources>
+    <color name="gray_10">#FFFFFFFE</color>
+    <color name="gray_60">#FF000000</color>
+    <color name="dark_grey">#FF000000</color>
+    <color name="yellow">#FF000000</color>
+    <color name="rec_red">#FF000000</color>
+    <color name="kompakt_camera_dim">#80000000</color>
+</resources>

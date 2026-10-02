@@ -1,0 +1,32 @@
+From 002b22cfa68fb04fc43ed768dca778b884b36a18 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sun, 27 Sep 2026 20:28:34 +0200
+Subject: [PATCH] Kompakt: IMS download no longer crashes the app
+
+---
+ app/src/main/java/me/phh/treble/app/ImsSettings.kt | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/app/src/main/java/me/phh/treble/app/ImsSettings.kt b/app/src/main/java/me/phh/treble/app/ImsSettings.kt
+index 37d87b7..25e09a0 100644
+--- a/app/src/main/java/me/phh/treble/app/ImsSettings.kt
++++ b/app/src/main/java/me/phh/treble/app/ImsSettings.kt
+@@ -191,7 +191,8 @@ class ImsSettingsFragment : SettingsFragment() {
+                                     Toast.makeText(p0, "IMS apk installed! You may now reboot.", Toast.LENGTH_LONG).show()
+                                 }
+                             },
+-                            IntentFilter("me.phh.treble.app.ImsInstalled")
++                            IntentFilter("me.phh.treble.app.ImsInstalled"),
++                            Context.RECEIVER_NOT_EXPORTED
+                     )
+ 
+                     session.commit(
+@@ -203,7 +204,7 @@ class ImsSettingsFragment : SettingsFragment() {
+                     activity.unregisterReceiver(this)
+                 }
+ 
+-            }, IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE))
++            }, IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE), Context.RECEIVER_EXPORTED)
+ 
+             return@setOnPreferenceClickListener true
+         }

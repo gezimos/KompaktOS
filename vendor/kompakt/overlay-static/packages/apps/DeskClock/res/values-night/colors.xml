@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: Kompakt night. -->
+<resources>
+    <color name="white">#FFFFFFFE</color>
+    <color name="white_63p">#FFFFFFFE</color>
+    <color name="white_50p">#FFFFFFFE</color>
+    <color name="white_08p">#14FFFFFF</color>
+    <color name="black">#FFFFFFFE</color>
+    <color name="black_54p">#FFFFFFFE</color>
+    <color name="no_alarms">#FFFFFFFE</color>
+    <!-- Kompakt: what you write with, and what you write on. -->
+    <color name="kompakt_ink">#FFFFFFFE</color>
+    <color name="kompakt_ground">#FF000000</color>
+</resources>

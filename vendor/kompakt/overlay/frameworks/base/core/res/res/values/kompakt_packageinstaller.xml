@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- False: the plain framework install dialog instead of Material 3. -->
+    <bool name="config_enableMaterialDesignInPackageInstaller">false</bool>
+</resources>

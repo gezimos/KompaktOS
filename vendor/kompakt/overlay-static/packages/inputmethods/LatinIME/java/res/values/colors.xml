@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Kompakt: the space glyph on the You keyboard. -->
+    <color name="kompakt_key_glyph">#FF000000</color>
+    <!-- Kompakt: was #ffaaaaaa, a mid grey that dithers. -->
+    <color name="icon_color_oled">#FFFFFFFE</color>
+</resources>

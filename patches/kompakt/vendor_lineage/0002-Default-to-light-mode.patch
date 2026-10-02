@@ -1,0 +1,22 @@
+From 9535bc9c52184f862afae670b27c0bfabf1911c4 Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Wed, 9 Sep 2026 17:44:35 +0200
+Subject: [PATCH 2/2] Default to light mode
+
+---
+ overlay/common/frameworks/base/core/res/res/values/config.xml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/overlay/common/frameworks/base/core/res/res/values/config.xml b/overlay/common/frameworks/base/core/res/res/values/config.xml
+index 8ef82b47..e0ed6290 100644
+--- a/overlay/common/frameworks/base/core/res/res/values/config.xml
++++ b/overlay/common/frameworks/base/core/res/res/values/config.xml
+@@ -150,7 +150,7 @@
+              1 - MODE_NIGHT_NO
+              2 - MODE_NIGHT_YES
+     -->
+-    <integer name="config_defaultNightMode">2</integer>
++    <integer name="config_defaultNightMode">1</integer>
+ 
+     <!-- Boolean indicating whether the HWC setColorTransform function can be performed efficiently
+          in hardware. -->

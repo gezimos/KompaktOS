@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The light theme AudioFX never had. -->
+<resources>
+    <style name="AppThemeV2" parent="android:Theme.Material.Light">
+        <item name="android:actionBarStyle">@style/ActionBar</item>
+        <item name="android:colorAccent">@color/white</item>
+        <item name="android:colorPrimary">#ffffffff</item>
+        <item name="android:colorPrimaryDark">#ffffffff</item>
+        <item name="android:popupTheme">@style/AppThemeV2.Popup</item>
+        <item name="android:windowBackground">#ffffffff</item>
+        <item name="android:colorBackground">#ffffffff</item>
+        <item name="android:textColorPrimary">#ff000000</item>
+        <item name="android:textColorSecondary">#ff000000</item>
+        <item name="android:navigationBarColor">@color/knob_container_background</item>
+        <item name="android:statusBarColor">#ffffffff</item>
+        <!-- White bars need dark icons drawn on them by the system. -->
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+
+    <style name="ActionBar" parent="android:Widget.Material.Light.ActionBar.Solid">
+        <item name="android:titleTextStyle">@style/AppThemeV2.ActionBar.TitleTextStyle</item>
+        <item name="android:subtitleTextStyle">@style/AppThemeV2.ActionBar.SubtitleTextStyle</item>
+        <item name="android:background">@drawable/kompakt_action_bar</item>
+    </style>
+
+    <style name="AppThemeV2.ActionBar.TitleTextStyle" parent="@android:style/TextAppearance.Material.Widget.ActionBar.Title">
+        <item name="android:textColor">@color/white</item>
+        <item name="android:textSize">18sp</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="AppThemeV2.ActionBar.SubtitleTextStyle" parent="@android:style/TextAppearance.Material.Widget.ActionBar.Subtitle">
+        <item name="android:textColor">@color/white</item>
+        <item name="android:textSize">10sp</item>
+        <item name="android:fontFamily">sans-serif</item>
+    </style>
+
+    <style name="AppThemeV2.Popup" parent="Widget.AppCompat.PopupMenu">
+        <item name="android:background">#ffffffff</item>
+        <item name="android:colorBackground">#ffffffff</item>
+        <item name="android:textColor">#ff000000</item>
+    </style>
+</resources>
