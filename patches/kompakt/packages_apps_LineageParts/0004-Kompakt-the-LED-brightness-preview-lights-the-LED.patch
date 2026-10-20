@@ -1,0 +1,68 @@
+From 111033e353b795e8ccd5d291ee24c927a1dd7156 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Tue, 13 Oct 2026 02:57:56 +0200
+Subject: [PATCH] Kompakt: the LED brightness preview lights the LED
+
+BrightnessPreference posted its preview with the channel-less
+Notification.Builder, which NotificationManagerService drops since O
+("No Channel found"), so dragging the brightness slider never lit the
+LED. It now posts on the same light settings channel LightSettingsDialog
+already uses for the colour and speed preview.
+
+Change-Id: Iecd55cbcf5a28bddce401b2ef3fde1ee8a505d63
+---
+ .../BrightnessPreference.java                  | 18 +++++++++++++++---
+ 1 file changed, 15 insertions(+), 3 deletions(-)
+
+diff --git a/src/org/lineageos/lineageparts/notificationlight/BrightnessPreference.java b/src/org/lineageos/lineageparts/notificationlight/BrightnessPreference.java
+index 242e2c0..1841b0b 100644
+--- a/src/org/lineageos/lineageparts/notificationlight/BrightnessPreference.java
++++ b/src/org/lineageos/lineageparts/notificationlight/BrightnessPreference.java
+@@ -6,6 +6,7 @@
+ package org.lineageos.lineageparts.notificationlight;
+ 
+ import android.app.Notification;
++import android.app.NotificationChannel;
+ import android.app.NotificationManager;
+ import android.content.Context;
+ import android.content.DialogInterface;
+@@ -81,7 +82,16 @@ public class BrightnessPreference extends CustomDialogPreference<AlertDialog>
+         bundle.putBoolean(LineageNotification.EXTRA_FORCE_SHOW_LIGHTS, true);
+         bundle.putInt(LineageNotification.EXTRA_FORCE_LIGHT_BRIGHTNESS, LIGHT_BRIGHTNESS_MAXIMUM);
+ 
+-        mNotificationBuilder = new Notification.Builder(mContext);
++        // Kompakt: post on the light settings channel; a channel-less preview is dropped since O.
++        final NotificationChannel channel = new NotificationChannel(
++                mContext.getString(R.string.channel_light_settings_id),
++                mContext.getString(R.string.channel_light_settings_name),
++                NotificationManager.IMPORTANCE_LOW);
++        channel.enableLights(true);
++        channel.enableVibration(false);
++        channel.setShowBadge(false);
++        mNotificationManager.createNotificationChannel(channel);
++        mNotificationBuilder = new Notification.Builder(mContext, channel.getId());
+         mNotificationBuilder.setExtras(bundle)
+                 .setContentTitle(mContext.getString(R.string.led_notification_title))
+                 .setContentText(mContext.getString(R.string.led_notification_text))
+@@ -207,14 +217,16 @@ public class BrightnessPreference extends CustomDialogPreference<AlertDialog>
+         // Use a white light for a better preview of the brightness.
+         int notificationColor = mLedColor | (mSeekBarBrightness << 24);
+         mNotificationBuilder.setLights(notificationColor, 1, 0);
+-        mNotificationManager.notify(1, mNotificationBuilder.build());
++        mNotificationManager.notify(
++                mContext.getString(R.string.channel_light_settings_id), 1,
++                mNotificationBuilder.build());
+         mVisibleLedBrightness = mSeekBarBrightness;
+     }
+ 
+     private void cancelNotification() {
+         if (mVisibleLedBrightness > 0) {
+             mLedHandler.removeMessages(0);
+-            mNotificationManager.cancel(1);
++            mNotificationManager.cancel(mContext.getString(R.string.channel_light_settings_id), 1);
+             mVisibleLedBrightness = 0;
+         }
+     }
+-- 
+2.43.0
+

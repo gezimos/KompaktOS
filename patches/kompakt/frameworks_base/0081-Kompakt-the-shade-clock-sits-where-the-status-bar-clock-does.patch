@@ -1,0 +1,32 @@
+From 540306180b32a658bbbd642337437967f4775769 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Fri, 9 Oct 2026 06:55:25 +0200
+Subject: [PATCH 81/99] Kompakt: the shade clock sits where the status bar
+ clock does
+
+Measured from a recording, the shade header clock started 5 px right of the
+status bar clock (22 px against 17 px). It moves 13 px in instead of 8.
+
+Change-Id: I04c1400e348f989b48912c738b5a8536004a6985
+---
+ .../com/android/systemui/shade/ui/composable/ShadeHeader.kt   | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/ShadeHeader.kt b/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/ShadeHeader.kt
+index 69b5e23f8df2..48635d67b343 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/ShadeHeader.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/ShadeHeader.kt
+@@ -350,8 +350,8 @@ fun ContentScope.OverlayShadeHeader(
+ ) {
+     val horizontalPadding =
+         max(LocalScreenCornerRadius.current / 2f, Shade.Dimensions.HorizontalPadding)
+-    // Kompakt: the clock and icons sit exactly where the status bar draws them (8 px out each).
+-    val clockShift = with(LocalDensity.current) { (-8).toDp() }
++    // Kompakt: the clock and icons sit exactly where the status bar draws them (13 and 8 px out).
++    val clockShift = with(LocalDensity.current) { (-13).toDp() }
+     val iconsShift = with(LocalDensity.current) { (-8).toDp() }
+ 
+     // This layout assumes it is globally positioned at (0, 0) and is the same size as the screen.
+-- 
+2.43.0
+

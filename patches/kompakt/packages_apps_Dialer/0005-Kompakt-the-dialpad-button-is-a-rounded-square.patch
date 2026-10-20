@@ -1,0 +1,84 @@
+From 8c1a876d13d5c199fac51b1ed095d8f432c0bfe7 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Thu, 15 Oct 2026 09:30:26 +0200
+Subject: [PATCH] Kompakt: the dialpad button is a rounded square
+
+The accent disc with a white icon and oval outline becomes the 56dp rounded square (16dp corners, 2dp edge, no shadow) of the Calendar, Messaging and Contacts buttons: page fill, ink icon and edge, inverted at night (kompakt_fab_face, kompakt_fab_ink).
+
+Change-Id: I54e075a1811c193da724f9492e94b7c7aa089495
+---
+ .../dialer/main/impl/res/layout/main_activity.xml      |  7 ++++---
+ .../dialer/widget/res/drawable/kompakt_fab_outline.xml |  7 ++++---
+ .../widget/res/values-night/kompakt_fab_colors.xml     |  6 ++++++
+ .../dialer/widget/res/values/kompakt_fab_shape.xml     | 10 ++++++++++
+ 4 files changed, 24 insertions(+), 6 deletions(-)
+ create mode 100644 java/com/android/dialer/widget/res/values-night/kompakt_fab_colors.xml
+ create mode 100644 java/com/android/dialer/widget/res/values/kompakt_fab_shape.xml
+
+diff --git a/java/com/android/dialer/main/impl/res/layout/main_activity.xml b/java/com/android/dialer/main/impl/res/layout/main_activity.xml
+index 597c8aa07..e48d5b0b5 100644
+--- a/java/com/android/dialer/main/impl/res/layout/main_activity.xml
++++ b/java/com/android/dialer/main/impl/res/layout/main_activity.xml
+@@ -53,10 +53,11 @@
+         android:layout_gravity="end|bottom"
+         android:forceDarkAllowed="false"
+         android:src="@drawable/quantum_ic_dialpad_vd_theme_24"
+-        android:tint="@color/dialer_fab_icon_color"
+-        app:tint="@color/dialer_fab_icon_color"
++        android:tint="@color/kompakt_fab_ink"
++        app:tint="@color/kompakt_fab_ink"
+         android:contentDescription="@string/dialpad_button_content_description"
+-        app:backgroundTint="@color/dialer_theme_color_light"/>
++        app:shapeAppearanceOverlay="@style/ShapeAppearance.Kompakt.Fab"
++        app:backgroundTint="@color/kompakt_fab_face"/>
+ 
+     <include android:id="@+id/promotion_bottom_sheet"
+         layout="@layout/promotion_bottom_sheet"/>
+diff --git a/java/com/android/dialer/widget/res/drawable/kompakt_fab_outline.xml b/java/com/android/dialer/widget/res/drawable/kompakt_fab_outline.xml
+index 6819e70f7..cb09c2e3f 100644
+--- a/java/com/android/dialer/widget/res/drawable/kompakt_fab_outline.xml
++++ b/java/com/android/dialer/widget/res/drawable/kompakt_fab_outline.xml
+@@ -1,8 +1,9 @@
+ <?xml version="1.0" encoding="utf-8"?>
+-<!-- Kompakt: the outline drawn over the dialpad button. -->
++<!-- Kompakt: the outline drawn over the dialpad button, the rounded square of the Calendar and Messaging buttons. -->
+ <shape xmlns:android="http://schemas.android.com/apk/res/android"
+-    android:shape="oval">
++    android:shape="rectangle">
++    <corners android:radius="16dp" />
+     <stroke
+         android:width="2dp"
+-        android:color="@color/dialer_fab_icon_color" />
++        android:color="@color/kompakt_fab_ink" />
+ </shape>
+diff --git a/java/com/android/dialer/widget/res/values-night/kompakt_fab_colors.xml b/java/com/android/dialer/widget/res/values-night/kompakt_fab_colors.xml
+new file mode 100644
+index 000000000..58fb8d7d3
+--- /dev/null
++++ b/java/com/android/dialer/widget/res/values-night/kompakt_fab_colors.xml
+@@ -0,0 +1,6 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Kompakt: the dialpad button's inks at night. -->
++<resources>
++    <color name="kompakt_fab_face">#ff000000</color>
++    <color name="kompakt_fab_ink">#fffffffe</color>
++</resources>
+diff --git a/java/com/android/dialer/widget/res/values/kompakt_fab_shape.xml b/java/com/android/dialer/widget/res/values/kompakt_fab_shape.xml
+new file mode 100644
+index 000000000..6dc6674f6
+--- /dev/null
++++ b/java/com/android/dialer/widget/res/values/kompakt_fab_shape.xml
+@@ -0,0 +1,10 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Kompakt: the rounded square of the Calendar and Messaging buttons. -->
++<resources>
++    <color name="kompakt_fab_face">#fffffffe</color>
++    <color name="kompakt_fab_ink">#ff000000</color>
++    <style name="ShapeAppearance.Kompakt.Fab" parent="">
++        <item name="cornerFamily">rounded</item>
++        <item name="cornerSize">16dp</item>
++    </style>
++</resources>
+-- 
+2.43.0
+

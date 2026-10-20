@@ -1,0 +1,141 @@
+From 227ef579103795bd11a75fb51d961d5d35a13df4 Mon Sep 17 00:00:00 2001
+From: Gezim <25499045+gezimos@users.noreply.github.com>
+Date: Sun, 11 Oct 2026 14:41:42 +0200
+Subject: [PATCH] Kompakt: tabs change in one step
+
+The Library tabs slid between pages, following the finger and animating a
+tab tap, and the bottom bar slid between Activity and Library. On e-ink each
+slide is a run of repaints. The pagers take no drag and change page without
+the smooth scroll. The Library pager is tagged for PagedScroll, whose lists
+watch for a sideways fling (48 dp or more, mostly horizontal) and move that
+pager one page at once; the pager itself cannot see it, since a ViewPager2
+with user input off stops intercepting touches altogether.
+
+Change-Id: I5f70f08b1df2e7d1b5cabc77dafc28c292a49b8d
+---
+ .../java/com/kompakt/eink/PagedScroll.java    | 31 +++++++++++++++++++
+ .../twelve/fragments/LibraryFragment.kt       |  7 ++++-
+ .../twelve/fragments/MainFragment.kt          |  5 +--
+ 3 files changed, 40 insertions(+), 3 deletions(-)
+
+diff --git a/app/src/main/java/com/kompakt/eink/PagedScroll.java b/app/src/main/java/com/kompakt/eink/PagedScroll.java
+index 519a975..aff1b16 100644
+--- a/app/src/main/java/com/kompakt/eink/PagedScroll.java
++++ b/app/src/main/java/com/kompakt/eink/PagedScroll.java
+@@ -11,6 +11,7 @@ import androidx.coordinatorlayout.widget.CoordinatorLayout;
+ import androidx.recyclerview.widget.GridLayoutManager;
+ import androidx.recyclerview.widget.LinearLayoutManager;
+ import androidx.recyclerview.widget.RecyclerView;
++import androidx.viewpager2.widget.ViewPager2;
+ 
+ import com.google.android.material.appbar.AppBarLayout;
+ 
+@@ -19,6 +20,9 @@ public final class PagedScroll {
+ 
+     private PagedScroll() {}
+ 
++    /** Kompakt: tag on a ViewPager2 whose lists change its page with a sideways fling. */
++    public static final String SWIPE_TAG = "kompakt-swipe-pages";
++
+     /** Pages a vertical list; a horizontal one, or one already paged, is left alone. */
+     public static void attach(final RecyclerView rv) {
+         if (rv == null) return;
+@@ -38,6 +42,7 @@ public final class PagedScroll {
+         final PagedLayoutManager lm = new PagedLayoutManager(rv.getContext(), span);
+         rv.setLayoutManager(lm);
+         final AppBarLayout bar = holdHeader(rv);
++        final GestureDetector sideways = sidewaysPager(rv);
+ 
+         // fling = one page; dragging keeps paging as the finger travels (inkOS behaviour)
+         final GestureDetector detector = new GestureDetector(rv.getContext(),
+@@ -52,6 +57,9 @@ public final class PagedScroll {
+             @Override
+             public boolean onInterceptTouchEvent(@NonNull RecyclerView r, @NonNull MotionEvent e) {
+                 detector.onTouchEvent(e);
++                // A sideways fling that changed the tab takes the touch, so the row under it is
++                // cancelled instead of tapped.
++                if (sideways.onTouchEvent(e)) return true;
+                 return false; // let taps through to the rows themselves
+             }
+ 
+@@ -65,6 +73,29 @@ public final class PagedScroll {
+         });
+     }
+ 
++    /** A sideways fling changes the tagged pager this list sits in by one page, at once. */
++    private static GestureDetector sidewaysPager(final RecyclerView rv) {
++        final float min = 48 * rv.getResources().getDisplayMetrics().density;
++        return new GestureDetector(rv.getContext(), new GestureDetector.SimpleOnGestureListener() {
++            @Override
++            public boolean onFling(MotionEvent down, @NonNull MotionEvent up, float vx, float vy) {
++                if (down == null || Math.abs(vx) <= Math.abs(vy) * 1.5f
++                        || Math.abs(up.getX() - down.getX()) < min) return false;
++                // Looked up now: the page is added to the pager after its view is created.
++                ViewParent p = rv.getParent();
++                while (p != null && !(p instanceof ViewPager2
++                        && SWIPE_TAG.equals(((View) p).getTag()))) p = p.getParent();
++                if (p == null) return false;
++                final ViewPager2 pager = (ViewPager2) p;
++                final RecyclerView.Adapter<?> adapter = pager.getAdapter();
++                final int next = pager.getCurrentItem() + (vx < 0 ? 1 : -1);
++                if (adapter == null || next < 0 || next >= adapter.getItemCount()) return false;
++                pager.setCurrentItem(next, false);
++                return true;
++            }
++        });
++    }
++
+     /** Kompakt: a cover header hides on the first page forward and returns past the top, in one step. */
+     private static boolean page(RecyclerView rv, PagedLayoutManager lm, AppBarLayout bar,
+             int delta) {
+diff --git a/app/src/main/java/org/lineageos/twelve/fragments/LibraryFragment.kt b/app/src/main/java/org/lineageos/twelve/fragments/LibraryFragment.kt
+index bda970e..8e4d481 100644
+--- a/app/src/main/java/org/lineageos/twelve/fragments/LibraryFragment.kt
++++ b/app/src/main/java/org/lineageos/twelve/fragments/LibraryFragment.kt
+@@ -11,6 +11,7 @@ import androidx.annotation.StringRes
+ import androidx.fragment.app.Fragment
+ import androidx.viewpager2.adapter.FragmentStateAdapter
+ import androidx.viewpager2.widget.ViewPager2
++import com.kompakt.eink.PagedScroll
+ import com.google.android.material.tabs.TabLayout
+ import com.google.android.material.tabs.TabLayoutMediator
+ import org.lineageos.twelve.R
+@@ -58,7 +59,11 @@ class LibraryFragment : Fragment(R.layout.fragment_library) {
+         }
+         viewPager2.offscreenPageLimit = Menus.entries.size
+ 
+-        TabLayoutMediator(tabLayout, viewPager2) { tab, position ->
++        // Kompakt: no sliding; a tab, or a sideways fling on a list (PagedScroll), changes the page at once.
++        viewPager2.isUserInputEnabled = false
++        viewPager2.tag = PagedScroll.SWIPE_TAG
++
++        TabLayoutMediator(tabLayout, viewPager2, true, false) { tab, position ->
+             val menu = Menus.entries[position]
+ 
+             tab.setText(menu.titleStringResId)
+diff --git a/app/src/main/java/org/lineageos/twelve/fragments/MainFragment.kt b/app/src/main/java/org/lineageos/twelve/fragments/MainFragment.kt
+index 23b4444..212d39c 100644
+--- a/app/src/main/java/org/lineageos/twelve/fragments/MainFragment.kt
++++ b/app/src/main/java/org/lineageos/twelve/fragments/MainFragment.kt
+@@ -363,7 +363,8 @@ class MainFragment : Fragment(R.layout.fragment_main) {
+         navigationBarView.setOnItemSelectedListener { item ->
+             when (item.itemId) {
+                 R.id.activityFragment -> {
+-                    viewPager2.currentItem = 0
++                    // Kompakt: no slide between Activity and Library.
++                    viewPager2.setCurrentItem(0, false)
+                     true
+                 }
+ 
+@@ -373,7 +374,7 @@ class MainFragment : Fragment(R.layout.fragment_main) {
+                 }
+ 
+                 R.id.libraryFragment -> {
+-                    viewPager2.currentItem = 1
++                    viewPager2.setCurrentItem(1, false)
+                     true
+                 }
+ 
+-- 
+2.43.0
+

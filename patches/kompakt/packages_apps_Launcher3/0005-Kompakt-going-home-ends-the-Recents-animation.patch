@@ -1,0 +1,56 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sun, 11 Oct 2026 00:00:00 +0000
+Subject: [PATCH] Kompakt: going home ends the Recents animation
+
+With a third-party home (inkOS), pressing home from Recents could leave
+the recents animation running: the app it shrank into a card stayed on
+screen over the home screen, under the home app's see-through window,
+until another task appeared. While a recents animation runs, a home
+task moving to the front now finishes it to home.
+
+---
+diff --git a/quickstep/src/com/android/quickstep/TaskAnimationManager.java b/quickstep/src/com/android/quickstep/TaskAnimationManager.java
+--- a/quickstep/src/com/android/quickstep/TaskAnimationManager.java
++++ b/quickstep/src/com/android/quickstep/TaskAnimationManager.java
+@@ -129,6 +129,20 @@
+         }
+     };
+ 
++    // Kompakt: the home app came to the front while Recents was still animating (the home key
++    // from Recents with a third-party home). Nothing finished the animation, so the app it held
++    // stayed on screen at card size over the home screen until the next task appeared.
++    private final TaskStackChangeListener mKompaktHomeListener = new TaskStackChangeListener() {
++        @Override
++        public void onTaskMovedToFront(ActivityManager.RunningTaskInfo taskInfo) {
++            if (taskInfo.displayId == mDisplayId && isRecentsAnimationRunning()
++                    && taskInfo.getActivityType() == ACTIVITY_TYPE_HOME) {
++                finishRunningRecentsAnimation(/* toHome= */ true,
++                        new ActiveGestureLog.CompoundString("Kompakt: home moved to front"));
++            }
++        }
++    };
++
+     @AssistedInject
+     public TaskAnimationManager(
+             @ApplicationContext Context ctx,
+@@ -297,6 +311,8 @@
+                 mController = controller;
+                 mTargets = targets;
+                 mTransitionInfo = transitionInfo;
++                TaskStackChangeListeners.getInstance().registerTaskStackListener(
++                        mKompaktHomeListener);
+                 // TODO(b/236226779): We can probably get away w/ setting mLastAppearedTaskTargets
+                 //  to all appeared targets directly vs just looking at running ones
+                 int[] runningTaskIds = mLastGestureState.getRunningTaskIds(targets.apps.length > 1);
+@@ -659,6 +675,7 @@
+             mLiveTileCleanUpHandler = null;
+         }
+         TaskStackChangeListeners.getInstance().unregisterTaskStackListener(mLiveTileRestartListener);
++        TaskStackChangeListeners.getInstance().unregisterTaskStackListener(mKompaktHomeListener);
+ 
+         // Release all the target leashes
+         if (mTargets != null) {
+-- 
+2.43.0
+

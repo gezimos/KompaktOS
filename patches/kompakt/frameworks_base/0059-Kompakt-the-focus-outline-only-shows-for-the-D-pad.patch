@@ -1,0 +1,27 @@
+From 74f80de424ff77e44095494fed47c94f18d7047c Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Mon, 5 Oct 2026 23:40:00 +0200
+Subject: [PATCH 59/99] Kompakt: the focus outline only shows for the D-pad
+
+---
+ graphics/java/android/graphics/drawable/RippleDrawable.java | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/graphics/java/android/graphics/drawable/RippleDrawable.java b/graphics/java/android/graphics/drawable/RippleDrawable.java
+index b945eede9112..36fd4a06a6e0 100644
+--- a/graphics/java/android/graphics/drawable/RippleDrawable.java
++++ b/graphics/java/android/graphics/drawable/RippleDrawable.java
+@@ -830,6 +830,10 @@ public class RippleDrawable extends LayerDrawable {
+      * a dark ripple, white for a light one. Round for a borderless ripple.
+      */
+     private void drawKompaktFocus(Canvas canvas) {
++        // Kompakt: the outline is for D-pad focus; a tap leaves focus in touch mode too.
++        if (getCallback() instanceof android.view.View v && v.isInTouchMode()) {
++            return;
++        }
+         if (mKompaktFocusPaint == null) {
+             mKompaktFocusPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+             mKompaktFocusPaint.setStyle(Paint.Style.STROKE);
+-- 
+2.43.0
+

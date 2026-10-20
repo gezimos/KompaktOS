@@ -13,4 +13,6 @@
     <color name="kompakt_ink">#FFFFFFFE</color>
     <color name="kompakt_ground">#FF000000</color>
     <color name="empty_state_background">@color/kompakt_ground</color>
+    <!-- Kompakt: no separator lines in the menu. -->
+    <color name="drawer_divider_color">#00000000</color>
 </resources>

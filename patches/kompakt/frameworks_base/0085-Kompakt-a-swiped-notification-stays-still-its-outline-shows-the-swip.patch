@@ -1,0 +1,225 @@
+From 259a278bce7fd5e3972d1e6c3c9242815a133123 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Fri, 9 Oct 2026 17:52:03 +0200
+Subject: [PATCH 085/101] Kompakt: a swiped notification stays still; its
+ outline shows the swipe
+
+Change-Id: I7fb9d8002d41dfca5a57b521267a6c3c7360b4b8
+---
+ .../row/ExpandableNotificationRow.java        | 22 +++++++-
+ .../row/NotificationBackgroundView.java       | 56 +++++++++++++++++++
+ .../stack/NotificationStackScrollLayout.java  |  5 +-
+ ...tificationStackScrollLayoutController.java |  3 +-
+ .../stack/NotificationSwipeHelper.java        |  8 +++
+ 5 files changed, 90 insertions(+), 4 deletions(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/notification/row/ExpandableNotificationRow.java b/packages/SystemUI/src/com/android/systemui/statusbar/notification/row/ExpandableNotificationRow.java
+index 8a539747fa47..5d9194f52e5d 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/notification/row/ExpandableNotificationRow.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/notification/row/ExpandableNotificationRow.java
+@@ -100,6 +100,7 @@ import com.android.systemui.plugins.PluginListener;
+ import com.android.systemui.plugins.statusbar.NotificationMenuRowPlugin;
+ import com.android.systemui.plugins.statusbar.NotificationMenuRowPlugin.MenuItem;
+ import com.android.systemui.plugins.statusbar.StatusBarStateController;
++import com.android.systemui.SwipeHelper;
+ import com.android.systemui.res.R;
+ import com.android.systemui.scene.shared.flag.SceneContainerFlag;
+ import com.android.systemui.statusbar.NotificationLockscreenUserManager.RedactionType;
+@@ -475,12 +476,12 @@ public class ExpandableNotificationRow extends ActivatableNotificationView
+             new FloatProperty<>("translate") {
+                 @Override
+                 public void setValue(ExpandableNotificationRow object, float value) {
+-                    object.setTranslation(value);
++                    object.setSwipeOffset(value);
+                 }
+ 
+                 @Override
+                 public Float get(ExpandableNotificationRow object) {
+-                    return object.getTranslation();
++                    return object.getSwipeOffset();
+                 }
+             };
+ 
+@@ -2676,6 +2677,7 @@ public class ExpandableNotificationRow extends ActivatableNotificationView
+         if (mTranslateAnim != null) {
+             mTranslateAnim.cancel();
+         }
++        setSwipeOffset(0);
+ 
+         if (mDismissUsingRowTranslationX) {
+             setTranslationX(0);
+@@ -2818,6 +2820,22 @@ public class ExpandableNotificationRow extends ActivatableNotificationView
+         }
+     }
+ 
++    // Kompakt: a swipe leaves the card still; its outline turns to dashes as it goes.
++    private float mSwipeOffset;
++
++    /** Kompakt: the swipe distance, which the swipe code reads in place of the translation. */
++    public void setSwipeOffset(float offset) {
++        mSwipeOffset = offset;
++        if (mBackgroundNormal != null && getWidth() > 0) {
++            mBackgroundNormal.setSwipeProgress(Math.abs(offset)
++                    / (getWidth() * SwipeHelper.SWIPED_FAR_ENOUGH_SIZE_FRACTION), offset >= 0);
++        }
++    }
++
++    public float getSwipeOffset() {
++        return mSwipeOffset;
++    }
++
+     @Override
+     public void setTranslation(float translationX) {
+         invalidate();
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/notification/row/NotificationBackgroundView.java b/packages/SystemUI/src/com/android/systemui/statusbar/notification/row/NotificationBackgroundView.java
+index a1987581fab3..7003f7cddd91 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/notification/row/NotificationBackgroundView.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/notification/row/NotificationBackgroundView.java
+@@ -22,10 +22,13 @@ import static com.android.systemui.util.ColorUtilKt.hexColorString;
+ import android.content.Context;
+ import android.content.res.ColorStateList;
+ import android.graphics.Canvas;
++import android.graphics.DashPathEffect;
++import android.graphics.Paint;
+ import android.graphics.Path;
+ import android.graphics.PorterDuff;
+ import android.graphics.PorterDuffColorFilter;
+ import android.graphics.Rect;
++import android.graphics.RectF;
+ import android.graphics.drawable.Drawable;
+ import android.graphics.drawable.GradientDrawable;
+ import android.graphics.drawable.LayerDrawable;
+@@ -80,6 +83,13 @@ public class NotificationBackgroundView extends View implements Dumpable,
+     // True only if the dismiss button is visible.
+     private boolean mDrawDismissButtonCutout = false;
+ 
++    // Kompakt: swipe progress in eight steps; the outline is dashed that far across, from the side the swipe leaves.
++    private static final int SWIPE_STEPS = 8;
++    private int mSwipeStep;
++    private boolean mSwipeRight;
++    private Paint mSwipePaint;
++    private DashPathEffect mSwipeDashes;
++
+     public NotificationBackgroundView(Context context, AttributeSet attrs) {
+         super(context, attrs);
+         mDontModifyCorners = getResources().getBoolean(R.bool.config_clipNotificationsToOutline);
+@@ -137,6 +147,7 @@ public class NotificationBackgroundView extends View implements Dumpable,
+             if (mBackground != null) {
+                 mBackground.setBounds(backgroundBounds);
+                 mBackground.draw(canvas);
++                drawSwipeOutline(canvas, backgroundBounds);
+             }
+ 
+             canvas.restore();
+@@ -231,7 +242,52 @@ public class NotificationBackgroundView extends View implements Dumpable,
+             }
+             drawable.setBounds(left, top, right, bottom);
+             drawable.draw(canvas);
++            drawSwipeOutline(canvas, drawable.getBounds());
++        }
++    }
++
++    /** Kompakt: dashes the outline that share of the way across, 0 to 1, from the left for a right swipe. */
++    public void setSwipeProgress(float progress, boolean right) {
++        int step = Math.round(Math.min(1f, progress) * SWIPE_STEPS);
++        if (step == mSwipeStep && (step == 0 || right == mSwipeRight)) return;
++        mSwipeStep = step;
++        mSwipeRight = right;
++        invalidate();
++    }
++
++    private void drawSwipeOutline(Canvas canvas, Rect bounds) {
++        if (mSwipeStep == 0 || !(mBackground instanceof LayerDrawable)) return;
++        Drawable base = getBaseBackgroundLayer();
++        if (!(base instanceof GradientDrawable) || ((GradientDrawable) base).getColor() == null) {
++            return;
++        }
++        final float stroke = 2f;
++        if (mSwipePaint == null) {
++            mSwipePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
++            mSwipePaint.setStyle(Paint.Style.STROKE);
++            mSwipeDashes = new DashPathEffect(new float[] {10f, 8f}, 0f);
++        }
++        RectF r = new RectF(bounds);
++        r.inset(stroke / 2f, stroke / 2f);
++        Path dashed = new Path();
++        dashed.addRoundRect(r, mCornerRadii, Path.Direction.CW);
++        int reach = bounds.width() * mSwipeStep / SWIPE_STEPS;
++        canvas.save();
++        if (mSwipeRight) {
++            canvas.clipRect(bounds.left, bounds.top, bounds.left + reach, bounds.bottom);
++        } else {
++            canvas.clipRect(bounds.right - reach, bounds.top, bounds.right, bounds.bottom);
+         }
++        // Paint over the solid outline with the card colour, then draw the dashes.
++        mSwipePaint.setPathEffect(null);
++        mSwipePaint.setStrokeWidth(stroke + 2f);
++        mSwipePaint.setColor(((GradientDrawable) base).getColor().getDefaultColor());
++        canvas.drawPath(dashed, mSwipePaint);
++        mSwipePaint.setPathEffect(mSwipeDashes);
++        mSwipePaint.setStrokeWidth(stroke);
++        mSwipePaint.setColor(mContext.getColor(R.color.kompakt_notification_outline));
++        canvas.drawPath(dashed, mSwipePaint);
++        canvas.restore();
+     }
+ 
+     @Override
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/NotificationStackScrollLayout.java b/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/NotificationStackScrollLayout.java
+index 8ce2b5f637a1..20b5d3ebbc29 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/NotificationStackScrollLayout.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/NotificationStackScrollLayout.java
+@@ -3286,7 +3286,10 @@ public class NotificationStackScrollLayout
+      * Has this view been fully swiped out such that it's not visible anymore.
+      */
+     public boolean isFullySwipedOut(ExpandableView child) {
+-        return Math.abs(child.getTranslation()) >= Math.abs(getTotalTranslationLength(child));
++        // Kompakt: a swiped row does not move; its swipe offset says how far it went.
++        float swiped = child instanceof ExpandableNotificationRow row
++                ? row.getSwipeOffset() : child.getTranslation();
++        return Math.abs(swiped) >= Math.abs(getTotalTranslationLength(child));
+     }
+ 
+     private void focusNextViewIfFocused(View view) {
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/NotificationStackScrollLayoutController.java b/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/NotificationStackScrollLayoutController.java
+index ff5ad1d32abe..014d730bce8c 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/NotificationStackScrollLayoutController.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/NotificationStackScrollLayoutController.java
+@@ -774,7 +774,8 @@ public class NotificationStackScrollLayoutController implements Dumpable {
+                 public boolean updateSwipeProgress(View animView, boolean dismissable,
+                         float swipeProgress) {
+                     // Returning true prevents alpha fading.
+-                    return false;
++                    // Kompakt: no fade; the outline shows the swipe.
++                    return true;
+                 }
+ 
+                 @Override
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/NotificationSwipeHelper.java b/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/NotificationSwipeHelper.java
+index 14d611181e45..0fc7239ecd9f 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/NotificationSwipeHelper.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/NotificationSwipeHelper.java
+@@ -402,6 +402,11 @@ class NotificationSwipeHelper extends SwipeHelper implements NotificationSwipeAc
+ 
+     @Override
+     public void setTranslation(View v, float translate) {
++        // Kompakt: a row keeps still; the swipe only moves its offset.
++        if (v instanceof ExpandableNotificationRow row) {
++            row.setSwipeOffset(translate);
++            return;
++        }
+         if (v instanceof SwipeableView) {
+             boolean setTranslationHandled =
+                     mCallback.handleSwipeableViewTranslation((SwipeableView) v, translate);
+@@ -413,6 +418,9 @@ class NotificationSwipeHelper extends SwipeHelper implements NotificationSwipeAc
+ 
+     @Override
+     public float getTranslation(View v) {
++        if (v instanceof ExpandableNotificationRow row) {
++            return row.getSwipeOffset();
++        }
+         if (v instanceof SwipeableView) {
+             return ((SwipeableView) v).getTranslation();
+         }
+-- 
+2.43.0
+

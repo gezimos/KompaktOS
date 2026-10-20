@@ -1,0 +1,74 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Tue, 6 Oct 2026 12:10:00 +0200
+Subject: [PATCH 1/1] Kompakt: a swipe changes the month at once
+
+---
+diff --git a/app/src/main/java/com/android/calendar/month/MonthListView.java b/app/src/main/java/com/android/calendar/month/MonthListView.java
+--- a/app/src/main/java/com/android/calendar/month/MonthListView.java
++++ b/app/src/main/java/com/android/calendar/month/MonthListView.java
+@@ -80,8 +80,11 @@
+         init(context);
+     }
+ 
++    private int mKompaktSlop;
++
+     private void init(Context c) {
+         mListContext = c;
++        mKompaktSlop = android.view.ViewConfiguration.get(c).getScaledTouchSlop();
+         mTracker  = VelocityTracker.obtain();
+         mTempTime = new Time(Utils.getTimeZone(c,mTimezoneUpdater));
+         if (mScale == 0) {
+@@ -96,11 +99,20 @@
+ 
+     @Override
+     public boolean onTouchEvent(MotionEvent ev) {
++        // Kompakt: the month list does not follow the finger; a swipe changes the month.
++        if ((ev.getAction() & MotionEvent.ACTION_MASK) == MotionEvent.ACTION_MOVE) {
++            return true;
++        }
+         return processEvent(ev) || super.onTouchEvent(ev);
+     }
+ 
+     @Override
+     public boolean onInterceptTouchEvent(MotionEvent ev) {
++        // Kompakt: past the slop take the gesture without letting the list scroll.
++        if ((ev.getAction() & MotionEvent.ACTION_MASK) == MotionEvent.ACTION_MOVE) {
++            return Math.abs(ev.getY() - mLeftRightActionRight) > mKompaktSlop
++                    || Math.abs(ev.getX() - mLeftRightActionLeft) > mKompaktSlop;
++        }
+         return processEvent(ev) || super.onInterceptTouchEvent(ev);
+     }
+ 
+@@ -119,12 +131,11 @@
+             // Accumulate velocity and do a custom fling when above threshold
+             // and look for left/right swipes as well.
+             case MotionEvent.ACTION_UP:
+-                // Check for the fling.
+-                mTracker.addMovement(ev);
+-                mTracker.computeCurrentVelocity(1000);    // in pixels per second
+-                float vel =  mTracker.getYVelocity ();
+-                if (Math.abs(vel) > MIN_VELOCITY_FOR_FLING) {
+-                    doFling(vel);
++                // Kompakt: a swipe up or down is one month, at once.
++                final float upDownSwipe = mLeftRightActionRight - ev.getY();
++                if (Math.abs(upDownSwipe) > 56 * mScale
++                        && Math.abs(upDownSwipe) > Math.abs(mLeftRightActionLeft - ev.getX())) {
++                    doLeftRight(upDownSwipe > 0 ? 1 : -1);
+                     return true;
+                 }
+                 // Check for the left/right swipe.
+@@ -240,8 +251,8 @@
+         int offset = (viewsToFling > 0) ? -(firstViewHeight - topViewVisiblePart
+                 + SimpleDayPickerFragment.LIST_TOP_OFFSET) : (topViewVisiblePart
+                 - SimpleDayPickerFragment.LIST_TOP_OFFSET);
+-        // Fling
+-        smoothScrollBy(viewsToFling * firstViewHeight + offset, FLING_TIME);
++        // Kompakt: jump, no scroll.
++        scrollListBy(viewsToFling * firstViewHeight + offset);
+     }
+ 
+     // Returns the julian day of the day in the upper right corner
+-- 
+2.43.0
+

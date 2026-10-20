@@ -1,0 +1,23 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Mon, 5 Oct 2026 13:10:00 +0200
+Subject: [PATCH 1/1] Kompakt: the add contact button has no shadow
+
+---
+diff --git a/res/values/dimens.xml b/res/values/dimens.xml
+--- a/res/values/dimens.xml
++++ b/res/values/dimens.xml
+@@ -315,7 +315,9 @@
+     <!-- Width of the floating action button -->
+     <dimen name="floating_action_button_width">56dp</dimen>
+     <!-- Z translation of the floating action button -->
+-    <dimen name="floating_action_button_translation_z">8dp</dimen>
++    <!-- Kompakt: 0dp. setupFloatingActionButton lifts the button by this in code, which
++         cast a shadow even with design_fab_elevation at 0dp. -->
++    <dimen name="floating_action_button_translation_z">0dp</dimen>
+     <!-- Padding to be applied to the bottom of lists to make space for the floating action
+          button -->
+     <dimen name="floating_action_button_list_bottom_padding">88dp</dimen>
+-- 
+2.43.0
+

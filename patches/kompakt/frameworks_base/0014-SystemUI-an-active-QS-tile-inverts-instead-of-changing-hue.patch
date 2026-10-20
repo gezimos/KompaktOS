@@ -1,0 +1,83 @@
+From abbd371ca9ebb4bdd8dcbdae76a01a870e0915ad Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Wed, 9 Sep 2026 20:19:58 +0200
+Subject: [PATCH 14/99] SystemUI: an active QS tile inverts instead of changing
+ hue
+
+---
+ .../qs/panels/ui/compose/infinitegrid/Tile.kt | 28 +++++++++++--------
+ 1 file changed, 16 insertions(+), 12 deletions(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/Tile.kt b/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/Tile.kt
+index 2bda361ba6c3..43ce7654e048 100644
+--- a/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/Tile.kt
++++ b/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/Tile.kt
+@@ -230,9 +230,11 @@ fun ContentScope.Tile(
+                     .borderOnFocus(color = MaterialTheme.colorScheme.secondary, tileShape.topEnd)
+                     .fillMaxWidth()
+                     // Every tile gets an outline; a white tile on a white shade has no edge.
++                    // Outline from the tile's own colours.
+                     .border(
+                         width = QsTileOutlineWidth,
+-                        color = MaterialTheme.colorScheme.onSurface,
++                        // colors.icon: black on an inactive tile, white on an active one.
++                        color = colors.icon,
+                         shape = tileShape,
+                     )
+                     .thenIf(currentBounceableInfo != null) {
+@@ -497,11 +499,12 @@ private object TileDefaults {
+     @ReadOnlyComposable
+     fun activeTileColors(): TileColors =
+         TileColors(
+-            background = MaterialTheme.colorScheme.primary,
+-            iconBackground = MaterialTheme.colorScheme.primary,
+-            label = MaterialTheme.colorScheme.onPrimary,
+-            secondaryLabel = MaterialTheme.colorScheme.onPrimary,
+-            icon = MaterialTheme.colorScheme.onPrimary,
++            // e-ink: on and off are carried by the fill, not by hue.
++            background = MaterialTheme.colorScheme.onSurface,
++            iconBackground = MaterialTheme.colorScheme.onSurface,
++            label = MaterialTheme.colorScheme.surface,
++            secondaryLabel = MaterialTheme.colorScheme.surface,
++            icon = MaterialTheme.colorScheme.surface,
+         )
+ 
+     /** An active tile with dual target only show the active color on the icon */
+@@ -509,19 +512,19 @@ private object TileDefaults {
+     @ReadOnlyComposable
+     fun activeDualTargetTileColors(): TileColors =
+         TileColors(
+-            background = LocalAndroidColorScheme.current.surfaceEffect1,
+-            iconBackground = MaterialTheme.colorScheme.primary,
++            background = MaterialTheme.colorScheme.surface,
++            iconBackground = MaterialTheme.colorScheme.onSurface,
+             label = MaterialTheme.colorScheme.onSurface,
+             secondaryLabel = MaterialTheme.colorScheme.onSurface,
+-            icon = MaterialTheme.colorScheme.onPrimary,
++            icon = MaterialTheme.colorScheme.surface,
+         )
+ 
+     @Composable
+     @ReadOnlyComposable
+     fun inactiveDualTargetTileColors(): TileColors =
+         TileColors(
+-            background = LocalAndroidColorScheme.current.surfaceEffect1,
+-            iconBackground = LocalAndroidColorScheme.current.surfaceEffect2,
++            background = MaterialTheme.colorScheme.surface,
++            iconBackground = MaterialTheme.colorScheme.surface,
+             label = MaterialTheme.colorScheme.onSurface,
+             secondaryLabel = MaterialTheme.colorScheme.onSurface,
+             icon = MaterialTheme.colorScheme.onSurface,
+@@ -531,7 +534,8 @@ private object TileDefaults {
+     @ReadOnlyComposable
+     fun inactiveTileColors(): TileColors =
+         TileColors(
+-            background = LocalAndroidColorScheme.current.surfaceEffect1,
++            // Plain surface; surfaceEffect1 dithers to noise.
++            background = MaterialTheme.colorScheme.surface,
+             iconBackground = Color.Transparent,
+             label = MaterialTheme.colorScheme.onSurface,
+             secondaryLabel = MaterialTheme.colorScheme.onSurface,
+-- 
+2.43.0
+

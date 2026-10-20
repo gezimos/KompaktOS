@@ -1,0 +1,30 @@
+From b07e31496c35a13f149923d1dab655e9098d4d8d Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Tue, 29 Sep 2026 10:40:00 +0200
+Subject: [PATCH 46/99] Kompakt: a heads-up no longer pins the status bar over
+ fullscreen apps
+
+---
+ .../headsup/StatusBarHeadsUpChangeListener.java             | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/notification/headsup/StatusBarHeadsUpChangeListener.java b/packages/SystemUI/src/com/android/systemui/statusbar/notification/headsup/StatusBarHeadsUpChangeListener.java
+index 01353218d0c8..31b5795ff92b 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/notification/headsup/StatusBarHeadsUpChangeListener.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/notification/headsup/StatusBarHeadsUpChangeListener.java
+@@ -85,6 +85,12 @@ public class StatusBarHeadsUpChangeListener implements OnHeadsUpChangedListener,
+                 mShadeViewController.updateTouchableRegion();
+             }
+         } else {
++            // Kompakt: release the forced status bar when a heads-up unpins.
++            if (SceneContainerFlag.isEnabled()) {
++                mStatusBarWindowControllerStore
++                        .getDefaultDisplay()
++                        .setForceStatusBarVisible(false, /* source= */ logString);
++            }
+             boolean bypassKeyguard = mKeyguardBypassController.getBypassEnabled()
+                     && mStatusBarStateController.getState() == StatusBarState.KEYGUARD;
+             if (!mPanelExpansionInteractor.isFullyCollapsed()
+-- 
+2.43.0
+

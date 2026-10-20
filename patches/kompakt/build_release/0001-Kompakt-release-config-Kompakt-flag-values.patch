@@ -4,10 +4,20 @@ Date: Thu, 17 Sep 2026 21:26:36 +0200
 Subject: [PATCH] Kompakt: release config: Kompakt flag values
 
 ---
- .../scene_container_flag_values.textproto                 | 8 ++++++++
- 1 file changed, 8 insertions(+)
- create mode 100644 aconfig/bp4a/com.android.systemui/scene_container_flag_values.textproto
-
+diff --git a/aconfig/bp4a/com.android.systemui/magnetic_notification_swipes_flag_values.textproto b/aconfig/bp4a/com.android.systemui/magnetic_notification_swipes_flag_values.textproto
+new file mode 100644
+index 000000000..8af5417a4
+--- /dev/null
++++ b/aconfig/bp4a/com.android.systemui/magnetic_notification_swipes_flag_values.textproto
+@@ -0,0 +1,8 @@
++
++# Kompakt: no magnetic swipes; swiping one notification away leaves the others still.
++flag_value {
++  package: "com.android.systemui"
++  name: "magnetic_notification_swipes"
++  state: DISABLED
++  permission: READ_ONLY
++}
 diff --git a/aconfig/bp4a/com.android.systemui/scene_container_flag_values.textproto b/aconfig/bp4a/com.android.systemui/scene_container_flag_values.textproto
 new file mode 100644
 index 000000000..fffed8181
@@ -22,3 +32,5 @@ index 000000000..fffed8181
 +  state: ENABLED
 +  permission: READ_ONLY
 +}
+-- 
+2.43.0

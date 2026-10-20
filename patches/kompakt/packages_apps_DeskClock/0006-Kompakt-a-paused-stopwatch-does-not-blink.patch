@@ -1,0 +1,42 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Mon, 5 Oct 2026 17:55:00 +0200
+Subject: [PATCH 1/1] Kompakt: a paused stopwatch does not blink
+
+---
+diff --git a/src/com/android/deskclock/stopwatch/StopwatchFragment.java b/src/com/android/deskclock/stopwatch/StopwatchFragment.java
+--- a/src/com/android/deskclock/stopwatch/StopwatchFragment.java
++++ b/src/com/android/deskclock/stopwatch/StopwatchFragment.java
+@@ -531,22 +531,15 @@
+ 
+             updateTime();
+ 
+-            // Blink text iff the stopwatch is paused and not pressed.
+-            final View touchTarget = mTime != null ? mTime : mStopwatchWrapper;
++            // Kompakt: no blinking while paused. Hiding and showing the time every half
++            // second repainted the e-ink panel twice a second; a paused time stays drawn.
+             final Stopwatch stopwatch = getStopwatch();
+-            final boolean blink = stopwatch.isPaused()
+-                    && startTime % 1000 < 500
+-                    && !touchTarget.isPressed();
++            mMainTimeText.setAlpha(1f);
++            mHundredthsTimeText.setAlpha(1f);
+ 
+-            if (blink) {
+-                mMainTimeText.setAlpha(0f);
+-                mHundredthsTimeText.setAlpha(0f);
+-            } else {
+-                mMainTimeText.setAlpha(1f);
+-                mHundredthsTimeText.setAlpha(1f);
+-            }
+-
+-            if (!stopwatch.isReset()) {
++            // Kompakt: a paused time does not change, so draw it once and stop; starting,
++            // pausing or resetting calls updateUI, which starts the updates again.
++            if (stopwatch.isRunning()) {
+                 final long period = stopwatch.isPaused()
+                         ? REDRAW_PERIOD_PAUSED
+                         : REDRAW_PERIOD_RUNNING;
+-- 
+2.43.0
+

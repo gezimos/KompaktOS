@@ -1,0 +1,32 @@
+From 886bec2760914c4251cf7acbaada69cca23a487d Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sun, 11 Oct 2026 12:56:11 +0200
+Subject: [PATCH 094/101] Kompakt: the shade battery sits where the status bar
+ battery does
+
+The status bar centres its battery in a LinearLayout, which rounds a half
+pixel down; the shade header row is Compose, which rounds it up, so the
+battery dropped 1 px when the shade opened. The shade battery now rounds
+down too.
+
+Change-Id: Ibc5857c6bc17cd55b9113020dd41a0d137c2c0c0
+---
+ .../src/com/android/systemui/shade/ui/composable/ShadeHeader.kt | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/ShadeHeader.kt b/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/ShadeHeader.kt
+index f40405f24258..18b2a91286de 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/ShadeHeader.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/ShadeHeader.kt
+@@ -431,6 +431,8 @@ fun ContentScope.OverlayShadeHeader(
+                         showIcon = true,
+                         useExpandedFormat = false,
+                         isHighlighted = isHighlighted,
++                        // Kompakt: centred as the status bar's LinearLayout does, rounding down.
++                        modifier = Modifier.align(Alignment.Vertical { size, space -> (space - size) / 2 }),
+                     )
+                 }
+                 if (viewModel.isPrivacyChipVisible) {
+-- 
+2.43.0
+

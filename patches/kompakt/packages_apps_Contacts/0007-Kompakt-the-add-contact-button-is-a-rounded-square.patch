@@ -1,0 +1,30 @@
+From 8cd84bba2f30ce6bf40fb934c82c17d8577aa68e Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Thu, 15 Oct 2026 09:30:26 +0200
+Subject: [PATCH] Kompakt: the add contact button is a rounded square
+
+fab_bg is a rounded rectangle with 16dp corners instead of an oval, the shape of the Calendar and Messaging buttons.
+
+Change-Id: I81af2343005110b226fe1fe2cfc88d38ad35e989
+---
+ res/drawable/fab_bg.xml | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/res/drawable/fab_bg.xml b/res/drawable/fab_bg.xml
+index 8fc73e8fd..45ab787f2 100644
+--- a/res/drawable/fab_bg.xml
++++ b/res/drawable/fab_bg.xml
+@@ -4,7 +4,9 @@
+   SPDX-License-Identifier: Apache-2.0
+ -->
+ <shape xmlns:android="http://schemas.android.com/apk/res/android"
+-    android:shape="oval">
++    android:shape="rectangle">
++    <!-- Kompakt: the rounded square of the Calendar and Messaging buttons. -->
++    <corners android:radius="16dp"/>
+     <solid android:color="@color/fab_color"/>
+     <!-- Kompakt: outlined; without its shadow a white disc on a white page has no edge. -->
+     <stroke android:width="2dp" android:color="@color/floating_action_button_icon_color"/>
+-- 
+2.43.0
+

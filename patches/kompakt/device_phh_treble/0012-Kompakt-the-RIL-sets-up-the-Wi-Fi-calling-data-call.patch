@@ -1,0 +1,25 @@
+From b44b61f537cc3dd3270d6da5aa7b7be6fb7fc9e3 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sat, 3 Oct 2026 01:40:00 +0200
+Subject: [PATCH 12/14] Kompakt: the RIL sets up the Wi-Fi calling data call
+
+---
+ overlay/frameworks/base/core/res/res/values/config.xml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/overlay/frameworks/base/core/res/res/values/config.xml b/overlay/frameworks/base/core/res/res/values/config.xml
+index 799fa05..dca1509 100644
+--- a/overlay/frameworks/base/core/res/res/values/config.xml
++++ b/overlay/frameworks/base/core/res/res/values/config.xml
+@@ -52,7 +52,7 @@
+     </string-array>
+ 
+     <string name="config_displayLightSensorType" translatable="false">android.sensor.light</string>
+-    <string name="config_wlan_data_service_package">com.google.android.iwlan</string>
++    <string name="config_wlan_data_service_package">com.android.phone</string>
+     <string name="config_wlan_network_service_package">com.google.android.iwlan</string>
+   <string name="config_qualified_networks_service_package">com.android.telephony.qns</string>
+   <bool name="config_lidControlsSleep">true</bool>
+-- 
+2.43.0
+

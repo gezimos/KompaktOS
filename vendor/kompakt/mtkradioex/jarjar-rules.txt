@@ -1,0 +1,1 @@
+rule vendor.mediatek.hardware.mtkradioex.** com.android.internal.telephony.kompakt.mtkradioex.@1

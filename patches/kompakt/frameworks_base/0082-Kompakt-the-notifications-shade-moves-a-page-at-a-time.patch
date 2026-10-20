@@ -1,0 +1,123 @@
+From ae490fc830dc39c915d5012c4e04fc1c3e92316f Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Fri, 9 Oct 2026 07:09:55 +0200
+Subject: [PATCH 82/99] Kompakt: the notifications shade moves a page at a time
+
+On e-ink every scrolled frame is a panel repaint. In the shade overlay the list
+now holds still under the finger and, on release, jumps one page: forward to
+the top of the first notification cut off at the bottom, back to the earliest
+notification top that keeps the current top in view. Pages break between
+notifications. At the first or last page the swipe goes to the shade as
+before, and a swipe that expands a notification is left alone.
+
+Change-Id: I22411d4e3f651d82c72df11baccf68275c12d787
+---
+ .../ui/composable/Notifications.kt            | 71 +++++++++++++++++++
+ 1 file changed, 71 insertions(+)
+
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/notifications/ui/composable/Notifications.kt b/packages/SystemUI/compose/features/src/com/android/systemui/notifications/ui/composable/Notifications.kt
+index 0537e33fade6..aa2727391ff9 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/notifications/ui/composable/Notifications.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/notifications/ui/composable/Notifications.kt
+@@ -125,6 +125,10 @@ import com.android.systemui.statusbar.notification.stack.ui.view.NotificationScr
+ import com.android.systemui.statusbar.notification.stack.ui.viewmodel.NotificationTransitionThresholds.EXPANSION_FOR_MAX_CORNER_RADIUS
+ import com.android.systemui.statusbar.notification.stack.ui.viewmodel.NotificationTransitionThresholds.EXPANSION_FOR_MAX_SCRIM_ALPHA
+ import com.android.systemui.statusbar.notification.stack.ui.viewmodel.NotificationsPlaceholderViewModel
++import android.view.ViewGroup
++import com.android.systemui.statusbar.NotificationShelf
++import com.android.systemui.statusbar.notification.row.ExpandableView
++import kotlin.math.abs
+ import kotlin.math.max
+ import kotlin.math.roundToInt
+ import kotlinx.coroutines.awaitCancellation
+@@ -611,6 +615,71 @@ fun ContentScope.NotificationScrollingStack(
+             )
+         }
+ 
++    // Kompakt: the list holds still under the finger and jumps a page on release, between rows.
++    val pageViewport = remember { mutableStateOf(Rect.Zero) }
++    val pageSlopPx = with(density) { 24.dp.toPx() }
++    val pagingConnection =
++        remember(scrollState, stackScrollView, viewModel) {
++            object : NestedScrollConnection {
++                var dragged = 0f
++                var engaged = false
++
++                fun pageStop(forward: Boolean): Int {
++                    val viewport = pageViewport.value
++                    val scroll = scrollState.value
++                    val height = viewport.height.roundToInt()
++                    if (height <= 0) return scroll
++                    val stack = stackScrollView.asView() as? ViewGroup ?: return scroll
++                    val origin = IntArray(2).also { stack.getLocationInWindow(it) }
++                    val rows =
++                        (0 until stack.childCount)
++                            .map { stack.getChildAt(it) }
++                            .filterIsInstance<ExpandableView>()
++                            .filter {
++                                it.visibility == android.view.View.VISIBLE &&
++                                    it !is NotificationShelf &&
++                                    it.actualHeight > 0
++                            }
++                            .map {
++                                val top = origin[1] + it.y - viewport.top
++                                (top + scroll).roundToInt() to (top + it.actualHeight + scroll)
++                            }
++                            .sortedBy { it.first }
++                    return if (forward) {
++                        val cut = rows.firstOrNull { it.second > scroll + height + 1 }
++                        val stop = cut?.first?.takeIf { it > scroll } ?: (scroll + height)
++                        stop.coerceAtMost(scrollState.maxValue)
++                    } else {
++                        val wanted = scroll - height
++                        val stop = rows.map { it.first }.filter { it in wanted until scroll }.minOrNull()
++                        (stop ?: wanted).coerceAtLeast(0)
++                    }
++                }
++
++                override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
++                    if (source != NestedScrollSource.UserInput) return Offset.Zero
++                    if (viewModel.isCurrentGestureExpandingNotification) return Offset.Zero
++                    val canGo =
++                        if (available.y < 0f) scrollState.canScrollForward
++                        else scrollState.canScrollBackward
++                    if (!canGo) return Offset.Zero
++                    engaged = true
++                    dragged += available.y
++                    return Offset(0f, available.y)
++                }
++
++                override suspend fun onPreFling(available: Velocity): Velocity {
++                    val drag = dragged
++                    val wasEngaged = engaged
++                    dragged = 0f
++                    engaged = false
++                    if (!wasEngaged) return Velocity.Zero
++                    if (abs(drag) >= pageSlopPx) scrollState.scrollTo(pageStop(forward = drag < 0f))
++                    return available
++                }
++            }
++        }
++
+     val overScrollEffect: OffsetOverscrollEffect = rememberOffsetOverscrollEffect()
+     // whether the stack is moving due to a swipe or fling
+     val isScrollInProgress =
+@@ -731,6 +800,7 @@ fun ContentScope.NotificationScrollingStack(
+                         if (!shouldUseLockscreenStackBounds(layoutState.transitionState)) {
+                             stackScrollView.updateDrawBounds(it.rawBoundsInWindow())
+                         }
++                        pageViewport.value = it.boundsInWindow()
+                     }
+                     .debugBackground(viewModel, DEBUG_BOX_COLOR)
+         ) {
+@@ -741,6 +811,7 @@ fun ContentScope.NotificationScrollingStack(
+                         .thenIf(supportNestedScrolling && scrimNestedScrollConnection != null) {
+                             Modifier.nestedScroll(scrimNestedScrollConnection!!)
+                         }
++                        .thenIf(!supportNestedScrolling) { Modifier.nestedScroll(pagingConnection) }
+                         .verticalScroll(scrollState, overscrollEffect = overScrollEffect)
+                         .fillMaxWidth()
+                         // Added extra bottom padding for keeping footerView inside parent
+-- 
+2.43.0
+

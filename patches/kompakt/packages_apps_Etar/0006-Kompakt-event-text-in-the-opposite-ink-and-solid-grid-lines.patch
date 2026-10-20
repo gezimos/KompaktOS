@@ -1,0 +1,39 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Tue, 6 Oct 2026 11:45:00 +0200
+Subject: [PATCH 1/1] Kompakt: event text in the opposite ink and solid grid lines
+
+---
+diff --git a/app/src/main/java/com/android/calendar/Utils.java b/app/src/main/java/com/android/calendar/Utils.java
+--- a/app/src/main/java/com/android/calendar/Utils.java
++++ b/app/src/main/java/com/android/calendar/Utils.java
+@@ -945,6 +945,11 @@
+      * @return
+      */
+     public static int getAdaptiveTextColor(Context context, int color, int eventColor) {
++        // Kompakt: text on an event is the opposite ink, opaque.
++        if (context != null) {
++            return Utils.getBrightnessFromColor(eventColor) > BRIGHTNESS_THRESHOLD
++                    ? Color.BLACK : Color.WHITE;
++        }
+         if (Utils.getSharedPreference(context, GeneralPreferences.KEY_REAL_EVENT_COLORS, false)) {
+             if (Utils.getBrightnessFromColor(eventColor) > BRIGHTNESS_THRESHOLD) {
+                 color = ColorUtils.setAlphaComponent(Color.BLACK,
+diff --git a/app/src/main/java/com/android/calendar/month/MonthWeekEventsView.java b/app/src/main/java/com/android/calendar/month/MonthWeekEventsView.java
+--- a/app/src/main/java/com/android/calendar/month/MonthWeekEventsView.java
++++ b/app/src/main/java/com/android/calendar/month/MonthWeekEventsView.java
+@@ -512,7 +512,11 @@
+         }
+         p.setColor(mDaySeparatorInnerColor);
+         p.setStrokeWidth(mDaySeparatorInnerWidth);
++        // Kompakt: solid grid lines; anti-aliased ones are grey on this panel.
++        final boolean antiAlias = p.isAntiAlias();
++        p.setAntiAlias(false);
+         canvas.drawLines(lines, 0, lines.length, p);
++        p.setAntiAlias(antiAlias);
+     }
+ 
+     @Override
+-- 
+2.43.0
+

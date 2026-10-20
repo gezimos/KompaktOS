@@ -1,13 +1,17 @@
-From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From f284aa10bbe0981392a7aa89b2e60cc8550e1fb0 Mon Sep 17 00:00:00 2001
 From: Gezim <gezimos@users.noreply.github.com>
 Date: Mon, 28 Sep 2026 19:10:00 +0200
-Subject: [PATCH 44/44] Kompakt: bouncer: a SIM PIN always has its confirm key
+Subject: [PATCH 44/99] Kompakt: bouncer: a SIM PIN always has its confirm key
 
 ---
+ .../bouncer/ui/viewmodel/PinBouncerViewModel.kt       | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)
+
 diff --git a/packages/SystemUI/src/com/android/systemui/bouncer/ui/viewmodel/PinBouncerViewModel.kt b/packages/SystemUI/src/com/android/systemui/bouncer/ui/viewmodel/PinBouncerViewModel.kt
+index f1d8afc32197..4385023af73f 100644
 --- a/packages/SystemUI/src/com/android/systemui/bouncer/ui/viewmodel/PinBouncerViewModel.kt
 +++ b/packages/SystemUI/src/com/android/systemui/bouncer/ui/viewmodel/PinBouncerViewModel.kt
-@@ -136,20 +136,27 @@
+@@ -136,20 +136,27 @@ constructor(
                      }
                      .collect { _hintedPinLength.value = it }
              }
@@ -37,3 +41,6 @@ diff --git a/packages/SystemUI/src/com/android/systemui/bouncer/ui/viewmodel/Pin
                      .collect { _confirmButtonAppearance.value = it }
              }
              launch {
+-- 
+2.43.0
+

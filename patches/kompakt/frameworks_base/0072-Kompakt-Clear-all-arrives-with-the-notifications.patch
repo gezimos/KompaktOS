@@ -1,0 +1,39 @@
+From 2c1b798035a524054e59b10bd69bcbeeeed0dd5d Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Wed, 7 Oct 2026 12:00:00 +0000
+Subject: [PATCH 72/99] Kompakt: Clear all arrives with the notifications
+
+---
+ .../notification/stack/StackScrollAlgorithm.java | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/StackScrollAlgorithm.java b/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/StackScrollAlgorithm.java
+index 3bbb873b612d..a881f0589ca5 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/StackScrollAlgorithm.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/StackScrollAlgorithm.java
+@@ -724,14 +724,14 @@ public class StackScrollAlgorithm {
+         );
+         if (view instanceof FooterView) {
+             if (SceneContainerFlag.isEnabled()) {
+-                if (!ambientState.isExpansionChanging()) {
+-                    final float footerEnd =
+-                            stackTop + viewState.getYTranslation() + view.getIntrinsicHeight();
+-                    final boolean noSpaceForFooter = footerEnd > ambientState.getStackCutoff();
+-                    ((FooterView.FooterViewState) viewState).hideContent =
+-                            noSpaceForFooter || (ambientState.isClearAllInProgress()
+-                                    && !hasNonClearableNotifs(algorithmState));
+-                }
++                // Kompakt: decided on every pass, so the footer arrives with the notifications;
++                // the shade opens at once, so there is no expansion to wait out.
++                final float footerEnd =
++                        stackTop + viewState.getYTranslation() + view.getIntrinsicHeight();
++                final boolean noSpaceForFooter = footerEnd > ambientState.getStackCutoff();
++                ((FooterView.FooterViewState) viewState).hideContent =
++                        noSpaceForFooter || (ambientState.isClearAllInProgress()
++                                && !hasNonClearableNotifs(algorithmState));
+             } else {
+                 // TODO(b/333445519): shouldBeHidden should reflect whether the shade is closed
+                 //  already, so we shouldn't need to use ambientState here. However,
+-- 
+2.43.0
+

@@ -1,17 +1,17 @@
-From 528af5246f807c3c9b846d1c9a2d13f53ae95842 Mon Sep 17 00:00:00 2001
+From 3f0df77bd0338d89d5215010b08e0f8327002225 Mon Sep 17 00:00:00 2001
 From: gezimos <>
 Date: Mon, 21 Sep 2026 21:32:03 +0200
-Subject: [PATCH 19/38] Kompakt: lights: the framework must not drive this LED
+Subject: [PATCH 19/99] Kompakt: lights: the framework must not drive this LED
 
 ---
- core/res/res/values/config.xml                             | 5 +++++
+ core/res/res/values/config.xml                             | 3 +++
  core/res/res/values/symbols.xml                            | 1 +
  .../core/java/com/android/server/lights/LightsService.java | 2 +-
  .../server/notification/NotificationAttentionHelper.java   | 7 +++++--
- 4 files changed, 12 insertions(+), 3 deletions(-)
+ 4 files changed, 10 insertions(+), 3 deletions(-)
 
 diff --git a/core/res/res/values/config.xml b/core/res/res/values/config.xml
-index fbe4c3280e49..1a28724f71b5 100644
+index fbe4c3280e49..2472a96965a8 100644
 --- a/core/res/res/values/config.xml
 +++ b/core/res/res/values/config.xml
 @@ -1468,6 +1468,9 @@
@@ -69,3 +69,6 @@ index 89abfcd6ffdc..14a2fa00f3c4 100644
          mUseAttentionLight = resources.getBoolean(R.bool.config_useAttentionLight);
          mHasLight =
                  resources.getBoolean(com.android.internal.R.bool.config_intrusiveNotificationLed);
+-- 
+2.43.0
+

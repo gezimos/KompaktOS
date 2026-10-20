@@ -1,0 +1,52 @@
+From a8d42e5b22575a08fb4177cab6da6bcfc986ce18 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Fri, 9 Oct 2026 11:11:54 +0200
+Subject: [PATCH 083/101] Kompakt: no shelf in the notifications shade
+
+The shade folded every notification that did not fit into the shelf at the
+bottom, a strip of app icons. With the shade turning pages (0082) it said
+nothing useful and cost a repaint. The shelf is never shown now, and in the
+shade rows keep their place past the bottom edge, so the top of the next one
+shows there and a swipe brings it fully into view. The lockscreen keeps 0054.
+
+Change-Id: I3dfb06fca2207dab78a103539ea3f9858a0946dc
+---
+ .../com/android/systemui/statusbar/NotificationShelf.java    | 5 ++---
+ .../statusbar/notification/stack/StackScrollAlgorithm.java   | 5 ++++-
+ 2 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/NotificationShelf.java b/packages/SystemUI/src/com/android/systemui/statusbar/NotificationShelf.java
+index e53d72d40c82..15ad95f4dbba 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/NotificationShelf.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/NotificationShelf.java
+@@ -553,9 +553,8 @@ public class NotificationShelf extends ActivatableNotificationView {
+                 || clipTopAmount >= getIntrinsicHeight()
+                 || !mShowNotificationShelf
+                 || numViewsInShelf < 1f
+-                // Kompakt: no shelf on the lockscreen. Its pill held only an overflow dot,
+-                // which said nothing; the rest of the notifications are in the shade.
+-                || mAmbientState.isOnKeyguard();
++                // Kompakt: no shelf anywhere; the shade pages and the next row shows past the edge.
++                || true;
+ 
+         final float fractionToShade = Interpolators.STANDARD.getInterpolation(
+                 mAmbientState.getFractionToShade());
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/StackScrollAlgorithm.java b/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/StackScrollAlgorithm.java
+index 11d427042421..f7f70384a2b8 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/StackScrollAlgorithm.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/StackScrollAlgorithm.java
+@@ -803,7 +803,10 @@ public class StackScrollAlgorithm {
+                     final float shelfStart = stackBottom
+                             - ambientState.getShelf().getIntrinsicHeight()
+                             - mPaddingBetweenElements;
+-                    updateViewWithShelf(view, viewState, shelfStart);
++                    // Kompakt: only the open shade keeps rows in place past the edge; closed (a heads-up alone) they fold, so none leaves its outline.
++                    if (ambientState.isOnKeyguard() || !ambientState.isShadeExpanded()) {
++                        updateViewWithShelf(view, viewState, shelfStart);
++                    }
+                     // Kompakt: on the lockscreen a notification that does not fit whole is
+                     // hidden, not left as a sliver above the shelf (which is not drawn there).
+                     if (ambientState.isOnKeyguard() && !viewState.hidden && !view.isPinned()
+-- 
+2.43.0
+

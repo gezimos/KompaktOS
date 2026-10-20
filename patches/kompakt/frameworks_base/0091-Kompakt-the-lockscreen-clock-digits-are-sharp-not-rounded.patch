@@ -1,0 +1,80 @@
+From ffb474d2b5ad48babc8697ec373c88fc8d12bc8b Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sat, 10 Oct 2026 18:03:54 +0200
+Subject: [PATCH 091/101] Kompakt: the lockscreen clock digits are sharp, not
+ rounded
+
+Google Sans Flex has a roundness axis (ROND) that the Flex clock turns up to
+100 by default, so the digits get round terminals. The font's own default
+is 0. The clock's Round axis, the legacy flex styling and the text view's
+flex axis all start at 0 now.
+
+Change-Id: I93d55e939b62761ff810ee44ec13c0ac75aa2957
+---
+ .../android/systemui/shared/clocks/DefaultClockProvider.kt   | 5 ++++-
+ .../android/systemui/shared/clocks/FlexClockController.kt    | 5 +++--
+ .../android/systemui/shared/clocks/view/FlexClockTextView.kt | 2 +-
+ 3 files changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/packages/SystemUI/customization/src/com/android/systemui/shared/clocks/DefaultClockProvider.kt b/packages/SystemUI/customization/src/com/android/systemui/shared/clocks/DefaultClockProvider.kt
+index ae427839f7c6..25ace9736c1f 100644
+--- a/packages/SystemUI/customization/src/com/android/systemui/shared/clocks/DefaultClockProvider.kt
++++ b/packages/SystemUI/customization/src/com/android/systemui/shared/clocks/DefaultClockProvider.kt
+@@ -16,6 +16,7 @@ package com.android.systemui.shared.clocks
+ import android.content.Context
+ import android.content.res.Resources
+ import android.graphics.Typeface
++import com.android.systemui.animation.GSFAxes
+ import android.os.Vibrator
+ import android.view.LayoutInflater
+ import com.android.systemui.customization.R
+@@ -77,7 +78,9 @@ constructor(
+         return if (isClockReactiveVariantsEnabled) {
+             val buffers = messageBuffers ?: ClockMessageBuffers(ClockLogger.DEFAULT_MESSAGE_BUFFER)
+             val fontAxes = getDefaultAxes(settings).merge(settings.axes)
+-            val clockSettings = settings.copy(axes = ClockAxisStyle(fontAxes))
++            // Kompakt: sharp digits even if a rounder setting was saved before 0091.
++            val clockSettings =
++                settings.copy(axes = ClockAxisStyle(fontAxes).copy { put(GSFAxes.ROUND.tag, 0f) })
+             val typefaceCache =
+                 TypefaceCache(buffers.infraMessageBuffer, NUM_CLOCK_FONT_ANIMATION_STEPS) {
+                     FLEX_TYPEFACE
+diff --git a/packages/SystemUI/customization/src/com/android/systemui/shared/clocks/FlexClockController.kt b/packages/SystemUI/customization/src/com/android/systemui/shared/clocks/FlexClockController.kt
+index c05e7fa54c7d..205ab3ed9c35 100644
+--- a/packages/SystemUI/customization/src/com/android/systemui/shared/clocks/FlexClockController.kt
++++ b/packages/SystemUI/customization/src/com/android/systemui/shared/clocks/FlexClockController.kt
+@@ -165,7 +165,8 @@ class FlexClockController(
+                 ),
+                 GSFAxes.ROUND.toClockAxis(
+                     type = AxisType.Boolean,
+-                    currentValue = 100f,
++                    // Kompakt: sharp digits by default; round terminals blur on the panel.
++                    currentValue = 0f,
+                     name = "Round",
+                     description = "Glyph Roundness",
+                 ),
+@@ -180,7 +181,7 @@ class FlexClockController(
+         private val LEGACY_FLEX_SETTINGS = ClockAxisStyle {
+             put(GSFAxes.WEIGHT, 600f)
+             put(GSFAxes.WIDTH, 100f)
+-            put(GSFAxes.ROUND, 100f)
++            put(GSFAxes.ROUND, 0f) // Kompakt: sharp
+             put(GSFAxes.SLANT, 0f)
+         }
+ 
+diff --git a/packages/SystemUI/customization/src/com/android/systemui/shared/clocks/view/FlexClockTextView.kt b/packages/SystemUI/customization/src/com/android/systemui/shared/clocks/view/FlexClockTextView.kt
+index dcfba2495e8e..d4b8432be2c7 100644
+--- a/packages/SystemUI/customization/src/com/android/systemui/shared/clocks/view/FlexClockTextView.kt
++++ b/packages/SystemUI/customization/src/com/android/systemui/shared/clocks/view/FlexClockTextView.kt
+@@ -85,7 +85,7 @@ class FlexClockTextView(
+         private val FLEX_AOD_SMALL_WEIGHT_AXIS = GSFAxes.WEIGHT to 133f
+         private val FLEX_LS_WIDTH_AXIS = GSFAxes.WIDTH to 100f
+         private val FLEX_AOD_WIDTH_AXIS = GSFAxes.WIDTH to 43f
+-        private val FLEX_ROUND_AXIS = GSFAxes.ROUND to 100f
++        private val FLEX_ROUND_AXIS = GSFAxes.ROUND to 0f // Kompakt: sharp
+ 
+         private fun fromAxes(vararg axes: Pair<AxisDefinition, Float>): ClockAxisStyle {
+             return ClockAxisStyle(axes.map { (def, value) -> def.tag to value }.toMap())
+-- 
+2.43.0
+

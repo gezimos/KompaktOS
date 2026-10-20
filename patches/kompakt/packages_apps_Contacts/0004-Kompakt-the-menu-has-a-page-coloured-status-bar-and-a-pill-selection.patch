@@ -1,0 +1,38 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Mon, 5 Oct 2026 23:58:00 +0200
+Subject: [PATCH 1/1] Kompakt: the menu has a page-coloured status bar and a
+ pill selection
+
+---
+diff --git a/src/com/android/contacts/drawer/DrawerAdapter.java b/src/com/android/contacts/drawer/DrawerAdapter.java
+--- a/src/com/android/contacts/drawer/DrawerAdapter.java
++++ b/src/com/android/contacts/drawer/DrawerAdapter.java
+@@ -398,7 +398,8 @@
+         textView.setTextAppearance(mActivity, activated
+                 ? TYPEFACE_STYLE_ACTIVATE : TYPEFACE_STYLE_INACTIVE);
+         if (activated) {
+-            imageView.setColorFilter(mActivity.getResources().getColor(R.color.primary_color),
++            // Kompakt: the selected item is an ink pill, so its icon is the page colour.
++            imageView.setColorFilter(mActivity.getResources().getColor(R.color.kompakt_ground),
+                     PorterDuff.Mode.SRC_ATOP);
+         } else {
+             imageView.clearColorFilter();
+diff --git a/src/com/android/contacts/drawer/DrawerFragment.java b/src/com/android/contacts/drawer/DrawerFragment.java
+--- a/src/com/android/contacts/drawer/DrawerFragment.java
++++ b/src/com/android/contacts/drawer/DrawerFragment.java
+@@ -207,7 +207,10 @@
+         root.setOnApplyWindowInsetsListener(new WindowInsetsListener());
+         root.setForegroundGravity(Gravity.TOP | Gravity.FILL_HORIZONTAL);
+ 
+-        mScrimDrawable = new ScrimDrawable();
++        // Kompakt: the scrim covers the status bar while the menu is open; 20% black made it
++        // grey. It is the menu's own page colour.
++        mScrimDrawable = new ScrimDrawable(
++                getResources().getColor(R.color.navigation_drawer_background_color, null));
+         root.setForeground(mScrimDrawable);
+ 
+         return contentView;
+-- 
+2.43.0
+

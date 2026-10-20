@@ -1,0 +1,126 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sat, 17 Oct 2026 19:00:00 +0200
+Subject: [PATCH] Kompakt: the clock width slider changes the weight of any
+ font
+
+The Clock face width presets move Google Sans Flex's wght and wdth axes.
+A font picked in the Kompakt app is a set of fixed-weight files with no
+wght axis, so the slider changed nothing. When a light and a bold digit
+come from different files, the clock now asks for the file nearest the
+preset's weight ("w<weight>" in its typeface cache) and rebuilds its text
+animator on it, since the animator can only morph within one file. Google
+Sans Flex keeps the stock path.
+
+---
+diff --git a/packages/SystemUI/customization/clocks/common/src/com/android/systemui/customization/clocks/view/DigitalClockTextView.kt b/packages/SystemUI/customization/clocks/common/src/com/android/systemui/customization/clocks/view/DigitalClockTextView.kt
+--- a/packages/SystemUI/customization/clocks/common/src/com/android/systemui/customization/clocks/view/DigitalClockTextView.kt
++++ b/packages/SystemUI/customization/clocks/common/src/com/android/systemui/customization/clocks/view/DigitalClockTextView.kt
+@@ -22,6 +22,7 @@
+ import android.graphics.Paint
+ import android.graphics.PorterDuff
+ import android.graphics.PorterDuffXfermode
++import android.graphics.text.TextRunShaper
+ import android.os.VibrationEffect
+ import android.text.TextPaint
+ import android.util.AttributeSet
+@@ -143,7 +144,19 @@
+ 
+     @VisibleForTesting lateinit var textAnimator: TextAnimator
+ 
+-    private val typefaceCache = clockCtx.typefaceCache.getVariantCache("")
++    // Kompakt: a fixed-weight font has a file per weight; the slider picks one, as no axis can.
++    private var kompaktVariant = ""
++    private var kompaktRebuildAnimator = false
++    private var kompaktWeightFilesOff = false
++    private val kompaktFixedWeights by lazy {
++        fun file(weight: Int) =
++            TextRunShaper.shapeTextRun("0", 0, 1, 0, 1, 0f, 0f, false,
++                    Paint().apply { typeface = clockCtx.typefaceCache.getTypeface("w$weight") })
++                .getFont(0)
++                .sourceIdentifier
++        file(300) != file(700)
++    }
++    private var typefaceCache = clockCtx.typefaceCache.getVariantCache("")
+ 
+     var verticalAlignment: VerticalAlignment = VerticalAlignment.BASELINE
+     var horizontalAlignment: HorizontalAlignment = HorizontalAlignment.CENTER
+@@ -204,6 +217,7 @@
+     fun updateAxes(lsAxes: ClockAxisStyle, isAnimated: Boolean) {
+         fontVariations = updateFontVariations(lsAxes)
+         logger.updateAxes(fontVariations.lockscreen, fontVariations.doze, isAnimated)
++        kompaktUseWeightFile(lsAxes)
+ 
+         lockScreenPaint.typeface = typefaceCache.getTypefaceForVariant(fontVariations.lockscreen)
+         typeface = lockScreenPaint.typeface
+@@ -223,6 +237,32 @@
+         recomputeMaxTextSize()
+         requestLayout()
+         invalidate()
++    }
++
++    /** Kompakt: moves to the file nearest the slider's weight when the font has no wght axis. */
++    private fun kompaktUseWeightFile(lsAxes: ClockAxisStyle) {
++        val weight = lsAxes[GSFAxes.WEIGHT.tag]?.roundToInt()
++        val variant =
++            if (weight != null && !kompaktWeightFilesOff && kompaktFixedWeights) "w$weight" else ""
++        if (variant == kompaktVariant) return
++        try {
++            kompaktSwitchVariant(variant)
++        } catch (e: IllegalArgumentException) {
++            // Never a crash loop over a weight: back to the stock font path for this clock.
++            Log.w(TAG, "Kompakt: weight file $variant failed, keeping the stock clock font", e)
++            kompaktWeightFilesOff = true
++            kompaktSwitchVariant("")
++        }
++    }
++
++    private fun kompaktSwitchVariant(variant: String) {
++        kompaktVariant = variant
++        typefaceCache = clockCtx.typefaceCache.getVariantCache(variant)
++        lockScreenPaint.typeface = typefaceCache.getTypefaceForVariant(fontVariations.lockscreen)
++        typeface = lockScreenPaint.typeface
++        // The animator only morphs within one file, so it starts again on the new one.
++        kompaktRebuildAnimator = this::textAnimator.isInitialized
++        if (kompaktRebuildAnimator) measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED)
+     }
+ 
+     data class AxisAnimation(val axisKey: String, val distance: Float, val midpoint: Float) {
+@@ -257,8 +297,16 @@
+ 
+         val layout = this.layout
+         if (layout != null) {
+-            if (!this::textAnimator.isInitialized) {
++            if (!this::textAnimator.isInitialized || kompaktRebuildAnimator) {
++                val rebuild = kompaktRebuildAnimator
++                kompaktRebuildAnimator = false
+                 textAnimator = TextAnimator(layout, typefaceCache, animatorListener)
++                if (rebuild) {
++                    // Kompakt: both sides shaped from the clock paint, or its "pnum" digits differ.
++                    textAnimator.textInterpolator.basePaint.set(lockScreenPaint)
++                    textAnimator.textInterpolator.targetPaint.set(lockScreenPaint)
++                    textAnimator.textInterpolator.layout = layout
++                }
+                 setInterpolatorPaint()
+             } else {
+                 textAnimator.updateLayout(layout)
+diff --git a/packages/SystemUI/customization/src/com/android/systemui/shared/clocks/DefaultClockProvider.kt b/packages/SystemUI/customization/src/com/android/systemui/shared/clocks/DefaultClockProvider.kt
+--- a/packages/SystemUI/customization/src/com/android/systemui/shared/clocks/DefaultClockProvider.kt
++++ b/packages/SystemUI/customization/src/com/android/systemui/shared/clocks/DefaultClockProvider.kt
+@@ -81,9 +81,12 @@
+             // Kompakt: sharp digits even if a rounder setting was saved before 0091.
+             val clockSettings =
+                 settings.copy(axes = ClockAxisStyle(fontAxes).copy { put(GSFAxes.ROUND.tag, 0f) })
++            // Kompakt: "w<weight>" is the clock font at that weight, for fonts without a wght axis.
+             val typefaceCache =
+-                TypefaceCache(buffers.infraMessageBuffer, NUM_CLOCK_FONT_ANIMATION_STEPS) {
+-                    FLEX_TYPEFACE
++                TypefaceCache(buffers.infraMessageBuffer, NUM_CLOCK_FONT_ANIMATION_STEPS) { res ->
++                    res.removePrefix("w").toIntOrNull()?.let {
++                        Typeface.create(FLEX_TYPEFACE, it.coerceIn(1, 1000), false)
++                    } ?: FLEX_TYPEFACE
+                 }
+             FlexClockController(
+                 ClockContext(
+-- 
+2.43.0

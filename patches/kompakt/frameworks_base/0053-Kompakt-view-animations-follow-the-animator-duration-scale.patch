@@ -1,0 +1,47 @@
+From 2f57d00189291ae76af966a4ff965193bdfe1e19 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Mon, 5 Oct 2026 19:30:00 +0200
+Subject: [PATCH 53/99] Kompakt: view animations follow the animator duration
+ scale
+
+---
+ core/java/android/view/animation/Animation.java | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/core/java/android/view/animation/Animation.java b/core/java/android/view/animation/Animation.java
+index 288be9c392e1..2177a2f03e2c 100644
+--- a/core/java/android/view/animation/Animation.java
++++ b/core/java/android/view/animation/Animation.java
+@@ -16,6 +16,7 @@
+ 
+ package android.view.animation;
+ 
++import android.animation.ValueAnimator;
+ import android.annotation.AnimRes;
+ import android.annotation.ColorInt;
+ import android.annotation.InterpolatorRes;
+@@ -1013,8 +1014,10 @@ public abstract class Animation implements Cloneable {
+             mStartTime = currentTime;
+         }
+ 
+-        final long startOffset = getStartOffset();
+-        final long duration = mDuration;
++        // Kompakt: at animator duration scale 0, view animations jump to their end, with no delay or repeat.
++        final boolean animationsOff = ValueAnimator.getDurationScale() == 0f;
++        final long startOffset = animationsOff ? 0 : getStartOffset();
++        final long duration = animationsOff ? 0 : mDuration;
+         float normalizedTime;
+         if (duration != 0) {
+             normalizedTime = ((float) (currentTime - (mStartTime + startOffset))) /
+@@ -1048,7 +1051,7 @@ public abstract class Animation implements Cloneable {
+         }
+ 
+         if (expired) {
+-            if (mRepeatCount == mRepeated || isCanceled()) {
++            if (mRepeatCount == mRepeated || isCanceled() || animationsOff) {
+                 if (!mEnded) {
+                     mEnded = true;
+                     guard.close();
+-- 
+2.43.0
+

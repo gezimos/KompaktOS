@@ -1,0 +1,64 @@
+From fe516e7800bc933d6f5496e1be060580caae4874 Mon Sep 17 00:00:00 2001
+From: Gezim <25499045+gezimos@users.noreply.github.com>
+Date: Sun, 18 Oct 2026 22:40:00 +0200
+Subject: [PATCH] Kompakt: the lockscreen stack does not move up on a wake
+
+The upper region put the AOD icon shelf above the notification stack in one
+Column. isNotificationStackActive only says that notifications exist, so the
+stack is laid out in doze as well, under the shelf: 282 px against 218 px on
+the lockscreen (FlexiNotifs, recorded on 374). On a wake the shelf left after
+its exit animation and the stack moved up 64 px, so the notifications first
+showed under the AOD icons and then jumped under the clock. The shelf now lies
+over the stack in a Box, so the stack keeps its lockscreen position in doze,
+and it has no enter or exit animation, so it is gone in the frame doze ends.
+---
+ .../LockscreenUpperRegionElementProvider.kt      | 16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)
+
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/LockscreenUpperRegionElementProvider.kt b/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/LockscreenUpperRegionElementProvider.kt
+index fc6ea08..6157ae3 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/LockscreenUpperRegionElementProvider.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/LockscreenUpperRegionElementProvider.kt
+@@ -18,6 +18,8 @@ package com.android.systemui.keyguard.ui.composable.elements
+ 
+ import android.content.Context
+ import androidx.compose.animation.AnimatedVisibility
++import androidx.compose.animation.EnterTransition
++import androidx.compose.animation.ExitTransition
+ import androidx.compose.animation.core.snap
+ import androidx.compose.animation.core.tween
+ import androidx.compose.foundation.layout.Box
+@@ -99,11 +101,13 @@ constructor(
+ 
+         @Composable
+         protected fun LockscreenScope<ContentScope>.Notifications(modifier: Modifier = Modifier) {
+-            Column(modifier) {
+-                AODNotifications()
++            // Kompakt: the AOD icons lie over the stack, not above it; the stack keeps its
++            // lockscreen position in doze and does not move up when they go on a wake.
++            Box(modifier) {
+                 AnimatedVisibility(viewModel.isNotificationStackActive) {
+                     LockscreenElement(Notifications.Stack)
+                 }
++                AODNotifications()
+             }
+         }
+ 
+@@ -111,7 +115,13 @@ constructor(
+         protected fun LockscreenScope<ContentScope>.AODNotifications(
+             modifier: Modifier = Modifier
+         ) {
+-            AnimatedVisibility(viewModel.isDozing, modifier) {
++            // Kompakt: gone in the frame doze ends, not after an exit animation.
++            AnimatedVisibility(
++                viewModel.isDozing,
++                modifier,
++                enter = EnterTransition.None,
++                exit = ExitTransition.None,
++            ) {
+                 if (PromotedNotificationUi.isEnabled) {
+                     LockscreenElement(Notifications.AOD.Promoted)
+                 }
+-- 
+2.56.0
+

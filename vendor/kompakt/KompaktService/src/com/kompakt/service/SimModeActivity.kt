@@ -43,7 +43,7 @@ class SimModeActivity : Activity() {
         }
 
         AlertDialog.Builder(this)
-            .setTitle(R.string.sim_mode_title)
+            .setTitle(if (next == ESim.ESIM) R.string.sim_mode_title_to_esim else R.string.sim_mode_title_to_sim)
             .setMessage(
                 if (next == ESim.ESIM) getString(R.string.sim_mode_to_esim)
                 else getString(R.string.sim_mode_to_sim)

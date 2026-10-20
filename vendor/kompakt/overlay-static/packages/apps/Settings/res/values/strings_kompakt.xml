@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: the main page title fits one line. -->
+<resources>
+    <string name="account_dashboard_title_with_passkeys">Passwords &amp; accounts</string>
+</resources>

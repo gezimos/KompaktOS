@@ -1,0 +1,35 @@
+From 05757a10f50ea607fba4f898983232ad9f70e257 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Fri, 9 Oct 2026 20:43:22 +0200
+Subject: [PATCH 086/101] Kompakt: no drag to expand a notification
+
+Change-Id: I1b70c75e9808d0da0007db10e8792f9a6759bf24
+---
+ .../notification/stack/NotificationStackScrollLayout.java     | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/NotificationStackScrollLayout.java b/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/NotificationStackScrollLayout.java
+index 20b5d3ebbc29..d39434b44d41 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/NotificationStackScrollLayout.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/NotificationStackScrollLayout.java
+@@ -696,6 +696,8 @@ public class NotificationStackScrollLayout
+                 minHeight, maxHeight);
+         mExpandHelper.setEventSource(this);
+         mExpandHelper.setScrollAdapter(mScrollAdapter);
++        // Kompakt: no drag to expand; the chevron expands a notification and drags turn pages.
++        mExpandHelper.setEnabled(false);
+ 
+         mHeadsUpAnimator = new HeadsUpAnimator(context, /* systemBarUtilsProxy= */ null);
+         mStackScrollAlgorithm =  new StackScrollAlgorithm(context, this, mHeadsUpAnimator);
+@@ -2401,7 +2403,7 @@ public class NotificationStackScrollLayout
+     }
+ 
+     public void setExpandingEnabled(boolean enable) {
+-        mExpandHelper.setEnabled(enable);
++        mExpandHelper.setEnabled(false);
+     }
+ 
+     private boolean isScrollingEnabled() {
+-- 
+2.43.0
+

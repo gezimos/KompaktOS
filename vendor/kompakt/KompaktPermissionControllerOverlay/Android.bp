@@ -1,0 +1,7 @@
+// Permission prompts in two inks in dark mode: a black dialog, not Google grey,
+// and a white icon, not the black accent shade the dialog picks.
+runtime_resource_overlay {
+    name: "KompaktPermissionControllerOverlay",
+    product_specific: true,
+    sdk_version: "current",
+}

@@ -29,11 +29,14 @@ declare -A PROJECT=(
   [packages_apps_DocumentsUI]=packages/apps/DocumentsUI
   [packages_apps_Etar]=packages/apps/Etar
   [packages_apps_AudioFX]=packages/apps/AudioFX
+  [packages_apps_CarrierConfig]=packages/apps/CarrierConfig
   [packages_apps_Jelly]=packages/apps/Jelly
   [packages_apps_LineageParts]=packages/apps/LineageParts
   [packages_apps_Aperture]=packages/apps/Aperture
   [packages_apps_Twelve]=packages/apps/Twelve
   [packages_apps_Updater]=packages/apps/Updater
+  [packages_apps_WallpaperPicker2]=packages/apps/WallpaperPicker2
+  [packages_apps_ThemePicker]=packages/apps/ThemePicker
   [packages_inputmethods_LatinIME]=packages/inputmethods/LatinIME
   [packages_modules_Connectivity]=packages/modules/Connectivity
   [system_sepolicy]=system/sepolicy
@@ -43,8 +46,10 @@ declare -A PROJECT=(
   [lineage_sdk]=lineage-sdk
   [vendor_lineage]=vendor/lineage
   [vendor_apn]=vendor/apn
+  [external_noto-fonts]=external/noto-fonts
   [treble_app]=treble_app
   [vendor_hardware_overlay]=vendor/hardware_overlay
+  [hardware_lineage_interfaces]=hardware/lineage/interfaces
 )
 
 fail=0

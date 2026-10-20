@@ -1,0 +1,2209 @@
+From 564da8983ad9d95c0b12dc32f1d42012836314e2 Mon Sep 17 00:00:00 2001
+From: Gezim <25499045+gezimos@users.noreply.github.com>
+Date: Sun, 11 Oct 2026 21:45:30 +0200
+Subject: [PATCH 2/2] Kompakt: a Style option for photos and videos
+
+Change-Id: Ib61811f7ea6ab8471cf4ba7cc5590494be33a439
+---
+ app/Android.bp                                |   6 +-
+ .../java/com/kompakt/camera/GrainFilter.java  | 149 ++++
+ .../main/java/com/kompakt/camera/Styles.java  | 244 +++++++
+ .../main/java/com/kompakt/camera/VhsOsd.java  |  66 ++
+ .../kompakt/camera/VideoStyleProcessor.java   | 638 ++++++++++++++++++
+ .../org/lineageos/aperture/CameraActivity.kt  |  19 +
+ .../lineageos/aperture/models/IslandItem.kt   |  11 +
+ .../lineageos/aperture/ui/views/IslandView.kt |   3 +
+ .../aperture/viewmodels/CameraViewModel.kt    | 115 +++-
+ .../main/res/drawable/ic_style_bw_photo.xml   |  15 +
+ .../main/res/drawable/ic_style_bw_video.xml   |  15 +
+ app/src/main/res/drawable/ic_style_film.xml   |  15 +
+ app/src/main/res/drawable/ic_style_normal.xml |  15 +
+ app/src/main/res/drawable/ic_style_vhs.xml    |  15 +
+ app/src/main/res/font/vcr_osd_mono.ttf        | Bin 0 -> 75864 bytes
+ .../main/res/values/kompakt_style_strings.xml |  11 +
+ 16 files changed, 1314 insertions(+), 23 deletions(-)
+ create mode 100644 app/src/main/java/com/kompakt/camera/GrainFilter.java
+ create mode 100644 app/src/main/java/com/kompakt/camera/Styles.java
+ create mode 100644 app/src/main/java/com/kompakt/camera/VhsOsd.java
+ create mode 100644 app/src/main/java/com/kompakt/camera/VideoStyleProcessor.java
+ create mode 100644 app/src/main/res/drawable/ic_style_bw_photo.xml
+ create mode 100644 app/src/main/res/drawable/ic_style_bw_video.xml
+ create mode 100644 app/src/main/res/drawable/ic_style_film.xml
+ create mode 100644 app/src/main/res/drawable/ic_style_normal.xml
+ create mode 100644 app/src/main/res/drawable/ic_style_vhs.xml
+ create mode 100644 app/src/main/res/font/vcr_osd_mono.ttf
+ create mode 100644 app/src/main/res/values/kompakt_style_strings.xml
+
+diff --git a/app/Android.bp b/app/Android.bp
+index b24f014..91e0507 100644
+--- a/app/Android.bp
++++ b/app/Android.bp
+@@ -10,7 +10,11 @@ package {
+ android_app {
+     name: "Aperture",
+ 
+-    srcs: ["src/main/java/**/*.kt"],
++    // Kompakt: the Style filters are Java (com.kompakt.camera).
++    srcs: [
++        "src/main/java/**/*.kt",
++        "src/main/java/**/*.java",
++    ],
+     resource_dirs: ["src/main/res"],
+     manifest: "src/main/AndroidManifest.xml",
+ 
+diff --git a/app/src/main/java/com/kompakt/camera/GrainFilter.java b/app/src/main/java/com/kompakt/camera/GrainFilter.java
+new file mode 100644
+index 0000000..0233bce
+--- /dev/null
++++ b/app/src/main/java/com/kompakt/camera/GrainFilter.java
+@@ -0,0 +1,149 @@
++/*
++ * SPDX-FileCopyrightText: KompaktOS
++ * SPDX-License-Identifier: Apache-2.0
++ */
++
++package com.kompakt.camera;
++
++import android.graphics.Bitmap;
++
++import java.util.ArrayList;
++import java.util.List;
++import java.util.concurrent.ExecutorService;
++import java.util.concurrent.Executors;
++import java.util.concurrent.Future;
++
++/** Film grain for a photo, mono (B&W) or colour (Film), applied in place in bands of rows. */
++final class GrainFilter {
++    private static final int BAND_ROWS = 64;
++    private static final float SPARSITY = 0.76f; // fraction of the lattice left blank between grains
++
++    private final boolean mono;
++    private final int seed;
++    private final int speckCell;
++    private final int coarseCell;
++    private final float strength;
++    private final int[] curve = new int[256];
++    private final float[] weight = new float[256];
++
++    /** {@code width} is the photo's width as shown, which sets the grain size. */
++    GrainFilter(long seed, boolean mono, int width) {
++        this.mono = mono;
++        this.seed = (int) (seed ^ (seed >>> 32));
++        // individual silver grains are small and hard edged; only their clumping comes from a smooth field
++        this.speckCell = Math.max(2, Math.round(width / 1200.0f));
++        this.coarseCell = speckCell * 14;
++        this.strength = mono ? 0.40f : 0.32f;
++        float sCurve = mono ? 0.70f : 0.30f;
++        for (int i = 0; i < 256; i++) {
++            float x = i / 255.0f;
++            float s = x * x * (3.0f - 2.0f * x);
++            float v = (1.0f - sCurve) * x + sCurve * s;
++            if (mono) v = v * 0.985f + 0.006f;
++            curve[i] = Math.max(0, Math.min(255, Math.round(v * 255.0f)));
++            // silver density peaks in the midtones, so grain fades out towards black and white
++            float t = 4.0f * x * (1.0f - x);
++            weight[i] = t <= 0.0f ? 0.0f : (float) Math.pow(t, 0.7);
++        }
++    }
++
++    /** Applies the grain to a mutable ARGB bitmap, using every core. */
++    void apply(final Bitmap bitmap) throws Exception {
++        final int w = bitmap.getWidth();
++        final int h = bitmap.getHeight();
++        int threads = Math.max(1, Runtime.getRuntime().availableProcessors());
++        ExecutorService pool = Executors.newFixedThreadPool(threads);
++        try {
++            List<Future<?>> bands = new ArrayList<>();
++            for (int top = 0; top < h; top += BAND_ROWS) {
++                final int y0 = top;
++                final int rows = Math.min(BAND_ROWS, h - top);
++                bands.add(pool.submit(() -> {
++                    int[] px = new int[w * rows];
++                    synchronized (bitmap) {
++                        bitmap.getPixels(px, 0, w, 0, y0, w, rows);
++                    }
++                    band(px, w, y0, rows);
++                    synchronized (bitmap) {
++                        bitmap.setPixels(px, 0, w, 0, y0, w, rows);
++                    }
++                }));
++            }
++            for (Future<?> band : bands) band.get();
++        } finally {
++            pool.shutdown();
++        }
++    }
++
++    private void band(int[] px, int w, int y0, int rows) {
++        for (int y = y0, c = 0; y < y0 + rows; y++) {
++            for (int x = 0; x < w; x++, c++) {
++                int color = px[c];
++                int r = (color >> 16) & 0xFF;
++                int g = (color >> 8) & 0xFF;
++                int b = color & 0xFF;
++                float gm = grain(x, y);
++                if (mono) {
++                    int luma = curve[(r * 77 + g * 150 + b * 29) >> 8];
++                    float amount = gm * weight[luma] * strength;
++                    int v = softLight(luma, 0.5f + amount * 0.5f);
++                    px[c] = 0xff000000 | (v << 16) | (v << 8) | v;
++                } else {
++                    // near achromatic grain: independent per-channel noise reads as digital chroma noise
++                    float jitter = unit(hash(x, y, seed ^ 0x1b873593)) - 0.5f;
++                    float wt = weight[(r * 77 + g * 150 + b * 29) >> 8] * strength;
++                    int nr = softLight(curve[r], 0.5f + (gm + jitter * 0.10f) * wt * 0.5f);
++                    int ng = softLight(curve[g], 0.5f + (gm - jitter * 0.06f) * wt * 0.5f);
++                    int nb = softLight(curve[b], 0.5f + (gm + jitter * 0.09f) * wt * 0.5f);
++                    px[c] = 0xff000000 | (nr << 16) | (ng << 8) | nb;
++                }
++            }
++        }
++    }
++
++    private static int hash(int x, int y, int seed) {
++        int h = x * 0x27d4eb2d ^ y * 0x9e3779b9 ^ seed;
++        h ^= h >>> 15;
++        h *= 0x85ebca6b;
++        h ^= h >>> 13;
++        return h;
++    }
++
++    private static float unit(int h) {
++        return (h & 0xFFFF) / 65535.0f;
++    }
++
++    private static float lattice(int x, int y, int cell, int seed) {
++        int gx = Math.floorDiv(x, cell);
++        int gy = Math.floorDiv(y, cell);
++        float fx = (x - gx * cell) / (float) cell;
++        float fy = (y - gy * cell) / (float) cell;
++        fx = fx * fx * (3.0f - 2.0f * fx);
++        fy = fy * fy * (3.0f - 2.0f * fy);
++        float a = unit(hash(gx, gy, seed));
++        float b = unit(hash(gx + 1, gy, seed));
++        float c = unit(hash(gx, gy + 1, seed));
++        float d = unit(hash(gx + 1, gy + 1, seed));
++        float top = a + (b - a) * fx;
++        float bottom = c + (d - c) * fx;
++        return top + (bottom - top) * fy;
++    }
++
++    private float grain(int x, int y) {
++        float g = unit(hash(Math.floorDiv(x, speckCell), Math.floorDiv(y, speckCell), seed)) * 2.0f - 1.0f;
++        // a slow field decides where grains cluster, so density varies across the frame
++        float density = lattice(x, y, coarseCell, seed ^ 0x5bd1e995);
++        float threshold = SPARSITY - 0.40f * (density - 0.5f);
++        float a = Math.abs(g);
++        if (a <= threshold) return 0.0f;
++        float mag = Math.min(1.0f, (a - threshold) / Math.max(1.0e-3f, 1.0f - threshold));
++        return g < 0.0f ? -mag : mag;
++    }
++
++    private static int softLight(int base, float blend) {
++        float a = base / 255.0f;
++        float v = (1.0f - 2.0f * blend) * a * a + 2.0f * blend * a;
++        int out = Math.round(v * 255.0f);
++        return out < 0 ? 0 : Math.min(out, 255);
++    }
++}
+diff --git a/app/src/main/java/com/kompakt/camera/Styles.java b/app/src/main/java/com/kompakt/camera/Styles.java
+new file mode 100644
+index 0000000..51512b3
+--- /dev/null
++++ b/app/src/main/java/com/kompakt/camera/Styles.java
+@@ -0,0 +1,244 @@
++/*
++ * SPDX-FileCopyrightText: KompaktOS
++ * SPDX-License-Identifier: Apache-2.0
++ */
++
++package com.kompakt.camera;
++
++import android.content.Context;
++import android.graphics.Bitmap;
++import android.graphics.BitmapFactory;
++import android.media.MediaExtractor;
++import android.media.MediaMuxer;
++import android.net.Uri;
++import android.os.Handler;
++import android.os.Looper;
++import android.os.ParcelFileDescriptor;
++import android.util.Log;
++import android.widget.Toast;
++
++import androidx.exifinterface.media.ExifInterface;
++import androidx.preference.PreferenceManager;
++
++import org.lineageos.aperture.R;
++
++import java.io.ByteArrayInputStream;
++import java.io.ByteArrayOutputStream;
++import java.io.File;
++import java.io.FileInputStream;
++import java.io.FileOutputStream;
++import java.io.InputStream;
++import java.io.OutputStream;
++import java.util.concurrent.ExecutorService;
++import java.util.concurrent.Executors;
++
++/**
++ * Kompakt: the Style option. Photos: Normal, B&W, Film; videos: Normal, B&W, VHS. A style is
++ * applied to the saved file in the background and written back over it, so the gallery entry,
++ * its date and its place stay the same; if anything fails the original is kept.
++ */
++public final class Styles {
++    private static final String TAG = "KompaktStyles";
++
++    public static final int NORMAL = 0;
++    public static final int BW = 1;
++    public static final int FILM = 2;
++    public static final int VHS = 3;
++
++    private static final String PHOTO_KEY = "kompakt_photo_style";
++    private static final String VIDEO_KEY = "kompakt_video_style";
++    private static final int JPEG_QUALITY = 95;
++
++    // One file at a time, outside any screen's lifetime, so leaving the camera does not cancel it.
++    private static final ExecutorService WORKER = Executors.newSingleThreadExecutor(r -> {
++        Thread thread = new Thread(r, "KompaktStyle");
++        thread.setPriority(Thread.MIN_PRIORITY);
++        return thread;
++    });
++
++    private Styles() {}
++
++    public static int get(Context context, boolean video) {
++        int style = PreferenceManager.getDefaultSharedPreferences(context)
++                .getInt(video ? VIDEO_KEY : PHOTO_KEY, NORMAL);
++        return video ? (style == BW || style == VHS ? style : NORMAL)
++                : (style == BW || style == FILM ? style : NORMAL);
++    }
++
++    /** Normal, B&W, then Film for photos or VHS for videos. */
++    public static int cycle(Context context, boolean video) {
++        int current = get(context, video);
++        int next = current == NORMAL ? BW : current == BW ? (video ? VHS : FILM) : NORMAL;
++        PreferenceManager.getDefaultSharedPreferences(context).edit()
++                .putInt(video ? VIDEO_KEY : PHOTO_KEY, next).apply();
++        return next;
++    }
++
++    public static int label(int style) {
++        switch (style) {
++            case BW: return R.string.kompakt_style_bw;
++            case FILM: return R.string.kompakt_style_film;
++            case VHS: return R.string.kompakt_style_vhs;
++            default: return R.string.kompakt_style_normal;
++        }
++    }
++
++    public static int icon(int style, boolean video) {
++        switch (style) {
++            case BW: return video ? R.drawable.ic_style_bw_video : R.drawable.ic_style_bw_photo;
++            case FILM: return R.drawable.ic_style_film;
++            case VHS: return R.drawable.ic_style_vhs;
++            default: return R.drawable.ic_style_normal;
++        }
++    }
++
++    /** Grains a saved JPEG in place, then runs {@code done} on the main thread either way. */
++    public static void applyToPhoto(Context context, Uri uri, int style, Runnable done) {
++        final Context app = context.getApplicationContext();
++        final Handler main = new Handler(Looper.getMainLooper());
++        WORKER.execute(() -> {
++            try {
++                filterPhoto(app, uri, style == BW);
++            } catch (Throwable t) {
++                Log.e(TAG, "photo style failed, original kept", t);
++            }
++            main.post(done);
++        });
++    }
++
++    private static void filterPhoto(Context app, Uri uri, boolean mono) throws Exception {
++        byte[] original;
++        try (InputStream in = app.getContentResolver().openInputStream(uri)) {
++            original = readAll(in);
++        }
++        ExifInterface exif = new ExifInterface(new ByteArrayInputStream(original));
++        BitmapFactory.Options options = new BitmapFactory.Options();
++        options.inMutable = true;
++        options.inPreferredConfig = Bitmap.Config.ARGB_8888;
++        Bitmap bitmap = BitmapFactory.decodeByteArray(original, 0, original.length, options);
++        if (bitmap == null) throw new IllegalStateException("cannot decode " + uri);
++        byte[] graded;
++        try {
++            // grain is the same in every direction, so it goes on before the EXIF rotation
++            int degrees = exif.getRotationDegrees();
++            int shownWidth = degrees % 180 == 0 ? bitmap.getWidth() : bitmap.getHeight();
++            new GrainFilter(System.currentTimeMillis(), mono, shownWidth).apply(bitmap);
++            ByteArrayOutputStream out = new ByteArrayOutputStream(original.length);
++            bitmap.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, out);
++            graded = out.toByteArray();
++        } finally {
++            bitmap.recycle();
++        }
++        // EXIF goes onto a copy in the cache, then the finished file replaces the original
++        File temp = File.createTempFile("style", ".jpg", app.getCacheDir());
++        try {
++            try (OutputStream out = new FileOutputStream(temp)) {
++                out.write(graded);
++            }
++            ExifInterface target = new ExifInterface(temp.getAbsolutePath());
++            for (String tag : EXIF_TAGS) {
++                String value = exif.getAttribute(tag);
++                if (value != null) target.setAttribute(tag, value);
++            }
++            target.saveAttributes();
++            try (InputStream in = new FileInputStream(temp);
++                 OutputStream out = app.getContentResolver().openOutputStream(uri, "wt")) {
++                copy(in, out);
++            }
++        } finally {
++            temp.delete();
++        }
++    }
++
++    /** Re-encodes a saved video in place; a message says when it starts and how it ended. */
++    public static void applyToVideo(Context context, Uri uri, int style, Runnable done) {
++        final Context app = context.getApplicationContext();
++        final Handler main = new Handler(Looper.getMainLooper());
++        final String name = app.getString(label(style));
++        // recording events arrive on the camera executor, so the message goes through the main thread
++        main.post(() -> Toast.makeText(app, app.getString(R.string.kompakt_style_applying, name),
++                Toast.LENGTH_SHORT).show());
++        WORKER.execute(() -> {
++            boolean ok = false;
++            try {
++                ok = filterVideo(app, uri, style == VHS ? VideoStyleProcessor.MODE_VHS
++                        : VideoStyleProcessor.MODE_BW);
++            } catch (Throwable t) {
++                Log.e(TAG, "video style failed, original kept", t);
++            }
++            final boolean success = ok;
++            main.post(() -> {
++                Toast.makeText(app, app.getString(success ? R.string.kompakt_style_done
++                        : R.string.kompakt_style_failed, name), Toast.LENGTH_SHORT).show();
++                done.run();
++            });
++        });
++    }
++
++    private static boolean filterVideo(Context app, Uri uri, int mode) throws Exception {
++        File temp = File.createTempFile("style", ".mp4", app.getCacheDir());
++        try {
++            boolean ok;
++            MediaExtractor extractor = new MediaExtractor();
++            MediaMuxer muxer = null;
++            try (ParcelFileDescriptor in = app.getContentResolver().openFileDescriptor(uri, "r")) {
++                extractor.setDataSource(in.getFileDescriptor());
++                muxer = new MediaMuxer(temp.getAbsolutePath(), MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
++                ok = VideoStyleProcessor.process(app, extractor, muxer, mode, System.currentTimeMillis());
++            } finally {
++                extractor.release();
++                if (muxer != null) {
++                    try {
++                        muxer.release();
++                    } catch (Exception e) {
++                        Log.e(TAG, "muxer release", e);
++                    }
++                }
++            }
++            if (!ok || temp.length() == 0) return false;
++            try (InputStream in = new FileInputStream(temp);
++                 OutputStream out = app.getContentResolver().openOutputStream(uri, "wt")) {
++                copy(in, out);
++            }
++            return true;
++        } finally {
++            temp.delete();
++        }
++    }
++
++    private static byte[] readAll(InputStream in) throws Exception {
++        ByteArrayOutputStream out = new ByteArrayOutputStream();
++        copy(in, out);
++        return out.toByteArray();
++    }
++
++    private static void copy(InputStream in, OutputStream out) throws Exception {
++        byte[] buffer = new byte[1 << 16];
++        int n;
++        while ((n = in.read(buffer)) > 0) out.write(buffer, 0, n);
++    }
++
++    // What the camera wrote that still describes the graded photo (sizes come from the new JPEG).
++    private static final String[] EXIF_TAGS = {
++            ExifInterface.TAG_ORIENTATION,
++            ExifInterface.TAG_DATETIME, ExifInterface.TAG_DATETIME_ORIGINAL,
++            ExifInterface.TAG_DATETIME_DIGITIZED, ExifInterface.TAG_SUBSEC_TIME,
++            ExifInterface.TAG_SUBSEC_TIME_ORIGINAL, ExifInterface.TAG_SUBSEC_TIME_DIGITIZED,
++            ExifInterface.TAG_OFFSET_TIME, ExifInterface.TAG_OFFSET_TIME_ORIGINAL,
++            ExifInterface.TAG_OFFSET_TIME_DIGITIZED,
++            ExifInterface.TAG_MAKE, ExifInterface.TAG_MODEL,
++            ExifInterface.TAG_EXPOSURE_TIME, ExifInterface.TAG_F_NUMBER,
++            ExifInterface.TAG_PHOTOGRAPHIC_SENSITIVITY, ExifInterface.TAG_FOCAL_LENGTH,
++            ExifInterface.TAG_FOCAL_LENGTH_IN_35MM_FILM, ExifInterface.TAG_APERTURE_VALUE,
++            ExifInterface.TAG_SHUTTER_SPEED_VALUE, ExifInterface.TAG_BRIGHTNESS_VALUE,
++            ExifInterface.TAG_EXPOSURE_BIAS_VALUE, ExifInterface.TAG_EXPOSURE_PROGRAM,
++            ExifInterface.TAG_EXPOSURE_MODE, ExifInterface.TAG_METERING_MODE,
++            ExifInterface.TAG_WHITE_BALANCE, ExifInterface.TAG_FLASH,
++            ExifInterface.TAG_SCENE_CAPTURE_TYPE,
++            ExifInterface.TAG_GPS_LATITUDE, ExifInterface.TAG_GPS_LATITUDE_REF,
++            ExifInterface.TAG_GPS_LONGITUDE, ExifInterface.TAG_GPS_LONGITUDE_REF,
++            ExifInterface.TAG_GPS_ALTITUDE, ExifInterface.TAG_GPS_ALTITUDE_REF,
++            ExifInterface.TAG_GPS_TIMESTAMP, ExifInterface.TAG_GPS_DATESTAMP,
++            ExifInterface.TAG_GPS_PROCESSING_METHOD,
++    };
++}
+diff --git a/app/src/main/java/com/kompakt/camera/VhsOsd.java b/app/src/main/java/com/kompakt/camera/VhsOsd.java
+new file mode 100644
+index 0000000..aaa19b3
+--- /dev/null
++++ b/app/src/main/java/com/kompakt/camera/VhsOsd.java
+@@ -0,0 +1,66 @@
++/*
++ * SPDX-FileCopyrightText: KompaktOS
++ * SPDX-License-Identifier: Apache-2.0
++ */
++
++package com.kompakt.camera;
++
++import android.content.Context;
++import android.graphics.Bitmap;
++import android.graphics.Canvas;
++import android.graphics.Color;
++import android.graphics.Paint;
++import android.graphics.Typeface;
++import android.util.Log;
++
++import org.lineageos.aperture.R;
++
++import java.util.Calendar;
++import java.util.Locale;
++
++/** The camcorder clock burned into a VHS video: date over time, bottom left, in the VCR font. */
++final class VhsOsd {
++    private static final String[] MONTHS = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG",
++            "SEP", "OCT", "NOV", "DEC"};
++
++    private VhsOsd() {}
++
++    static Typeface font(Context context) {
++        try {
++            Typeface typeface = context.getResources().getFont(R.font.vcr_osd_mono);
++            if (typeface != null) return typeface;
++        } catch (Exception e) {
++            Log.e("KompaktVhsOsd", "osd font", e);
++        }
++        return Typeface.MONOSPACE;
++    }
++
++    /** A transparent frame-sized overlay with the clock at {@code timeMs}, in white. */
++    static Bitmap render(Typeface typeface, int width, int height, long timeMs) {
++        Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
++        Canvas canvas = new Canvas(bitmap);
++        float shortEdge = Math.min(width, height);
++        float margin = shortEdge * 0.06f;
++        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
++        paint.setTypeface(typeface);
++        paint.setTextSize(shortEdge * 0.055f);
++        paint.setColor(Color.WHITE);
++        Paint.FontMetrics metrics = paint.getFontMetrics();
++
++        Calendar calendar = Calendar.getInstance();
++        calendar.setTimeInMillis(timeMs);
++        int hour = calendar.get(Calendar.HOUR);
++        if (hour == 0) hour = 12;
++        String time = String.format(Locale.US, "%2d:%02d:%02d %s", hour,
++                calendar.get(Calendar.MINUTE), calendar.get(Calendar.SECOND),
++                calendar.get(Calendar.AM_PM) == Calendar.AM ? "AM" : "PM");
++        String date = String.format(Locale.US, "%s %2d %d", MONTHS[calendar.get(Calendar.MONTH)],
++                calendar.get(Calendar.DAY_OF_MONTH), calendar.get(Calendar.YEAR));
++
++        float lineH = (metrics.descent - metrics.ascent) * 1.08f;
++        float baseline = height - margin - metrics.descent;
++        canvas.drawText(time, margin, baseline, paint);
++        canvas.drawText(date, margin, baseline - lineH, paint);
++        return bitmap;
++    }
++}
+diff --git a/app/src/main/java/com/kompakt/camera/VideoStyleProcessor.java b/app/src/main/java/com/kompakt/camera/VideoStyleProcessor.java
+new file mode 100644
+index 0000000..a405f61
+--- /dev/null
++++ b/app/src/main/java/com/kompakt/camera/VideoStyleProcessor.java
+@@ -0,0 +1,638 @@
++/*
++ * SPDX-FileCopyrightText: KompaktOS
++ * SPDX-License-Identifier: Apache-2.0
++ */
++
++package com.kompakt.camera;
++
++import android.graphics.SurfaceTexture;
++import android.media.MediaCodec;
++import android.media.MediaCodecInfo;
++import android.media.MediaExtractor;
++import android.media.MediaFormat;
++import android.content.Context;
++import android.graphics.Bitmap;
++import android.graphics.Typeface;
++import android.media.MediaMuxer;
++import android.opengl.GLUtils;
++import android.opengl.EGL14;
++import android.opengl.EGLConfig;
++import android.opengl.EGLContext;
++import android.opengl.EGLDisplay;
++import android.opengl.EGLExt;
++import android.opengl.EGLSurface;
++import android.opengl.GLES11Ext;
++import android.opengl.GLES20;
++import android.os.Handler;
++import android.os.HandlerThread;
++import android.util.Log;
++import android.view.Surface;
++
++import java.nio.ByteBuffer;
++import java.nio.ByteOrder;
++import java.nio.FloatBuffer;
++
++/** Re-encodes a video through the Style shader: VHS (4:3, 480 lines), B&W or Film grain (full size). */
++final class VideoStyleProcessor {
++    private static final String TAG = "KompaktVideoStyle";
++
++    static final int MODE_VHS = 1;
++    static final int MODE_BW = 2;
++    static final int MODE_FILM = 3;
++
++    private static final int TARGET_SHORT_EDGE = 480;
++    private static final int BIT_RATE = 2500000;
++    private static final long FRAME_TIMEOUT_MS = 5000;
++    private static final long CODEC_TIMEOUT_US = 10000;
++    private static final long DRAIN_TIMEOUT_MS = 20000;
++
++    private static final String VERTEX_SHADER =
++            "attribute vec2 a_pos;\n" +
++            "attribute vec2 a_uv;\n" +
++            "varying vec2 v_uv;\n" +
++            "void main() {\n" +
++            "    gl_Position = vec4(a_pos, 0.0, 1.0);\n" +
++            "    v_uv = a_uv;\n" +
++            "}\n";
++
++    private static final String FRAGMENT_SHADER =
++            "#extension GL_OES_EGL_image_external : require\n" +
++            "precision highp float;\n" +
++            "uniform samplerExternalOES u_tex;\n" +
++            "uniform vec2 u_step;\n" +
++            "uniform vec2 u_vstep;\n" +
++            "uniform vec2 u_size;\n" +
++            "uniform vec2 u_dsize;\n" +
++            "uniform int u_rot;\n" +
++            "uniform sampler2D u_osd;\n" +
++            "uniform int u_osd_on;\n" +
++            "uniform float u_frame;\n" +
++            "uniform int u_mode;\n" +
++            "varying vec2 v_uv;\n" +
++            "float hash(vec2 p) {\n" +
++            "    return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);\n" +
++            "}\n" +
++            "float vnoise(vec2 p) {\n" +
++            "    vec2 i = floor(p);\n" +
++            "    vec2 f = fract(p);\n" +
++            "    f = f * f * (3.0 - 2.0 * f);\n" +
++            "    float a = hash(i);\n" +
++            "    float b = hash(i + vec2(1.0, 0.0));\n" +
++            "    float c = hash(i + vec2(0.0, 1.0));\n" +
++            "    float d = hash(i + vec2(1.0, 1.0));\n" +
++            "    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\n" +
++            "}\n" +
++            "float fbm(vec2 p) {\n" +
++            "    return vnoise(p) * 0.65 + vnoise(p * 2.17) * 0.35;\n" +
++            "}\n" +
++            "float grain(vec2 p, float t) {\n" +
++            "    float a = vnoise(p + vec2(t * 11.7, t * 5.3));\n" +
++            "    float b = vnoise(p * 0.34 + vec2(-t * 3.1, t * 7.9));\n" +
++            "    return (0.60 * a + 0.40 * b - 0.5) * 2.0;\n" +
++            "}\n" +
++            "float soft_light(float a, float b) {\n" +
++            "    return (1.0 - 2.0 * b) * a * a + 2.0 * b * a;\n" +
++            "}\n" +
++            "vec3 to_yiq(vec3 c) {\n" +
++            "    return vec3(dot(c, vec3(0.299, 0.587, 0.114)), dot(c, vec3(0.596, -0.274, -0.322)), dot(c, vec3(0.211, -0.523, 0.312)));\n" +
++            "}\n" +
++            "vec3 to_rgb(vec3 y) {\n" +
++            "    return vec3(y.x + 0.956*y.y + 0.621*y.z, y.x - 0.272*y.y - 0.647*y.z, y.x - 1.106*y.y + 1.703*y.z);\n" +
++            "}\n" +
++            "void main() {\n" +
++            "    vec2 uv = v_uv;\n" +
++            "    vec2 fc = gl_FragCoord.xy;\n" +
++            "    vec2 dc = fc;\n" +
++            "    if( u_rot == 90 ) dc = vec2(fc.y, u_size.x - fc.x);\n" +
++            "    else if( u_rot == 180 ) dc = vec2(u_size.x - fc.x, u_size.y - fc.y);\n" +
++            "    else if( u_rot == 270 ) dc = vec2(u_size.y - fc.y, fc.x);\n" +
++            "    if( u_mode == 1 ) {\n" +
++            "        float row = floor(dc.y);\n" +
++            "        float t = mod(u_frame, 1024.0);\n" +
++            "        float off = (fbm(vec2(row * 0.05, t * 0.13)) - 0.5) * 1.0;\n" +
++            "        uv += u_step * off;\n" +
++            "        float y0 = to_yiq(texture2D(u_tex, uv).rgb).x;\n" +
++            "        float ym1 = to_yiq(texture2D(u_tex, uv - u_step).rgb).x;\n" +
++            "        float ym2 = to_yiq(texture2D(u_tex, uv - 2.0 * u_step).rgb).x;\n" +
++            "        float ym3 = to_yiq(texture2D(u_tex, uv - 3.0 * u_step).rgb).x;\n" +
++            "        float yp1 = to_yiq(texture2D(u_tex, uv + u_step).rgb).x;\n" +
++            "        float y = mix(y0, ym1 * 0.5 + ym2 * 0.33 + ym3 * 0.17, 0.22);\n" +
++            "        y += (y0 - (ym1 + yp1) * 0.5) * 0.25;\n" +
++            "        y += ((ym1 - y0) * 0.30 - (ym2 - y0) * 0.18 + (ym3 - y0) * 0.10) * 0.55;\n" +
++            "        vec2 chroma = vec2(0.0);\n" +
++            "        float wsum = 0.0;\n" +
++            "        for(int k=0;k<8;k++) {\n" +
++            "            float w = 1.0 - float(k) / 9.0;\n" +
++            "            vec2 o = uv - (float(k) + 1.5) * u_step;\n" +
++            "            chroma += w * 0.5 * (to_yiq(texture2D(u_tex, o).rgb).yz + to_yiq(texture2D(u_tex, o + u_vstep).rgb).yz);\n" +
++            "            wsum += w;\n" +
++            "        }\n" +
++            "        chroma /= wsum;\n" +
++            "        float mid = 0.35 + 2.6 * y0 * (1.0 - y0);\n" +
++            "        chroma += (vec2(fbm(vec2(dc.x * 0.05, row * 0.4 + t * 0.9)), fbm(vec2(dc.x * 0.05 + 37.0, row * 0.4 - t * 0.7))) - 0.5) * 0.2 * mid;\n" +
++            "        y += ((fbm(vec2(dc.x * 0.5, row * 0.9 + t * 11.0)) - 0.5) * 0.10 + (vnoise(vec2(dc.x * 1.7, row * 1.3 + t * 23.0)) - 0.5) * 0.02) * mid;\n" +
++            "        y += length(chroma) * 0.035 * cos(dc.x * 1.848 + (row + t) * 3.14159265);\n" +
++            "        vec3 rgb = clamp(to_rgb(vec3(y, chroma)), 0.0, 1.0);\n" +
++            "        if( u_osd_on == 1 ) {\n" +
++            "            float a = texture2D(u_osd, vec2(dc.x / u_dsize.x, 1.0 - dc.y / u_dsize.y)).a;\n" +
++            "            rgb = mix(rgb, vec3(1.0), a);\n" +
++            "        }\n" +
++            "        gl_FragColor = vec4(rgb, 1.0);\n" +
++            "    }\n" +
++            "    else if( u_mode == 2 || u_mode == 3 ) {\n" +
++            "        vec3 c = clamp(texture2D(u_tex, uv).rgb, 0.0, 1.0);\n" +
++            "        float t = mod(u_frame, 1024.0);\n" +
++            "        float gs = max(1.0, u_dsize.y / 300.0);\n" +
++            "        float g = grain(dc / gs, t);\n" +
++            "        vec2 vv = dc / u_dsize - 0.5;\n" +
++            "        float vig = 1.0 - 0.30 * dot(vv, vv);\n" +
++            "        if( u_mode == 2 ) {\n" +
++            "            float y = dot(c, vec3(0.21, 0.72, 0.07));\n" +
++            "            vec3 blur = texture2D(u_tex, uv + u_step * 2.0).rgb + texture2D(u_tex, uv - u_step * 2.0).rgb;\n" +
++            "            float halo = max(dot(blur * 0.5, vec3(0.21, 0.72, 0.07)) - 0.75, 0.0);\n" +
++            "            float s = y * y * (3.0 - 2.0 * y);\n" +
++            "            y = mix(y, s, 0.70);\n" +
++            "            y = 0.006 + 0.985 * y;\n" +
++            "            y = clamp(y + halo * 0.18, 0.0, 1.0);\n" +
++            "            y = soft_light(y, 0.5 + g * 0.17);\n" +
++            "            gl_FragColor = vec4(vec3(clamp(y * vig, 0.0, 1.0)), 1.0);\n" +
++            "        }\n" +
++            "        else {\n" +
++            "            vec3 s = c * c * (3.0 - 2.0 * c);\n" +
++            "            c = mix(c, s, 0.30);\n" +
++            "            float j = vnoise(dc * 0.9 + vec2(t * 13.0, t * 6.0)) - 0.5;\n" +
++            "            vec3 b = vec3(0.5) + vec3(g + j * 0.35, g - j * 0.20, g + j * 0.28) * 0.12;\n" +
++            "            c = vec3(soft_light(c.r, b.r), soft_light(c.g, b.g), soft_light(c.b, b.b));\n" +
++            "            gl_FragColor = vec4(clamp(c * vig, 0.0, 1.0), 1.0);\n" +
++            "        }\n" +
++            "    }\n" +
++            "    else {\n" +
++            "        gl_FragColor = vec4(texture2D(u_tex, uv).rgb, 1.0);\n" +
++            "    }\n" +
++            "}\n";
++
++    private final Object frame_lock = new Object();
++    private boolean frame_available;
++
++    static boolean process(Context context, MediaExtractor extractor, MediaMuxer muxer, int filter, long seed) {
++        try {
++            return new VideoStyleProcessor().run(context, extractor, muxer, filter, seed);
++        }
++        catch(Exception e) {
++            Log.e(TAG, "video filter failed", e);
++            return false;
++        }
++    }
++
++    private boolean run(Context context, MediaExtractor extractor, MediaMuxer muxer, int filter, long seed) throws Exception {
++        int video_track = -1, audio_track = -1;
++        MediaFormat video_format = null, audio_format = null;
++        for(int i=0;i<extractor.getTrackCount();i++) {
++            MediaFormat format = extractor.getTrackFormat(i);
++            String mime = format.getString(MediaFormat.KEY_MIME);
++            if( mime == null )
++                continue;
++            if( video_track == -1 && mime.startsWith("video/") ) {
++                video_track = i;
++                video_format = format;
++            }
++            else if( audio_track == -1 && mime.startsWith("audio/") ) {
++                audio_track = i;
++                audio_format = format;
++            }
++        }
++        if( video_track == -1 )
++            return false;
++
++        int src_w = video_format.getInteger(MediaFormat.KEY_WIDTH);
++        int src_h = video_format.getInteger(MediaFormat.KEY_HEIGHT);
++        int rotation = video_format.containsKey(MediaFormat.KEY_ROTATION) ? video_format.getInteger(MediaFormat.KEY_ROTATION) : 0;
++        rotation = ((rotation % 360) + 360) % 360;
++        // Kompakt: VHS is a tape frame, 4:3 (3:4 held upright) at 480 lines, cut from the centre;
++        // B&W and Film keep the source frame. keep_x and keep_y are the source fractions kept.
++        float keep_x = 1.0f, keep_y = 1.0f;
++        int out_w = src_w, out_h = src_h;
++        if( filter == MODE_VHS ) {
++            boolean upright = rotation % 180 == 0;
++            float shown_w = upright ? src_w : src_h;
++            float shown_h = upright ? src_h : src_w;
++            boolean landscape = shown_w >= shown_h;
++            float target = landscape ? 4.0f / 3.0f : 3.0f / 4.0f;
++            float keep_sw = Math.min(1.0f, target * shown_h / shown_w);
++            float keep_sh = Math.min(1.0f, shown_w / (target * shown_h));
++            keep_x = upright ? keep_sw : keep_sh;
++            keep_y = upright ? keep_sh : keep_sw;
++            int long_edge = TARGET_SHORT_EDGE * 4 / 3;
++            int sw = landscape ? long_edge : TARGET_SHORT_EDGE;
++            int sh = landscape ? TARGET_SHORT_EDGE : long_edge;
++            out_w = upright ? sw : sh;
++            out_h = upright ? sh : sw;
++        }
++        int fps = video_format.containsKey(MediaFormat.KEY_FRAME_RATE) ? video_format.getInteger(MediaFormat.KEY_FRAME_RATE) : 30;
++        Log.d(TAG, "src " + src_w + "x" + src_h + " rot " + rotation + " -> out " + out_w + "x" + out_h + " fps " + fps);
++
++        extractor.selectTrack(video_track);
++
++        MediaFormat encoder_format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, out_w, out_h);
++        encoder_format.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
++        encoder_format.setInteger(MediaFormat.KEY_BIT_RATE, filter == MODE_VHS ? BIT_RATE : fullBitRate(out_w, out_h, fps));
++        encoder_format.setInteger(MediaFormat.KEY_FRAME_RATE, fps);
++        encoder_format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
++
++        MediaCodec encoder = null, decoder = null;
++        EGLDisplay egl_display = EGL14.EGL_NO_DISPLAY;
++        EGLContext egl_context = EGL14.EGL_NO_CONTEXT;
++        EGLSurface egl_surface = EGL14.EGL_NO_SURFACE;
++        Surface encoder_surface = null, decoder_surface = null;
++        SurfaceTexture surface_texture = null;
++        HandlerThread frame_thread = null;
++        boolean muxer_started = false;
++        boolean success = false;
++
++        try {
++            encoder = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC);
++            encoder.configure(encoder_format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
++            encoder_surface = encoder.createInputSurface();
++            encoder.start();
++
++            egl_display = EGL14.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY);
++            int [] egl_version = new int[2];
++            if( !EGL14.eglInitialize(egl_display, egl_version, 0, egl_version, 1) )
++                throw new RuntimeException("eglInitialize failed");
++            int [] config_attribs = {
++                    EGL14.EGL_RED_SIZE, 8, EGL14.EGL_GREEN_SIZE, 8, EGL14.EGL_BLUE_SIZE, 8,
++                    EGL14.EGL_RENDERABLE_TYPE, EGL14.EGL_OPENGL_ES2_BIT,
++                    EGLExt.EGL_RECORDABLE_ANDROID, 1,
++                    EGL14.EGL_NONE};
++            EGLConfig [] configs = new EGLConfig[1];
++            int [] n_configs = new int[1];
++            if( !EGL14.eglChooseConfig(egl_display, config_attribs, 0, configs, 0, 1, n_configs, 0) || n_configs[0] == 0 )
++                throw new RuntimeException("eglChooseConfig failed");
++            egl_context = EGL14.eglCreateContext(egl_display, configs[0], EGL14.EGL_NO_CONTEXT,
++                    new int[]{EGL14.EGL_CONTEXT_CLIENT_VERSION, 2, EGL14.EGL_NONE}, 0);
++            egl_surface = EGL14.eglCreateWindowSurface(egl_display, configs[0], encoder_surface, new int[]{EGL14.EGL_NONE}, 0);
++            if( !EGL14.eglMakeCurrent(egl_display, egl_surface, egl_surface, egl_context) )
++                throw new RuntimeException("eglMakeCurrent failed");
++            GLES20.glViewport(0, 0, out_w, out_h);
++
++            int program = buildProgram();
++            int a_pos = GLES20.glGetAttribLocation(program, "a_pos");
++            int a_uv = GLES20.glGetAttribLocation(program, "a_uv");
++            int u_tex = GLES20.glGetUniformLocation(program, "u_tex");
++            int u_step = GLES20.glGetUniformLocation(program, "u_step");
++            int u_vstep = GLES20.glGetUniformLocation(program, "u_vstep");
++            int u_size = GLES20.glGetUniformLocation(program, "u_size");
++            int u_dsize = GLES20.glGetUniformLocation(program, "u_dsize");
++            int u_rot = GLES20.glGetUniformLocation(program, "u_rot");
++            int u_frame = GLES20.glGetUniformLocation(program, "u_frame");
++            int u_mode = GLES20.glGetUniformLocation(program, "u_mode");
++
++            int u_osd = GLES20.glGetUniformLocation(program, "u_osd");
++            int u_osd_on = GLES20.glGetUniformLocation(program, "u_osd_on");
++
++            int disp_w = rotation % 180 == 0 ? out_w : out_h;
++            int disp_h = rotation % 180 == 0 ? out_h : out_w;
++            boolean osd_on = filter == MODE_VHS;
++            Typeface osd_font = osd_on ? VhsOsd.font(context) : null;
++            long osd_base_ms = seed - (video_format.containsKey(MediaFormat.KEY_DURATION)
++                    ? video_format.getLong(MediaFormat.KEY_DURATION)/1000 : 0);
++            long osd_second = Long.MIN_VALUE;
++            int [] osd_tex = new int[1];
++            if( osd_on ) {
++                GLES20.glGenTextures(1, osd_tex, 0);
++                GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, osd_tex[0]);
++                GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR);
++                GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
++                GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
++                GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
++            }
++
++            int [] tex = new int[1];
++            GLES20.glGenTextures(1, tex, 0);
++            GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, tex[0]);
++            GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR);
++            GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
++            GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
++            GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
++
++            surface_texture = new SurfaceTexture(tex[0]);
++            surface_texture.setDefaultBufferSize(src_w, src_h);
++            frame_thread = new HandlerThread("VHSVideoFrames");
++            frame_thread.start();
++            surface_texture.setOnFrameAvailableListener(new SurfaceTexture.OnFrameAvailableListener() {
++                @Override
++                public void onFrameAvailable(SurfaceTexture st) {
++                    synchronized(frame_lock) {
++                        frame_available = true;
++                        frame_lock.notifyAll();
++                    }
++                }
++            }, new Handler(frame_thread.getLooper()));
++            decoder_surface = new Surface(surface_texture);
++
++            decoder = MediaCodec.createDecoderByType(video_format.getString(MediaFormat.KEY_MIME));
++            if( video_format.containsKey(MediaFormat.KEY_ROTATION) )
++                video_format.setInteger(MediaFormat.KEY_ROTATION, 0);
++            decoder.configure(video_format, decoder_surface, null, 0);
++            decoder.start();
++
++            float [] positions = {-1, -1, 1, -1, -1, 1, 1, 1};
++            FloatBuffer position_buffer = ByteBuffer.allocateDirect(positions.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
++            position_buffer.put(positions).position(0);
++            float crop_x0 = (1.0f - keep_x) / 2.0f, crop_x1 = (1.0f + keep_x) / 2.0f;
++            float crop_y0 = (1.0f - keep_y) / 2.0f, crop_y1 = (1.0f + keep_y) / 2.0f;
++            float [][] base_uv = {{crop_x0, crop_y0}, {crop_x1, crop_y0}, {crop_x0, crop_y1}, {crop_x1, crop_y1}};
++            float [] st_matrix = new float[16];
++            float [] uvs = new float[8];
++            FloatBuffer uv_buffer = ByteBuffer.allocateDirect(uvs.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
++
++            MediaCodec.BufferInfo decoder_info = new MediaCodec.BufferInfo();
++            MediaCodec.BufferInfo encoder_info = new MediaCodec.BufferInfo();
++            boolean input_done = false, decoder_done = false;
++            MuxerState muxer_state = new MuxerState();
++            muxer_state.muxer = muxer;
++            muxer_state.audio_format = audio_format;
++            muxer.setOrientationHint(rotation);
++
++            boolean encoder_done = false;
++            int frame_index = 0;
++            while( !encoder_done ) {
++                if( !input_done ) {
++                    int in_index = decoder.dequeueInputBuffer(CODEC_TIMEOUT_US);
++                    if( in_index >= 0 ) {
++                        ByteBuffer in_buffer = decoder.getInputBuffer(in_index);
++                        int size = extractor.readSampleData(in_buffer, 0);
++                        if( size < 0 ) {
++                            decoder.queueInputBuffer(in_index, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM);
++                            input_done = true;
++                        }
++                        else {
++                            decoder.queueInputBuffer(in_index, 0, size, extractor.getSampleTime(), 0);
++                            extractor.advance();
++                        }
++                    }
++                }
++
++                if( !decoder_done ) {
++                    int out_index = decoder.dequeueOutputBuffer(decoder_info, CODEC_TIMEOUT_US);
++                    if( out_index >= 0 ) {
++                        boolean eos = (decoder_info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0;
++                        boolean render = decoder_info.size > 0;
++                        decoder.releaseOutputBuffer(out_index, render);
++                        if( render && awaitFrame() ) {
++                            surface_texture.updateTexImage();
++                            surface_texture.getTransformMatrix(st_matrix);
++                            for(int corner=0;corner<4;corner++) {
++                                float u = base_uv[corner][0];
++                                float v = base_uv[corner][1];
++                                uvs[corner*2] = st_matrix[0]*u + st_matrix[4]*v + st_matrix[12];
++                                uvs[corner*2+1] = st_matrix[1]*u + st_matrix[5]*v + st_matrix[13];
++                            }
++                            uv_buffer.put(uvs).position(0);
++                            float cx_u = (uvs[2] - uvs[0]) / out_w;
++                            float cx_v = (uvs[3] - uvs[1]) / out_w;
++                            float cy_u = (uvs[4] - uvs[0]) / out_h;
++                            float cy_v = (uvs[5] - uvs[1]) / out_h;
++                            float step_x, step_y, vstep_x, vstep_y;
++                            switch( rotation ) {
++                                case 90:
++                                    step_x = cy_u;   step_y = cy_v;
++                                    vstep_x = -cx_u; vstep_y = -cx_v;
++                                    break;
++                                case 180:
++                                    step_x = -cx_u;  step_y = -cx_v;
++                                    vstep_x = -cy_u; vstep_y = -cy_v;
++                                    break;
++                                case 270:
++                                    step_x = -cy_u;  step_y = -cy_v;
++                                    vstep_x = cx_u;  vstep_y = cx_v;
++                                    break;
++                                default:
++                                    step_x = cx_u;   step_y = cx_v;
++                                    vstep_x = cy_u;  vstep_y = cy_v;
++                                    break;
++                            }
++
++                            GLES20.glUseProgram(program);
++                            if( osd_on ) {
++                                long second = (osd_base_ms + decoder_info.presentationTimeUs/1000)/1000;
++                                GLES20.glActiveTexture(GLES20.GL_TEXTURE1);
++                                GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, osd_tex[0]);
++                                if( second != osd_second ) {
++                                    osd_second = second;
++                                    Bitmap overlay = VhsOsd.render(osd_font, disp_w, disp_h, second*1000);
++                                    GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, overlay, 0);
++                                    overlay.recycle();
++                                }
++                            }
++                            GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
++                            GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, tex[0]);
++                            GLES20.glUniform1i(u_tex, 0);
++                            GLES20.glUniform1i(u_osd, 1);
++                            GLES20.glUniform1i(u_osd_on, osd_on ? 1 : 0);
++                            GLES20.glUniform2f(u_step, step_x, step_y);
++                            GLES20.glUniform2f(u_vstep, vstep_x, vstep_y);
++                            GLES20.glUniform2f(u_size, out_w, out_h);
++                            GLES20.glUniform2f(u_dsize, rotation % 180 == 0 ? out_w : out_h, rotation % 180 == 0 ? out_h : out_w);
++                            GLES20.glUniform1i(u_rot, rotation);
++                            GLES20.glUniform1f(u_frame, (frame_index + (int)(seed % 1000)) % 100000);
++                            GLES20.glUniform1i(u_mode, filter == MODE_BW ? 2 : filter == MODE_FILM ? 3 : 1);
++                            GLES20.glEnableVertexAttribArray(a_pos);
++                            GLES20.glVertexAttribPointer(a_pos, 2, GLES20.GL_FLOAT, false, 0, position_buffer);
++                            GLES20.glEnableVertexAttribArray(a_uv);
++                            GLES20.glVertexAttribPointer(a_uv, 2, GLES20.GL_FLOAT, false, 0, uv_buffer);
++                            GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4);
++                            GLES20.glDisableVertexAttribArray(a_pos);
++                            GLES20.glDisableVertexAttribArray(a_uv);
++                            EGLExt.eglPresentationTimeANDROID(egl_display, egl_surface, decoder_info.presentationTimeUs * 1000);
++                            EGL14.eglSwapBuffers(egl_display, egl_surface);
++                            frame_index++;
++                        }
++                        if( eos ) {
++                            decoder_done = true;
++                            encoder.signalEndOfInputStream();
++                        }
++                    }
++                }
++
++                encoder_done = drainEncoder(encoder, encoder_info, muxer_state, decoder_done);
++            }
++            muxer_started = muxer_state.started;
++
++            if( audio_track != -1 && muxer_state.audio_track_index != -1 ) {
++                extractor.unselectTrack(video_track);
++                extractor.selectTrack(audio_track);
++                extractor.seekTo(0, MediaExtractor.SEEK_TO_CLOSEST_SYNC);
++                int max_size = audio_format.containsKey(MediaFormat.KEY_MAX_INPUT_SIZE) ? audio_format.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE) : 262144;
++                ByteBuffer audio_buffer = ByteBuffer.allocateDirect(Math.max(max_size, 4096));
++                MediaCodec.BufferInfo audio_info = new MediaCodec.BufferInfo();
++                while( true ) {
++                    int size = extractor.readSampleData(audio_buffer, 0);
++                    if( size < 0 )
++                        break;
++                    audio_info.offset = 0;
++                    audio_info.size = size;
++                    audio_info.presentationTimeUs = extractor.getSampleTime();
++                    audio_info.flags = (extractor.getSampleFlags() & MediaExtractor.SAMPLE_FLAG_SYNC) != 0 ? MediaCodec.BUFFER_FLAG_KEY_FRAME : 0;
++                    muxer.writeSampleData(muxer_state.audio_track_index, audio_buffer, audio_info);
++                    extractor.advance();
++                }
++            }
++
++            if( !muxer_state.started || muxer_state.frames_written == 0 || !input_done || !decoder_done )
++                throw new RuntimeException("incomplete transcode: frames=" + muxer_state.frames_written + " input_done=" + input_done + " decoder_done=" + decoder_done);
++            success = true;
++        }
++        finally {
++            if( egl_display != EGL14.EGL_NO_DISPLAY ) {
++                EGL14.eglMakeCurrent(egl_display, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_CONTEXT);
++                if( egl_surface != EGL14.EGL_NO_SURFACE )
++                    EGL14.eglDestroySurface(egl_display, egl_surface);
++                if( egl_context != EGL14.EGL_NO_CONTEXT )
++                    EGL14.eglDestroyContext(egl_display, egl_context);
++                EGL14.eglReleaseThread();
++                EGL14.eglTerminate(egl_display);
++            }
++            try {
++                if( decoder != null ) {
++                    decoder.stop();
++                    decoder.release();
++                }
++            }
++            catch(Exception e) {
++                Log.e(TAG, "decoder cleanup", e);
++            }
++            try {
++                if( encoder != null ) {
++                    encoder.stop();
++                    encoder.release();
++                }
++            }
++            catch(Exception e) {
++                Log.e(TAG, "encoder cleanup", e);
++            }
++            if( decoder_surface != null )
++                decoder_surface.release();
++            if( surface_texture != null )
++                surface_texture.release();
++            if( encoder_surface != null )
++                encoder_surface.release();
++            if( frame_thread != null )
++                frame_thread.quitSafely();
++            try {
++                if( muxer_started )
++                    muxer.stop();
++            }
++            catch(Exception e) {
++                Log.e(TAG, "muxer stop", e);
++                success = false;
++            }
++        }
++        return success;
++    }
++
++    /** About 0.12 bits a pixel a frame, as camera recordings run: 1080p30 is 7.5 Mbit/s. */
++    private static int fullBitRate(int w, int h, int fps) {
++        long rate = (long) (w * (long) h * Math.max(fps, 1) * 0.12);
++        return (int) Math.max(BIT_RATE, Math.min(rate, 20000000L));
++    }
++
++    private static class MuxerState {
++        MediaMuxer muxer;
++        MediaFormat audio_format;
++        boolean started;
++        int video_track_index = -1;
++        int audio_track_index = -1;
++        int frames_written;
++    }
++
++    private static boolean drainEncoder(MediaCodec encoder, MediaCodec.BufferInfo info, MuxerState state, boolean until_eos) {
++        long deadline = System.currentTimeMillis() + DRAIN_TIMEOUT_MS;
++        while( true ) {
++            if( until_eos && System.currentTimeMillis() > deadline )
++                throw new RuntimeException("timed out waiting for encoder end of stream");
++            int index = encoder.dequeueOutputBuffer(info, until_eos ? CODEC_TIMEOUT_US : 0);
++            if( index == MediaCodec.INFO_TRY_AGAIN_LATER ) {
++                if( !until_eos )
++                    return false;
++            }
++            else if( index == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED ) {
++                state.video_track_index = state.muxer.addTrack(encoder.getOutputFormat());
++                if( state.audio_format != null ) {
++                    try {
++                        state.audio_track_index = state.muxer.addTrack(state.audio_format);
++                    }
++                    catch(Exception e) {
++                        Log.e(TAG, "audio track not muxable, dropping audio", e);
++                        state.audio_track_index = -1;
++                    }
++                }
++                state.muxer.start();
++                state.started = true;
++            }
++            else if( index >= 0 ) {
++                if( (info.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0 )
++                    info.size = 0;
++                if( info.size > 0 && state.started ) {
++                    ByteBuffer buffer = encoder.getOutputBuffer(index);
++                    buffer.position(info.offset);
++                    buffer.limit(info.offset + info.size);
++                    state.muxer.writeSampleData(state.video_track_index, buffer, info);
++                    state.frames_written++;
++                }
++                boolean eos = (info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0;
++                encoder.releaseOutputBuffer(index, false);
++                if( eos )
++                    return true;
++            }
++        }
++    }
++
++
++
++    private boolean awaitFrame() {
++        synchronized(frame_lock) {
++            long deadline = System.currentTimeMillis() + FRAME_TIMEOUT_MS;
++            while( !frame_available ) {
++                long wait = deadline - System.currentTimeMillis();
++                if( wait <= 0 ) {
++                    Log.e(TAG, "timed out waiting for frame");
++                    return false;
++                }
++                try {
++                    frame_lock.wait(wait);
++                }
++                catch(InterruptedException e) {
++                    Log.e(TAG, "interrupted", e);
++                }
++            }
++            frame_available = false;
++        }
++        return true;
++    }
++
++    private static int buildProgram() {
++        int vertex = compileShader(GLES20.GL_VERTEX_SHADER, VERTEX_SHADER);
++        int fragment = compileShader(GLES20.GL_FRAGMENT_SHADER, FRAGMENT_SHADER);
++        int program = GLES20.glCreateProgram();
++        GLES20.glAttachShader(program, vertex);
++        GLES20.glAttachShader(program, fragment);
++        GLES20.glLinkProgram(program);
++        int [] status = new int[1];
++        GLES20.glGetProgramiv(program, GLES20.GL_LINK_STATUS, status, 0);
++        if( status[0] == 0 )
++            throw new RuntimeException("program link failed: " + GLES20.glGetProgramInfoLog(program));
++        return program;
++    }
++
++    private static int compileShader(int type, String source) {
++        int shader = GLES20.glCreateShader(type);
++        GLES20.glShaderSource(shader, source);
++        GLES20.glCompileShader(shader);
++        int [] status = new int[1];
++        GLES20.glGetShaderiv(shader, GLES20.GL_COMPILE_STATUS, status, 0);
++        if( status[0] == 0 )
++            throw new RuntimeException("shader compile failed: " + GLES20.glGetShaderInfoLog(shader));
++        return shader;
++    }
++}
+diff --git a/app/src/main/java/org/lineageos/aperture/CameraActivity.kt b/app/src/main/java/org/lineageos/aperture/CameraActivity.kt
+index 6450209..3b131e0 100644
+--- a/app/src/main/java/org/lineageos/aperture/CameraActivity.kt
++++ b/app/src/main/java/org/lineageos/aperture/CameraActivity.kt
+@@ -75,6 +75,7 @@ import coil3.request.fallback
+ import coil3.size.Scale
+ import coil3.video.VideoFrameDecoder
+ import com.google.android.material.snackbar.Snackbar
++import com.kompakt.camera.Styles
+ import kotlinx.coroutines.CoroutineScope
+ import kotlinx.coroutines.Dispatchers
+ import kotlinx.coroutines.flow.collect
+@@ -178,6 +179,7 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
+     private val secondaryTopBarLayout by lazy { findViewById<HorizontalScrollView>(R.id.secondaryTopBarLayout) }
+     private val settingsButton by lazy { findViewById<Button>(R.id.settingsButton) }
+     private val shutterButton by lazy { findViewById<ImageButton>(R.id.shutterButton) }
++    private val styleButton by lazy { findViewById<Button>(R.id.styleButton) }
+     private val timerButton by lazy { findViewById<Button>(R.id.timerButton) }
+     private val videoFrameRateButton by lazy { findViewById<Button>(R.id.videoFrameRateButton) }
+     private val videoQualityButton by lazy { findViewById<Button>(R.id.videoQualityButton) }
+@@ -433,6 +435,12 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
+ 
+         // Set secondary top bar button callbacks
+         aspectRatioButton.setOnClickListener { viewModel.cyclePhotoAspectRatio() }
++        styleButton.setOnClickListener {
++            val video = viewModel.cameraMode.value == CameraMode.VIDEO
++            Styles.cycle(this, video)
++            updateStyleButton(viewModel.cameraMode.value)
++            viewModel.applyVideoStyle()
++        }
+         videoQualityButton.setOnClickListener { viewModel.cycleVideoQuality() }
+         videoFrameRateButton.setOnClickListener { viewModel.cycleVideoFrameRate() }
+         videoDynamicRangeButton.setOnClickListener { viewModel.cycleVideoDynamicRange() }
+@@ -725,6 +733,8 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
+                 videoFrameRateButton.isVisible = cameraMode == CameraMode.VIDEO
+                 videoDynamicRangeButton.isVisible = cameraMode == CameraMode.VIDEO
+                 micButton.isVisible = cameraMode == CameraMode.VIDEO
++                styleButton.isVisible = cameraMode != CameraMode.QR
++                updateStyleButton(cameraMode)
+ 
+                 // Update secondary bottom bar buttons
+                 proButton.isVisible = cameraMode != CameraMode.QR
+@@ -879,6 +889,7 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
+             viewModel.cameraState.collectLatest { cameraState ->
+                 // Update secondary bar buttons
+                 timerButton.isEnabled = cameraState == CameraState.IDLE
++                styleButton.isEnabled = cameraState == CameraState.IDLE
+                 aspectRatioButton.isEnabled = cameraState == CameraState.IDLE
+                 effectButton.isEnabled = cameraState == CameraState.IDLE
+                 settingsButton.isEnabled = cameraState == CameraState.IDLE
+@@ -1428,6 +1439,14 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
+         }
+     }
+ 
++    // Kompakt: the Style option shows the photo or video style that the next capture gets.
++    private fun updateStyleButton(cameraMode: CameraMode) {
++        val video = cameraMode == CameraMode.VIDEO
++        val style = Styles.get(this, video)
++        styleButton.setCompoundDrawablesWithIntrinsicBounds(0, Styles.icon(style, video), 0, 0)
++        styleButton.setText(Styles.label(style))
++    }
++
+     private fun startShutterAnimation(shutterAnimation: ShutterAnimation) {
+         // Get appropriate drawable
+         val drawable = ContextCompat.getDrawable(
+diff --git a/app/src/main/java/org/lineageos/aperture/models/IslandItem.kt b/app/src/main/java/org/lineageos/aperture/models/IslandItem.kt
+index ad3c02f..e021dd7 100644
+--- a/app/src/main/java/org/lineageos/aperture/models/IslandItem.kt
++++ b/app/src/main/java/org/lineageos/aperture/models/IslandItem.kt
+@@ -46,6 +46,17 @@ sealed interface IslandItem : UniqueItem<IslandItem> {
+      */
+     data object VideoMicMuted : IslandItem
+ 
++    /**
++     * Kompakt: a Style other than Normal is applied to what is captured.
++     *
++     * @param style The [com.kompakt.camera.Styles] style
++     * @param isVideo Whether it is the video style
++     */
++    data class Style(
++        val style: Int,
++        val isVideo: Boolean,
++    ) : IslandItem
++
+     override fun areItemsTheSame(other: IslandItem) = this::class.isInstance(other)
+     override fun areContentsTheSame(other: IslandItem) = this == other
+ }
+diff --git a/app/src/main/java/org/lineageos/aperture/ui/views/IslandView.kt b/app/src/main/java/org/lineageos/aperture/ui/views/IslandView.kt
+index 3930c84..68b7dcc 100644
+--- a/app/src/main/java/org/lineageos/aperture/ui/views/IslandView.kt
++++ b/app/src/main/java/org/lineageos/aperture/ui/views/IslandView.kt
+@@ -17,6 +17,7 @@ import androidx.constraintlayout.widget.ConstraintLayout
+ import androidx.core.view.isVisible
+ import androidx.core.view.updateLayoutParams
+ import androidx.recyclerview.widget.RecyclerView
++import com.kompakt.camera.Styles
+ import org.lineageos.aperture.R
+ import org.lineageos.aperture.ext.getThemeColor
+ import org.lineageos.aperture.models.IslandItem
+@@ -77,6 +78,8 @@ class IslandView @JvmOverloads constructor(
+                         }
+ 
+                         is IslandItem.VideoMicMuted -> R.drawable.ic_mic_off
++
++                        is IslandItem.Style -> Styles.icon(item.style, item.isVideo)
+                     }
+                 )
+ 
+diff --git a/app/src/main/java/org/lineageos/aperture/viewmodels/CameraViewModel.kt b/app/src/main/java/org/lineageos/aperture/viewmodels/CameraViewModel.kt
+index 9a59c3c..4273cb1 100644
+--- a/app/src/main/java/org/lineageos/aperture/viewmodels/CameraViewModel.kt
++++ b/app/src/main/java/org/lineageos/aperture/viewmodels/CameraViewModel.kt
+@@ -33,6 +33,7 @@ import androidx.core.location.LocationRequestCompat
+ import androidx.lifecycle.ViewModel
+ import androidx.lifecycle.asFlow
+ import androidx.lifecycle.viewModelScope
++import com.kompakt.camera.Styles
+ import kotlinx.coroutines.Dispatchers
+ import kotlinx.coroutines.ExperimentalCoroutinesApi
+ import kotlinx.coroutines.channels.awaitClose
+@@ -182,6 +183,13 @@ class CameraViewModel(application: Application) : ApertureViewModel(application)
+     val inSingleCaptureMode = MutableStateFlow(false)
+ 
+     private val _cameraConfiguration = MutableStateFlow<CameraConfiguration?>(null)
++
++    /**
++     * Kompakt: the photo and video Styles, shown in the island; VHS holds the quality at SD.
++     */
++    val photoStyle = MutableStateFlow(Styles.get(applicationContext, false))
++    val videoStyle = MutableStateFlow(Styles.get(applicationContext, true))
++
+     val cameraConfiguration = _cameraConfiguration
+         .filterNotNull()
+         .shareIn(
+@@ -697,8 +705,10 @@ class CameraViewModel(application: Application) : ApertureViewModel(application)
+     val isVideoQualityButtonEnabled = combine(
+         camera,
+         cameraState,
+-    ) { camera, cameraState ->
++        videoStyle,
++    ) { camera, cameraState, videoStyle ->
+         cameraState == CameraState.IDLE && camera.supportedVideoQualities.size > 1
++                && videoStyle != Styles.VHS
+     }
+         .flowOn(Dispatchers.IO)
+         .stateIn(
+@@ -850,7 +860,8 @@ class CameraViewModel(application: Application) : ApertureViewModel(application)
+         videoMicMode,
+         batteryIntent,
+         thermalStatus,
+-    ) { cameraConfiguration, videoMicMode, batteryIntent, thermalStatus ->
++        combine(photoStyle, videoStyle) { photo, video -> photo to video },
++    ) { cameraConfiguration, videoMicMode, batteryIntent, thermalStatus, styles ->
+         buildList {
+             when (thermalStatus) {
+                 ThermalStatus.NONE,
+@@ -902,12 +913,20 @@ class CameraViewModel(application: Application) : ApertureViewModel(application)
+                                 IslandItem.PhotoRawEnabled(true)
+                             )
+                         }
++
++                        if (styles.first != Styles.NORMAL) {
++                            add(IslandItem.Style(styles.first, false))
++                        }
+                     }
+ 
+                     is CameraConfiguration.Video -> {
+                         if (!videoMicMode) {
+                             add(IslandItem.VideoMicMuted)
+                         }
++
++                        if (styles.second != Styles.NORMAL) {
++                            add(IslandItem.Style(styles.second, true))
++                        }
+                     }
+ 
+                     is CameraConfiguration.Qr -> {}
+@@ -1089,29 +1108,40 @@ class CameraViewModel(application: Application) : ApertureViewModel(application)
+                     "Photo capture succeeded: ${output.savedUri} format = ${output.imageFormat}"
+                 )
+ 
+-                if (!inSingleCaptureMode.value) {
+-                    output.savedUri?.let {
+-                        mediaRepository.broadcastNewPicture(it)
+-                    }
+-                }
+-
+                 if (imageCount.decrementAndGet() == 0) {
+                     cameraState.value = CameraState.IDLE
+                 }
+ 
+-                // We only care about JPEG-like formats
+-                if (imageOutputFormat == ImageCapture.OUTPUT_FORMAT_RAW_JPEG
+-                    && output.imageFormat in RAW_FORMATS
+-                ) {
+-                    return
++                val announce = {
++                    if (!inSingleCaptureMode.value) {
++                        output.savedUri?.let {
++                            mediaRepository.broadcastNewPicture(it)
++                        }
++                    }
++
++                    // We only care about JPEG-like formats
++                    if (!(imageOutputFormat == ImageCapture.OUTPUT_FORMAT_RAW_JPEG
++                                && output.imageFormat in RAW_FORMATS)
++                    ) {
++                        emitEvent(
++                            Event.PhotoCaptureStatus.ImageSaved(
++                                output,
++                                photoOutputStream,
++                            )
++                        )
++                    }
+                 }
+ 
+-                emitEvent(
+-                    Event.PhotoCaptureStatus.ImageSaved(
+-                        output,
+-                        photoOutputStream,
+-                    )
+-                )
++                // Kompakt: a Style is applied to the saved JPEG before the gallery hears of it.
++                val style = Styles.get(applicationContext, false)
++                val savedUri = output.savedUri
++                if (style != Styles.NORMAL && savedUri != null && !inSingleCaptureMode.value
++                    && output.imageFormat == ImageFormat.JPEG
++                ) {
++                    Styles.applyToPhoto(applicationContext, savedUri, style) { announce() }
++                } else {
++                    announce()
++                }
+             }
+ 
+             override fun onError(exc: ImageCaptureException) {
+@@ -1218,8 +1248,17 @@ class CameraViewModel(application: Application) : ApertureViewModel(application)
+                                 "Video capture succeeded: ${it.outputResults.outputUri}",
+                             )
+ 
+-                            if (!inSingleCaptureMode.value) {
+-                                mediaRepository.broadcastNewVideo(it.outputResults.outputUri)
++                            // Kompakt: a Style re-encodes the saved video, then the gallery hears of it.
++                            val videoUri = it.outputResults.outputUri
++                            val style = Styles.get(applicationContext, true)
++                            if (style != Styles.NORMAL && !inSingleCaptureMode.value
++                                && videoUri != Uri.EMPTY
++                            ) {
++                                Styles.applyToVideo(applicationContext, videoUri, style) {
++                                    mediaRepository.broadcastNewVideo(videoUri)
++                                }
++                            } else if (!inSingleCaptureMode.value) {
++                                mediaRepository.broadcastNewVideo(videoUri)
+                             }
+                         }
+                         cameraState.value = CameraState.IDLE
+@@ -1456,6 +1495,35 @@ class CameraViewModel(application: Application) : ApertureViewModel(application)
+             )
+         }
+ 
++    /**
++     * Kompakt: after a Style changes, update the island, and record at SD for VHS or the chosen
++     * quality otherwise.
++     */
++    fun applyVideoStyle() {
++        photoStyle.value = Styles.get(applicationContext, false)
++        videoStyle.value = Styles.get(applicationContext, true)
++        updateConfiguration<CameraConfiguration.Video> { cameraConfiguration ->
++            val supported = cameraConfiguration.camera.supportedVideoQualities
++            val videoQuality = Quality.SD.takeIf {
++                videoStyle.value == Styles.VHS && supported.contains(it)
++            } ?: preferencesRepository.videoQuality.value.takeIf {
++                supported.contains(it)
++            } ?: cameraConfiguration.videoQuality
++            val videoQualityInfo = supported[videoQuality] ?: return@updateConfiguration cameraConfiguration
++
++            cameraConfiguration.copy(
++                videoQuality = videoQuality,
++                videoFrameRate = cameraConfiguration.videoFrameRate.takeIf {
++                    videoQualityInfo.supportedFrameRates.contains(it)
++                } ?: videoQualityInfo.supportedFrameRates.firstOrNull(),
++                videoDynamicRange = cameraConfiguration.videoDynamicRange.takeIf {
++                    videoQualityInfo.supportedDynamicRanges.contains(it)
++                } ?: videoQualityInfo.supportedDynamicRanges.firstOrNull()
++                ?: cameraConfiguration.videoDynamicRange,
++            )
++        }
++    }
++
+     /**
+      * Cycle the video frame rate.
+      */
+@@ -1696,7 +1764,10 @@ class CameraViewModel(application: Application) : ApertureViewModel(application)
+         }
+ 
+         CameraMode.VIDEO -> {
+-            val videoQuality = preferencesRepository.videoQuality.value.takeIf {
++            // Kompakt: VHS records at SD, a tape's size; the chosen quality stays saved for the rest.
++            val videoQuality = Quality.SD.takeIf {
++                videoStyle.value == Styles.VHS && camera.supportedVideoQualities.contains(it)
++            } ?: preferencesRepository.videoQuality.value.takeIf {
+                 camera.supportedVideoQualities.contains(it)
+             } ?: camera.supportedVideoQualities.keys.firstOrNull() ?: error(
+                 "Camera ${camera.cameraId} does not support any video quality"
+diff --git a/app/src/main/res/drawable/ic_style_bw_photo.xml b/app/src/main/res/drawable/ic_style_bw_photo.xml
+new file mode 100644
+index 0000000..3fbd8fc
+--- /dev/null
++++ b/app/src/main/res/drawable/ic_style_bw_photo.xml
+@@ -0,0 +1,15 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!--
++     SPDX-FileCopyrightText: Material Design Authors / Google LLC
++     SPDX-License-Identifier: Apache-2.0
++-->
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:tint="#000000"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++    <path
++        android:fillColor="@android:color/white"
++        android:pathData="M14,5c0,-1.1 -0.9,-2 -2,-2h-1L11,2c0,-0.55 -0.45,-1 -1,-1L6,1c-0.55,0 -1,0.45 -1,1v1L4,3c-1.1,0 -2,0.9 -2,2v15c0,1.1 0.9,2 2,2h8c1.1,0 2,-0.9 2,-2h8L22,5h-8zM12,18h-2v-2h2v2zM12,9h-2L10,7h2v2zM16,18h-2v-2h2v2zM16,9h-2L14,7h2v2zM20,18h-2v-2h2v2zM20,9h-2L18,7h2v2z" />
++</vector>
+diff --git a/app/src/main/res/drawable/ic_style_bw_video.xml b/app/src/main/res/drawable/ic_style_bw_video.xml
+new file mode 100644
+index 0000000..b254a06
+--- /dev/null
++++ b/app/src/main/res/drawable/ic_style_bw_video.xml
+@@ -0,0 +1,15 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!--
++     SPDX-FileCopyrightText: Material Design Authors / Google LLC
++     SPDX-License-Identifier: Apache-2.0
++-->
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:tint="#000000"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++    <path
++        android:fillColor="@android:color/white"
++        android:pathData="M18,3v2h-2L16,3L8,3v2L6,5L6,3L4,3v18h2v-2h2v2h8v-2h2v2h2L20,3h-2zM8,17L6,17v-2h2v2zM8,13L6,13v-2h2v2zM8,9L6,9L6,7h2v2zM18,17h-2v-2h2v2zM18,13h-2v-2h2v2zM18,9h-2L16,7h2v2z" />
++</vector>
+diff --git a/app/src/main/res/drawable/ic_style_film.xml b/app/src/main/res/drawable/ic_style_film.xml
+new file mode 100644
+index 0000000..3fbd8fc
+--- /dev/null
++++ b/app/src/main/res/drawable/ic_style_film.xml
+@@ -0,0 +1,15 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!--
++     SPDX-FileCopyrightText: Material Design Authors / Google LLC
++     SPDX-License-Identifier: Apache-2.0
++-->
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:tint="#000000"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++    <path
++        android:fillColor="@android:color/white"
++        android:pathData="M14,5c0,-1.1 -0.9,-2 -2,-2h-1L11,2c0,-0.55 -0.45,-1 -1,-1L6,1c-0.55,0 -1,0.45 -1,1v1L4,3c-1.1,0 -2,0.9 -2,2v15c0,1.1 0.9,2 2,2h8c1.1,0 2,-0.9 2,-2h8L22,5h-8zM12,18h-2v-2h2v2zM12,9h-2L10,7h2v2zM16,18h-2v-2h2v2zM16,9h-2L14,7h2v2zM20,18h-2v-2h2v2zM20,9h-2L18,7h2v2z" />
++</vector>
+diff --git a/app/src/main/res/drawable/ic_style_normal.xml b/app/src/main/res/drawable/ic_style_normal.xml
+new file mode 100644
+index 0000000..b3f4523
+--- /dev/null
++++ b/app/src/main/res/drawable/ic_style_normal.xml
+@@ -0,0 +1,15 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!--
++     SPDX-FileCopyrightText: Material Design Authors / Google LLC
++     SPDX-License-Identifier: Apache-2.0
++-->
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:tint="#000000"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++    <path
++        android:fillColor="@android:color/white"
++        android:pathData="M19,9l1.25,-2.75L23,5l-2.75,-1.25L19,1l-1.25,2.75L15,5l2.75,1.25L19,9zM11.5,9.5L9,4L6.5,9.5L1,12l5.5,2.5L9,20l2.5,-5.5L17,12L11.5,9.5zM19,15l-1.25,2.75L15,19l2.75,1.25L19,23l1.25,-2.75L23,19l-2.75,-1.25L19,15z" />
++</vector>
+diff --git a/app/src/main/res/drawable/ic_style_vhs.xml b/app/src/main/res/drawable/ic_style_vhs.xml
+new file mode 100644
+index 0000000..b254a06
+--- /dev/null
++++ b/app/src/main/res/drawable/ic_style_vhs.xml
+@@ -0,0 +1,15 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!--
++     SPDX-FileCopyrightText: Material Design Authors / Google LLC
++     SPDX-License-Identifier: Apache-2.0
++-->
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:tint="#000000"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++    <path
++        android:fillColor="@android:color/white"
++        android:pathData="M18,3v2h-2L16,3L8,3v2L6,5L6,3L4,3v18h2v-2h2v2h8v-2h2v2h2L20,3h-2zM8,17L6,17v-2h2v2zM8,13L6,13v-2h2v2zM8,9L6,9L6,7h2v2zM18,17h-2v-2h2v2zM18,13h-2v-2h2v2zM18,9h-2L16,7h2v2z" />
++</vector>
+diff --git a/app/src/main/res/font/vcr_osd_mono.ttf b/app/src/main/res/font/vcr_osd_mono.ttf
+new file mode 100644
+index 0000000000000000000000000000000000000000..dcca687a434d5c7b6a3027e65e0b7d8728b25c71
+GIT binary patch
+literal 75864
+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
+
+literal 0
+HcmV?d00001
+
+diff --git a/app/src/main/res/values/kompakt_style_strings.xml b/app/src/main/res/values/kompakt_style_strings.xml
+new file mode 100644
+index 0000000..6cd68ac
+--- /dev/null
++++ b/app/src/main/res/values/kompakt_style_strings.xml
+@@ -0,0 +1,11 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Kompakt: the Style option, applied to a photo or video once it is saved. -->
++<resources>
++    <string name="kompakt_style_normal">Normal</string>
++    <string name="kompakt_style_bw">B&amp;W</string>
++    <string name="kompakt_style_film">Film</string>
++    <string name="kompakt_style_vhs">VHS</string>
++    <string name="kompakt_style_applying">Applying %1$s…</string>
++    <string name="kompakt_style_done">%1$s applied</string>
++    <string name="kompakt_style_failed">%1$s failed, original kept</string>
++</resources>
+-- 
+2.43.0
+

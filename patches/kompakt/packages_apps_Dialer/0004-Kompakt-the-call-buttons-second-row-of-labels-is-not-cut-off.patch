@@ -1,0 +1,35 @@
+From 126439ec06a47ee0dbb2466fb936d31727c1c9d4 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Mon, 12 Oct 2026 20:38:17 +0200
+Subject: [PATCH] Kompakt: the call buttons second row of labels is not cut off
+
+The pager holding the call buttons ends the end call button's top margin
+above it, 36dp. With the button grid two rows tall, that cut the second row
+of labels (Record call, Add call, Hold) off at the bottom. The margin is
+12dp; the end call button keeps its place, which its bottom margin sets.
+
+Change-Id: Iadbd52b17de153d8b3f5e54872697ef7e05975a9
+---
+ .../incallui/incall/impl/res/layout/frag_incall_voice.xml      | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/java/com/android/incallui/incall/impl/res/layout/frag_incall_voice.xml b/java/com/android/incallui/incall/impl/res/layout/frag_incall_voice.xml
+index 45870f307..c3422453d 100644
+--- a/java/com/android/incallui/incall/impl/res/layout/frag_incall_voice.xml
++++ b/java/com/android/incallui/incall/impl/res/layout/frag_incall_voice.xml
+@@ -110,10 +110,11 @@
+         android:clipToPadding="false"
+         tools:background="@android:color/white"
+         tools:visibility="gone"/>
++    <!-- Kompakt: the button grid ends this margin above the end call button; 36dp cut off its second row of labels. -->
+     <ImageButton
+         android:id="@+id/incall_end_call"
+         style="@style/Incall.Button.End"
+-        android:layout_marginTop="36dp"
++        android:layout_marginTop="12dp"
+         android:layout_marginBottom="36dp"
+         android:layout_alignParentBottom="true"
+         android:layout_centerHorizontal="true"
+-- 
+2.43.0
+

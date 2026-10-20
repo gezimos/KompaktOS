@@ -1,42 +1,36 @@
-From 4f104a20344a04bc532319116d3009e3768aaae4 Mon Sep 17 00:00:00 2001
+From 7a6cd7d6f236acb8ce622242f38a44643f2fb16b Mon Sep 17 00:00:00 2001
 From: gezimos <>
 Date: Wed, 9 Sep 2026 20:19:59 +0200
-Subject: [PATCH 16/38] Bind long press home to the e-ink refresh directly
+Subject: [PATCH 016/107] Bind long press home to the e-ink refresh directly
 
 ---
- .../server/policy/PhoneWindowManager.java     | 48 +++++++++++++++++--
- 1 file changed, 44 insertions(+), 4 deletions(-)
+ .../server/policy/PhoneWindowManager.java     | 22 +++++++++++++++----
+ 1 file changed, 18 insertions(+), 4 deletions(-)
 
 diff --git a/services/core/java/com/android/server/policy/PhoneWindowManager.java b/services/core/java/com/android/server/policy/PhoneWindowManager.java
-index 46db39bd2d1c..b14756eccf0a 100644
+index 6e0d19a12f4b..b28f64a46808 100644
 --- a/services/core/java/com/android/server/policy/PhoneWindowManager.java
 +++ b/services/core/java/com/android/server/policy/PhoneWindowManager.java
-@@ -2278,6 +2278,24 @@ public class PhoneWindowManager implements WindowManagerPolicy {
+@@ -2278,6 +2278,18 @@ public class PhoneWindowManager implements WindowManagerPolicy {
          mInputManager.injectInputEvent(upEvent, InputManager.INJECT_INPUT_EVENT_MODE_ASYNC);
      }
  
-+    /** Start the Kompakt panel flush; false falls back to the key action. */
++    /** Kompakt: start the panel flush, if KompaktService is on this build. */
 +    private boolean launchEinkRefresh() {
-+        final Intent intent = new Intent("com.dumbita.service.action.REFRESH")
-+                .setPackage("com.dumbita.service")
-+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
-+                        | Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS);
-+        if (mContext.getPackageManager().resolveActivity(intent, 0) == null) {
++        // A broadcast, not an Activity.
++        final Intent intent = new Intent("com.kompakt.service.action.REFRESH")
++                .setPackage("com.kompakt.service");
++        if (mContext.getPackageManager().queryBroadcastReceivers(intent, 0).isEmpty()) {
 +            return false;
 +        }
-+        try {
-+            mContext.startActivityAsUser(intent, UserHandle.CURRENT);
-+            return true;
-+        } catch (ActivityNotFoundException e) {
-+            Slog.w(TAG, "e-ink refresh activity went away", e);
-+            return false;
-+        }
++        mContext.sendBroadcastAsUser(intent, UserHandle.CURRENT);
++        return true;
 +    }
 +
      private void performKeyAction(Action action, KeyEvent event) {
          // By default, pass INVOCATION_TYPE_UNKNOWN to launch assistant.
          performKeyAction(action, event, AssistUtils.INVOCATION_TYPE_UNKNOWN);
-@@ -2455,10 +2473,13 @@ public class PhoneWindowManager implements WindowManagerPolicy {
+@@ -2455,10 +2467,12 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                      }
                      mHomePressed = true;
                      performHapticFeedback(HapticFeedbackConstants.LONG_PRESS, "Home - Long Press");
@@ -44,13 +38,15 @@ index 46db39bd2d1c..b14756eccf0a 100644
 -                    // it should pass this right invocation type.
 -                    performKeyAction(mHomeLongPressAction, event,
 -                            AssistUtils.INVOCATION_TYPE_HOME_BUTTON_LONG_PRESS);
-+                    // e-ink: long press home flushes the panel, launched directly.
++                    // Kompakt: long press home flushes the panel.
 +                    if (!launchEinkRefresh()) {
-+                        // If long press home will launch assistant,
-+                        // it should pass this right invocation type.
++                        // If long press home will launch assistant, it should pass this right invocation type.
 +                        performKeyAction(mHomeLongPressAction, event,
 +                                AssistUtils.INVOCATION_TYPE_HOME_BUTTON_LONG_PRESS);
 +                    }
                      mHomeConsumed = true;
                  }
              }
+-- 
+2.43.0
+

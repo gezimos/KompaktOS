@@ -1,0 +1,277 @@
+From 52d3b353ad834d5b6867eca912cc8bb7c673a9d2 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Wed, 14 Oct 2026 21:15:07 +0200
+Subject: [PATCH] Kompakt: the Activity rows and the settings page turn pages
+
+Change-Id: I878f05cad6802f80a26cca433c83e58b2139918c
+---
+ .../com/kompakt/eink/PageGestureListener.java |  38 ++++--
+ .../java/com/kompakt/eink/PagedScroll.java    | 114 ++++++++++++++++--
+ .../org/lineageos/twelve/SettingsActivity.kt  |   2 +
+ .../twelve/ui/views/ActivityTabView.kt        |   2 +
+ 4 files changed, 138 insertions(+), 18 deletions(-)
+
+diff --git a/app/src/main/java/com/kompakt/eink/PageGestureListener.java b/app/src/main/java/com/kompakt/eink/PageGestureListener.java
+index fd20905..5ed20d4 100755
+--- a/app/src/main/java/com/kompakt/eink/PageGestureListener.java
++++ b/app/src/main/java/com/kompakt/eink/PageGestureListener.java
+@@ -23,6 +23,8 @@ final class PageGestureListener extends GestureDetector.SimpleOnGestureListener
+     private static final int MAX_FLING_PAGES = 5;
+ 
+     private final Pager pager;
++    /** Kompakt: page along x instead of y, for a sideways row. */
++    private final boolean horizontal;
+     private final float thresholdPx;
+     private final float minFlingPxPerS;
+ 
+@@ -32,7 +34,12 @@ final class PageGestureListener extends GestureDetector.SimpleOnGestureListener
+     private boolean pagedDuringDrag;
+ 
+     PageGestureListener(Context context, Pager pager) {
++        this(context, pager, false);
++    }
++
++    PageGestureListener(Context context, Pager pager, boolean horizontal) {
+         this.pager = pager;
++        this.horizontal = horizontal;
+         final float density = context.getResources().getDisplayMetrics().density;
+         this.thresholdPx = Math.max(8f, THRESHOLD_DP * density);
+         this.minFlingPxPerS = MIN_FLING_DP_PER_S * density;
+@@ -41,7 +48,7 @@ final class PageGestureListener extends GestureDetector.SimpleOnGestureListener
+     @Override
+     public boolean onDown(MotionEvent e) {
+         // Measure the next drag from here, not from the previous gesture.
+-        lastPageMoveY = e.getY();
++        lastPageMoveY = along(e);
+         pagedDuringDrag = false;
+         return true;
+     }
+@@ -50,10 +57,10 @@ final class PageGestureListener extends GestureDetector.SimpleOnGestureListener
+     public boolean onScroll(MotionEvent down, MotionEvent now, float dx, float dy) {
+         if (down == null) return false;
+ 
+-        // Vertical-dominant only.
+-        if (Math.abs(now.getX() - down.getX()) > Math.abs(now.getY() - down.getY())) return false;
++        // Dominant along the paging axis only.
++        if (Math.abs(across(now) - across(down)) > Math.abs(along(now) - along(down))) return false;
+ 
+-        final float travelled = now.getY() - lastPageMoveY;
++        final float travelled = along(now) - lastPageMoveY;
+         if (Math.abs(travelled) <= thresholdPx) return false;
+ 
+         final long t = android.os.SystemClock.uptimeMillis();
+@@ -62,7 +69,7 @@ final class PageGestureListener extends GestureDetector.SimpleOnGestureListener
+         // Dragging content up (negative) means "go down a page".
+         if (!pager.page(travelled < 0 ? 1 : -1)) return false;
+         lastPageMoveTime = t;
+-        lastPageMoveY = now.getY();
++        lastPageMoveY = along(now);
+         pagedDuringDrag = true;
+         return true;
+     }
+@@ -71,14 +78,23 @@ final class PageGestureListener extends GestureDetector.SimpleOnGestureListener
+     public boolean onFling(MotionEvent down, MotionEvent up, float vx, float vy) {
+         // A drag that already paged must not page again on lift.
+         if (pagedDuringDrag) return false;
+-        // Vertical-dominant, and fast enough to be a deliberate flick.
+-        if (Math.abs(vy) < Math.abs(vx)) return false;
+-        if (Math.abs(vy) < minFlingPxPerS) return false;
++        final float v = horizontal ? vx : vy;
++        // Dominant along the paging axis, and fast enough to be a deliberate flick.
++        if (Math.abs(v) < Math.abs(horizontal ? vy : vx)) return false;
++        if (Math.abs(v) < minFlingPxPerS) return false;
+         // ...and far enough.
+         if (down != null && up != null
+-                && Math.abs(up.getY() - down.getY()) < thresholdPx) return false;
++                && Math.abs(along(up) - along(down)) < thresholdPx) return false;
+         final int pages = Math.max(1,
+-                Math.min(MAX_FLING_PAGES, (int) (Math.abs(vy) / minFlingPxPerS)));
+-        return pager.page(vy < 0 ? pages : -pages);
++                Math.min(MAX_FLING_PAGES, (int) (Math.abs(v) / minFlingPxPerS)));
++        return pager.page(v < 0 ? pages : -pages);
++    }
++
++    private float along(MotionEvent e) {
++        return horizontal ? e.getX() : e.getY();
++    }
++
++    private float across(MotionEvent e) {
++        return horizontal ? e.getY() : e.getX();
+     }
+ }
+diff --git a/app/src/main/java/com/kompakt/eink/PagedScroll.java b/app/src/main/java/com/kompakt/eink/PagedScroll.java
+index da43f4d..4d3e39a 100644
+--- a/app/src/main/java/com/kompakt/eink/PagedScroll.java
++++ b/app/src/main/java/com/kompakt/eink/PagedScroll.java
+@@ -24,14 +24,17 @@ public final class PagedScroll {
+     /** Kompakt: tag on a ViewPager2 whose lists change its page with a sideways fling. */
+     public static final String SWIPE_TAG = "kompakt-swipe-pages";
+ 
+-    /** Pages a vertical list; a horizontal one, or one already paged, is left alone. */
++    /** Pages a list; a sideways row pages sideways (attachRow), one already paged is left alone. */
+     public static void attach(final RecyclerView rv) {
+         if (rv == null) return;
+         final RecyclerView.LayoutManager current = rv.getLayoutManager();
+-        if (current instanceof PagedLayoutManager) return;
++        if (current instanceof PagedLayoutManager || current instanceof PagedRowLayoutManager) return;
+         int span = 1;
+         if (current instanceof LinearLayoutManager) {
+-            if (((LinearLayoutManager) current).getOrientation() != RecyclerView.VERTICAL) return;
++            if (((LinearLayoutManager) current).getOrientation() != RecyclerView.VERTICAL) {
++                attachRow(rv);
++                return;
++            }
+             if (current instanceof GridLayoutManager) {
+                 span = ((GridLayoutManager) current).getSpanCount();
+             }
+@@ -74,6 +77,82 @@ public final class PagedScroll {
+         });
+     }
+ 
++    /** Kompakt: a sideways row (the Activity covers) takes no drag; a swipe turns it a page of covers. */
++    private static void attachRow(final RecyclerView rv) {
++        final PagedRowLayoutManager lm = new PagedRowLayoutManager(rv.getContext());
++        rv.setLayoutManager(lm);
++        final boolean[] paged = new boolean[1];
++        final GestureDetector detector = new GestureDetector(rv.getContext(),
++                new PageGestureListener(rv.getContext(), new PageGestureListener.Pager() {
++                    @Override
++                    public boolean page(int delta) {
++                        final boolean moved = pageRow(rv, lm, delta);
++                        paged[0] |= moved;
++                        return moved;
++                    }
++                }, true));
++        rv.addOnItemTouchListener(new RecyclerView.OnItemTouchListener() {
++            @Override
++            public boolean onInterceptTouchEvent(@NonNull RecyclerView r, @NonNull MotionEvent e) {
++                if (e.getActionMasked() == MotionEvent.ACTION_DOWN) paged[0] = false;
++                detector.onTouchEvent(e);
++                // A swipe that turned the row takes the touch, so the cover under it is not tapped.
++                return paged[0];
++            }
++
++            @Override
++            public void onTouchEvent(@NonNull RecyclerView r, @NonNull MotionEvent e) {
++                detector.onTouchEvent(e);
++            }
++
++            @Override
++            public void onRequestDisallowInterceptTouchEvent(boolean disallow) {
++            }
++        });
++    }
++
++    /** Sideways by whole pages: forward to the first cover the right edge cuts, back by a width. */
++    private static boolean pageRow(RecyclerView rv, PagedRowLayoutManager lm, int delta) {
++        if (delta == 0) return false;
++        final int start = rv.getPaddingLeft();
++        final int end = rv.getWidth() - rv.getPaddingRight();
++        final int viewport = end - start;
++        if (viewport <= 0) return false;
++        lm.allowProgrammaticScroll = true;
++        try {
++            final long before = mark(rv, lm);
++            for (int i = Math.abs(delta); i > 0; i--) {
++                if (delta > 0) {
++                    int next = Integer.MAX_VALUE;
++                    for (int c = 0, n = lm.getChildCount(); c < n; c++) {
++                        final View item = lm.getChildAt(c);
++                        if (item == null) continue;
++                        if (lm.getDecoratedRight(item) > end && lm.getDecoratedLeft(item) < next) {
++                            next = lm.getDecoratedLeft(item);
++                        }
++                    }
++                    int dx = (next == Integer.MAX_VALUE) ? viewport : next - start;
++                    if (dx <= 0) dx = viewport;
++                    rv.scrollBy(dx, 0);
++                } else {
++                    rv.scrollBy(-viewport, 0);
++                    // The cover under the left edge comes in whole.
++                    for (int c = 0, n = lm.getChildCount(); c < n; c++) {
++                        final View item = lm.getChildAt(c);
++                        if (item == null) continue;
++                        if (lm.getDecoratedLeft(item) < start && lm.getDecoratedRight(item) > start) {
++                            rv.scrollBy(lm.getDecoratedLeft(item) - start, 0);
++                            break;
++                        }
++                    }
++                }
++            }
++            return mark(rv, lm) != before;
++        } finally {
++            lm.allowProgrammaticScroll = false;
++        }
++    }
++
+     /** A sideways fling changes the tagged pager this list sits in by one page, at once. */
+     private static GestureDetector sidewaysPager(final RecyclerView rv) {
+         final float min = 48 * rv.getResources().getDisplayMetrics().density;
+@@ -254,13 +333,34 @@ public final class PagedScroll {
+         }
+     }
+ 
+-    /** Where the list is, exactly: which row is at the top and how far into it we are. */
+-    private static long mark(RecyclerView rv, PagedLayoutManager lm) {
++    /** Where the list is, exactly: which row is first and how far into it we are. */
++    private static long mark(RecyclerView rv, LinearLayoutManager lm) {
+         final int first = lm.findFirstVisibleItemPosition();
+         if (first == RecyclerView.NO_POSITION) return Long.MIN_VALUE;
+         final View row = lm.findViewByPosition(first);
+-        final int top = (row == null) ? 0 : lm.getDecoratedTop(row);
+-        return ((long) first << 32) | (top & 0xffffffffL);
++        final int edge = (row == null) ? 0 : (lm.getOrientation() == RecyclerView.HORIZONTAL
++                ? lm.getDecoratedLeft(row) : lm.getDecoratedTop(row));
++        return ((long) first << 32) | (edge & 0xffffffffL);
++    }
++
++    /** Kompakt: the sideways row's manager reports "cannot scroll" to touch, so the finger never drags it. */
++    static final class PagedRowLayoutManager extends LinearLayoutManager {
++        boolean allowProgrammaticScroll = false;
++
++        PagedRowLayoutManager(android.content.Context context) {
++            super(context, RecyclerView.HORIZONTAL, false);
++        }
++
++        @Override
++        public boolean canScrollHorizontally() {
++            return allowProgrammaticScroll;
++        }
++
++        @Override
++        public void smoothScrollToPosition(RecyclerView recyclerView, RecyclerView.State state,
++                int position) {
++            scrollToPositionWithOffset(position, 0);
++        }
+     }
+ 
+     /** Reports "cannot scroll vertically" to touch handling, which is what stops the finger dragging the list at all. */
+diff --git a/app/src/main/java/org/lineageos/twelve/SettingsActivity.kt b/app/src/main/java/org/lineageos/twelve/SettingsActivity.kt
+index 176189a..de3a087 100644
+--- a/app/src/main/java/org/lineageos/twelve/SettingsActivity.kt
++++ b/app/src/main/java/org/lineageos/twelve/SettingsActivity.kt
+@@ -128,6 +128,8 @@ class SettingsActivity : AppCompatActivity(R.layout.activity_settings) {
+         ) = super.onCreateRecyclerView(inflater, parent, savedInstanceState).apply {
+             clipToPadding = false
+             isVerticalScrollBarEnabled = false
++            // Kompakt: paged scrolling, as in Settings.
++            com.kompakt.eink.PagedScroll.attach(this)
+ 
+             ViewCompat.setOnApplyWindowInsetsListener(this) { _, windowInsets ->
+                 val insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
+diff --git a/app/src/main/java/org/lineageos/twelve/ui/views/ActivityTabView.kt b/app/src/main/java/org/lineageos/twelve/ui/views/ActivityTabView.kt
+index 27b3a44..f6a6484 100644
+--- a/app/src/main/java/org/lineageos/twelve/ui/views/ActivityTabView.kt
++++ b/app/src/main/java/org/lineageos/twelve/ui/views/ActivityTabView.kt
+@@ -59,6 +59,8 @@ class ActivityTabView(context: Context) : FrameLayout(context) {
+         inflate(context, R.layout.view_activity_tab, this)
+ 
+         recyclerView.adapter = adapter
++        // Kompakt: the covers turn a page per sideways swipe instead of following the finger.
++        com.kompakt.eink.PagedScroll.attach(recyclerView)
+     }
+ 
+     fun setOnItemClickListener(listener: ((item: MediaItem<*>) -> Unit)?) {
+-- 
+2.43.0
+

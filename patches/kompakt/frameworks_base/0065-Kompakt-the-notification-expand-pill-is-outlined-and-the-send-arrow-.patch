@@ -1,0 +1,95 @@
+From a3deb6c6c88eaf4c6d1f594b30befd6397e698be Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Tue, 6 Oct 2026 15:50:00 +0200
+Subject: [PATCH 65/99] Kompakt: the notification expand pill is outlined and
+ the send arrow solid
+
+---
+ core/java/android/app/Notification.java                     | 3 ++-
+ .../android/internal/widget/NotificationExpandButton.java   | 6 ++++++
+ packages/SystemUI/res/color/remote_input_send.xml           | 2 +-
+ .../android/systemui/statusbar/policy/RemoteInputView.java  | 3 ++-
+ 4 files changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/core/java/android/app/Notification.java b/core/java/android/app/Notification.java
+index d376fa0d98a8..f36c23f1c76c 100644
+--- a/core/java/android/app/Notification.java
++++ b/core/java/android/app/Notification.java
+@@ -6594,7 +6594,8 @@ public class Notification implements Parcelable
+         private void bindExpandButton(RemoteViews contentView, StandardTemplateParams p) {
+             // set default colors
+             int bgColor = getBackgroundColor(p);
+-            int pillColor = Colors.flattenAlpha(getColors(p).getProtectionColor(), bgColor);
++            // Kompakt: the pill is the card colour; NotificationExpandButton outlines it.
++            int pillColor = bgColor;
+             int textColor = Colors.flattenAlpha(getPrimaryTextColor(p), pillColor);
+             contentView.setInt(R.id.expand_button, "setDefaultTextColor", textColor);
+             contentView.setInt(R.id.expand_button, "setDefaultPillColor", pillColor);
+diff --git a/core/java/com/android/internal/widget/NotificationExpandButton.java b/core/java/com/android/internal/widget/NotificationExpandButton.java
+index 42b1bdbc51b2..c697c030b31d 100644
+--- a/core/java/com/android/internal/widget/NotificationExpandButton.java
++++ b/core/java/com/android/internal/widget/NotificationExpandButton.java
+@@ -24,6 +24,7 @@ import android.content.Context;
+ import android.content.res.ColorStateList;
+ import android.graphics.Rect;
+ import android.graphics.drawable.Drawable;
++import android.graphics.drawable.GradientDrawable;
+ import android.graphics.drawable.LayerDrawable;
+ import android.util.AttributeSet;
+ import android.view.RemotableViewMethod;
+@@ -47,6 +48,7 @@ import java.util.Locale;
+ public class NotificationExpandButton extends FrameLayout {
+ 
+     private Drawable mPillDrawable;
++    private GradientDrawable mPillOutline;
+     private TextView mNumberView;
+     private ImageView mIconView;
+     private LinearLayout mPillView;
+@@ -82,6 +84,7 @@ public class NotificationExpandButton extends FrameLayout {
+         mPillView = findViewById(R.id.expand_button_pill);
+         final LayerDrawable layeredPill = (LayerDrawable) mPillView.getBackground();
+         mPillDrawable = layeredPill.findDrawableByLayerId(R.id.expand_button_pill_colorized_layer);
++        mPillOutline = (GradientDrawable) layeredPill.getDrawable(1).mutate();
+         mNumberView = findViewById(R.id.expand_button_number);
+         mIconView = findViewById(R.id.expand_button_icon);
+     }
+@@ -220,6 +223,9 @@ public class NotificationExpandButton extends FrameLayout {
+                 mNumberView.setTextColor(mDefaultTextColor);
+             }
+         }
++        // Kompakt: a 2dp outline in the text colour, so the pill shows on its card.
++        final int ink = shouldShowNumber() ? mHighlightTextColor : mDefaultTextColor;
++        mPillOutline.setStroke(Math.round(2 * getResources().getDisplayMetrics().density), ink);
+     }
+ 
+     private boolean shouldShowNumber() {
+diff --git a/packages/SystemUI/res/color/remote_input_send.xml b/packages/SystemUI/res/color/remote_input_send.xml
+index 4c61c0c69ca1..04fece817cbf 100644
+--- a/packages/SystemUI/res/color/remote_input_send.xml
++++ b/packages/SystemUI/res/color/remote_input_send.xml
+@@ -17,6 +17,6 @@
+ 
+ <selector xmlns:android="http://schemas.android.com/apk/res/android"
+     xmlns:androidprv="http://schemas.android.com/apk/prv/res/android">
+-    <item android:state_enabled="false" android:color="@androidprv:color/materialColorPrimary" android:alpha=".3" />
++    <!-- Kompakt: no translucent arrow while there is no text. -->
+     <item android:color="@androidprv:color/materialColorPrimary" />
+ </selector>
+\ No newline at end of file
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/policy/RemoteInputView.java b/packages/SystemUI/src/com/android/systemui/statusbar/policy/RemoteInputView.java
+index cfea02477cfb..f001db144f14 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/policy/RemoteInputView.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/policy/RemoteInputView.java
+@@ -225,7 +225,8 @@ public class RemoteInputView extends LinearLayout implements View.OnClickListene
+             editBgColor = backgroundColor;
+             deleteBgColor = foregroundColor;
+             deleteFgColor = inverseColor;
+-            accentColor = colorStateListWithDisabledAlpha(foregroundColor, 0x4D); // 30%
++            // Kompakt: the send arrow stays solid while there is no text.
++            accentColor = ColorStateList.valueOf(foregroundColor);
+             textColor = colorStateListWithDisabledAlpha(foregroundColor, 0x99); // 60%
+             hintColor = ColorUtils.setAlphaComponent(foregroundColor, 0x99);
+         } else {
+-- 
+2.43.0
+

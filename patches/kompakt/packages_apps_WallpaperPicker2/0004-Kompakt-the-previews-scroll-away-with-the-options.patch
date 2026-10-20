@@ -1,0 +1,51 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Tue, 6 Oct 2026 17:20:00 +0200
+Subject: [PATCH 1/1] Kompakt: the previews scroll away with the options
+
+---
+diff --git a/res/values/dimens.xml b/res/values/dimens.xml
+--- a/res/values/dimens.xml
++++ b/res/values/dimens.xml
+@@ -410,8 +410,8 @@
+     <dimen name="wallpaper_effect_exit_button_text_size">14sp</dimen>
+ 
+     <!-- Dimensions for the customization picker  -->
+-    <!-- Kompakt: side by side previews, smaller once the options scroll. -->
+-    <dimen name="customization_picker_preview_header_collapsed_height">180dp</dimen>
++    <!-- Kompakt: side by side previews that scroll away with the options at their size. -->
++    <dimen name="customization_picker_preview_header_collapsed_height">310dp</dimen>
+     <dimen name="kompakt_preview_half_gap">8dp</dimen>
+     <dimen name="customization_picker_preview_header_expanded_height">310dp</dimen>
+     <dimen name="customization_picker_min_preview_collapsed_height">70dp</dimen>
+diff --git a/res/xml/customization_picker_layout_scene.xml b/res/xml/customization_picker_layout_scene.xml
+--- a/res/xml/customization_picker_layout_scene.xml
++++ b/res/xml/customization_picker_layout_scene.xml
+@@ -26,7 +26,7 @@
+ 
+         <OnSwipe
+             app:dragDirection="dragUp"
+-            app:onTouchUp="autoComplete"
++            app:onTouchUp="stop"
+             app:touchAnchorId="@+id/bottom_scroll_view"
+             app:touchAnchorSide="top" />
+     </Transition>
+@@ -41,6 +41,7 @@
+             app:layout_constraintTop_toTopOf="parent" />
+     </ConstraintSet>
+ 
++    <!-- Kompakt: scrolled, the previews keep their size and sit above the top edge. -->
+     <ConstraintSet android:id="@+id/collapsed_header_primary">
+ 
+         <Constraint
+@@ -48,7 +49,7 @@
+             android:layout_height="@dimen/customization_picker_preview_header_collapsed_height"
+             app:layout_constraintEnd_toEndOf="parent"
+             app:layout_constraintStart_toStartOf="parent"
+-            app:layout_constraintTop_toTopOf="parent" />
++            app:layout_constraintBottom_toTopOf="parent" />
+     </ConstraintSet>
+ 
+     <ConstraintSet android:id="@+id/secondary">
+-- 
+2.43.0

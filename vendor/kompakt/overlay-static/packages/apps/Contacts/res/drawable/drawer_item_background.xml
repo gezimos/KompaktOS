@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: the selected menu item is an ink pill inset from the edges, as in Calendar. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+  <item android:state_activated="true">
+    <inset android:insetLeft="12dp" android:insetRight="12dp">
+      <shape android:shape="rectangle">
+        <corners android:radius="24dp"/>
+        <solid android:color="@color/kompakt_ink"/>
+      </shape>
+    </inset>
+  </item>
+  <item android:drawable="@drawable/ripple_background" />
+</selector>

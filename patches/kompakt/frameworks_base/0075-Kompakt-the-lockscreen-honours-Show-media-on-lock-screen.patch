@@ -1,0 +1,44 @@
+From 9077b48d78e334ef6150d500f93cad1cd2f37116 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Wed, 7 Oct 2026 12:00:00 +0000
+Subject: [PATCH 75/99] Kompakt: the lockscreen honours Show media on lock
+ screen
+
+---
+ .../keyguard/ui/viewmodel/KeyguardMediaViewModel.kt | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/KeyguardMediaViewModel.kt b/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/KeyguardMediaViewModel.kt
+index 7af92975fe55..70cbdc04e9b9 100644
+--- a/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/KeyguardMediaViewModel.kt
++++ b/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/KeyguardMediaViewModel.kt
+@@ -26,6 +26,7 @@ import com.android.systemui.media.remedia.ui.viewmodel.MediaCarouselVisibility
+ import com.android.systemui.media.remedia.ui.viewmodel.MediaViewModel
+ import dagger.assisted.AssistedFactory
+ import dagger.assisted.AssistedInject
++import kotlinx.coroutines.flow.combine
+ 
+ class KeyguardMediaViewModel
+ @AssistedInject
+@@ -41,7 +42,17 @@ constructor(
+     val isMediaActive: Boolean by
+         hydrator.hydratedStateOf(
+             traceName = "isMediaActive",
+-            source = mediaCarouselInteractor.hasActiveMedia,
++            // Kompakt: only when Settings, Sound & vibration, Media, Show media on lock screen is on.
++            initialValue =
++                mediaCarouselInteractor.hasActiveMedia.value &&
++                    mediaCarouselInteractor.allowMediaOnLockscreen.value,
++            source =
++                combine(
++                    mediaCarouselInteractor.hasActiveMedia,
++                    mediaCarouselInteractor.allowMediaOnLockscreen,
++                ) { active, allowed ->
++                    active && allowed
++                },
+         )
+ 
+     val isDozing: Boolean by
+-- 
+2.43.0
+

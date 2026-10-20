@@ -1,0 +1,1585 @@
+From 835054578d9902db4f5968b61a923bbf61a55a76 Mon Sep 17 00:00:00 2001
+From: Gezim <25499045+gezimos@users.noreply.github.com>
+Date: Sun, 18 Oct 2026 08:58:47 +0200
+Subject: [PATCH] Kompakt: the library is the home screen
+
+Albums, Artists, Genres and Playlists are the bottom tabs; search sits in the header beside settings; the provider and the Activity page open from Settings.
+
+The pager, the tab and the title show the page this fragment keeps; the pager neither saves nor restores its own page. PagedScroll leaves a ViewPager2's own RecyclerView alone: replacing its layout manager reset the pager to page 0 under the remembered tab on every return. A new page is held until it is built (MainActivity.holdPageUntilReady), and the mini player changes in the same step.
+
+Navigation has no page animations: a zero length one still kept the outgoing page drawn under the new one. The playing track on an album page is not activated: activated is the ink on a filled row, and that row has no fill.
+
+Change-Id: Ibe1c0fcfb4ba9e35c896ea83777492e0a8b2e8d5
+---
+ app/src/main/AndroidManifest.xml              |   3 +
+ .../kompakt/eink/PagedNestedScrollView.java   |  48 ++++
+ .../java/com/kompakt/eink/PagedScroll.java    |   4 +
+ .../java/org/lineageos/twelve/MainActivity.kt | 125 ++++++++---
+ .../org/lineageos/twelve/SettingsActivity.kt  |  49 +++++
+ .../org/lineageos/twelve/TwelveApplication.kt |   2 +
+ .../twelve/ext/LinearProgressIndicator.kt     |   4 +
+ .../lineageos/twelve/ext/SharedPreferences.kt |   6 +
+ .../java/org/lineageos/twelve/ext/View.kt     |  46 +---
+ .../twelve/fragments/ActivityFragment.kt      |   4 +-
+ .../twelve/fragments/AlbumFragment.kt         |   5 +-
+ .../twelve/fragments/AlbumsFragment.kt        |   7 +-
+ .../twelve/fragments/ArtistFragment.kt        |  11 +-
+ .../twelve/fragments/ArtistsFragment.kt       |   4 +-
+ .../twelve/fragments/GenreFragment.kt         |  15 +-
+ .../twelve/fragments/GenresFragment.kt        |   4 +-
+ .../twelve/fragments/MainFragment.kt          | 207 +++++++++++++-----
+ .../twelve/fragments/PlaylistsFragment.kt     |   4 +-
+ .../lineageos/twelve/ui/coil/KompaktDither.kt |  68 ++++++
+ .../twelve/viewmodels/SettingsViewModel.kt    |   3 +
+ .../navigation_bar_view_fragment_main.xml     |  25 ++-
+ .../fragment_add_or_remove_from_playlists.xml |   6 +-
+ .../main/res/navigation/fragment_album.xml    |  12 +-
+ .../main/res/navigation/fragment_artist.xml   |  12 +-
+ .../main/res/navigation/fragment_genre.xml    |  18 +-
+ app/src/main/res/navigation/fragment_main.xml |  48 +---
+ ...ragment_media_item_bottom_sheet_dialog.xml |  24 +-
+ .../res/navigation/fragment_now_playing.xml   |  30 +--
+ .../main/res/navigation/fragment_playlist.xml |   6 +-
+ ...ovider_information_bottom_sheet_dialog.xml |   6 +-
+ .../fragment_provider_selector_dialog.xml     |  12 +-
+ app/src/main/res/values/kompakt_strings.xml   |   3 +
+ app/src/main/res/xml/root_preferences.xml     |  27 +++
+ 33 files changed, 540 insertions(+), 308 deletions(-)
+ create mode 100644 app/src/main/java/com/kompakt/eink/PagedNestedScrollView.java
+ create mode 100644 app/src/main/java/org/lineageos/twelve/ui/coil/KompaktDither.kt
+
+diff --git a/app/src/main/AndroidManifest.xml b/app/src/main/AndroidManifest.xml
+index 4c7e7c2..3b8b233 100644
+--- a/app/src/main/AndroidManifest.xml
++++ b/app/src/main/AndroidManifest.xml
+@@ -20,6 +20,9 @@
+     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+     <uses-permission android:name="android.permission.WAKE_LOCK" />
+ 
++    <!-- Kompakt: Media3 must see other packages, or launcher widgets cannot control playback. -->
++    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
++
+     <application
+         android:name=".TwelveApplication"
+         android:appCategory="audio"
+diff --git a/app/src/main/java/com/kompakt/eink/PagedNestedScrollView.java b/app/src/main/java/com/kompakt/eink/PagedNestedScrollView.java
+new file mode 100644
+index 0000000..64440ae
+--- /dev/null
++++ b/app/src/main/java/com/kompakt/eink/PagedNestedScrollView.java
+@@ -0,0 +1,48 @@
++package com.kompakt.eink;
++
++import android.content.Context;
++import android.util.AttributeSet;
++import android.view.GestureDetector;
++import android.view.MotionEvent;
++
++import androidx.core.widget.NestedScrollView;
++
++/** Kompakt: a scroll view that turns a page per swipe instead of scrolling with the finger. */
++public class PagedNestedScrollView extends NestedScrollView {
++
++    private final GestureDetector detector;
++    /** This gesture turned a page, so the rows under it get a cancel instead of a tap. */
++    private boolean paged;
++
++    public PagedNestedScrollView(Context context, AttributeSet attrs) {
++        super(context, attrs);
++        detector = new GestureDetector(context, new PageGestureListener(context, this::pageSelf));
++        setVerticalScrollBarEnabled(false);
++    }
++
++    /** One viewport, clamped at either end; true if it moved. */
++    private boolean pageSelf(int delta) {
++        final int before = getScrollY();
++        scrollBy(0, delta * (getHeight() - getPaddingTop() - getPaddingBottom()));
++        final boolean moved = getScrollY() != before;
++        paged |= moved;
++        return moved;
++    }
++
++    @Override
++    public boolean dispatchTouchEvent(MotionEvent ev) {
++        if (ev.getActionMasked() == MotionEvent.ACTION_DOWN) paged = false;
++        detector.onTouchEvent(ev);
++        return super.dispatchTouchEvent(ev);
++    }
++
++    @Override
++    public boolean onInterceptTouchEvent(MotionEvent ev) {
++        return paged;
++    }
++
++    @Override
++    public boolean onTouchEvent(MotionEvent ev) {
++        return true;
++    }
++}
+diff --git a/app/src/main/java/com/kompakt/eink/PagedScroll.java b/app/src/main/java/com/kompakt/eink/PagedScroll.java
+index 4d3e39a..66cbab0 100644
+--- a/app/src/main/java/com/kompakt/eink/PagedScroll.java
++++ b/app/src/main/java/com/kompakt/eink/PagedScroll.java
+@@ -27,6 +27,10 @@ public final class PagedScroll {
+     /** Pages a list; a sideways row pages sideways (attachRow), one already paged is left alone. */
+     public static void attach(final RecyclerView rv) {
+         if (rv == null) return;
++        // Kompakt: a pager's own list is not a row; a new layout manager would reset it to page 0.
++        if (rv.getParent() instanceof ViewPager2) return;
++        // Kompakt: rows appear, move and change in one step; no item animations.
++        rv.setItemAnimator(null);
+         final RecyclerView.LayoutManager current = rv.getLayoutManager();
+         if (current instanceof PagedLayoutManager || current instanceof PagedRowLayoutManager) return;
+         int span = 1;
+diff --git a/app/src/main/java/org/lineageos/twelve/MainActivity.kt b/app/src/main/java/org/lineageos/twelve/MainActivity.kt
+index 8491b98..494ee25 100644
+--- a/app/src/main/java/org/lineageos/twelve/MainActivity.kt
++++ b/app/src/main/java/org/lineageos/twelve/MainActivity.kt
+@@ -33,6 +33,7 @@ import androidx.navigation.fragment.DialogFragmentNavigator
+ import androidx.navigation.fragment.NavHostFragment
+ import kotlinx.coroutines.CoroutineScope
+ import kotlinx.coroutines.Dispatchers
++import kotlinx.coroutines.delay
+ import kotlinx.coroutines.flow.collectLatest
+ import kotlinx.coroutines.flow.combine
+ import kotlinx.coroutines.flow.distinctUntilChanged
+@@ -64,6 +65,74 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
+     private val frameLayout by lazy { findViewById<FrameLayout>(R.id.linearLayout) }
+     private val nowPlayingBar by lazy { findViewById<NowPlayingBar>(R.id.nowPlayingBar) }
+ 
++    // Kompakt: the mini player is decided on the main thread as the page changes, and applied
++    // when the new page is shown, so both appear in the same frame.
++    private var kompaktBarRoute: Int? = null
++    private var kompaktBarWanted = false
++    private var kompaktBarPending = false
++
++    private fun isKompaktBarWanted() = nowPlayingViewModel.mediaItem.value != null &&
++            kompaktBarRoute !in nowPlayingRelatedRouteIds
++
++    /**
++     * Kompakt: a page is held until it is built (no page part still loading, its pager showing a
++     * page), at most KOMPAKT_SETTLE_MS; e-ink would paint every step of its building.
++     */
++    private fun holdPageUntilReady(f: Fragment, v: View) {
++        f.postponeEnterTransition()
++        var shown = false
++        val show = {
++            if (!shown) {
++                shown = true
++                f.startPostponedEnterTransition()
++            }
++        }
++        val check = object : android.view.ViewTreeObserver.OnPreDrawListener {
++            override fun onPreDraw(): Boolean {
++                if (shown) {
++                    v.viewTreeObserver.removeOnPreDrawListener(this)
++                } else if (isKompaktPageBuilt(v)) {
++                    v.viewTreeObserver.removeOnPreDrawListener(this)
++                    show()
++                }
++                return true
++            }
++        }
++        v.viewTreeObserver.addOnPreDrawListener(check)
++        v.postDelayed({ show() }, KOMPAKT_SETTLE_MS)
++    }
++
++    private fun isKompaktPageBuilt(v: View): Boolean = when (v) {
++        is com.google.android.material.progressindicator.LinearProgressIndicator ->
++            v.getTag(R.id.linearProgressIndicator) == true
++        is androidx.viewpager2.widget.ViewPager2 ->
++            ((v.getChildAt(0) as? ViewGroup)?.childCount ?: 0) > 0 &&
++                    isKompaktChildrenBuilt(v)
++        is ViewGroup -> isKompaktChildrenBuilt(v)
++        else -> true
++    }
++
++    private fun isKompaktChildrenBuilt(g: ViewGroup): Boolean {
++        for (i in 0 until g.childCount) {
++            if (!isKompaktPageBuilt(g.getChildAt(i))) return false
++        }
++        return true
++    }
++
++    /** Kompakt: show or hide the mini player; a new page other than home puts it at the bottom. */
++    private fun applyKompaktBar(page: Fragment?) {
++        if (page != null) {
++            if (!kompaktBarPending) return
++            if (page !is org.lineageos.twelve.fragments.MainFragment) nowPlayingBar.translationY = 0f
++        }
++        kompaktBarPending = false
++        when (kompaktBarWanted) {
++            true -> nowPlayingBar.slideUp()
++            false -> nowPlayingBar.slideDown()
++        }
++        frameLayout.requestApplyInsets()
++    }
++
+     // NavController
+     private val navHostFragment by lazy {
+         NavHostFragment::class.cast(
+@@ -87,12 +156,32 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
+                     pageLists(v)
+                     // Kompakt: a page shows once built; e-ink would paint every step of its building.
+                     if (f.parentFragment is NavHostFragment && f !is DialogFragment) {
+-                        f.postponeEnterTransition(KOMPAKT_SETTLE_MS, TimeUnit.MILLISECONDS)
++                        holdPageUntilReady(f, v)
++                    }
++                }
++
++                // Kompakt: a page resumes in the same step that swaps it in, before the frame is
++                // drawn; the mini player changes there, so page and bar appear together.
++                override fun onFragmentResumed(fm: FragmentManager, f: Fragment) {
++                    if (f.parentFragment is NavHostFragment && f !is DialogFragment) {
++                        applyKompaktBar(f)
+                     }
+                 }
+             }, true
+         )
+ 
++        // Kompakt: the mini player's next state is known as soon as the page changes.
++        navController.addOnDestinationChangedListener { _, destination, _ ->
++            if (destination is DialogFragmentNavigator.Destination) return@addOnDestinationChangedListener
++            kompaktBarRoute = destination.id
++            kompaktBarWanted = isKompaktBarWanted()
++            kompaktBarPending = true
++            // A change that brings no new page still lands.
++            frameLayout.postDelayed({
++                if (kompaktBarPending) applyKompaktBar(null)
++            }, KOMPAKT_SETTLE_MS * 2)
++        }
++
+         // Enable edge-to-edge
+         enableEdgeToEdge()
+ 
+@@ -255,38 +344,12 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
+             }
+         }
+ 
++        // Kompakt: a change of playback shows or hides the mini player at once.
+         launch {
+-            combine(
+-                nowPlayingViewModel.mediaItem,
+-                navController.visibleEntries,
+-            ) { mediaItem, visibleEntries ->
+-                mediaItem != null && run {
+-                    var shouldBeVisible = true
+-
+-                    for (i in visibleEntries.lastIndex downTo 0) {
+-                        when (val destination = visibleEntries[i].destination) {
+-                            is DialogFragmentNavigator.Destination -> continue
+-
+-                            else -> {
+-                                shouldBeVisible = destination.id !in nowPlayingRelatedRouteIds
+-                                break
+-                            }
+-                        }
+-                    }
+-
+-                    shouldBeVisible
+-                }
++            nowPlayingViewModel.mediaItem.collect {
++                kompaktBarWanted = isKompaktBarWanted()
++                if (!kompaktBarPending) applyKompaktBar(null)
+             }
+-                .distinctUntilChanged()
+-                .flowOn(Dispatchers.IO)
+-                .collectLatest { shouldBeVisible ->
+-                    when (shouldBeVisible) {
+-                        true -> nowPlayingBar.slideUp()
+-                        false -> nowPlayingBar.slideDown()
+-                    }
+-
+-                    frameLayout.requestApplyInsets()
+-                }
+         }
+ 
+         launch {
+diff --git a/app/src/main/java/org/lineageos/twelve/SettingsActivity.kt b/app/src/main/java/org/lineageos/twelve/SettingsActivity.kt
+index de3a087..7c9283a 100644
+--- a/app/src/main/java/org/lineageos/twelve/SettingsActivity.kt
++++ b/app/src/main/java/org/lineageos/twelve/SettingsActivity.kt
+@@ -5,6 +5,7 @@
+ 
+ package org.lineageos.twelve
+ 
++import android.content.Intent
+ import android.os.Bundle
+ import android.view.LayoutInflater
+ import android.view.MenuItem
+@@ -21,13 +22,16 @@ import androidx.core.view.ViewCompat
+ import androidx.core.view.WindowInsetsCompat
+ import androidx.core.view.updatePadding
+ import androidx.fragment.app.viewModels
++import androidx.lifecycle.Lifecycle
+ import androidx.lifecycle.lifecycleScope
++import androidx.lifecycle.repeatOnLifecycle
+ import androidx.preference.Preference
+ import androidx.preference.PreferenceFragmentCompat
+ import androidx.preference.SwitchPreference
+ import com.google.android.material.appbar.AppBarLayout
+ import com.google.android.material.appbar.MaterialToolbar
+ import com.google.android.material.dialog.MaterialAlertDialogBuilder
++import kotlinx.coroutines.flow.collectLatest
+ import kotlinx.coroutines.launch
+ import org.lineageos.twelve.ext.ENABLE_OFFLOAD_KEY
+ import org.lineageos.twelve.ext.SKIP_SILENCE_KEY
+@@ -151,10 +155,18 @@ class SettingsActivity : AppCompatActivity(R.layout.activity_settings) {
+         private val rescanMediaStore by lazy { findPreference<Preference>("rescan_media_store")!! }
+         private val resetLocalStats by lazy { findPreference<Preference>("reset_local_stats")!! }
+         private val skipSilence by lazy { findPreference<SwitchPreference>(SKIP_SILENCE_KEY)!! }
++        private val provider by lazy { findPreference<Preference>("kompakt_provider")!! }
++        private val activityPage by lazy { findPreference<Preference>("kompakt_activity")!! }
+ 
+         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
+             super.onCreatePreferences(savedInstanceState, rootKey)
+ 
++            // Kompakt: the home screen opens these from the result.
++            provider.setOnPreferenceClickListener { openOnHome(OPEN_PROVIDER) }
++            activityPage.setOnPreferenceClickListener { openOnHome(OPEN_ACTIVITY) }
++            tintIcon(provider)
++            tintIcon(activityPage)
++
+             enableOffload.setOnPreferenceChangeListener { _, newValue ->
+                 lifecycleScope.launch {
+                     viewModel.toggleOffload(newValue as Boolean)
+@@ -180,6 +192,37 @@ class SettingsActivity : AppCompatActivity(R.layout.activity_settings) {
+             }
+         }
+ 
++        override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
++            super.onViewCreated(view, savedInstanceState)
++
++            viewLifecycleOwner.lifecycleScope.launch {
++                viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
++                    viewModel.navigationProvider.collectLatest {
++                        provider.summary = it?.name ?: getString(R.string.no_provider)
++                        provider.setIcon(it?.type?.iconDrawableResId ?: R.drawable.ic_warning)
++                        tintIcon(provider)
++                    }
++                }
++            }
++        }
++
++        // Twelve's icons are black vectors; the rows take the ink of the text.
++        private fun tintIcon(preference: Preference) {
++            preference.icon?.mutate()?.setTint(
++                com.google.android.material.color.MaterialColors.getColor(
++                    requireContext(), com.google.android.material.R.attr.colorOnSurface, 0
++                )
++            )
++        }
++
++        private fun openOnHome(what: String): Boolean {
++            requireActivity().apply {
++                setResult(RESULT_OK, Intent().putExtra(EXTRA_OPEN, what))
++                finish()
++            }
++            return true
++        }
++
+         private fun showResetLocalStatsDialog() {
+             val context = requireActivity()
+             MaterialAlertDialogBuilder(context)
+@@ -218,4 +261,10 @@ class SettingsActivity : AppCompatActivity(R.layout.activity_settings) {
+                 .show()
+         }
+     }
++
++    companion object {
++        const val EXTRA_OPEN = "kompakt_open"
++        const val OPEN_PROVIDER = "provider"
++        const val OPEN_ACTIVITY = "activity"
++    }
+ }
+diff --git a/app/src/main/java/org/lineageos/twelve/TwelveApplication.kt b/app/src/main/java/org/lineageos/twelve/TwelveApplication.kt
+index b1a3204..0c758b9 100644
+--- a/app/src/main/java/org/lineageos/twelve/TwelveApplication.kt
++++ b/app/src/main/java/org/lineageos/twelve/TwelveApplication.kt
+@@ -17,6 +17,7 @@ import org.lineageos.twelve.repositories.MediaRepository
+ import org.lineageos.twelve.repositories.OutputConfigurationRepository
+ import org.lineageos.twelve.repositories.ProvidersRepository
+ import org.lineageos.twelve.repositories.ResumptionPlaylistRepository
++import org.lineageos.twelve.ui.coil.KompaktDitherInterceptor
+ import org.lineageos.twelve.ui.coil.ThumbnailMapper
+ 
+ @androidx.annotation.OptIn(UnstableApi::class)
+@@ -42,6 +43,7 @@ class TwelveApplication : Application(), SingletonImageLoader.Factory {
+     override fun newImageLoader(context: PlatformContext) = ImageLoader.Builder(this)
+         .components {
+             add(ThumbnailMapper)
++            add(KompaktDitherInterceptor(this@TwelveApplication))
+         }
+         .build()
+ }
+diff --git a/app/src/main/java/org/lineageos/twelve/ext/LinearProgressIndicator.kt b/app/src/main/java/org/lineageos/twelve/ext/LinearProgressIndicator.kt
+index 26e1b4e..87e01d4 100644
+--- a/app/src/main/java/org/lineageos/twelve/ext/LinearProgressIndicator.kt
++++ b/app/src/main/java/org/lineageos/twelve/ext/LinearProgressIndicator.kt
+@@ -6,6 +6,7 @@
+ package org.lineageos.twelve.ext
+ 
+ import com.google.android.material.progressindicator.LinearProgressIndicator
++import org.lineageos.twelve.R
+ import org.lineageos.twelve.models.FlowResult
+ 
+ /**
+@@ -14,6 +15,8 @@ import org.lineageos.twelve.models.FlowResult
+ fun <T, E> LinearProgressIndicator.setProgressCompat(status: FlowResult<T, E>) {
+     when (status) {
+         is FlowResult.Loading -> {
++            // Kompakt: marks the page as still loading; MainActivity shows a page once it is not.
++            setTag(R.id.linearProgressIndicator, false)
+             if (!isIndeterminate) {
+                 hide()
+                 isIndeterminate = true
+@@ -23,6 +26,7 @@ fun <T, E> LinearProgressIndicator.setProgressCompat(status: FlowResult<T, E>) {
+         }
+ 
+         else -> {
++            setTag(R.id.linearProgressIndicator, true)
+             hide()
+         }
+     }
+diff --git a/app/src/main/java/org/lineageos/twelve/ext/SharedPreferences.kt b/app/src/main/java/org/lineageos/twelve/ext/SharedPreferences.kt
+index 960580b..3faf783 100644
+--- a/app/src/main/java/org/lineageos/twelve/ext/SharedPreferences.kt
++++ b/app/src/main/java/org/lineageos/twelve/ext/SharedPreferences.kt
+@@ -81,6 +81,12 @@ private const val FLOATING_BUTTONS_DEFAULT = true
+ val SharedPreferences.floatingButtons: Boolean
+     get() = getBoolean(FLOATING_BUTTONS_KEY, FLOATING_BUTTONS_DEFAULT)
+ 
++// Kompakt: covers in black and white with a Bayer dither.
++private const val DITHER_COVERS_KEY = "kompakt_dither_covers"
++private const val DITHER_COVERS_DEFAULT = false
++val SharedPreferences.ditherCovers: Boolean
++    get() = getBoolean(DITHER_COVERS_KEY, DITHER_COVERS_DEFAULT)
++
+ const val DEFAULT_PROVIDER_KEY = "default_provider"
+ var SharedPreferences.defaultProvider: ProviderIdentifier?
+     get() = getString(DEFAULT_PROVIDER_KEY, null)?.let {
+diff --git a/app/src/main/java/org/lineageos/twelve/ext/View.kt b/app/src/main/java/org/lineageos/twelve/ext/View.kt
+index 3d8da37..b14dc4b 100644
+--- a/app/src/main/java/org/lineageos/twelve/ext/View.kt
++++ b/app/src/main/java/org/lineageos/twelve/ext/View.kt
+@@ -7,9 +7,6 @@ package org.lineageos.twelve.ext
+ 
+ import android.view.View
+ import android.view.ViewGroup
+-import android.view.animation.AlphaAnimation
+-import android.view.animation.AnimationSet
+-import android.view.animation.TranslateAnimation
+ import androidx.core.graphics.Insets
+ import androidx.core.view.isVisible
+ import androidx.core.view.updateLayoutParams
+@@ -22,54 +19,13 @@ fun View.slide() {
+     }
+ }
+ 
++// Kompakt: the mini player shows and hides in one step; a slide is a moving smear on e-ink.
+ fun View.slideUp() {
+-    if (isVisible) {
+-        return
+-    }
+-
+     isVisible = true
+-
+-    measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
+-
+-    startAnimation(
+-        AnimationSet(true).apply {
+-            addAnimation(
+-                TranslateAnimation(
+-                    0f, 0f, measuredHeight.toFloat(), 0f
+-                ).apply {
+-                    duration = 250
+-                }
+-            )
+-            addAnimation(
+-                AlphaAnimation(0.0f, 1.0f).apply {
+-                    duration = 250
+-                }
+-            )
+-        }
+-    )
+ }
+ 
+ fun View.slideDown() {
+-    if (!isVisible) {
+-        return
+-    }
+-
+     isVisible = false
+-
+-    startAnimation(
+-        AnimationSet(true).apply {
+-            addAnimation(
+-                TranslateAnimation(0f, 0f, 0f, height.toFloat()).apply {
+-                    duration = 200
+-                }
+-            )
+-            addAnimation(
+-                AlphaAnimation(1.0f, 0.0f).apply {
+-                    duration = 200
+-                }
+-            )
+-        }
+-    )
+ }
+ 
+ /**
+diff --git a/app/src/main/java/org/lineageos/twelve/fragments/ActivityFragment.kt b/app/src/main/java/org/lineageos/twelve/fragments/ActivityFragment.kt
+index 726800b..2b45e90 100644
+--- a/app/src/main/java/org/lineageos/twelve/fragments/ActivityFragment.kt
++++ b/app/src/main/java/org/lineageos/twelve/fragments/ActivityFragment.kt
+@@ -46,7 +46,9 @@ import org.lineageos.twelve.viewmodels.ActivityViewModel
+  */
+ class ActivityFragment : Fragment(R.layout.fragment_activity) {
+     // View models
+-    private val viewModel by viewModels<ActivityViewModel>()
++    // Kompakt: kept by the home screen, which outlives this tab page, so a page rebuilt on
++    // return shows its list at once instead of loading again.
++    private val viewModel by viewModels<ActivityViewModel>({ requireParentFragment() })
+ 
+     // Views
+     private val linearProgressIndicator by getViewProperty<LinearProgressIndicator>(R.id.linearProgressIndicator)
+diff --git a/app/src/main/java/org/lineageos/twelve/fragments/AlbumFragment.kt b/app/src/main/java/org/lineageos/twelve/fragments/AlbumFragment.kt
+index 1c6e443..a7950fa 100644
+--- a/app/src/main/java/org/lineageos/twelve/fragments/AlbumFragment.kt
++++ b/app/src/main/java/org/lineageos/twelve/fragments/AlbumFragment.kt
+@@ -129,8 +129,9 @@ class AlbumFragment : CollapsingToolbarLayoutFragment(R.layout.fragment_album) {
+                         when {
+                             item.isCurrent -> {
+                                 view.setLeadingIconImage(R.drawable.ic_track_playing)
+-                                view.headlineTextIsActivated = true
+-                                view.leadingIconImageIsActivated = true
++                                // Kompakt: activated is the ink on a filled row; this row has no fill.
++                                view.headlineTextIsActivated = false
++                                view.leadingIconImageIsActivated = false
+                                 view.leadingViewIsVisible = false
+                             }
+ 
+diff --git a/app/src/main/java/org/lineageos/twelve/fragments/AlbumsFragment.kt b/app/src/main/java/org/lineageos/twelve/fragments/AlbumsFragment.kt
+index d5fd6db..6a43b85 100644
+--- a/app/src/main/java/org/lineageos/twelve/fragments/AlbumsFragment.kt
++++ b/app/src/main/java/org/lineageos/twelve/fragments/AlbumsFragment.kt
+@@ -46,7 +46,9 @@ import org.lineageos.twelve.viewmodels.AlbumsViewModel
+  */
+ class AlbumsFragment : Fragment(R.layout.fragment_albums) {
+     // View models
+-    private val viewModel by viewModels<AlbumsViewModel>()
++    // Kompakt: kept by the home screen, which outlives this tab page, so a page rebuilt on
++    // return shows its list at once instead of loading again.
++    private val viewModel by viewModels<AlbumsViewModel>({ requireParentFragment() })
+ 
+     // Views
+     private val linearProgressIndicator by getViewProperty<LinearProgressIndicator>(R.id.linearProgressIndicator)
+@@ -116,7 +118,8 @@ class AlbumsFragment : Fragment(R.layout.fragment_albums) {
+             viewModel.setSortingRule(it)
+         }
+ 
+-        recyclerView.layoutManager = DisplayAwareGridLayoutManager(recyclerView.context, 2)
++        // Kompakt: albums are a list, one per row.
++        recyclerView.layoutManager = DisplayAwareGridLayoutManager(recyclerView.context, 1)
+         recyclerView.adapter = adapter
+ 
+         viewLifecycleOwner.lifecycleScope.launch {
+diff --git a/app/src/main/java/org/lineageos/twelve/fragments/ArtistFragment.kt b/app/src/main/java/org/lineageos/twelve/fragments/ArtistFragment.kt
+index 2daf132..6f94e25 100644
+--- a/app/src/main/java/org/lineageos/twelve/fragments/ArtistFragment.kt
++++ b/app/src/main/java/org/lineageos/twelve/fragments/ArtistFragment.kt
+@@ -43,7 +43,7 @@ import org.lineageos.twelve.models.FlowResult
+ import org.lineageos.twelve.models.Playlist
+ import org.lineageos.twelve.ui.recyclerview.SimpleListAdapter
+ import org.lineageos.twelve.ui.recyclerview.UniqueItemDiffCallback
+-import org.lineageos.twelve.ui.views.HorizontalMediaItemView
++import org.lineageos.twelve.ui.views.MediaItemGridItem
+ import org.lineageos.twelve.utils.PermissionsChecker
+ import org.lineageos.twelve.utils.PermissionsUtils
+ import org.lineageos.twelve.viewmodels.ArtistViewModel
+@@ -73,10 +73,11 @@ class ArtistFragment : CollapsingToolbarLayoutFragment(R.layout.fragment_artist)
+     private val toolbar by getViewProperty<MaterialToolbar>(R.id.toolbar)
+ 
+     // Recyclerview
++    // Kompakt: the artist's albums and playlists are list rows, as the Albums tab.
+     private val createAlbumAdapter = {
+-        object : SimpleListAdapter<Album, HorizontalMediaItemView>(
++        object : SimpleListAdapter<Album, MediaItemGridItem>(
+             UniqueItemDiffCallback(),
+-            ::HorizontalMediaItemView,
++            ::MediaItemGridItem,
+         ) {
+             override fun ViewHolder.onBindView(item: Album) {
+                 view.setOnClickListener {
+@@ -103,9 +104,9 @@ class ArtistFragment : CollapsingToolbarLayoutFragment(R.layout.fragment_artist)
+     private val albumsAdapter by lazy { createAlbumAdapter() }
+     private val appearsInAlbumAdapter by lazy { createAlbumAdapter() }
+     private val appearsInPlaylistAdapter by lazy {
+-        object : SimpleListAdapter<Playlist, HorizontalMediaItemView>(
++        object : SimpleListAdapter<Playlist, MediaItemGridItem>(
+             UniqueItemDiffCallback(),
+-            ::HorizontalMediaItemView,
++            ::MediaItemGridItem,
+         ) {
+             override fun ViewHolder.onBindView(item: Playlist) {
+                 view.setOnClickListener {
+diff --git a/app/src/main/java/org/lineageos/twelve/fragments/ArtistsFragment.kt b/app/src/main/java/org/lineageos/twelve/fragments/ArtistsFragment.kt
+index 4f7fe1f..82e03b7 100644
+--- a/app/src/main/java/org/lineageos/twelve/fragments/ArtistsFragment.kt
++++ b/app/src/main/java/org/lineageos/twelve/fragments/ArtistsFragment.kt
+@@ -44,7 +44,9 @@ import org.lineageos.twelve.viewmodels.ArtistsViewModel
+  */
+ class ArtistsFragment : Fragment(R.layout.fragment_artists) {
+     // View models
+-    private val viewModel by viewModels<ArtistsViewModel>()
++    // Kompakt: kept by the home screen, which outlives this tab page, so a page rebuilt on
++    // return shows its list at once instead of loading again.
++    private val viewModel by viewModels<ArtistsViewModel>({ requireParentFragment() })
+ 
+     // Views
+     private val linearProgressIndicator by getViewProperty<LinearProgressIndicator>(R.id.linearProgressIndicator)
+diff --git a/app/src/main/java/org/lineageos/twelve/fragments/GenreFragment.kt b/app/src/main/java/org/lineageos/twelve/fragments/GenreFragment.kt
+index 3fda3ef..9f7004e 100644
+--- a/app/src/main/java/org/lineageos/twelve/fragments/GenreFragment.kt
++++ b/app/src/main/java/org/lineageos/twelve/fragments/GenreFragment.kt
+@@ -44,7 +44,7 @@ import org.lineageos.twelve.models.FlowResult
+ import org.lineageos.twelve.models.Playlist
+ import org.lineageos.twelve.ui.recyclerview.SimpleListAdapter
+ import org.lineageos.twelve.ui.recyclerview.UniqueItemDiffCallback
+-import org.lineageos.twelve.ui.views.HorizontalMediaItemView
++import org.lineageos.twelve.ui.views.MediaItemGridItem
+ import org.lineageos.twelve.utils.PermissionsChecker
+ import org.lineageos.twelve.utils.PermissionsUtils
+ import org.lineageos.twelve.viewmodels.GenreViewModel
+@@ -74,10 +74,11 @@ class GenreFragment : CollapsingToolbarLayoutFragment(R.layout.fragment_genre) {
+     private val toolbar by getViewProperty<MaterialToolbar>(R.id.toolbar)
+ 
+     // RecyclerView
++    // Kompakt: albums, playlists and songs are list rows, as the Albums tab.
+     private val appearsInAlbumsAdapter by lazy {
+-        object : SimpleListAdapter<Album, HorizontalMediaItemView>(
++        object : SimpleListAdapter<Album, MediaItemGridItem>(
+             UniqueItemDiffCallback(),
+-            ::HorizontalMediaItemView,
++            ::MediaItemGridItem,
+         ) {
+             override fun ViewHolder.onBindView(item: Album) {
+                 view.setOnClickListener {
+@@ -99,9 +100,9 @@ class GenreFragment : CollapsingToolbarLayoutFragment(R.layout.fragment_genre) {
+         }
+     }
+     private val appearsInPlaylistsAdapter by lazy {
+-        object : SimpleListAdapter<Playlist, HorizontalMediaItemView>(
++        object : SimpleListAdapter<Playlist, MediaItemGridItem>(
+             UniqueItemDiffCallback(),
+-            ::HorizontalMediaItemView,
++            ::MediaItemGridItem,
+         ) {
+             override fun ViewHolder.onBindView(item: Playlist) {
+                 view.setOnClickListener {
+@@ -123,9 +124,9 @@ class GenreFragment : CollapsingToolbarLayoutFragment(R.layout.fragment_genre) {
+         }
+     }
+     private val audiosAdapter by lazy {
+-        object : SimpleListAdapter<Audio, HorizontalMediaItemView>(
++        object : SimpleListAdapter<Audio, MediaItemGridItem>(
+             UniqueItemDiffCallback(),
+-            ::HorizontalMediaItemView,
++            ::MediaItemGridItem,
+         ) {
+             override fun ViewHolder.onBindView(item: Audio) {
+                 view.setOnClickListener {
+diff --git a/app/src/main/java/org/lineageos/twelve/fragments/GenresFragment.kt b/app/src/main/java/org/lineageos/twelve/fragments/GenresFragment.kt
+index f56693b..72bc5dc 100644
+--- a/app/src/main/java/org/lineageos/twelve/fragments/GenresFragment.kt
++++ b/app/src/main/java/org/lineageos/twelve/fragments/GenresFragment.kt
+@@ -44,7 +44,9 @@ import org.lineageos.twelve.viewmodels.GenresViewModel
+  */
+ class GenresFragment : Fragment(R.layout.fragment_genres) {
+     // View models
+-    private val viewModel by viewModels<GenresViewModel>()
++    // Kompakt: kept by the home screen, which outlives this tab page, so a page rebuilt on
++    // return shows its list at once instead of loading again.
++    private val viewModel by viewModels<GenresViewModel>({ requireParentFragment() })
+ 
+     // Views
+     private val linearProgressIndicator by getViewProperty<LinearProgressIndicator>(R.id.linearProgressIndicator)
+diff --git a/app/src/main/java/org/lineageos/twelve/fragments/MainFragment.kt b/app/src/main/java/org/lineageos/twelve/fragments/MainFragment.kt
+index 0897622..3215f5c 100644
+--- a/app/src/main/java/org/lineageos/twelve/fragments/MainFragment.kt
++++ b/app/src/main/java/org/lineageos/twelve/fragments/MainFragment.kt
+@@ -9,15 +9,19 @@ import android.content.Intent
+ import android.os.Bundle
+ import android.util.Log
+ import android.view.View
++import android.view.ViewGroup
++import android.view.ViewTreeObserver
+ import android.view.inputmethod.InputMethodManager
+ import android.widget.LinearLayout
+ import androidx.activity.BackEventCompat
+ import androidx.activity.OnBackPressedCallback
++import androidx.activity.result.contract.ActivityResultContracts
+ import androidx.core.graphics.Insets
+ import androidx.core.view.ViewCompat
+ import androidx.core.view.WindowInsetsCompat
+ import androidx.core.view.get
+ import androidx.core.view.isVisible
++import androidx.core.view.updateLayoutParams
+ import androidx.core.widget.addTextChangedListener
+ import androidx.fragment.app.Fragment
+ import androidx.fragment.app.activityViewModels
+@@ -33,12 +37,14 @@ import androidx.recyclerview.widget.RecyclerView
+ import androidx.viewpager2.adapter.FragmentStateAdapter
+ import androidx.viewpager2.widget.ViewPager2
+ import com.google.android.material.appbar.MaterialToolbar
++import com.google.android.material.bottomnavigation.BottomNavigationView
+ import com.google.android.material.button.MaterialButton
+ import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
+ import com.google.android.material.navigation.NavigationBarView
+ import com.google.android.material.progressindicator.LinearProgressIndicator
+ import com.google.android.material.search.SearchView
+ import com.google.android.material.snackbar.Snackbar
++import com.kompakt.eink.PagedScroll
+ import kotlinx.coroutines.flow.collectLatest
+ import kotlinx.coroutines.launch
+ import org.lineageos.twelve.R
+@@ -79,33 +85,87 @@ class MainFragment : Fragment(R.layout.fragment_main) {
+     private val playRandomSongsExtendedFloatingActionButton by getViewProperty<ExtendedFloatingActionButton>(
+         R.id.playRandomSongsExtendedFloatingActionButton
+     )
+-    private val providerMaterialButton by getViewProperty<MaterialButton>(R.id.providerMaterialButton)
+     private val searchLinearProgressIndicator by getViewProperty<LinearProgressIndicator>(R.id.searchLinearProgressIndicator)
+     private val searchNoElementsLinearLayout by getViewProperty<LinearLayout>(R.id.searchNoElementsLinearLayout)
+     private val searchRecyclerView by getViewProperty<RecyclerView>(R.id.searchRecyclerView)
++    private val searchMaterialButton by getViewProperty<MaterialButton>(R.id.searchMaterialButton)
+     private val searchView by getViewProperty<SearchView>(R.id.searchView)
+     private val settingsMaterialButton by getViewProperty<MaterialButton>(R.id.settingsMaterialButton)
+     private val toolbar by getViewProperty<MaterialToolbar>(R.id.toolbar)
+     private val viewPager2 by getViewProperty<ViewPager2>(R.id.viewPager2)
+ 
++    // Kompakt: without labels (mini player up) the tabs are 56dp over their bottom padding.
++    private var compactTabs = false
++
++    private fun applyTabsHeight() {
++        if (navigationBarView !is BottomNavigationView) return
++        val height = if (compactTabs) {
++            (COMPACT_TABS_DP * resources.displayMetrics.density).toInt() +
++                    navigationBarView.paddingBottom
++        } else ViewGroup.LayoutParams.WRAP_CONTENT
++        if (navigationBarView.layoutParams.height != height) {
++            navigationBarView.updateLayoutParams { this.height = height }
++        }
++    }
++
++    // Kompakt: on the home screen the mini player sits right above the tabs, over a slot that
++    // keeps the lists clear of it; elsewhere it stays at the bottom.
++    private val nowPlayingBar: View?
++        get() = activity?.findViewById(R.id.nowPlayingBar)
++    private val placeMiniPlayer = ViewTreeObserver.OnGlobalLayoutListener {
++        val bar = nowPlayingBar ?: return@OnGlobalLayoutListener
++        val slot = view?.findViewById<View>(R.id.miniPlayerSlot) ?: return@OnGlobalLayoutListener
++        val shown = bar.isVisible && bar.height > 0
++        val height = if (shown) bar.height else 0
++        if (slot.layoutParams.height != height) slot.updateLayoutParams { this.height = height }
++        val lift = if (shown) -navigationBarView.height.toFloat() else 0f
++        if (bar.translationY != lift) bar.translationY = lift
++    }
++
+     // System services
+     private val inputMethodManager: InputMethodManager
+         get() = requireContext().getSystemService(InputMethodManager::class.java)
+ 
++    // Kompakt: Settings opens the provider selector or the Activity page through its result.
++    private val settingsLauncher = registerForActivityResult(
++        ActivityResultContracts.StartActivityForResult()
++    ) { result ->
++        when (result.data?.getStringExtra(SettingsActivity.EXTRA_OPEN)) {
++            SettingsActivity.OPEN_ACTIVITY -> viewPager2.setCurrentItem(ACTIVITY_PAGE, false)
++            SettingsActivity.OPEN_PROVIDER -> findNavController().navigateSafe(
++                R.id.action_mainFragment_to_fragment_provider_selector_dialog
++            )
++        }
++    }
++
++    // Kompakt: the Activity page has no tab; back returns to the last one.
++    private var lastTab = 0
++
++    // Kompakt: the page shown, kept by this fragment so a rebuilt view shows the same page.
++    private var kompaktPage = 0
++    private val leaveActivityPage = object : OnBackPressedCallback(false) {
++        override fun handleOnBackPressed() {
++            viewPager2.setCurrentItem(lastTab, false)
++        }
++    }
++
+     // ViewPager2
+     private val onPageChangeCallback by lazy {
+         object : ViewPager2.OnPageChangeCallback() {
+             override fun onPageSelected(position: Int) {
+                 super.onPageSelected(position)
+ 
+-                var offset = 0
+-
+-                // Search button
+-                if (position >= 1) {
+-                    offset += 1
++                kompaktPage = position
++                val isActivity = position == ACTIVITY_PAGE
++                if (!isActivity) {
++                    lastTab = position
++                    navigationBarView.menu[position].isChecked = true
+                 }
+-
+-                navigationBarView.menu[position + offset].isChecked = true
++                leaveActivityPage.isEnabled = isActivity
++                // Kompakt: the header names the page, not the app.
++                toolbar.title = if (isActivity) {
++                    getString(R.string.main_fragment_section_activity)
++                } else navigationBarView.menu[position].title
+             }
+         }
+     }
+@@ -212,7 +272,11 @@ class MainFragment : Fragment(R.layout.fragment_main) {
+         }
+ 
+         ViewCompat.setOnApplyWindowInsetsListener(navigationBarView) { v, windowInsets ->
+-            val insets = windowInsets.getInsets(
++            // Kompakt: the tabs take the screen's own inset; the mini player is above them.
++            val source = if (v is BottomNavigationView) {
++                ViewCompat.getRootWindowInsets(v) ?: windowInsets
++            } else windowInsets
++            val insets = source.getInsets(
+                 WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+             )
+ 
+@@ -222,6 +286,7 @@ class MainFragment : Fragment(R.layout.fragment_main) {
+                 top = resources.configuration.isLandscape,
+                 bottom = true,
+             )
++            applyTabsHeight()
+ 
+             windowInsets
+         }
+@@ -324,24 +389,14 @@ class MainFragment : Fragment(R.layout.fragment_main) {
+ 
+         toolbar.setupWithNavController(findNavController())
+ 
+-        providerMaterialButton.setOnClickListener {
+-            findNavController().navigateSafe(
+-                R.id.action_mainFragment_to_fragment_provider_selector_dialog
+-            )
+-        }
+-        providerMaterialButton.setOnLongClickListener {
+-            viewModel.navigationProvider.value?.let {
+-                findNavController().navigateSafe(
+-                    R.id.action_mainFragment_to_fragment_provider_information_bottom_sheet_dialog,
+-                    ManageProviderFragment.createBundle(providerIdentifier = it.identifier),
+-                )
+-                true
+-            } ?: false
++        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, leaveActivityPage)
++
++        searchMaterialButton.setOnClickListener {
++            searchView.show()
+         }
+ 
+         settingsMaterialButton.setOnClickListener {
+-            val intent = Intent(context, SettingsActivity::class.java)
+-            startActivity(intent)
++            settingsLauncher.launch(Intent(context, SettingsActivity::class.java))
+         }
+ 
+         playRandomSongsExtendedFloatingActionButton.setOnClickListener {
+@@ -358,33 +413,39 @@ class MainFragment : Fragment(R.layout.fragment_main) {
+ 
+         // View pager
+         viewPager2.isUserInputEnabled = false
+-        viewPager2.adapter = object : FragmentStateAdapter(this) {
++        // Kompakt: a sideways fling on a list changes the tab (PagedScroll).
++        viewPager2.tag = PagedScroll.SWIPE_TAG
++        // Kompakt: the pages belong to this view, as LibraryFragment's did; tied to the fragment,
++        // a page restored after a return could sit under another tab.
++        viewPager2.adapter = object : FragmentStateAdapter(
++            childFragmentManager, viewLifecycleOwner.lifecycle
++        ) {
+             override fun getItemCount() = fragments.size
+             override fun createFragment(position: Int) = fragments[position]()
+         }
+         viewPager2.offscreenPageLimit = fragments.size
+         viewPager2.registerOnPageChangeCallback(onPageChangeCallback)
++        // Kompakt: the pager does not restore its page itself; it is set here, with the tab and
++        // title, from the page this fragment kept, so the three always agree.
++        viewPager2.isSaveEnabled = false
++        navigationBarView.isSaveEnabled = false
++        // Its inner list saved its own scroll position and moved the page after this; it also
++        // animated pages sliding in.
++        (viewPager2.getChildAt(0) as? RecyclerView)?.let {
++            it.isSaveEnabled = false
++            it.itemAnimator = null
++        }
++        kompaktShowPage()
+ 
+         navigationBarView.setOnItemSelectedListener { item ->
+-            when (item.itemId) {
+-                R.id.activityFragment -> {
+-                    // Kompakt: no slide between Activity and Library.
+-                    viewPager2.setCurrentItem(0, false)
+-                    true
+-                }
+-
+-                R.id.searchFragment -> {
+-                    searchView.show()
+-                    false
+-                }
+-
+-                R.id.libraryFragment -> {
+-                    viewPager2.setCurrentItem(1, false)
+-                    true
+-                }
+-
+-                else -> false
+-            }
++            // Kompakt: the tabs are the library sections, and change the page at once.
++            val position = tabPosition(item.itemId) ?: return@setOnItemSelectedListener false
++            viewPager2.setCurrentItem(position, false)
++            true
++        }
++        // A tap on the checked tab still leaves the Activity page.
++        navigationBarView.setOnItemReselectedListener { item ->
++            tabPosition(item.itemId)?.let { viewPager2.setCurrentItem(it, false) }
+         }
+ 
+         // Search
+@@ -411,18 +472,8 @@ class MainFragment : Fragment(R.layout.fragment_main) {
+                         navigationBarView.labelVisibilityMode = if (it == null)
+                             NavigationBarView.LABEL_VISIBILITY_LABELED
+                         else NavigationBarView.LABEL_VISIBILITY_UNLABELED
+-                    }
+-                }
+-
+-                launch {
+-                    viewModel.navigationProvider.collectLatest {
+-                        it?.let {
+-                            providerMaterialButton.text = it.name
+-                            providerMaterialButton.setIconResource(it.type.iconDrawableResId)
+-                        } ?: run {
+-                            providerMaterialButton.setText(R.string.no_provider)
+-                            providerMaterialButton.setIconResource(R.drawable.ic_warning)
+-                        }
++                        compactTabs = it != null
++                        applyTabsHeight()
+                     }
+                 }
+ 
+@@ -463,7 +514,34 @@ class MainFragment : Fragment(R.layout.fragment_main) {
+         }
+     }
+ 
++    override fun onStart() {
++        super.onStart()
++        nowPlayingBar?.viewTreeObserver?.addOnGlobalLayoutListener(placeMiniPlayer)
++        nowPlayingBar?.requestLayout()
++    }
++
++    override fun onStop() {
++        // MainActivity hides the bar and puts it back in place on the page switch.
++        nowPlayingBar?.viewTreeObserver?.removeOnGlobalLayoutListener(placeMiniPlayer)
++        super.onStop()
++    }
++
++    override fun onResume() {
++        super.onResume()
++        // Kompakt: last word, after the view state is restored and the toolbar has taken the
++        // destination's label as its title.
++        kompaktShowPage()
++    }
++
++    /** Kompakt: the pager, the tab and the title all show the page this fragment kept. */
++    private fun kompaktShowPage() {
++        if (viewPager2.currentItem != kompaktPage) viewPager2.setCurrentItem(kompaktPage, false)
++        onPageChangeCallback.onPageSelected(kompaktPage)
++    }
++
+     override fun onDestroyView() {
++        nowPlayingBar?.translationY = 0f
++
+         // View pager
+         viewPager2.adapter = null
+ 
+@@ -476,11 +554,24 @@ class MainFragment : Fragment(R.layout.fragment_main) {
+     companion object {
+         private val LOG_TAG = MainFragment::class.simpleName!!
+ 
+-        // Keep in sync with the BottomNavigationView menu
++        // Keep in sync with the BottomNavigationView menu; Activity comes last and has no tab.
+         private val fragments = arrayOf(
++            { AlbumsFragment() },
++            { ArtistsFragment() },
++            { GenresFragment() },
++            { PlaylistsFragment() },
+             { ActivityFragment() },
+-            { LibraryFragment() },
+         )
++        private const val ACTIVITY_PAGE = 4
++        private const val COMPACT_TABS_DP = 56
++
++        private fun tabPosition(itemId: Int) = when (itemId) {
++            R.id.albumsFragment -> 0
++            R.id.artistsFragment -> 1
++            R.id.genresFragment -> 2
++            R.id.playlistsFragment -> 3
++            else -> null
++        }
+ 
+         private val searchDiffCallback = object : DiffUtil.ItemCallback<MediaItem<*>>() {
+             override fun areItemsTheSame(
+diff --git a/app/src/main/java/org/lineageos/twelve/fragments/PlaylistsFragment.kt b/app/src/main/java/org/lineageos/twelve/fragments/PlaylistsFragment.kt
+index 24c450b..602dedf 100644
+--- a/app/src/main/java/org/lineageos/twelve/fragments/PlaylistsFragment.kt
++++ b/app/src/main/java/org/lineageos/twelve/fragments/PlaylistsFragment.kt
+@@ -46,7 +46,9 @@ import org.lineageos.twelve.viewmodels.PlaylistsViewModel
+  */
+ class PlaylistsFragment : Fragment(R.layout.fragment_playlists) {
+     // View models
+-    private val viewModel by viewModels<PlaylistsViewModel>()
++    // Kompakt: kept by the home screen, which outlives this tab page, so a page rebuilt on
++    // return shows its list at once instead of loading again.
++    private val viewModel by viewModels<PlaylistsViewModel>({ requireParentFragment() })
+ 
+     // Views
+     private val createNewPlaylistButton by getViewProperty<Button>(R.id.createNewPlaylistButton)
+diff --git a/app/src/main/java/org/lineageos/twelve/ui/coil/KompaktDither.kt b/app/src/main/java/org/lineageos/twelve/ui/coil/KompaktDither.kt
+new file mode 100644
+index 0000000..745de72
+--- /dev/null
++++ b/app/src/main/java/org/lineageos/twelve/ui/coil/KompaktDither.kt
+@@ -0,0 +1,68 @@
++/*
++ * SPDX-FileCopyrightText: The LineageOS Project
++ * SPDX-License-Identifier: Apache-2.0
++ */
++
++package org.lineageos.twelve.ui.coil
++
++import android.content.Context
++import android.graphics.Bitmap
++import android.graphics.Color
++import androidx.preference.PreferenceManager
++import coil3.intercept.Interceptor
++import coil3.request.ImageResult
++import coil3.request.allowHardware
++import coil3.request.transformations
++import coil3.size.Size
++import coil3.transform.Transformation
++import org.lineageos.twelve.ext.ditherCovers
++
++/** Kompakt: with the setting on, every cover is drawn in black and white with a Bayer dither. */
++class KompaktDitherInterceptor(private val context: Context) : Interceptor {
++    override suspend fun intercept(chain: Interceptor.Chain): ImageResult {
++        if (!PreferenceManager.getDefaultSharedPreferences(context).ditherCovers) {
++            return chain.proceed()
++        }
++        val request = chain.request.newBuilder()
++            .transformations(chain.request.transformations + BayerDitherTransformation)
++            .allowHardware(false)
++            .build()
++        return chain.withRequest(request).proceed()
++    }
++}
++
++/** An 8x8 ordered dither to the two inks, on the luminance. */
++object BayerDitherTransformation : Transformation() {
++    private val matrix = intArrayOf(
++        0, 32, 8, 40, 2, 34, 10, 42,
++        48, 16, 56, 24, 50, 18, 58, 26,
++        12, 44, 4, 36, 14, 46, 6, 38,
++        60, 28, 52, 20, 62, 30, 54, 22,
++        3, 35, 11, 43, 1, 33, 9, 41,
++        51, 19, 59, 27, 49, 17, 57, 25,
++        15, 47, 7, 39, 13, 45, 5, 37,
++        63, 31, 55, 23, 61, 29, 53, 21,
++    )
++
++    override val cacheKey = "kompakt_bayer8"
++
++    override suspend fun transform(input: Bitmap, size: Size): Bitmap {
++        val source = if (input.config == Bitmap.Config.HARDWARE) {
++            input.copy(Bitmap.Config.ARGB_8888, false)
++        } else input
++        val width = source.width
++        val height = source.height
++        val pixels = IntArray(width * height)
++        source.getPixels(pixels, 0, width, 0, 0, width, height)
++        for (y in 0 until height) {
++            val row = (y and 7) * 8
++            for (x in 0 until width) {
++                val i = y * width + x
++                val c = pixels[i]
++                val luminance = (299 * Color.red(c) + 587 * Color.green(c) + 114 * Color.blue(c)) / 1000
++                pixels[i] = if (luminance > matrix[row + (x and 7)] * 4 + 2) Color.WHITE else Color.BLACK
++            }
++        }
++        return Bitmap.createBitmap(pixels, width, height, Bitmap.Config.ARGB_8888)
++    }
++}
+diff --git a/app/src/main/java/org/lineageos/twelve/viewmodels/SettingsViewModel.kt b/app/src/main/java/org/lineageos/twelve/viewmodels/SettingsViewModel.kt
+index 6d9991f..0f4193f 100644
+--- a/app/src/main/java/org/lineageos/twelve/viewmodels/SettingsViewModel.kt
++++ b/app/src/main/java/org/lineageos/twelve/viewmodels/SettingsViewModel.kt
+@@ -17,6 +17,9 @@ import org.lineageos.twelve.services.PlaybackService
+ import org.lineageos.twelve.services.PlaybackService.CustomCommand.Companion.sendCustomCommand
+ 
+ class SettingsViewModel(application: Application) : TwelveViewModel(application) {
++    // Kompakt: the provider row shows the provider in use.
++    val navigationProvider = mediaRepository.navigationProvider
++
+     // System services
+     private val storageManager by lazy {
+         applicationContext.getSystemService(StorageManager::class.java)
+diff --git a/app/src/main/res/menu/navigation_bar_view_fragment_main.xml b/app/src/main/res/menu/navigation_bar_view_fragment_main.xml
+index d9e9a37..f13f571 100644
+--- a/app/src/main/res/menu/navigation_bar_view_fragment_main.xml
++++ b/app/src/main/res/menu/navigation_bar_view_fragment_main.xml
+@@ -3,25 +3,32 @@
+      SPDX-FileCopyrightText: The LineageOS Project
+      SPDX-License-Identifier: Apache-2.0
+ -->
++<!-- Kompakt: the library sections are the tabs; search is in the header, Activity in Settings. -->
+ <menu xmlns:android="http://schemas.android.com/apk/res/android"
+     xmlns:app="http://schemas.android.com/apk/res-auto">
+ 
+     <item
+-        android:id="@+id/activityFragment"
+-        android:icon="@drawable/ic_home"
+-        android:title="@string/main_fragment_section_activity"
++        android:id="@+id/albumsFragment"
++        android:icon="@drawable/ic_album"
++        android:title="@string/library_fragment_menu_albums"
+         app:tint="?attr/colorOnSurface" />
+ 
+     <item
+-        android:id="@+id/searchFragment"
+-        android:icon="@drawable/ic_search"
+-        android:title="@string/main_fragment_section_search"
++        android:id="@+id/artistsFragment"
++        android:icon="@drawable/ic_person"
++        android:title="@string/library_fragment_menu_artists"
+         app:tint="?attr/colorOnSurface" />
+ 
+     <item
+-        android:id="@+id/libraryFragment"
+-        android:icon="@drawable/ic_lineage_library"
+-        android:title="@string/main_fragment_section_library"
++        android:id="@+id/genresFragment"
++        android:icon="@drawable/ic_genres"
++        android:title="@string/library_fragment_menu_genres"
++        app:tint="?attr/colorOnSurface" />
++
++    <item
++        android:id="@+id/playlistsFragment"
++        android:icon="@drawable/ic_playlist_play"
++        android:title="@string/library_fragment_menu_playlists"
+         app:tint="?attr/colorOnSurface" />
+ 
+ </menu>
+diff --git a/app/src/main/res/navigation/fragment_add_or_remove_from_playlists.xml b/app/src/main/res/navigation/fragment_add_or_remove_from_playlists.xml
+index 71cc6cc..64fb462 100644
+--- a/app/src/main/res/navigation/fragment_add_or_remove_from_playlists.xml
++++ b/app/src/main/res/navigation/fragment_add_or_remove_from_playlists.xml
+@@ -17,11 +17,7 @@
+ 
+         <action
+             android:id="@+id/action_addOrRemoveFromPlaylistsFragment_to_fragment_create_playlist_dialog"
+-            app:destination="@+id/fragment_create_playlist_dialog"
+-            app:enterAnim="@anim/nav_default_enter_anim"
+-            app:exitAnim="@anim/nav_default_exit_anim"
+-            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+-            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
++            app:destination="@+id/fragment_create_playlist_dialog" />
+ 
+     </fragment>
+ 
+diff --git a/app/src/main/res/navigation/fragment_album.xml b/app/src/main/res/navigation/fragment_album.xml
+index 4e3fbb7..b249ea2 100644
+--- a/app/src/main/res/navigation/fragment_album.xml
++++ b/app/src/main/res/navigation/fragment_album.xml
+@@ -16,19 +16,11 @@
+ 
+         <action
+             android:id="@+id/action_albumFragment_to_fragment_artist"
+-            app:destination="@+id/fragment_artist"
+-            app:enterAnim="@anim/nav_default_enter_anim"
+-            app:exitAnim="@anim/nav_default_exit_anim"
+-            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+-            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
++            app:destination="@+id/fragment_artist" />
+ 
+         <action
+             android:id="@+id/action_albumFragment_to_fragment_media_item_bottom_sheet_dialog"
+-            app:destination="@+id/fragment_media_item_bottom_sheet_dialog"
+-            app:enterAnim="@anim/nav_default_enter_anim"
+-            app:exitAnim="@anim/nav_default_exit_anim"
+-            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+-            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
++            app:destination="@+id/fragment_media_item_bottom_sheet_dialog" />
+ 
+     </fragment>
+ 
+diff --git a/app/src/main/res/navigation/fragment_artist.xml b/app/src/main/res/navigation/fragment_artist.xml
+index a7e9fbb..4021412 100644
+--- a/app/src/main/res/navigation/fragment_artist.xml
++++ b/app/src/main/res/navigation/fragment_artist.xml
+@@ -16,19 +16,11 @@
+ 
+         <action
+             android:id="@+id/action_artistFragment_to_fragment_album"
+-            app:destination="@+id/fragment_album"
+-            app:enterAnim="@anim/nav_default_enter_anim"
+-            app:exitAnim="@anim/nav_default_exit_anim"
+-            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+-            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
++            app:destination="@+id/fragment_album" />
+ 
+         <action
+             android:id="@+id/action_artistFragment_to_fragment_media_item_bottom_sheet_dialog"
+-            app:destination="@+id/fragment_media_item_bottom_sheet_dialog"
+-            app:enterAnim="@anim/nav_default_enter_anim"
+-            app:exitAnim="@anim/nav_default_exit_anim"
+-            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+-            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
++            app:destination="@+id/fragment_media_item_bottom_sheet_dialog" />
+ 
+     </fragment>
+ 
+diff --git a/app/src/main/res/navigation/fragment_genre.xml b/app/src/main/res/navigation/fragment_genre.xml
+index dfd338a..6703e94 100644
+--- a/app/src/main/res/navigation/fragment_genre.xml
++++ b/app/src/main/res/navigation/fragment_genre.xml
+@@ -16,27 +16,15 @@
+ 
+         <action
+             android:id="@+id/action_genreFragment_to_fragment_album"
+-            app:destination="@+id/fragment_album"
+-            app:enterAnim="@anim/nav_default_enter_anim"
+-            app:exitAnim="@anim/nav_default_exit_anim"
+-            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+-            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
++            app:destination="@+id/fragment_album" />
+ 
+         <action
+             android:id="@+id/action_genreFragment_to_fragment_media_item_bottom_sheet_dialog"
+-            app:destination="@+id/fragment_media_item_bottom_sheet_dialog"
+-            app:enterAnim="@anim/nav_default_enter_anim"
+-            app:exitAnim="@anim/nav_default_exit_anim"
+-            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+-            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
++            app:destination="@+id/fragment_media_item_bottom_sheet_dialog" />
+ 
+         <action
+             android:id="@+id/action_genreFragment_to_fragment_playlist"
+-            app:destination="@+id/fragment_playlist"
+-            app:enterAnim="@anim/nav_default_enter_anim"
+-            app:exitAnim="@anim/nav_default_exit_anim"
+-            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+-            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
++            app:destination="@+id/fragment_playlist" />
+ 
+     </fragment>
+ 
+diff --git a/app/src/main/res/navigation/fragment_main.xml b/app/src/main/res/navigation/fragment_main.xml
+index 94b32de..7c7673c 100644
+--- a/app/src/main/res/navigation/fragment_main.xml
++++ b/app/src/main/res/navigation/fragment_main.xml
+@@ -33,67 +33,35 @@
+ 
+         <action
+             android:id="@+id/action_mainFragment_to_fragment_album"
+-            app:destination="@+id/fragment_album"
+-            app:enterAnim="@anim/nav_default_enter_anim"
+-            app:exitAnim="@anim/nav_default_exit_anim"
+-            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+-            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
++            app:destination="@+id/fragment_album" />
+ 
+         <action
+             android:id="@+id/action_mainFragment_to_fragment_artist"
+-            app:destination="@+id/fragment_artist"
+-            app:enterAnim="@anim/nav_default_enter_anim"
+-            app:exitAnim="@anim/nav_default_exit_anim"
+-            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+-            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
++            app:destination="@+id/fragment_artist" />
+ 
+         <action
+             android:id="@+id/action_mainFragment_to_fragment_create_playlist_dialog"
+-            app:destination="@+id/fragment_create_playlist_dialog"
+-            app:enterAnim="@anim/nav_default_enter_anim"
+-            app:exitAnim="@anim/nav_default_exit_anim"
+-            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+-            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
++            app:destination="@+id/fragment_create_playlist_dialog" />
+ 
+         <action
+             android:id="@+id/action_mainFragment_to_fragment_media_item_bottom_sheet_dialog"
+-            app:destination="@+id/fragment_media_item_bottom_sheet_dialog"
+-            app:enterAnim="@anim/nav_default_enter_anim"
+-            app:exitAnim="@anim/nav_default_exit_anim"
+-            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+-            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
++            app:destination="@+id/fragment_media_item_bottom_sheet_dialog" />
+ 
+         <action
+             android:id="@+id/action_mainFragment_to_fragment_genre"
+-            app:destination="@+id/fragment_genre"
+-            app:enterAnim="@anim/nav_default_enter_anim"
+-            app:exitAnim="@anim/nav_default_exit_anim"
+-            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+-            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
++            app:destination="@+id/fragment_genre" />
+ 
+         <action
+             android:id="@+id/action_mainFragment_to_fragment_playlist"
+-            app:destination="@+id/fragment_playlist"
+-            app:enterAnim="@anim/nav_default_enter_anim"
+-            app:exitAnim="@anim/nav_default_exit_anim"
+-            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+-            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
++            app:destination="@+id/fragment_playlist" />
+ 
+         <action
+             android:id="@+id/action_mainFragment_to_fragment_provider_selector_dialog"
+-            app:destination="@+id/fragment_provider_selector_dialog"
+-            app:enterAnim="@anim/nav_default_enter_anim"
+-            app:exitAnim="@anim/nav_default_exit_anim"
+-            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+-            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
++            app:destination="@+id/fragment_provider_selector_dialog" />
+ 
+         <action
+             android:id="@+id/action_mainFragment_to_fragment_provider_information_bottom_sheet_dialog"
+-            app:destination="@+id/fragment_provider_information_bottom_sheet_dialog"
+-            app:enterAnim="@anim/nav_default_enter_anim"
+-            app:exitAnim="@anim/nav_default_exit_anim"
+-            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+-            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
++            app:destination="@+id/fragment_provider_information_bottom_sheet_dialog" />
+ 
+     </fragment>
+ 
+diff --git a/app/src/main/res/navigation/fragment_media_item_bottom_sheet_dialog.xml b/app/src/main/res/navigation/fragment_media_item_bottom_sheet_dialog.xml
+index 82bb702..6892371 100644
+--- a/app/src/main/res/navigation/fragment_media_item_bottom_sheet_dialog.xml
++++ b/app/src/main/res/navigation/fragment_media_item_bottom_sheet_dialog.xml
+@@ -16,35 +16,19 @@
+ 
+         <action
+             android:id="@+id/action_mediaItemBottomSheetDialogFragment_to_fragment_add_or_remove_from_playlists"
+-            app:destination="@+id/fragment_add_or_remove_from_playlists"
+-            app:enterAnim="@anim/nav_default_enter_anim"
+-            app:exitAnim="@anim/nav_default_exit_anim"
+-            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+-            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
++            app:destination="@+id/fragment_add_or_remove_from_playlists" />
+ 
+         <action
+             android:id="@+id/action_mediaItemBottomSheetDialogFragment_to_fragment_album"
+-            app:destination="@+id/fragment_album"
+-            app:enterAnim="@anim/nav_default_enter_anim"
+-            app:exitAnim="@anim/nav_default_exit_anim"
+-            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+-            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
++            app:destination="@+id/fragment_album" />
+ 
+         <action
+             android:id="@+id/action_mediaItemBottomSheetDialogFragment_to_fragment_artist"
+-            app:destination="@+id/fragment_artist"
+-            app:enterAnim="@anim/nav_default_enter_anim"
+-            app:exitAnim="@anim/nav_default_exit_anim"
+-            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+-            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
++            app:destination="@+id/fragment_artist" />
+ 
+         <action
+             android:id="@+id/action_mediaItemBottomSheetDialogFragment_to_fragment_genre"
+-            app:destination="@+id/fragment_genre"
+-            app:enterAnim="@anim/nav_default_enter_anim"
+-            app:exitAnim="@anim/nav_default_exit_anim"
+-            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+-            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
++            app:destination="@+id/fragment_genre" />
+ 
+     </dialog>
+ 
+diff --git a/app/src/main/res/navigation/fragment_now_playing.xml b/app/src/main/res/navigation/fragment_now_playing.xml
+index e049f7f..1bba12c 100644
+--- a/app/src/main/res/navigation/fragment_now_playing.xml
++++ b/app/src/main/res/navigation/fragment_now_playing.xml
+@@ -16,43 +16,23 @@
+ 
+         <action
+             android:id="@+id/action_nowPlayingFragment_to_fragment_lyrics"
+-            app:destination="@+id/fragment_lyrics"
+-            app:enterAnim="@anim/nav_default_enter_anim"
+-            app:exitAnim="@anim/nav_default_exit_anim"
+-            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+-            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
++            app:destination="@+id/fragment_lyrics" />
+ 
+         <action
+             android:id="@+id/action_nowPlayingFragment_to_fragment_media_item_bottom_sheet_dialog"
+-            app:destination="@+id/fragment_media_item_bottom_sheet_dialog"
+-            app:enterAnim="@anim/nav_default_enter_anim"
+-            app:exitAnim="@anim/nav_default_exit_anim"
+-            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+-            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
++            app:destination="@+id/fragment_media_item_bottom_sheet_dialog" />
+ 
+         <action
+             android:id="@+id/action_nowPlayingFragment_to_fragment_now_playing_stats_dialog"
+-            app:destination="@+id/fragment_now_playing_stats_bottom_sheet_dialog"
+-            app:enterAnim="@anim/nav_default_enter_anim"
+-            app:exitAnim="@anim/nav_default_exit_anim"
+-            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+-            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
++            app:destination="@+id/fragment_now_playing_stats_bottom_sheet_dialog" />
+ 
+         <action
+             android:id="@+id/action_nowPlayingFragment_to_fragment_queue"
+-            app:destination="@+id/fragment_queue"
+-            app:enterAnim="@anim/nav_default_enter_anim"
+-            app:exitAnim="@anim/nav_default_exit_anim"
+-            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+-            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
++            app:destination="@+id/fragment_queue" />
+ 
+         <action
+             android:id="@+id/action_nowPlayingFragment_to_fragment_playback_control_bottom_sheet_dialog"
+-            app:destination="@+id/fragment_playback_control_bottom_sheet_dialog"
+-            app:enterAnim="@anim/nav_default_enter_anim"
+-            app:exitAnim="@anim/nav_default_exit_anim"
+-            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+-            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
++            app:destination="@+id/fragment_playback_control_bottom_sheet_dialog" />
+ 
+     </fragment>
+ 
+diff --git a/app/src/main/res/navigation/fragment_playlist.xml b/app/src/main/res/navigation/fragment_playlist.xml
+index ea93e51..80253da 100644
+--- a/app/src/main/res/navigation/fragment_playlist.xml
++++ b/app/src/main/res/navigation/fragment_playlist.xml
+@@ -16,11 +16,7 @@
+ 
+         <action
+             android:id="@+id/action_playlistFragment_to_fragment_media_item_bottom_sheet_dialog"
+-            app:destination="@+id/fragment_media_item_bottom_sheet_dialog"
+-            app:enterAnim="@anim/nav_default_enter_anim"
+-            app:exitAnim="@anim/nav_default_exit_anim"
+-            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+-            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
++            app:destination="@+id/fragment_media_item_bottom_sheet_dialog" />
+ 
+     </fragment>
+ 
+diff --git a/app/src/main/res/navigation/fragment_provider_information_bottom_sheet_dialog.xml b/app/src/main/res/navigation/fragment_provider_information_bottom_sheet_dialog.xml
+index 854ad53..cc4beeb 100644
+--- a/app/src/main/res/navigation/fragment_provider_information_bottom_sheet_dialog.xml
++++ b/app/src/main/res/navigation/fragment_provider_information_bottom_sheet_dialog.xml
+@@ -16,11 +16,7 @@
+ 
+         <action
+             android:id="@+id/action_providerInformationBottomSheetDialogFragment_to_fragment_manage_provider"
+-            app:destination="@+id/fragment_manage_provider"
+-            app:enterAnim="@anim/nav_default_enter_anim"
+-            app:exitAnim="@anim/nav_default_exit_anim"
+-            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+-            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
++            app:destination="@+id/fragment_manage_provider" />
+ 
+     </dialog>
+ 
+diff --git a/app/src/main/res/navigation/fragment_provider_selector_dialog.xml b/app/src/main/res/navigation/fragment_provider_selector_dialog.xml
+index dc6229f..dfcc317 100644
+--- a/app/src/main/res/navigation/fragment_provider_selector_dialog.xml
++++ b/app/src/main/res/navigation/fragment_provider_selector_dialog.xml
+@@ -17,19 +17,11 @@
+ 
+         <action
+             android:id="@+id/action_providerSelectorDialogFragment_to_fragment_manage_provider"
+-            app:destination="@+id/fragment_manage_provider"
+-            app:enterAnim="@anim/nav_default_enter_anim"
+-            app:exitAnim="@anim/nav_default_exit_anim"
+-            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+-            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
++            app:destination="@+id/fragment_manage_provider" />
+ 
+         <action
+             android:id="@+id/action_providerSelectorDialogFragment_to_fragment_provider_information_bottom_sheet_dialog"
+-            app:destination="@+id/fragment_provider_information_bottom_sheet_dialog"
+-            app:enterAnim="@anim/nav_default_enter_anim"
+-            app:exitAnim="@anim/nav_default_exit_anim"
+-            app:popEnterAnim="@anim/nav_default_pop_enter_anim"
+-            app:popExitAnim="@anim/nav_default_pop_exit_anim" />
++            app:destination="@+id/fragment_provider_information_bottom_sheet_dialog" />
+ 
+     </dialog>
+ 
+diff --git a/app/src/main/res/values/kompakt_strings.xml b/app/src/main/res/values/kompakt_strings.xml
+index 13ff108..4cc5077 100644
+--- a/app/src/main/res/values/kompakt_strings.xml
++++ b/app/src/main/res/values/kompakt_strings.xml
+@@ -3,4 +3,7 @@
+ <resources>
+     <string name="kompakt_floating_buttons">Floating buttons</string>
+     <string name="kompakt_floating_buttons_summary">The play buttons on the home screen, albums and playlists</string>
++    <string name="kompakt_activity_summary">Most played and random picks from your library</string>
++    <string name="kompakt_dither_covers">Dither covers</string>
++    <string name="kompakt_dither_covers_summary">Album art in black and white with a dot pattern, sharper on e-ink. Applies to covers loaded after the change</string>
+ </resources>
+diff --git a/app/src/main/res/xml/root_preferences.xml b/app/src/main/res/xml/root_preferences.xml
+index 1a41d67..b435e68 100644
+--- a/app/src/main/res/xml/root_preferences.xml
++++ b/app/src/main/res/xml/root_preferences.xml
+@@ -5,6 +5,25 @@
+ -->
+ <PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
+ 
++    <!-- Kompakt: the provider and the Activity page, moved out of the home screen. -->
++    <PreferenceCategory
++        app:iconSpaceReserved="false"
++        app:key="kompakt_library"
++        app:title="@string/main_fragment_section_library">
++
++        <Preference
++            app:icon="@drawable/ic_shelves"
++            app:key="kompakt_provider"
++            app:title="@string/providers" />
++
++        <Preference
++            app:icon="@drawable/ic_home"
++            app:key="kompakt_activity"
++            app:summary="@string/kompakt_activity_summary"
++            app:title="@string/main_fragment_section_activity" />
++
++    </PreferenceCategory>
++
+     <PreferenceCategory
+         app:iconSpaceReserved="false"
+         app:title="@string/general_header">
+@@ -52,6 +71,14 @@
+             app:summary="@string/kompakt_floating_buttons_summary"
+             app:title="@string/kompakt_floating_buttons" />
+ 
++        <!-- Kompakt: covers in black and white with a Bayer dither. -->
++        <SwitchPreference
++            app:defaultValue="false"
++            app:iconSpaceReserved="false"
++            app:key="kompakt_dither_covers"
++            app:summary="@string/kompakt_dither_covers_summary"
++            app:title="@string/kompakt_dither_covers" />
++
+         <Preference
+             app:iconSpaceReserved="false"
+             app:key="reset_local_stats"
+-- 
+2.43.0
+

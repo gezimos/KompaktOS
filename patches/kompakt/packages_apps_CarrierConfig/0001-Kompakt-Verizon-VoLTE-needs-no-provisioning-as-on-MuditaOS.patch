@@ -1,0 +1,48 @@
+From 0575f7fb74c00c854c1aae65db978a1ba7fa02d9 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Wed, 7 Oct 2026 12:00:00 +0000
+Subject: [PATCH] Kompakt: Verizon VoLTE needs no provisioning, as on MuditaOS
+
+Verizon (carrier id 1839) asked for VoLTE provisioning, which nothing on this
+phone performs, so IMS registered for SMS only and calls fell back to a
+circuit-switched network Verizon no longer has. carrier_volte_provisioning_
+required_bool is false, as MuditaOS has it. The versionCode is 2: the phone
+keeps the last config in a cache it only drops when the build incremental or
+this versionCode changes, and a test zip on the same incremental kept the old
+Verizon config (bug report 2026-10-11).
+
+Change-Id: I28566dba60f0d2401522c139a9cf4437281b6d04
+---
+ AndroidManifest.xml                                       | 2 +-
+ assets/carrier_config_carrierid_1839_Verizon-Wireless.xml | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/AndroidManifest.xml b/AndroidManifest.xml
+index cd03659..0365d45 100644
+--- a/AndroidManifest.xml
++++ b/AndroidManifest.xml
+@@ -15,7 +15,7 @@
+ -->
+ 
+ <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+-     android:versionCode="1"
++     android:versionCode="2"
+      android:versionName="1.0.0"
+      package="com.android.carrierconfig">
+ 
+diff --git a/assets/carrier_config_carrierid_1839_Verizon-Wireless.xml b/assets/carrier_config_carrierid_1839_Verizon-Wireless.xml
+index 83ec3c5..44c5ceb 100644
+--- a/assets/carrier_config_carrierid_1839_Verizon-Wireless.xml
++++ b/assets/carrier_config_carrierid_1839_Verizon-Wireless.xml
+@@ -14,7 +14,7 @@
+     <boolean name="carrier_promote_wfc_on_call_fail_bool" value="true"/>
+     <boolean name="carrier_volte_available_bool" value="true"/>
+     <boolean name="carrier_volte_provisioned_bool" value="true"/>
+-    <boolean name="carrier_volte_provisioning_required_bool" value="true"/>
++    <boolean name="carrier_volte_provisioning_required_bool" value="false"/>
+     <boolean name="carrier_vt_available_bool" value="true"/>
+     <boolean name="carrier_wfc_ims_available_bool" value="true"/>
+     <boolean name="disable_voice_barring_notification_bool" value="true"/>
+-- 
+2.43.0
+

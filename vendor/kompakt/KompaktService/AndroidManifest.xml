@@ -3,8 +3,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.kompakt.service"
     android:sharedUserId="android.uid.system"
-    android:versionCode="282"
-    android:versionName="282">
+    android:versionCode="369"
+    android:versionName="363">
 
     <!-- uid system is what makes the sysfs writes possible at all. -->
 
@@ -18,10 +18,6 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
-    <!-- signature|privileged. -->
-    <uses-permission android:name="android.permission.CONTROL_DEVICE_LIGHTS" />
-    <!-- Only for the software LED burst, and only if this device turns out to have no hardware blink. -->
-    <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.STATUS_BAR" />
     <!-- Airplane mode is written directly rather than toggled, so the switch position and the radio state cannot. -->
     <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" />
@@ -34,6 +30,8 @@
     <uses-permission android:name="com.google.android.providers.gsf.permission.READ_GSERVICES" />
     <!-- The SIM mux only takes effect at modem init, so switching it means restarting. -->
     <uses-permission android:name="android.permission.REBOOT" />
+    <!-- Kompakt: fingerprint gestures restart the screen timeout (PowerManager.userActivity). -->
+    <uses-permission android:name="android.permission.DEVICE_POWER" />
     <!-- Turning the tray SIM off is what makes the eSIM switch a single restart. -->
     <uses-permission android:name="android.permission.MODIFY_PHONE_STATE" />
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
@@ -70,7 +68,7 @@
         android:supportsRtl="true"
         android:theme="@android:style/Theme.DeviceDefault.DayNight">
 
-        <!-- Tap cycles the mode: Fast, Fast + dither, Text, Quality. -->
+        <!-- Tap cycles through the modes this phone can do. -->
         <service
             android:name=".EinkTileService"
             android:exported="true"
@@ -82,9 +80,96 @@
             </intent-filter>
         </service>
 
+        <!-- One tile per e-ink mode: a tap switches straight to it. -->
+        <service
+            android:name=".EinkFastTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_mode_fast"
+            android:label="@string/tile_eink_fast"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <!-- Kompakt: the tile editor groups these under E-ink modes (frameworks_base 0108). -->
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="com.kompakt.service.CATEGORY_EINK_MODES" />
+        </service>
+        <service
+            android:name=".EinkSoftTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_mode_soft"
+            android:label="@string/tile_eink_soft"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <!-- Kompakt: the tile editor groups these under E-ink modes (frameworks_base 0108). -->
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="com.kompakt.service.CATEGORY_EINK_MODES" />
+        </service>
+        <service
+            android:name=".EinkDitherTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_mode_dither"
+            android:label="@string/tile_eink_dither"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <!-- Kompakt: the tile editor groups these under E-ink modes (frameworks_base 0108). -->
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="com.kompakt.service.CATEGORY_EINK_MODES" />
+        </service>
+        <service
+            android:name=".EinkTextTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_mode_text"
+            android:label="@string/tile_eink_text"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <!-- Kompakt: the tile editor groups these under E-ink modes (frameworks_base 0108). -->
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="com.kompakt.service.CATEGORY_EINK_MODES" />
+        </service>
+        <service
+            android:name=".EinkQualityTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_mode_quality"
+            android:label="@string/tile_eink_quality"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <!-- Kompakt: the tile editor groups these under E-ink modes (frameworks_base 0108). -->
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="com.kompakt.service.CATEGORY_EINK_MODES" />
+        </service>
+        <service
+            android:name=".EinkAutoTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_mode_auto"
+            android:label="@string/tile_eink_auto"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <!-- Kompakt: the tile editor groups these under E-ink modes (frameworks_base 0108). -->
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="com.kompakt.service.CATEGORY_EINK_MODES" />
+        </service>
+
         <!-- Kompakt: Only the warm LED gets a tile. -->
         <service
             android:name=".WarmTorchTileService"
+            android:directBootAware="true"
             android:exported="true"
             android:icon="@drawable/ic_torch"
             android:label="@string/tile_torch_warm"
@@ -105,6 +190,17 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="com.kompakt.service.action.REFRESH" />
+            </intent-filter>
+        </receiver>
+
+        <!-- The lock screen's warm flashlight shortcut: only SystemUI may switch the LED. Runs before the first unlock, as the LED needs no user storage. -->
+        <receiver
+            android:name=".TorchReceiver"
+            android:directBootAware="true"
+            android:exported="true"
+            android:permission="android.permission.STATUS_BAR_SERVICE">
+            <intent-filter>
+                <action android:name="com.kompakt.service.action.TORCH_WARM" />
             </intent-filter>
         </receiver>
 
@@ -177,16 +273,15 @@
         </service>
 
         <!-- Applies the per app e ink mode on every app switch. -->
-        <!-- Lights the notification LED. -->
         <!-- Holds /dev/ttyGS0 open and answers Mudita Center. -->
         <service
             android:name=".link.LinkService"
             android:exported="false" />
 
         <service
-            android:name=".NotifLight"
+            android:name=".UncertifiedNotice"
             android:exported="true"
-            android:label="@string/notif_light_label"
+            android:label="@string/uncertified_notice_label"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
             <intent-filter>
                 <action android:name="android.service.notification.NotificationListenerService" />
@@ -208,8 +303,10 @@
 
         <receiver
             android:name=".BootReceiver"
+            android:directBootAware="true"
             android:exported="true">
             <intent-filter>
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
@@ -233,15 +330,6 @@
             android:name=".GsfIdReceiver"
             android:exported="true"
             android:permission="android.permission.DUMP" />
-
-        <!-- Hardware check for the notification LED. See Leds in Hardware.kt. -->
-        <receiver
-            android:name=".LedTestReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="com.kompakt.service.action.LED_TEST" />
-            </intent-filter>
-        </receiver>
 
     </application>
 </manifest>

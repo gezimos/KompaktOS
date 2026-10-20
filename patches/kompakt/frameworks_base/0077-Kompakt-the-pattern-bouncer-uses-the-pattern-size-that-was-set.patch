@@ -1,0 +1,80 @@
+From f54e10dbc8dd8f941aa5561056a75560e04c687b Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Thu, 8 Oct 2026 08:08:42 +0200
+Subject: [PATCH 77/99] Kompakt: the pattern bouncer uses the pattern size that
+ was set
+
+Lineage keeps the pattern size (3x3 to 6x6) in a flow that refreshes only when
+a subscriber is added, and the Compose bouncer only ever read its value. It
+stayed at the 3x3 default, so a 4x4 pattern drew a 3x3 grid and could never
+be entered. The flow now also refreshes at start, the bouncer collects it, and
+the grid is rebuilt when the size changes.
+
+Change-Id: Ia245315ade41653d9b60d9950de04f2163ed3d47
+---
+ .../systemui/bouncer/ui/composable/PatternBouncer.kt     | 6 ++++--
+ .../data/repository/AuthenticationRepository.kt          | 3 ++-
+ .../bouncer/ui/viewmodel/PatternBouncerViewModel.kt      | 9 +++++++++
+ 3 files changed, 15 insertions(+), 3 deletions(-)
+
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/bouncer/ui/composable/PatternBouncer.kt b/packages/SystemUI/compose/features/src/com/android/systemui/bouncer/ui/composable/PatternBouncer.kt
+index 955de6edf544..9d7e991b05f0 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/bouncer/ui/composable/PatternBouncer.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/bouncer/ui/composable/PatternBouncer.kt
+@@ -91,8 +91,10 @@ fun PatternBouncer(
+     val density = LocalDensity.current
+     DisposableEffect(Unit) { onDispose { viewModel.onHidden() } }
+ 
+-    val colCount = viewModel.columnCount
+-    val rowCount = viewModel.rowCount
++    // Kompakt: the grid follows the pattern size as read, not the value at first composition.
++    val patternSize by viewModel.patternSize.collectAsStateWithLifecycle()
++    val colCount = patternSize
++    val rowCount = patternSize
+ 
+     val idleDotColor = MaterialTheme.colorScheme.onSurface
+     val activeDotColor = MaterialTheme.colorScheme.onPrimary
+diff --git a/packages/SystemUI/src/com/android/systemui/authentication/data/repository/AuthenticationRepository.kt b/packages/SystemUI/src/com/android/systemui/authentication/data/repository/AuthenticationRepository.kt
+index 09d8243d5d53..1f3efb08468d 100644
+--- a/packages/SystemUI/src/com/android/systemui/authentication/data/repository/AuthenticationRepository.kt
++++ b/packages/SystemUI/src/com/android/systemui/authentication/data/repository/AuthenticationRepository.kt
+@@ -401,7 +401,8 @@ constructor(
+                     userRepository.selectedUserInfo.map { it.id }.distinctUntilChanged(),
+                     // Emits a value only when the number of downstream subscribers of this flow
+                     // increases.
+-                    flow.onSubscriberAdded(),
++                    // Kompakt: also once at start; nothing may ever subscribe (the bouncer reads value).
++                    flow.onSubscriberAdded().onStart { emit(Unit) },
+                 ) { selectedUserId, _ ->
+                     selectedUserId
+                 }
+diff --git a/packages/SystemUI/src/com/android/systemui/bouncer/ui/viewmodel/PatternBouncerViewModel.kt b/packages/SystemUI/src/com/android/systemui/bouncer/ui/viewmodel/PatternBouncerViewModel.kt
+index 4dabacb4433b..4152b68e053a 100644
+--- a/packages/SystemUI/src/com/android/systemui/bouncer/ui/viewmodel/PatternBouncerViewModel.kt
++++ b/packages/SystemUI/src/com/android/systemui/bouncer/ui/viewmodel/PatternBouncerViewModel.kt
+@@ -79,6 +79,9 @@ constructor(
+     /** All dots on the grid. */
+     val dots: StateFlow<List<PatternDotViewModel>> = _dots.asStateFlow()
+ 
++    /** The pattern size; collecting it refreshes it. */
++    val patternSize: StateFlow<Byte> = interactor.patternSize
++
+     /** Whether the pattern itself should be rendered visibly. */
+     val isPatternVisible: StateFlow<Boolean> = interactor.isPatternVisible
+ 
+@@ -92,6 +95,12 @@ constructor(
+             launch {
+                 selectedDotSet.map { it.toList() }.collect { selectedDotList.value = it.toList() }
+             }
++            // Kompakt: watching the size refreshes it; a new size rebuilds the grid.
++            launch {
++                interactor.patternSize.collect { size ->
++                    if (_dots.value.size != size * size) clearInput()
++                }
++            }
+             awaitCancellation()
+         }
+     }
+-- 
+2.43.0
+

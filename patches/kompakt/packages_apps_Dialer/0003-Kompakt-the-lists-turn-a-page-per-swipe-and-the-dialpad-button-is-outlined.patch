@@ -1,0 +1,329 @@
+From 5080cf41e05e42ef507c2f80e9688f55438dc9bf Mon Sep 17 00:00:00 2001
+From: Gezim <25499045+gezimos@users.noreply.github.com>
+Date: Sat, 10 Oct 2026 12:59:04 +0200
+Subject: [PATCH] Kompakt: the lists turn a page per swipe, and the dialpad
+ button is outlined with no shadow
+
+Change-Id: Ifd2a62e3cb8c334f02545be9de0ba25fcba79617
+---
+ .../dialer/app/calllog/CallLogFragment.java   |   2 +
+ .../contacts/resources/res/values/dimens.xml  |   3 +-
+ .../contactsfragment/ContactsFragment.java    |   2 +
+ .../list/NewSearchFragment.java               |   2 +
+ .../widget/DialerFloatingActionButton.java    |   6 +
+ .../res/drawable/kompakt_fab_outline.xml      |   8 ++
+ .../com/kompakt/eink/PageGestureListener.java |  84 +++++++++++++
+ java/com/kompakt/eink/PagedScroll.java        | 118 ++++++++++++++++++
+ 8 files changed, 224 insertions(+), 1 deletion(-)
+ create mode 100644 java/com/android/dialer/widget/res/drawable/kompakt_fab_outline.xml
+ create mode 100755 java/com/kompakt/eink/PageGestureListener.java
+ create mode 100644 java/com/kompakt/eink/PagedScroll.java
+
+diff --git a/java/com/android/dialer/app/calllog/CallLogFragment.java b/java/com/android/dialer/app/calllog/CallLogFragment.java
+index cd2371f83..4f256c948 100644
+--- a/java/com/android/dialer/app/calllog/CallLogFragment.java
++++ b/java/com/android/dialer/app/calllog/CallLogFragment.java
+@@ -299,6 +299,8 @@ public class CallLogFragment extends Fragment
+     recyclerView.setHasFixedSize(true);
+     layoutManager = new LinearLayoutManager(getActivity());
+     recyclerView.setLayoutManager(layoutManager);
++    // Kompakt: a page per swipe.
++    com.kompakt.eink.PagedScroll.attach(recyclerView);
+     emptyListView = (EmptyContentView) view.findViewById(R.id.empty_list_view);
+     emptyListView.setImage(R.drawable.empty_call_log);
+     emptyListView.setActionClickedListener(this);
+diff --git a/java/com/android/dialer/contacts/resources/res/values/dimens.xml b/java/com/android/dialer/contacts/resources/res/values/dimens.xml
+index 16078bfe9..789d32137 100644
+--- a/java/com/android/dialer/contacts/resources/res/values/dimens.xml
++++ b/java/com/android/dialer/contacts/resources/res/values/dimens.xml
+@@ -29,7 +29,8 @@
+   <!-- Width of the floating action button -->
+   <dimen name="floating_action_button_width">56dp</dimen>
+   <!-- Z translation of the floating action button -->
+-  <dimen name="floating_action_button_translation_z">8dp</dimen>
++  <!-- Kompakt: no shadow under the call button. -->
++  <dimen name="floating_action_button_translation_z">0dp</dimen>
+   <!-- Right margin of the floating action button -->
+   <dimen name="floating_action_button_margin_right">16dp</dimen>
+   <!-- Bottom margin of the floating action button -->
+diff --git a/java/com/android/dialer/contactsfragment/ContactsFragment.java b/java/com/android/dialer/contactsfragment/ContactsFragment.java
+index 6dbbbad5f..ae6f21548 100644
+--- a/java/com/android/dialer/contactsfragment/ContactsFragment.java
++++ b/java/com/android/dialer/contactsfragment/ContactsFragment.java
+@@ -190,6 +190,8 @@ public class ContactsFragment extends Fragment
+           }
+         };
+     recyclerView.setLayoutManager(manager);
++    // Kompakt: a page per swipe; the fast scroller still jumps to a letter.
++    com.kompakt.eink.PagedScroll.attach(recyclerView);
+ 
+     emptyContentView = view.findViewById(R.id.empty_list_view);
+     emptyContentView.setImage(R.drawable.empty_contacts);
+diff --git a/java/com/android/dialer/searchfragment/list/NewSearchFragment.java b/java/com/android/dialer/searchfragment/list/NewSearchFragment.java
+index 8998d2b70..490e6a40f 100644
+--- a/java/com/android/dialer/searchfragment/list/NewSearchFragment.java
++++ b/java/com/android/dialer/searchfragment/list/NewSearchFragment.java
+@@ -166,6 +166,8 @@ public final class NewSearchFragment extends Fragment
+     emptyContentView = view.findViewById(R.id.empty_view);
+     recyclerView = view.findViewById(R.id.recycler_view);
+     recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
++    // Kompakt: a page per swipe.
++    com.kompakt.eink.PagedScroll.attach(recyclerView);
+     recyclerView.setOnTouchListener(this);
+     recyclerView.setAdapter(adapter);
+ 
+diff --git a/java/com/android/dialer/widget/DialerFloatingActionButton.java b/java/com/android/dialer/widget/DialerFloatingActionButton.java
+index 22df64802..24e271672 100644
+--- a/java/com/android/dialer/widget/DialerFloatingActionButton.java
++++ b/java/com/android/dialer/widget/DialerFloatingActionButton.java
+@@ -21,6 +21,7 @@ import android.content.Context;
+ import android.util.AttributeSet;
+ 
+ import androidx.annotation.Nullable;
++import com.android.dialer.R;
+ 
+ import com.android.dialer.common.Assert;
+ 
+@@ -49,6 +50,11 @@ public class DialerFloatingActionButton extends FloatingActionButton {
+ 
+   public DialerFloatingActionButton(Context context, AttributeSet attributeSet) {
+     super(context, attributeSet);
++    // Kompakt: an outline and no shadow, as the other apps' buttons.
++    setCompatElevation(0f);
++    setCompatPressedTranslationZ(0f);
++    setCompatHoveredFocusedTranslationZ(0f);
++    setForeground(context.getDrawable(R.drawable.kompakt_fab_outline));
+   }
+ 
+   @Override
+diff --git a/java/com/android/dialer/widget/res/drawable/kompakt_fab_outline.xml b/java/com/android/dialer/widget/res/drawable/kompakt_fab_outline.xml
+new file mode 100644
+index 000000000..6819e70f7
+--- /dev/null
++++ b/java/com/android/dialer/widget/res/drawable/kompakt_fab_outline.xml
+@@ -0,0 +1,8 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Kompakt: the outline drawn over the dialpad button. -->
++<shape xmlns:android="http://schemas.android.com/apk/res/android"
++    android:shape="oval">
++    <stroke
++        android:width="2dp"
++        android:color="@color/dialer_fab_icon_color" />
++</shape>
+diff --git a/java/com/kompakt/eink/PageGestureListener.java b/java/com/kompakt/eink/PageGestureListener.java
+new file mode 100755
+index 000000000..fd209053d
+--- /dev/null
++++ b/java/com/kompakt/eink/PageGestureListener.java
+@@ -0,0 +1,84 @@
++package com.kompakt.eink;
++
++import android.content.Context;
++import android.view.GestureDetector;
++import android.view.MotionEvent;
++
++/** Turns touch into page moves, matching inkOS (ui/compose/GestureHelper.kt). */
++final class PageGestureListener extends GestureDetector.SimpleOnGestureListener {
++
++    /** What to do with a page move; delta is +1 (down/forward) or -1 (up/back). */
++    interface Pager {
++        boolean page(int delta);
++    }
++
++    /** Drag distance before a page turns. */
++    private static final float THRESHOLD_DP = 56f;
++    private static final long COOLDOWN_MS = 200L;
++
++    /** Minimum vertical fling speed, dp/s. */
++    private static final float MIN_FLING_DP_PER_S = 600f;
++
++    /** How many pages the hardest flick may cover. */
++    private static final int MAX_FLING_PAGES = 5;
++
++    private final Pager pager;
++    private final float thresholdPx;
++    private final float minFlingPxPerS;
++
++    private float lastPageMoveY;
++    private long lastPageMoveTime;
++    /** inkOS's scrollPageMoveTriggered: did this gesture already page while dragging? */
++    private boolean pagedDuringDrag;
++
++    PageGestureListener(Context context, Pager pager) {
++        this.pager = pager;
++        final float density = context.getResources().getDisplayMetrics().density;
++        this.thresholdPx = Math.max(8f, THRESHOLD_DP * density);
++        this.minFlingPxPerS = MIN_FLING_DP_PER_S * density;
++    }
++
++    @Override
++    public boolean onDown(MotionEvent e) {
++        // Measure the next drag from here, not from the previous gesture.
++        lastPageMoveY = e.getY();
++        pagedDuringDrag = false;
++        return true;
++    }
++
++    @Override
++    public boolean onScroll(MotionEvent down, MotionEvent now, float dx, float dy) {
++        if (down == null) return false;
++
++        // Vertical-dominant only.
++        if (Math.abs(now.getX() - down.getX()) > Math.abs(now.getY() - down.getY())) return false;
++
++        final float travelled = now.getY() - lastPageMoveY;
++        if (Math.abs(travelled) <= thresholdPx) return false;
++
++        final long t = android.os.SystemClock.uptimeMillis();
++        if (t - lastPageMoveTime < COOLDOWN_MS) return false;
++
++        // Dragging content up (negative) means "go down a page".
++        if (!pager.page(travelled < 0 ? 1 : -1)) return false;
++        lastPageMoveTime = t;
++        lastPageMoveY = now.getY();
++        pagedDuringDrag = true;
++        return true;
++    }
++
++    @Override
++    public boolean onFling(MotionEvent down, MotionEvent up, float vx, float vy) {
++        // A drag that already paged must not page again on lift.
++        if (pagedDuringDrag) return false;
++        // Vertical-dominant, and fast enough to be a deliberate flick.
++        if (Math.abs(vy) < Math.abs(vx)) return false;
++        if (Math.abs(vy) < minFlingPxPerS) return false;
++        // ...and far enough.
++        if (down != null && up != null
++                && Math.abs(up.getY() - down.getY()) < thresholdPx) return false;
++        final int pages = Math.max(1,
++                Math.min(MAX_FLING_PAGES, (int) (Math.abs(vy) / minFlingPxPerS)));
++        return pager.page(vy < 0 ? pages : -pages);
++    }
++}
+diff --git a/java/com/kompakt/eink/PagedScroll.java b/java/com/kompakt/eink/PagedScroll.java
+new file mode 100644
+index 000000000..2203265f1
+--- /dev/null
++++ b/java/com/kompakt/eink/PagedScroll.java
+@@ -0,0 +1,118 @@
++package com.kompakt.eink;
++
++import android.os.SystemClock;
++import android.view.GestureDetector;
++import android.view.MotionEvent;
++import android.view.ViewConfiguration;
++import android.view.ViewOutlineProvider;
++
++import androidx.annotation.NonNull;
++import androidx.recyclerview.widget.LinearLayoutManager;
++import androidx.recyclerview.widget.RecyclerView;
++
++/**
++ * Paged scrolling for the Dialer lists, as Settings' PagedScroll. The list keeps its own
++ * LayoutManager (the Contacts tab needs its one); the drag is taken over past the touch slop.
++ */
++public final class PagedScroll {
++
++    private PagedScroll() {}
++
++    public static void attach(final RecyclerView rv) {
++        if (rv == null) return;
++        // Rows scrolled past the top must not draw above the list.
++        rv.setOutlineProvider(ViewOutlineProvider.BOUNDS);
++        rv.setClipToOutline(true);
++        final int slop = ViewConfiguration.get(rv.getContext()).getScaledTouchSlop() / 2;
++        final GestureDetector detector = new GestureDetector(rv.getContext(),
++                new PageGestureListener(rv.getContext(), delta -> page(rv, delta)));
++        rv.addOnItemTouchListener(new RecyclerView.OnItemTouchListener() {
++            private float downY;
++            private boolean paging;
++
++            @Override
++            public boolean onInterceptTouchEvent(@NonNull RecyclerView r, @NonNull MotionEvent e) {
++                detector.onTouchEvent(e);
++                switch (e.getActionMasked()) {
++                    case MotionEvent.ACTION_DOWN:
++                        downY = e.getY();
++                        paging = false;
++                        return false;
++                    case MotionEvent.ACTION_MOVE:
++                        // Past the slop the gesture is ours: the list never drags and the row lets go.
++                        if (!paging && Math.abs(e.getY() - downY) > slop) paging = true;
++                        return paging;
++                    default:
++                        return false;
++                }
++            }
++
++            @Override
++            public void onTouchEvent(@NonNull RecyclerView r, @NonNull MotionEvent e) {
++                detector.onTouchEvent(e);
++            }
++
++            @Override
++            public void onRequestDisallowInterceptTouchEvent(boolean disallow) {}
++        });
++    }
++
++    /** Move by whole pages, in pixels, measured off the rows that are on screen. */
++    private static boolean page(RecyclerView rv, int delta) {
++        if (delta == 0) return false;
++        final RecyclerView.LayoutManager m = rv.getLayoutManager();
++        if (!(m instanceof LinearLayoutManager)) return false;
++        final LinearLayoutManager lm = (LinearLayoutManager) m;
++        final int viewport = rv.getHeight() - rv.getPaddingTop() - rv.getPaddingBottom();
++        if (viewport <= 0) return false;
++        final long before = mark(lm);
++        for (int i = Math.abs(delta); i > 0; i--) {
++            if (delta > 0) {
++                forward(rv, lm, viewport);
++            } else {
++                rv.scrollBy(0, -viewport);
++                snapTopRowWhole(rv, lm);
++            }
++        }
++        return mark(lm) != before;
++    }
++
++    /** Forward one page: to the top of the first row the bottom edge cuts. */
++    private static void forward(RecyclerView rv, LinearLayoutManager lm, int viewport) {
++        final int topEdge = rv.getPaddingTop();
++        final int bottomEdge = rv.getHeight() - rv.getPaddingBottom();
++        int next = Integer.MAX_VALUE;
++        for (int i = 0, n = lm.getChildCount(); i < n; i++) {
++            final android.view.View row = lm.getChildAt(i);
++            if (row == null) continue;
++            if (lm.getDecoratedBottom(row) > bottomEdge && lm.getDecoratedTop(row) < next) {
++                next = lm.getDecoratedTop(row);
++            }
++        }
++        int dy = (next == Integer.MAX_VALUE) ? viewport : next - topEdge;
++        if (dy <= 0) dy = viewport;
++        rv.scrollBy(0, dy);
++    }
++
++    /** Pull the row under the top edge down until it is whole. */
++    private static void snapTopRowWhole(RecyclerView rv, LinearLayoutManager lm) {
++        final int topEdge = rv.getPaddingTop();
++        for (int i = 0, n = lm.getChildCount(); i < n; i++) {
++            final android.view.View row = lm.getChildAt(i);
++            if (row == null) continue;
++            if (lm.getDecoratedTop(row) <= topEdge && lm.getDecoratedBottom(row) > topEdge) {
++                final int dy = lm.getDecoratedTop(row) - topEdge;
++                if (dy < 0) rv.scrollBy(0, dy);
++                return;
++            }
++        }
++    }
++
++    private static long mark(LinearLayoutManager lm) {
++        final int first = lm.findFirstVisibleItemPosition();
++        if (first == RecyclerView.NO_POSITION) return Long.MIN_VALUE;
++        final android.view.View row = lm.findViewByPosition(first);
++        final int top = (row == null) ? 0 : lm.getDecoratedTop(row);
++        return ((long) first << 32) | (top & 0xffffffffL);
++    }
++}
+-- 
+2.43.0
+

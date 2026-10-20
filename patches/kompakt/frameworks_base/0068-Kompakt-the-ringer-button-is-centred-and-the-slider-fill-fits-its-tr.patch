@@ -1,0 +1,44 @@
+From 6871f1d9341015404fdb39a8f8c92258a209338c Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Tue, 6 Oct 2026 18:45:00 +0200
+Subject: [PATCH 68/99] Kompakt: the ringer button is centred and the slider
+ fill fits its track
+
+---
+ packages/SystemUI/res/values/dimens.xml | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/packages/SystemUI/res/values/dimens.xml b/packages/SystemUI/res/values/dimens.xml
+index 6d7c668d1e06..b4fe7cbe8b02 100644
+--- a/packages/SystemUI/res/values/dimens.xml
++++ b/packages/SystemUI/res/values/dimens.xml
+@@ -651,7 +651,8 @@
+ 
+     <dimen name="volume_dialog_panel_transparent_padding">20dp</dimen>
+ 
+-    <dimen name="volume_dialog_ringer_rows_padding">7dp</dimen>
++    <!-- Kompakt: the ringer button plus this padding on each side is the column width. -->
++    <dimen name="volume_dialog_ringer_rows_padding">6dp</dimen>
+ 
+     <dimen name="volume_dialog_stream_padding">12dp</dimen>
+ 
+@@ -660,12 +661,13 @@
+ 
+     <dimen name="volume_dialog_panel_width_half">24dp</dimen>
+ 
+-    <dimen name="volume_dialog_slider_width_legacy">36dp</dimen>
++    <!-- Kompakt: the fill is the width of its outlined track. -->
++    <dimen name="volume_dialog_slider_width_legacy">34dp</dimen>
+ 
+-    <dimen name="volume_dialog_slider_corner_radius">18dp</dimen>
++    <dimen name="volume_dialog_slider_corner_radius">17dp</dimen>
+ 
+     <!-- (volume_dialog_panel_width - rounded_slider_icon_size) / 2 -->
+-    <dimen name="volume_slider_icon_inset">8dp</dimen>
++    <dimen name="volume_slider_icon_inset">7dp</dimen>
+ 
+     <dimen name="volume_dialog_track_width">34dp</dimen>
+ 
+-- 
+2.43.0
+

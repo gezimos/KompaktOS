@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: a call button that is on was lifted 4dp, and its shadow is a grey dither on
+     the e ink panel. It stays flat; the outline in incall_button_background_checked marks it. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+  <item>
+    <objectAnimator
+      android:duration="0"
+      android:propertyName="translationZ"
+      android:valueTo="0dp"
+      android:valueType="floatType"/>
+  </item>
+</selector>

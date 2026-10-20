@@ -1,0 +1,144 @@
+From b6ae9a0ecec7a0fd13cc613e8843d107bdb7c0f1 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Tue, 6 Oct 2026 15:00:00 +0200
+Subject: [PATCH 63/99] Kompakt: AOD paints what changes while it sleeps
+
+---
+ .../com/android/systemui/doze/DozeHost.java   |  3 ++
+ .../systemui/doze/DozeScreenState.java        |  8 ++++
+ .../src/com/android/systemui/doze/DozeUi.java | 42 +++++++++++++++++++
+ .../statusbar/phone/DozeServiceHost.java      |  8 ++++
+ 4 files changed, 61 insertions(+)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/doze/DozeHost.java b/packages/SystemUI/src/com/android/systemui/doze/DozeHost.java
+index 42ceb15f436d..62218dee873e 100644
+--- a/packages/SystemUI/src/com/android/systemui/doze/DozeHost.java
++++ b/packages/SystemUI/src/com/android/systemui/doze/DozeHost.java
+@@ -139,6 +139,9 @@ public interface DozeHost {
+          * Called when fingerprint auth events want the screen on to show info.
+          */
+         default void onFingerprintPulseWhileScreenOff(FingerprintAuthenticationStatus state) {}
++
++        /** Kompakt: the shade drew a frame while dozing. */
++        default void onAodContentDrawn() {}
+     }
+ 
+     interface PulseCallback {
+diff --git a/packages/SystemUI/src/com/android/systemui/doze/DozeScreenState.java b/packages/SystemUI/src/com/android/systemui/doze/DozeScreenState.java
+index b0f58e6754e4..9fef94660ac2 100644
+--- a/packages/SystemUI/src/com/android/systemui/doze/DozeScreenState.java
++++ b/packages/SystemUI/src/com/android/systemui/doze/DozeScreenState.java
+@@ -237,6 +237,13 @@ public class DozeScreenState implements DozeMachine.Part {
+     private final Runnable mDropToDozeSuspend =
+             () -> applyScreenStateNow(Display.STATE_DOZE_SUSPEND);
+ 
++    private boolean mAodSuspended;
++
++    /** Kompakt: true while AOD sleeps in DOZE_SUSPEND, so new frames are not painted. */
++    public boolean isAodSuspended() {
++        return mAodSuspended;
++    }
++
+     /** Repaint the AOD clock: bump to DOZE, then settle back to DOZE_SUSPEND. */
+     public void bumpForAodPaint() {
+         applyScreenState(Display.STATE_DOZE_SUSPEND);
+@@ -255,6 +262,7 @@ public class DozeScreenState implements DozeMachine.Part {
+ 
+     private void applyScreenStateNow(int screenState) {
+         if (screenState != Display.STATE_UNKNOWN) {
++            mAodSuspended = screenState == Display.STATE_DOZE_SUSPEND;
+             if (DEBUG) Log.d(TAG, "setDozeScreenState(" + screenState + ")");
+             mDozeService.setDozeScreenState(screenState);
+             mDozeInteractor.setDozeScreenState(screenState);
+diff --git a/packages/SystemUI/src/com/android/systemui/doze/DozeUi.java b/packages/SystemUI/src/com/android/systemui/doze/DozeUi.java
+index e0a0432ffc5a..650f8bb4cdc9 100644
+--- a/packages/SystemUI/src/com/android/systemui/doze/DozeUi.java
++++ b/packages/SystemUI/src/com/android/systemui/doze/DozeUi.java
+@@ -62,6 +62,17 @@ public class DozeUi implements DozeMachine.Part {
+ 
+     // Kompakt: the 1500 push lands after the lockscreen to AOD transition has settled.
+     private static final long[] AOD_PAINT_PUSH_MS = {0, 500, 1500};
++
++    // Kompakt: a frame drawn while AOD sleeps gets painted, at most once per gap.
++    private static final long AOD_REPAINT_MIN_GAP_MS = 10000;
++    private long mLastAodRepaint;
++    private boolean mAodRepaintPending;
++    private final DozeHost.Callback mAodContentCallback = new DozeHost.Callback() {
++        @Override
++        public void onAodContentDrawn() {
++            requestAodRepaint();
++        }
++    };
+     private final Runnable mCancelTimeTickerRunnable =  new Runnable() {
+         @Override
+         public void run() {
+@@ -155,9 +166,11 @@ public class DozeUi implements DozeMachine.Part {
+                 pulseWhileDozing(mMachine.getPulseReason());
+                 break;
+             case INITIALIZED:
++                mHost.addCallback(mAodContentCallback);
+                 mHost.startDozing();
+                 break;
+             case FINISH:
++                mHost.removeCallback(mAodContentCallback);
+                 mHost.stopDozing();
+                 unscheduleTimeTick();
+                 break;
+@@ -227,6 +240,35 @@ public class DozeUi implements DozeMachine.Part {
+         return calendar.getTimeInMillis();
+     }
+ 
++    private DozeScreenState suspendedAodScreen() {
++        if (mMachine == null) return null;
++        final DozeMachine.State s = mMachine.getState();
++        final DozeScreenState screen = mMachine.getPart(DozeScreenState.class);
++        if (s == null || !s.isAlwaysOn() || screen == null || !screen.isAodSuspended()) return null;
++        return screen;
++    }
++
++    private void requestAodRepaint() {
++        // Frames drawn while the panel is painting need nothing; our own pushes land there too.
++        if (mAodRepaintPending || suspendedAodScreen() == null) return;
++        mAodRepaintPending = true;
++        final long wait = Math.max(0,
++                mLastAodRepaint + AOD_REPAINT_MIN_GAP_MS - SystemClock.elapsedRealtime());
++        mHandler.postDelayed(mWakeLock.wrap(this::repaintAod), wait);
++    }
++
++    private void repaintAod() {
++        mAodRepaintPending = false;
++        final DozeScreenState screen = suspendedAodScreen();
++        if (screen == null) return;
++        mLastAodRepaint = SystemClock.elapsedRealtime();
++        mDozeLog.d("AOD repaint, content changed");
++        screen.bumpForAodPaint();
++        for (long delay : AOD_PAINT_PUSH_MS) {
++            mHandler.postDelayed(mWakeLock.wrap(mHost::dozeTimeTick), delay);
++        }
++    }
++
+     @AnyThread
+     private void onTimeTick() {
+         verifyLastTimeTick();
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/phone/DozeServiceHost.java b/packages/SystemUI/src/com/android/systemui/statusbar/phone/DozeServiceHost.java
+index 2d0d7c226d1c..0ec9afcfd65e 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/phone/DozeServiceHost.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/phone/DozeServiceHost.java
+@@ -190,6 +190,14 @@ public final class DozeServiceHost implements DozeHost {
+         mStatusBarKeyguardViewManager = statusBarKeyguardViewManager;
+         mNotificationShadeWindowViewController = notificationShadeWindowViewController;
+         mAmbientIndicationContainer = ambientIndicationContainer;
++        // Kompakt: tell doze when AOD content changes, so the e-ink panel can paint it.
++        notificationShadeWindowViewController.getView().getViewTreeObserver().addOnDrawListener(
++                () -> {
++                    if (!mDozingRequested) return;
++                    for (Callback callback : mCallbacks) {
++                        callback.onAodContentDrawn();
++                    }
++                });
+     }
+ 
+ 
+-- 
+2.43.0
+

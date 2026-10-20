@@ -8,4 +8,14 @@
         <item name="elevationOverlayEnabled">false</item>
         <item name="enableEdgeToEdge">true</item>
     </style>
+
+    <!-- Kompakt: as upstream, without the monospace typeface, so the labels follow the system font. -->
+    <style name="Theme.Aperture.Camera.SecondaryTopBarButton" parent="Theme.Aperture.Camera.SecondaryBarButton">
+        <item name="android:layout_width">96dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:hyphenationFrequency">normal</item>
+        <item name="android:maxLines">3</item>
+        <item name="android:paddingHorizontal">0dp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
 </resources>

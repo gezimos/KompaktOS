@@ -1,0 +1,111 @@
+// Kompakt: Lato 2.015 (SIL OFL 1.1, see OFL.txt) by Lukasz Dziedzic, all weights from Light
+// to Black: Google Fonts carries Lato 1.x without Medium or SemiBold, so Settings titles came
+// out Regular. Taken from the lato-font 3.0.0 web package and unwrapped from WOFF unchanged. A
+// system font choice in the Kompakt app (persist.sys.kompakt.font); see SystemFonts. The
+// modules carry a Kompakt prefix because external/google-fonts/lato already defines
+// Lato-Regular.ttf and friends (for /product, unused here); the installed names are plain.
+
+prebuilt_font {
+    name: "KompaktLato-Light.ttf",
+    src: "Lato-Light.ttf",
+    filename: "Lato-Light.ttf",
+}
+
+prebuilt_font {
+    name: "KompaktLato-LightItalic.ttf",
+    src: "Lato-LightItalic.ttf",
+    filename: "Lato-LightItalic.ttf",
+}
+
+prebuilt_font {
+    name: "KompaktLato-Regular.ttf",
+    src: "Lato-Regular.ttf",
+    filename: "Lato-Regular.ttf",
+}
+
+prebuilt_font {
+    name: "KompaktLato-Italic.ttf",
+    src: "Lato-Italic.ttf",
+    filename: "Lato-Italic.ttf",
+}
+
+prebuilt_font {
+    name: "KompaktLato-Medium.ttf",
+    src: "Lato-Medium.ttf",
+    filename: "Lato-Medium.ttf",
+}
+
+prebuilt_font {
+    name: "KompaktLato-MediumItalic.ttf",
+    src: "Lato-MediumItalic.ttf",
+    filename: "Lato-MediumItalic.ttf",
+}
+
+prebuilt_font {
+    name: "KompaktLato-SemiBold.ttf",
+    src: "Lato-SemiBold.ttf",
+    filename: "Lato-SemiBold.ttf",
+}
+
+prebuilt_font {
+    name: "KompaktLato-SemiBoldItalic.ttf",
+    src: "Lato-SemiBoldItalic.ttf",
+    filename: "Lato-SemiBoldItalic.ttf",
+}
+
+prebuilt_font {
+    name: "KompaktLato-Bold.ttf",
+    src: "Lato-Bold.ttf",
+    filename: "Lato-Bold.ttf",
+}
+
+prebuilt_font {
+    name: "KompaktLato-BoldItalic.ttf",
+    src: "Lato-BoldItalic.ttf",
+    filename: "Lato-BoldItalic.ttf",
+}
+
+prebuilt_font {
+    name: "KompaktLato-Heavy.ttf",
+    src: "Lato-Heavy.ttf",
+    filename: "Lato-Heavy.ttf",
+}
+
+prebuilt_font {
+    name: "KompaktLato-HeavyItalic.ttf",
+    src: "Lato-HeavyItalic.ttf",
+    filename: "Lato-HeavyItalic.ttf",
+}
+
+prebuilt_font {
+    name: "KompaktLato-Black.ttf",
+    src: "Lato-Black.ttf",
+    filename: "Lato-Black.ttf",
+}
+
+prebuilt_font {
+    name: "KompaktLato-BlackItalic.ttf",
+    src: "Lato-BlackItalic.ttf",
+    filename: "Lato-BlackItalic.ttf",
+}
+
+filegroup {
+    name: "Lato",
+    srcs: ["font_config.json"],
+    required: [
+        "KompaktLato-Light.ttf",
+        "KompaktLato-LightItalic.ttf",
+        "KompaktLato-Regular.ttf",
+        "KompaktLato-Italic.ttf",
+        "KompaktLato-Medium.ttf",
+        "KompaktLato-MediumItalic.ttf",
+        "KompaktLato-SemiBold.ttf",
+        "KompaktLato-SemiBoldItalic.ttf",
+        "KompaktLato-Bold.ttf",
+        "KompaktLato-BoldItalic.ttf",
+        "KompaktLato-Heavy.ttf",
+        "KompaktLato-HeavyItalic.ttf",
+        "KompaktLato-Black.ttf",
+        "KompaktLato-BlackItalic.ttf",
+    ],
+}

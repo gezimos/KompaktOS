@@ -1,0 +1,20 @@
+// Kompakt: the Java side of MediaTek's vendor.mediatek.hardware.mtkradioex@3.0
+// HAL, generated from the interface the vendor RIL serves. telephony-common
+// links it to talk to the modem the way MuditaOS's MediaTek framework does.
+// The classes are renamed so they never shadow the IMS app's own copy.
+
+java_library {
+    name: "kompakt-mtkradioex-java",
+    srcs: ["src/**/*.java"],
+    jarjar_rules: "jarjar-rules.txt",
+    libs: [
+        "android.hidl.base-V1.0-java",
+        "android.hardware.radio-V1.0-java",
+        "android.hardware.radio-V1.1-java",
+        "android.hardware.radio-V1.2-java",
+        "android.hardware.radio-V1.3-java",
+        "android.hardware.radio-V1.4-java",
+        "android.hardware.radio-V1.5-java",
+        "android.hardware.radio-V1.6-java",
+    ],
+}

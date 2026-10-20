@@ -10,16 +10,22 @@ comments in these files are short titles; the reasons behind them are here.
   The build number stays in `ro.build.version.incremental`, which Diagnostics
   reads and which must never repeat.
 - **Product identity**: without `PRODUCT_BRAND`, `MANUFACTURER` and `MODEL` the
-  GSI declares itself google/generic_arm64. phh's securize copies only the vendor
-  fingerprint over the system one, an inconsistency Play flags as uncertified, so
-  securize is disabled through `/metadata/securize_disable`
-  (`etc/init/kompakt-securize.rc`). `PRODUCT_DEVICE` stays generic_arm64: it
-  selects the device config.
+  GSI declares itself google/generic_arm64. `PRODUCT_DEVICE` stays generic_arm64:
+  it selects the device config.
+- **Securize on by default**: banking apps (with microG too) need phh's securize,
+  which fakes a locked bootloader and copies the vendor fingerprint over the system
+  one. `etc/init/kompakt-securize.rc` removes `/metadata/securize_disable` at every
+  boot, since 1.0 and 1.1 wrote it and it survives updates. Switching Securize off
+  in TrebleDroid's Misc page brings the marker back once the setting loads, which
+  stops the faked boot state but not the fingerprint copy, which ran earlier.
+  The Play Store works with Securize on (tested 2026-10-05, a registered phone),
+  so the older worry that the fingerprint copy breaks Play no longer holds.
 - **Plain product variables**: `PRODUCT_BUILD_PROP_OVERRIDES` accepts only keys in
   soong's product_config.json and fails with `Key "PRODUCT_BRAND" isn't a valid
   prop override`.
 - **Securize marker order**: rw-system.sh reads the marker at post-fs, and init
-  parses the directory alphabetically, so `kompakt-` must sort before `vndk-`.
+  parses the directory alphabetically, so `kompakt-` must sort before `vndk-` for
+  the removal to come first.
 - **Boot animation**: LineageOS's is a 480x160 strip at 60 fps that the panel
   smears into grey; ours is its frames redrawn black on white at 10 fps around the
   boot logo. Mudita's vendor sets `debug.sf.nobootanimation=1`; product
@@ -47,9 +53,9 @@ comments in these files are short titles; the reasons behind them are here.
 
 - **versionCode** must rise every build: Android replaces an installed /data copy
   only when the system copy's versionCode is higher.
-- **Static lineage platform**: LineageNotificationLights is linked statically, as
-  LineageParts and Settings do; there is no shared library declaration for
-  org.lineageos.platform.
+- **Static lineage platform**: `org.lineageos.platform.internal` is linked
+  statically (for `LedMigration`'s LineageSettings), as LineageParts and
+  Settings do; there is no shared library declaration for org.lineageos.platform.
 - **BootReceiver**: installing a new APK kills the process and nothing else
   restarts it; the watcher is the only reader of the offline switch and the
   fingerprint sensor.
@@ -146,9 +152,10 @@ comments in these files are short titles; the reasons behind them are here.
 - **IMS** (`Ims.kt`): carriers without 2G or 3G carry every call over IMS.
 - **Front light** (`FrontLight.kt`): a step is a tenth of the slider on Android's
   perceptual scale, copied from SettingsLib's BrightnessUtils.
-- **Notification light** (`NotifLight.kt`, `Hardware.kt`): see
-  `KompaktService/NOTIFICATION-LED.md`. DND is `matchesInterruptionFilter()`; an
-  unreadable ranking lights the LED rather than silencing it.
+- **Notification light**: not the app's. LineageOS drives it through its own
+  lights HAL; see `KompaktService/NOTIFICATION-LED.md`.
+- **Uncertified notice** (`UncertifiedNotice.kt`): a notification listener that
+  cancels GMS's permanent "uncertified device" notice.
 - **Tether offload** (`TetherOffload.kt`): kept off. The vendor's offload is
   MediaTek's modem direct path over /dev/mddp, which neither kernel has, so
   clients connect and nothing is forwarded. Settings writes 0 back when developer

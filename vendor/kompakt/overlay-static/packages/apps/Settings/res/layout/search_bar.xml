@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Settings homepage search bar, e ink. -->
+<!-- Settings homepage search bar, e ink: a 2px edge, as the notifications and quick settings. -->
 <com.google.android.material.card.MaterialCardView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     style="@style/SearchBarStyle_v2"
-    app:strokeWidth="2dp"
+    app:strokeWidth="2px"
     app:strokeColor="@color/kompakt_search_bar_ink"
     app:cardBackgroundColor="@color/kompakt_search_bar_ground"
     app:cardElevation="0dp"

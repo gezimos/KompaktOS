@@ -1,0 +1,246 @@
+From 91259a1c2a07b3252b63b5b28bfcfb8dbc1ccaf6 Mon Sep 17 00:00:00 2001
+From: Gezim <25499045+gezimos@users.noreply.github.com>
+Date: Sun, 11 Oct 2026 19:06:32 +0200
+Subject: [PATCH] Kompakt: the picker options turn a page per swipe
+
+Wallpaper & style scrolled its options with the finger, and the previews
+collapsed with them through the MotionLayout swipe: a smear of repaints on
+e-ink. The options sit in a PagedScrollView (a NestedScrollView that takes
+no drag; Twelve\x27s page gesture) and the transition has no OnSwipe. A page
+down first collapses the previews (progress 1), then turns the options a
+viewport at a time; a page up at the top brings the previews back
+(progress 0), each in one step.
+
+Change-Id: I5b631306613b5200861441cdfab3ede434ef90cf
+---
+ res/layout/fragment_customization_picker2.xml |  4 +-
+ res/xml/customization_picker_layout_scene.xml |  7 +-
+ .../ui/CustomizationPickerFragment2.kt        | 18 ++++
+ src/com/kompakt/eink/PageGestureListener.java | 84 +++++++++++++++++++
+ src/com/kompakt/eink/PagedScrollView.java     | 54 ++++++++++++
+ 5 files changed, 159 insertions(+), 8 deletions(-)
+ create mode 100755 src/com/kompakt/eink/PageGestureListener.java
+ create mode 100644 src/com/kompakt/eink/PagedScrollView.java
+
+diff --git a/res/layout/fragment_customization_picker2.xml b/res/layout/fragment_customization_picker2.xml
+index c187fccf2..af1b2b08b 100755
+--- a/res/layout/fragment_customization_picker2.xml
++++ b/res/layout/fragment_customization_picker2.xml
+@@ -163,7 +163,7 @@
+                 android:visibility="gone" />
+         </FrameLayout>
+ 
+-        <androidx.core.widget.NestedScrollView
++        <com.kompakt.eink.PagedScrollView
+             android:id="@+id/bottom_scroll_view"
+             android:layout_width="0dp"
+             android:layout_height="0dp"
+@@ -226,7 +226,7 @@
+                     app:layout_constraintEnd_toEndOf="parent"
+                     app:layout_constraintTop_toBottomOf="@+id/wallpaper_picker_entry_bottom_space" />
+             </androidx.constraintlayout.widget.ConstraintLayout>
+-        </androidx.core.widget.NestedScrollView>
++        </com.kompakt.eink.PagedScrollView>
+ 
+         <FrameLayout
+             android:id="@+id/customization_option_floating_sheet_container"
+diff --git a/res/xml/customization_picker_layout_scene.xml b/res/xml/customization_picker_layout_scene.xml
+index 6cffc6b7e..8e84a53e6 100644
+--- a/res/xml/customization_picker_layout_scene.xml
++++ b/res/xml/customization_picker_layout_scene.xml
+@@ -23,12 +23,7 @@
+         android:id="@+id/transition_primary"
+         app:constraintSetStart="@id/expanded_header_primary"
+         app:constraintSetEnd="@id/collapsed_header_primary">
+-
+-        <OnSwipe
+-            app:dragDirection="dragUp"
+-            app:onTouchUp="stop"
+-            app:touchAnchorId="@+id/bottom_scroll_view"
+-            app:touchAnchorSide="top" />
++        <!-- Kompakt: no OnSwipe; the options page and the header collapses in one step. -->
+     </Transition>
+ 
+     <ConstraintSet android:id="@+id/expanded_header_primary">
+diff --git a/src/com/android/wallpaper/picker/customization/ui/CustomizationPickerFragment2.kt b/src/com/android/wallpaper/picker/customization/ui/CustomizationPickerFragment2.kt
+index 080c36b14..69b65ab3b 100644
+--- a/src/com/android/wallpaper/picker/customization/ui/CustomizationPickerFragment2.kt
++++ b/src/com/android/wallpaper/picker/customization/ui/CustomizationPickerFragment2.kt
+@@ -248,6 +248,24 @@ class CustomizationPickerFragment2 :
+         val pickerMotionContainer: MotionLayout = view.requireViewById(R.id.picker_motion_layout)
+ 
+         val bottomScrollView: NestedScrollView = view.requireViewById(R.id.bottom_scroll_view)
++        // Kompakt: a page down first collapses the previews, then turns the options; a page up
++        // at the top brings the previews back, each in one step.
++        (bottomScrollView as? com.kompakt.eink.PagedScrollView)?.setPager { delta ->
++            val paged = bottomScrollView as com.kompakt.eink.PagedScrollView
++            when {
++                delta > 0 && pickerMotionContainer.progress < 1f -> {
++                    pickerMotionContainer.progress = 1f
++                    true
++                }
++                delta > 0 -> paged.pageSelf(delta)
++                bottomScrollView.scrollY > 0 -> paged.pageSelf(delta)
++                pickerMotionContainer.progress > 0f -> {
++                    pickerMotionContainer.progress = 0f
++                    true
++                }
++                else -> false
++            }
++        }
+         // Override bottom scroll view's accessibility delegate to enable collapse and expand of
+         // the preview and the wallpaper entry.
+         ViewCompat.setAccessibilityDelegate(
+diff --git a/src/com/kompakt/eink/PageGestureListener.java b/src/com/kompakt/eink/PageGestureListener.java
+new file mode 100755
+index 000000000..fd209053d
+--- /dev/null
++++ b/src/com/kompakt/eink/PageGestureListener.java
+@@ -0,0 +1,84 @@
++package com.kompakt.eink;
++
++import android.content.Context;
++import android.view.GestureDetector;
++import android.view.MotionEvent;
++
++/** Turns touch into page moves, matching inkOS (ui/compose/GestureHelper.kt). */
++final class PageGestureListener extends GestureDetector.SimpleOnGestureListener {
++
++    /** What to do with a page move; delta is +1 (down/forward) or -1 (up/back). */
++    interface Pager {
++        boolean page(int delta);
++    }
++
++    /** Drag distance before a page turns. */
++    private static final float THRESHOLD_DP = 56f;
++    private static final long COOLDOWN_MS = 200L;
++
++    /** Minimum vertical fling speed, dp/s. */
++    private static final float MIN_FLING_DP_PER_S = 600f;
++
++    /** How many pages the hardest flick may cover. */
++    private static final int MAX_FLING_PAGES = 5;
++
++    private final Pager pager;
++    private final float thresholdPx;
++    private final float minFlingPxPerS;
++
++    private float lastPageMoveY;
++    private long lastPageMoveTime;
++    /** inkOS's scrollPageMoveTriggered: did this gesture already page while dragging? */
++    private boolean pagedDuringDrag;
++
++    PageGestureListener(Context context, Pager pager) {
++        this.pager = pager;
++        final float density = context.getResources().getDisplayMetrics().density;
++        this.thresholdPx = Math.max(8f, THRESHOLD_DP * density);
++        this.minFlingPxPerS = MIN_FLING_DP_PER_S * density;
++    }
++
++    @Override
++    public boolean onDown(MotionEvent e) {
++        // Measure the next drag from here, not from the previous gesture.
++        lastPageMoveY = e.getY();
++        pagedDuringDrag = false;
++        return true;
++    }
++
++    @Override
++    public boolean onScroll(MotionEvent down, MotionEvent now, float dx, float dy) {
++        if (down == null) return false;
++
++        // Vertical-dominant only.
++        if (Math.abs(now.getX() - down.getX()) > Math.abs(now.getY() - down.getY())) return false;
++
++        final float travelled = now.getY() - lastPageMoveY;
++        if (Math.abs(travelled) <= thresholdPx) return false;
++
++        final long t = android.os.SystemClock.uptimeMillis();
++        if (t - lastPageMoveTime < COOLDOWN_MS) return false;
++
++        // Dragging content up (negative) means "go down a page".
++        if (!pager.page(travelled < 0 ? 1 : -1)) return false;
++        lastPageMoveTime = t;
++        lastPageMoveY = now.getY();
++        pagedDuringDrag = true;
++        return true;
++    }
++
++    @Override
++    public boolean onFling(MotionEvent down, MotionEvent up, float vx, float vy) {
++        // A drag that already paged must not page again on lift.
++        if (pagedDuringDrag) return false;
++        // Vertical-dominant, and fast enough to be a deliberate flick.
++        if (Math.abs(vy) < Math.abs(vx)) return false;
++        if (Math.abs(vy) < minFlingPxPerS) return false;
++        // ...and far enough.
++        if (down != null && up != null
++                && Math.abs(up.getY() - down.getY()) < thresholdPx) return false;
++        final int pages = Math.max(1,
++                Math.min(MAX_FLING_PAGES, (int) (Math.abs(vy) / minFlingPxPerS)));
++        return pager.page(vy < 0 ? pages : -pages);
++    }
++}
+diff --git a/src/com/kompakt/eink/PagedScrollView.java b/src/com/kompakt/eink/PagedScrollView.java
+new file mode 100644
+index 000000000..3e6c4a8aa
+--- /dev/null
++++ b/src/com/kompakt/eink/PagedScrollView.java
+@@ -0,0 +1,54 @@
++package com.kompakt.eink;
++
++import android.content.Context;
++import android.util.AttributeSet;
++import android.view.GestureDetector;
++import android.view.MotionEvent;
++
++import androidx.core.widget.NestedScrollView;
++
++/** Kompakt: the picker options turn a page per swipe; the owner decides what a page is. */
++public class PagedScrollView extends NestedScrollView {
++
++    /** Moves by delta pages, +1 forward and -1 back; true if anything moved. */
++    public interface Pager {
++        boolean page(int delta);
++    }
++
++    private Pager mPager;
++    private final GestureDetector mDetector;
++
++    public PagedScrollView(Context context, AttributeSet attrs) {
++        super(context, attrs);
++        mDetector = new GestureDetector(context, new PageGestureListener(context,
++                delta -> mPager != null ? mPager.page(delta) : pageSelf(delta)));
++    }
++
++    public void setPager(Pager pager) {
++        mPager = pager;
++    }
++
++    /** One viewport, clamped at either end; true if it moved. */
++    public boolean pageSelf(int delta) {
++        final int before = getScrollY();
++        scrollBy(0, delta * (getHeight() - getPaddingTop() - getPaddingBottom()));
++        return getScrollY() != before;
++    }
++
++    @Override
++    public boolean dispatchTouchEvent(MotionEvent ev) {
++        mDetector.onTouchEvent(ev);
++        return super.dispatchTouchEvent(ev);
++    }
++
++    /** No drag of its own: taps reach the options, drags only page. */
++    @Override
++    public boolean onInterceptTouchEvent(MotionEvent ev) {
++        return false;
++    }
++
++    @Override
++    public boolean onTouchEvent(MotionEvent ev) {
++        return true;
++    }
++}
+-- 
+2.43.0
+

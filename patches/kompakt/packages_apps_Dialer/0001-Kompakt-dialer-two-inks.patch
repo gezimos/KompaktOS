@@ -80,17 +80,23 @@ diff --git a/java/com/android/dialer/main/impl/bottomnav/BottomNavItem.java b/ja
 index 7cc457a0a..cefbdc96c 100644
 --- a/java/com/android/dialer/main/impl/bottomnav/BottomNavItem.java
 +++ b/java/com/android/dialer/main/impl/bottomnav/BottomNavItem.java
-@@ -77,7 +77,8 @@ final class BottomNavItem extends LinearLayout {
+@@ -77,10 +77,13 @@ final class BottomNavItem extends LinearLayout {
    public void setSelected(boolean selected) {
      super.setSelected(selected);
      int colorId = selected
 -            ? DialerUtils.resolveColor(getContext(), android.R.attr.textColorPrimary)
-+            // Kompakt: the selected item sits on an ink pill, so it takes the inverse text colour.
++            // Kompakt: the selected icon sits on an ink pill, so it takes the inverse text colour.
 +            ? DialerUtils.resolveColor(getContext(), android.R.attr.textColorPrimaryInverse)
              : DialerUtils.resolveColor(getContext(), android.R.attr.textColorSecondary);
      image.setImageResource(selected ? drawableResSelected : drawableRes);
      image.setImageTintList(ColorStateList.valueOf(colorId));
-@@ -217,7 +218,9 @@ final class BottomNavItem extends LinearLayout {
+-    text.setTextColor(colorId);
++    // Kompakt: the label sits below the pill, on the page, so it keeps the page's text colour.
++    text.setTextColor(selected
++            ? DialerUtils.resolveColor(getContext(), android.R.attr.textColorPrimary) : colorId);
+ 
+     float newIndicatorProgress = selected ? 1F : 0F;
+@@ -217,7 +220,9 @@ final class BottomNavItem extends LinearLayout {
              @NonNull View indicator) {
        indicator.setScaleX(calculateScaleX(progress, targetValue));
        indicator.setScaleY(calculateScaleY(progress, targetValue));
@@ -257,7 +263,7 @@ index 99fda0728..599044040 100644
 +  <color name="searchbar_icon_color">#fffffffe</color>
 +  <color name="dialer_primary_text_color">#fffffffe</color>
 +  <color name="dialer_secondary_text_color">#fffffffe</color>
-+  <color name="dialer_text_hint_color">#61ffffff</color>
++  <color name="dialer_text_hint_color">#fffffffe</color>
 +  <color name="dialer_theme_color_20pct">#33ffffff</color>
  </resources>
 diff --git a/java/com/android/dialer/theme/hidden/res/values/colors_dialer_dark.xml b/java/com/android/dialer/theme/hidden/res/values/colors_dialer_dark.xml
@@ -296,5 +302,5 @@ index c894da3ff..a3b44fc77 100644
    <color name="dialer_theme_color_light">@android:color/system_accent1_600</color>
 +  <color name="dialer_primary_text_color">#ff000000</color>
 +  <color name="dialer_secondary_text_color">#ff000000</color>
-+  <color name="dialer_text_hint_color">#61000000</color>
++  <color name="dialer_text_hint_color">#ff000000</color>
  </resources>

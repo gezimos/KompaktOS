@@ -1,0 +1,113 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Fri, 16 Oct 2026 15:00:00 +0200
+Subject: [PATCH] Kompakt: the SIMs page opens OpenEUICC when slot 2 is eSIM
+
+Android shows Add eSIM only when EuiccRepository.showEuiccSettings() holds,
+which needs telephony to report an eUICC. The Kompakt's eSIM chip sits
+behind slot 2's mux and is never reported as embedded, so with slot 2 on
+the eSIM the row was missing on the first visit and appeared on a later
+one, stayed after an eSIM was already on, and opened OpenEUICC's download
+wizard. The page drops Add SIM and, while the slot reads esim, shows one
+eSIM profiles row under the slot switch that opens OpenEUICC's own
+launcher activity, where profiles are added, switched and removed.
+
+The slot switch follows MuditaOS's SIM cards page: a plain row, Switch to
+eSIM mode or Switch to SIM 2 mode with Mudita's line under it, instead of a
+toggle titled SIM 2 slot as eSIM. The eSIM row reads Add eSIM, or eSIM with
+the carrier once the slot 2 subscription is up, and sits above it.
+
+---
+diff --git a/src/com/android/settings/spa/network/SimsSection.kt b/src/com/android/settings/spa/network/SimsSection.kt
+--- a/src/com/android/settings/spa/network/SimsSection.kt
++++ b/src/com/android/settings/spa/network/SimsSection.kt
+@@ -45,6 +45,7 @@
+ import com.android.settings.network.telephony.SubscriptionRepository
+ import com.android.settings.network.telephony.euicc.EuiccRepository
+ import com.android.settings.network.telephony.phoneNumberFlow
++import com.android.settingslib.spa.widget.preference.Preference
+ import com.android.settingslib.spa.widget.preference.PreferenceModel
+ import com.android.settingslib.spa.widget.preference.SwitchPreference
+ import com.android.settingslib.spa.widget.preference.SwitchPreferenceModel
+@@ -63,9 +64,11 @@
+             SimPreference(subInfo)
+         }
+ 
+-        AddSim()
++        // Kompakt: no Add SIM: it waits on an eUICC Android rarely sees here, and the eSIM profiles row covers it.
+ 
+-        KompaktSimSlotSwitch(subscriptionInfoList)
++        KompaktEsimProfiles(subscriptionInfoList)
++
++        KompaktSimSlotSwitch()
+     }
+ }
+ 
+@@ -83,28 +86,47 @@
+         false
+     }
+ 
+-/** Switches slot 2 between the SIM tray and the eUICC. */
++/** OpenEUICC, the app that downloads and switches the eSIMs. */
++private const val KOMPAKT_EUICC_PACKAGE = "im.angry.openeuicc"
++
++/** Kompakt: Android never reports the muxed chip as an eUICC, so Add eSIM stays hidden; open OpenEUICC itself. */
+ @Composable
+-private fun KompaktSimSlotSwitch(subscriptionInfoList: List<SubscriptionInfo>) {
++private fun KompaktEsimProfiles(subscriptionInfoList: List<SubscriptionInfo>) {
+     val context = LocalContext.current
+-    val traySimOn = subscriptionInfoList.any {
+-        it.simSlotIndex == KOMPAKT_MUXED_SLOT &&
+-            !it.isEmbedded &&
+-            it.areUiccApplicationsEnabled()
+-    }
+-    SwitchPreference(
+-        object : SwitchPreferenceModel {
+-            override val title = "SIM 2 slot as eSIM"
++    val launch =
++        remember { context.packageManager.getLaunchIntentForPackage(KOMPAKT_EUICC_PACKAGE) }
++            ?: return
++    if (!kompaktSlotIsEsim()) return
++    // In eSIM mode the slot 2 subscription is the eSIM; MuditaOS names the row by it the same way.
++    val esim = subscriptionInfoList.firstOrNull { it.simSlotIndex == KOMPAKT_MUXED_SLOT }
++    Preference(
++        object : PreferenceModel {
++            override val title = if (esim != null) "eSIM" else "Add eSIM"
+             override val summary = {
+-                (when {
+-                    traySimOn -> "Turn SIM 2 off first"
+-                    kompaktSlotIsEsim() -> "Slot 2 is using the eSIM"
+-                    else -> "Slot 2 is using the SIM tray"
+-                }) as CharSequence
++                (esim?.displayName?.toString() ?: "Or turn on an eSIM you already added") as CharSequence
+             }
+-            override val checked = { kompaktSlotIsEsim() }
+-            override val changeable = { !traySimOn }
+-            override val onCheckedChange: (Boolean) -> Unit = {
++            override val icon = @Composable { SettingsIcon(Icons.Outlined.SimCardDownload) }
++            override val onClick = {
++                context.startActivity(Intent(launch).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
++            }
++        }
++    )
++}
++
++/** Switches slot 2 between the SIM card and the eSIM, in MuditaOS's words; the Kompakt app asks and restarts. */
++@Composable
++private fun KompaktSimSlotSwitch() {
++    val context = LocalContext.current
++    val esimMode = kompaktSlotIsEsim()
++    Preference(
++        object : PreferenceModel {
++            override val title = if (esimMode) "Switch to SIM 2 mode" else "Switch to eSIM mode"
++            override val summary = {
++                (if (esimMode) "This will disable the eSIM and allow you to use SIM 2"
++                 else "This will disable SIM 2 and allow you to add or manage an eSIM") as CharSequence
++            }
++            override val icon = @Composable { SettingsIcon(Icons.Outlined.SimCard) }
++            override val onClick = {
+                 context.startActivity(
+                     Intent("com.kompakt.service.action.SIM_MODE")
+                         .setPackage("com.kompakt.service")
+-- 
+2.43.0

@@ -26,6 +26,7 @@
         <item name="materialIconButtonFilledTonalStyle">@style/Theme.Twelve.Kompakt.IconButton</item>
         <item name="materialIconButtonStyle">@style/Theme.Twelve.Kompakt.IconButton</item>
         <item name="materialCardViewFilledStyle">@style/Theme.Twelve.Kompakt.FlatCard</item>
+        <item name="bottomNavigationStyle">@style/KompaktBottomNavigation</item>
     </style>
 
     <style name="Theme.Twelve.NowPlayingFragment.MediaButton.Primary" parent="Widget.Material3Expressive.Button.IconButton">
@@ -38,7 +39,7 @@
         <item name="backgroundTint">@android:color/transparent</item>
         <item name="android:background">@android:color/transparent</item>
         <item name="strokeColor">#ff000000</item>
-        <item name="strokeWidth">2dp</item>
+        <item name="strokeWidth">2px</item>
         <item name="iconTint">#ff000000</item>
         <item name="rippleColor">#14000000</item>
         <item name="elevation">0dp</item>
@@ -53,7 +54,7 @@
         <item name="android:padding">0dp</item>
         <item name="backgroundTint">@android:color/transparent</item>
         <item name="strokeColor">#ff000000</item>
-        <item name="strokeWidth">2dp</item>
+        <item name="strokeWidth">2px</item>
         <item name="iconTint">#ff000000</item>
         <item name="iconGravity">textStart</item>
         <item name="iconSize">32dp</item>

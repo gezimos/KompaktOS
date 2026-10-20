@@ -1,20 +1,22 @@
-From 7010f95b53ef330a16ed23c19c84754f29a1529d Mon Sep 17 00:00:00 2001
-From: gezimos <>
-Date: Thu, 17 Sep 2026 21:26:35 +0200
+From ad30731b85fcf14a04d48b91fb0a9c5cc36ae03d Mon Sep 17 00:00:00 2001
+From: Gezim <25499045+gezimos@users.noreply.github.com>
+Date: Sun, 11 Oct 2026 13:24:49 +0200
 Subject: [PATCH] Kompakt: settings: two inks
 
+Change-Id: I3e02c3d356963c0d876be8a199daafef4e881bec
 ---
  .../settings/SettingsPreferenceFragment.java  |  13 ++
  .../ManageApplications.java                   |   1 -
+ .../batteryusage/BatteryDiffEntry.java        |   4 +-
  .../network/NetworkCellularGroupProvider.kt   |   2 +
- .../settings/spa/network/SimsSection.kt       |  71 ++++++++-
+ .../settings/spa/network/SimsSection.kt       |  71 ++++++-
  .../system/ShadePanelsPreferenceController.kt |   3 +-
  .../settings/widget/RingProgressBar.java      |  24 +++
- src/com/kompakt/eink/PageGestureListener.java |  84 ++++++++++
- .../kompakt/eink/PagedNestedScrollView.java   | 149 ++++++++++++++++++
- src/com/kompakt/eink/PagedScroll.java         | 133 ++++++++++++++++
- src/com/kompakt/eink/SwitchOnlyTouch.java     | 111 +++++++++++++
- 10 files changed, 584 insertions(+), 7 deletions(-)
+ src/com/kompakt/eink/PageGestureListener.java |  84 ++++++++
+ .../kompakt/eink/PagedNestedScrollView.java   | 182 ++++++++++++++++++
+ src/com/kompakt/eink/PagedScroll.java         | 140 ++++++++++++++
+ src/com/kompakt/eink/SwitchOnlyTouch.java     | 111 +++++++++++
+ 11 files changed, 627 insertions(+), 8 deletions(-)
  create mode 100755 src/com/kompakt/eink/PageGestureListener.java
  create mode 100755 src/com/kompakt/eink/PagedNestedScrollView.java
  create mode 100755 src/com/kompakt/eink/PagedScroll.java
@@ -56,8 +58,24 @@ index 9e1cb8d067c..a39a207572d 100644
          mApplications = new ApplicationsAdapter(mApplicationsState, this, mFilter,
                  savedInstanceState);
          if (savedInstanceState != null) {
+diff --git a/src/com/android/settings/fuelgauge/batteryusage/BatteryDiffEntry.java b/src/com/android/settings/fuelgauge/batteryusage/BatteryDiffEntry.java
+index 4d1545a0a89..82df7160c3e 100644
+--- a/src/com/android/settings/fuelgauge/batteryusage/BatteryDiffEntry.java
++++ b/src/com/android/settings/fuelgauge/batteryusage/BatteryDiffEntry.java
+@@ -256,8 +256,10 @@ public class BatteryDiffEntry {
+     /** Gets the app icon {@link Drawable} for this entry. */
+     public Drawable getAppIcon() {
+         loadLabelAndIcon();
++        // Kompakt: the monochrome icon where the app has one.
+         return mAppIcon != null && mAppIcon.getConstantState() != null
+-                ? mAppIcon.getConstantState().newDrawable()
++                ? com.android.settingslib.Utils.kompaktMonochrome(
++                        mContext, mAppIcon.getConstantState().newDrawable())
+                 : null;
+     }
+ 
 diff --git a/src/com/android/settings/spa/network/NetworkCellularGroupProvider.kt b/src/com/android/settings/spa/network/NetworkCellularGroupProvider.kt
-index 2d92c414c21..1682820b14c 100644
+index 2d92c414c21..ff77fdec06d 100644
 --- a/src/com/android/settings/spa/network/NetworkCellularGroupProvider.kt
 +++ b/src/com/android/settings/spa/network/NetworkCellularGroupProvider.kt
 @@ -18,6 +18,7 @@ package com.android.settings.spa.network
@@ -77,7 +95,7 @@ index 2d92c414c21..1682820b14c 100644
  fun MobileDataSectionImpl(mobileDataSelectedId: Int, nonDds: Int) {
      Category(title = stringResource(id = R.string.mobile_data_settings_title)) {
 diff --git a/src/com/android/settings/spa/network/SimsSection.kt b/src/com/android/settings/spa/network/SimsSection.kt
-index d98129f6ab2..2ff3c9b6bc7 100644
+index d98129f6ab2..71b0b4af22d 100644
 --- a/src/com/android/settings/spa/network/SimsSection.kt
 +++ b/src/com/android/settings/spa/network/SimsSection.kt
 @@ -46,6 +46,7 @@ import com.android.settings.network.telephony.SubscriptionRepository
@@ -176,7 +194,7 @@ index d98129f6ab2..2ff3c9b6bc7 100644
              override val icon = @Composable { SimIcon(subInfo.isEmbedded) }
              override val changeable = {
 diff --git a/src/com/android/settings/system/ShadePanelsPreferenceController.kt b/src/com/android/settings/system/ShadePanelsPreferenceController.kt
-index f62ac07e8d5..82f4d5010db 100644
+index f62ac07e8d5..6e5425b7b3d 100644
 --- a/src/com/android/settings/system/ShadePanelsPreferenceController.kt
 +++ b/src/com/android/settings/system/ShadePanelsPreferenceController.kt
 @@ -36,7 +36,8 @@ class ShadePanelsPreferenceController(
@@ -226,7 +244,7 @@ index 605e4e91c93..ba8f1e5daf1 100644
          super.onMeasure(widthMeasureSpec, heightMeasureSpec);
 diff --git a/src/com/kompakt/eink/PageGestureListener.java b/src/com/kompakt/eink/PageGestureListener.java
 new file mode 100755
-index 00000000000..6047f87ef3e
+index 00000000000..fd209053db8
 --- /dev/null
 +++ b/src/com/kompakt/eink/PageGestureListener.java
 @@ -0,0 +1,84 @@
@@ -316,10 +334,10 @@ index 00000000000..6047f87ef3e
 +}
 diff --git a/src/com/kompakt/eink/PagedNestedScrollView.java b/src/com/kompakt/eink/PagedNestedScrollView.java
 new file mode 100755
-index 00000000000..600b1ca936d
+index 00000000000..f8ec0354836
 --- /dev/null
 +++ b/src/com/kompakt/eink/PagedNestedScrollView.java
-@@ -0,0 +1,149 @@
+@@ -0,0 +1,182 @@
 +package com.kompakt.eink;
 +
 +import android.content.Context;
@@ -408,8 +426,35 @@ index 00000000000..600b1ca936d
 +        final int y = starts[target];
 +        if (y == getScrollY() && target == index) return false;
 +        currentPage = target;
++        if (y > maxScroll && content != null) {
++            // Kompakt: the last page starts at a row like the others; pad the end so the
++            // content is long enough to scroll there, then scroll once that is laid out.
++            padEnd(y - maxScroll);
++            content.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
++                @Override
++                public void onLayoutChange(View v, int l, int t, int r, int b,
++                        int ol, int ot, int or, int ob) {
++                    v.removeOnLayoutChangeListener(this);
++                    scrollTo(0, y);
++                }
++            });
++            return true;
++        }
 +        scrollTo(0, y);
 +        return true;
++    }
++
++    /** The list's own bottom padding, before any end padding was added. */
++    private int basePadBottom = -1;
++
++    /** Kompakt: extra empty space after the last row, so the last page can start at a row. */
++    private void padEnd(int extra) {
++        final RecyclerView rv = findRecyclerView(getChildCount() > 0 ? getChildAt(0) : null);
++        if (rv == null) return;
++        if (basePadBottom < 0) basePadBottom = rv.getPaddingBottom();
++        rv.setClipToPadding(false);
++        rv.setPadding(rv.getPaddingLeft(), rv.getPaddingTop(), rv.getPaddingRight(),
++                rv.getPaddingBottom() + extra);
 +    }
 +
 +    /** Where each page starts, walked from the rows themselves. */
@@ -428,6 +473,9 @@ index 00000000000..600b1ca936d
 +            return java.util.Arrays.copyOf(out, count);
 +        }
 +        final int base = topInContent(rv);
++        // Kompakt: the space above the first row on page one, kept above the first row of
++        // every page, so all pages start their rows at the same height.
++        final int lead = Math.max(0, base + rv.getChildAt(0).getTop());
 +        while (count < MAX_PAGES && out[count - 1] < maxScroll) {
 +            final int limit = out[count - 1] + viewport;
 +            // The topmost row that does not finish above the bottom edge.
@@ -437,11 +485,14 @@ index 00000000000..600b1ca936d
 +                final int top = base + row.getTop();
 +                if (base + row.getBottom() > limit && top < next) next = top;
 +            }
++            boolean row = next != Integer.MAX_VALUE;
 +            // No such row: the rest of the content fits, so the last page is the bottom.
-+            if (next == Integer.MAX_VALUE) next = maxScroll;
++            if (!row) next = maxScroll;
++            else if (next - lead > out[count - 1]) next -= lead;
 +            // A row taller than the whole page would stand still forever.
-+            if (next <= out[count - 1]) next = limit;
-+            out[count++] = Math.min(next, maxScroll);
++            if (next <= out[count - 1]) { next = limit; row = false; }
++            // A page that starts at a row may start past the end; page() pads for it.
++            out[count++] = row ? next : Math.min(next, maxScroll);
 +        }
 +        return java.util.Arrays.copyOf(out, count);
 +    }
@@ -471,10 +522,10 @@ index 00000000000..600b1ca936d
 +}
 diff --git a/src/com/kompakt/eink/PagedScroll.java b/src/com/kompakt/eink/PagedScroll.java
 new file mode 100755
-index 00000000000..ffa50991f6f
+index 00000000000..eb061706047
 --- /dev/null
 +++ b/src/com/kompakt/eink/PagedScroll.java
-@@ -0,0 +1,133 @@
+@@ -0,0 +1,140 @@
 +package com.kompakt.eink;
 +
 +import android.view.GestureDetector;
@@ -606,6 +657,13 @@ index 00000000000..ffa50991f6f
 +        public boolean canScrollVertically() {
 +            return allowProgrammaticScroll;
 +        }
++
++        /** A search result jumps straight to its setting, at the top of the page; the gate above would stop a smooth scroll. */
++        @Override
++        public void smoothScrollToPosition(RecyclerView recyclerView, RecyclerView.State state,
++                int position) {
++            scrollToPositionWithOffset(position, 0);
++        }
 +    }
 +}
 diff --git a/src/com/kompakt/eink/SwitchOnlyTouch.java b/src/com/kompakt/eink/SwitchOnlyTouch.java
@@ -725,3 +783,6 @@ index 00000000000..4d4ff131a75
 +        return false;
 +    }
 +}
+-- 
+2.43.0
+

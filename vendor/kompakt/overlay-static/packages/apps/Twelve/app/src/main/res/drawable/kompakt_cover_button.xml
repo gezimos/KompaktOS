@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: a 40dp outlined circle behind a toolbar button over a cover, whatever the button's size; none once the cover is hidden (activated, set by PagedScroll). -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_activated="true">
+        <color android:color="@android:color/transparent" />
+    </item>
+    <item>
+        <layer-list>
+            <item android:width="40dp" android:height="40dp" android:gravity="center">
+                <shape android:shape="oval">
+                    <solid android:color="?attr/colorSurface" />
+                    <stroke android:width="2px" android:color="?attr/colorOnSurface" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+</selector>

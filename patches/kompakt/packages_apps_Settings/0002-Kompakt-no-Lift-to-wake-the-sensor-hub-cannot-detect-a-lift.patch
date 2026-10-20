@@ -1,0 +1,24 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Mon, 5 Oct 2026 12:30:00 +0200
+Subject: [PATCH 1/1] Kompakt: no Lift to wake, the sensor hub cannot detect a lift
+
+---
+diff --git a/src/com/android/settings/display/LiftToWakePreferenceController.java b/src/com/android/settings/display/LiftToWakePreferenceController.java
+--- a/src/com/android/settings/display/LiftToWakePreferenceController.java
++++ b/src/com/android/settings/display/LiftToWakePreferenceController.java
+@@ -37,8 +37,9 @@
+ 
+     @Override
+     public boolean isAvailable() {
+-        SensorManager sensors = (SensorManager) mContext.getSystemService(Context.SENSOR_SERVICE);
+-        return sensors != null && sensors.getDefaultSensor(Sensor.TYPE_WAKE_GESTURE) != null;
++        // Kompakt: hidden. The phone lists a wake gesture sensor, but the sensor hub firmware
++        // has no lift algorithm to drive it, so the switch could never do anything.
++        return false;
+     }
+ 
+     @Override
+-- 
+2.43.0
+

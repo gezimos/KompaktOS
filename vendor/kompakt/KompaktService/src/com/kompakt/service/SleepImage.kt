@@ -9,6 +9,7 @@ import android.graphics.ImageDecoder
 import android.graphics.Paint
 import android.graphics.RectF
 import android.net.Uri
+import android.os.UserManager
 import android.util.Log
 import java.io.File
 import java.io.FileInputStream
@@ -32,10 +33,25 @@ object SleepImage {
 
     private const val KEY_FILL = "sleep_fill"
 
+    /** Device storage, readable before the first unlock, so the picture is back at LOCKED_BOOT_COMPLETED. */
+    private fun dir(c: Context): File {
+        val de = c.createDeviceProtectedStorageContext().filesDir
+        // Older versions kept it in credential storage: move it across once that is unlocked.
+        if (c.getSystemService(UserManager::class.java)?.isUserUnlocked == true) {
+            for (name in arrayOf(FRAME, SOURCE)) {
+                val old = File(c.filesDir, name)
+                if (!old.exists()) continue
+                if (!File(de, name).exists()) save(File(de, name)) { it.write(old.readBytes()) }
+                if (File(de, name).exists()) old.delete()
+            }
+        }
+        return de
+    }
+
     /** Needs our vendor image: the stock meink_loader has no such node. */
     fun available(): Boolean = Sysfs.writable(NODE)
 
-    fun isCustom(c: Context): Boolean = File(c.filesDir, FRAME).length() == BYTES.toLong()
+    fun isCustom(c: Context): Boolean = File(dir(c), FRAME).length() == BYTES.toLong()
 
     fun fill(c: Context): Boolean =
         c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_FILL, false)
@@ -45,7 +61,7 @@ object SleepImage {
 
     /** BootReceiver: meink has just loaded Mudita's picture again. */
     fun restore(c: Context) {
-        val f = File(c.filesDir, FRAME)
+        val f = File(dir(c), FRAME)
         if (!available() || f.length() != BYTES.toLong()) return
         if (write(f.readBytes())) Log.i(Sysfs.TAG, "sleep: picture restored")
     }
@@ -58,25 +74,25 @@ object SleepImage {
             Log.w(Sysfs.TAG, "sleep: cannot read the picture (${t.javaClass.simpleName})")
             return false
         }
-        save(File(c.filesDir, SOURCE)) { src.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        save(File(dir(c), SOURCE)) { src.compress(Bitmap.CompressFormat.PNG, 100, it) }
         src.recycle()
         return apply(c)
     }
 
     /** Make the frame from the kept picture again, after Fit or Fill changed. */
     fun apply(c: Context): Boolean {
-        val src = BitmapFactory.decodeFile(File(c.filesDir, SOURCE).path) ?: return false
+        val src = BitmapFactory.decodeFile(File(dir(c), SOURCE).path) ?: return false
         val frame = render(src, fill(c))
         src.recycle()
         if (!write(frame)) return false
-        save(File(c.filesDir, FRAME)) { it.write(frame) }
+        save(File(dir(c), FRAME)) { it.write(frame) }
         return true
     }
 
     /** Mudita's picture back, now and after every later boot. */
     fun reset(c: Context): Boolean {
-        File(c.filesDir, FRAME).delete()
-        File(c.filesDir, SOURCE).delete()
+        File(dir(c), FRAME).delete()
+        File(dir(c), SOURCE).delete()
         val stock = read(STOCK_NODE) ?: return false
         return write(stock)
     }

@@ -1,0 +1,235 @@
+From 296e2c3293d7a0645c2ac8809db0e2da666dc80d Mon Sep 17 00:00:00 2001
+From: Gezim <25499045+gezimos@users.noreply.github.com>
+Date: Mon, 12 Oct 2026 10:06:01 +0200
+Subject: [PATCH] Kompakt: photos and videos can be saved to the SD card
+
+Change-Id: I0788834d1eaff7b1a4ec646f2b01a2bd208fabb6
+---
+ .../main/java/com/kompakt/camera/Storage.java | 78 +++++++++++++++++++
+ .../lineageos/aperture/SettingsActivity.kt    |  4 +
+ .../lineageos/aperture/utils/StorageUtils.kt  |  8 +-
+ .../aperture/viewmodels/CameraViewModel.kt    |  6 +-
+ .../res/values/kompakt_storage_strings.xml    |  6 ++
+ app/src/main/res/xml/root_preferences.xml     |  8 ++
+ 6 files changed, 107 insertions(+), 3 deletions(-)
+ create mode 100644 app/src/main/java/com/kompakt/camera/Storage.java
+ create mode 100644 app/src/main/res/values/kompakt_storage_strings.xml
+
+diff --git a/app/src/main/java/com/kompakt/camera/Storage.java b/app/src/main/java/com/kompakt/camera/Storage.java
+new file mode 100644
+index 0000000..a79a99d
+--- /dev/null
++++ b/app/src/main/java/com/kompakt/camera/Storage.java
+@@ -0,0 +1,78 @@
++/*
++ * SPDX-FileCopyrightText: KompaktOS
++ * SPDX-License-Identifier: Apache-2.0
++ */
++
++package com.kompakt.camera;
++
++import android.content.Context;
++import android.content.res.Resources;
++import android.os.Environment;
++import android.os.storage.StorageManager;
++import android.os.storage.StorageVolume;
++import android.provider.MediaStore;
++
++import androidx.preference.PreferenceManager;
++
++/**
++ * Kompakt: where a new photo or video goes. With Save to SD card on and a card mounted, the
++ * card's DCIM/Camera; otherwise the phone's, as before, so a capture is never lost to a missing
++ * card. Media on either volume is found by the same "external" queries, so nothing reading
++ * captures changes.
++ */
++public final class Storage {
++    public static final String SAVE_TO_SD_KEY = "kompakt_save_to_sd";
++
++    private Storage() {}
++
++    /** The MediaStore volume for the next capture. */
++    public static String volume(Context context) {
++        if (PreferenceManager.getDefaultSharedPreferences(context).getBoolean(SAVE_TO_SD_KEY, false)) {
++            String card = cardVolume(context);
++            if (card != null) return card;
++        }
++        // "external" saves to the phone, exactly as Aperture always did.
++        return MediaStore.VOLUME_EXTERNAL;
++    }
++
++    /** Whether a portable SD card is in, so the setting is worth showing. */
++    public static boolean hasCard(Context context) {
++        return cardVolume(context) != null;
++    }
++
++    /**
++     * A mounted portable SD card's MediaStore volume name, or null. A card set up as internal
++     * storage is part of the phone's storage, not a volume of its own, and a USB drive is skipped.
++     */
++    private static String cardVolume(Context context) {
++        StorageManager storage = context.getSystemService(StorageManager.class);
++        if (storage == null) return null;
++        for (StorageVolume v : storage.getStorageVolumes()) {
++            if (v.isPrimary() || !v.isRemovable()) continue;
++            if (!Environment.MEDIA_MOUNTED.equals(v.getState())) continue;
++            if (isUsbDrive(v.getDescription(context))) continue;
++            String name = v.getMediaStoreVolumeName();
++            if (name != null) return name;
++        }
++        return null;
++    }
++
++    /** Android names a USB drive "USB drive" or "<label> USB drive", in the phone's language. */
++    private static boolean isUsbDrive(String description) {
++        if (description == null) return false;
++        Resources system = Resources.getSystem();
++        int plain = system.getIdentifier("storage_usb_drive", "string", "android");
++        int labelled = system.getIdentifier("storage_usb_drive_label", "string", "android");
++        if (plain != 0 && description.equals(system.getString(plain))) return true;
++        if (labelled != 0) {
++            String format = system.getString(labelled);
++            int at = format.indexOf("%s");
++            if (at >= 0) {
++                String before = format.substring(0, at);
++                String after = format.substring(at + 2);
++                return description.startsWith(before) && description.endsWith(after);
++            }
++        }
++        return false;
++    }
++}
+diff --git a/app/src/main/java/org/lineageos/aperture/SettingsActivity.kt b/app/src/main/java/org/lineageos/aperture/SettingsActivity.kt
+index 9198171..d4321f0 100644
+--- a/app/src/main/java/org/lineageos/aperture/SettingsActivity.kt
++++ b/app/src/main/java/org/lineageos/aperture/SettingsActivity.kt
+@@ -31,6 +31,7 @@ import androidx.preference.PreferenceFragmentCompat
+ import androidx.preference.SwitchPreference
+ import com.google.android.material.appbar.AppBarLayout
+ import com.google.android.material.appbar.MaterialToolbar
++import com.kompakt.camera.Storage
+ import kotlinx.coroutines.launch
+ import org.lineageos.aperture.ext.setOffset
+ import org.lineageos.aperture.models.HardwareKey
+@@ -206,6 +207,9 @@ class SettingsActivity : AppCompatActivity(R.layout.activity_settings) {
+                     }
+             }
+             shutterSound?.isVisible = !CameraSoundsUtils.mustPlaySounds
++            // Kompakt: Save to SD card only shows while a portable SD card is in.
++            findPreference<SwitchPreference>(Storage.SAVE_TO_SD_KEY)?.isVisible =
++                Storage.hasCard(requireContext())
+ 
+             // Photo capture mode
+             photoCaptureMode.onPreferenceChangeListener = photoCaptureModePreferenceChangeListener
+diff --git a/app/src/main/java/org/lineageos/aperture/utils/StorageUtils.kt b/app/src/main/java/org/lineageos/aperture/utils/StorageUtils.kt
+index 0fa1a39..cd8760f 100644
+--- a/app/src/main/java/org/lineageos/aperture/utils/StorageUtils.kt
++++ b/app/src/main/java/org/lineageos/aperture/utils/StorageUtils.kt
+@@ -30,6 +30,8 @@ object StorageUtils {
+         mimeType: String,
+         timestamp: Long,
+         outputStream: OutputStream? = null,
++        // Kompakt: the MediaStore volume, the phone unless Save to SD card picks the card.
++        volumeName: String = MediaStore.VOLUME_EXTERNAL,
+     ): ImageCapture.OutputFileOptions {
+         val contentValues = ContentValues().apply {
+             put(MediaStore.MediaColumns.DISPLAY_NAME, getTimeString(timestamp))
+@@ -43,7 +45,7 @@ object StorageUtils {
+         val outputFileOptions = outputStream?.let {
+             ImageCapture.OutputFileOptions.Builder(it)
+         } ?: ImageCapture.OutputFileOptions.Builder(
+-            contentResolver, MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
++            contentResolver, MediaStore.Images.Media.getContentUri(volumeName),
+             contentValues
+         )
+         return outputFileOptions
+@@ -58,6 +60,8 @@ object StorageUtils {
+         contentResolver: ContentResolver,
+         timestamp: Long,
+         location: Location?,
++        // Kompakt: the MediaStore volume, the phone unless Save to SD card picks the card.
++        volumeName: String = MediaStore.VOLUME_EXTERNAL,
+     ): MediaStoreOutputOptions {
+         val contentValues = ContentValues().apply {
+             put(MediaStore.MediaColumns.DISPLAY_NAME, getTimeString(timestamp))
+@@ -68,7 +72,7 @@ object StorageUtils {
+         }
+ 
+         return MediaStoreOutputOptions
+-            .Builder(contentResolver, MediaStore.Video.Media.EXTERNAL_CONTENT_URI)
++            .Builder(contentResolver, MediaStore.Video.Media.getContentUri(volumeName))
+             .setContentValues(contentValues)
+             .setLocation(location)
+             .build()
+diff --git a/app/src/main/java/org/lineageos/aperture/viewmodels/CameraViewModel.kt b/app/src/main/java/org/lineageos/aperture/viewmodels/CameraViewModel.kt
+index 4273cb1..f7324af 100644
+--- a/app/src/main/java/org/lineageos/aperture/viewmodels/CameraViewModel.kt
++++ b/app/src/main/java/org/lineageos/aperture/viewmodels/CameraViewModel.kt
+@@ -33,6 +33,7 @@ import androidx.core.location.LocationRequestCompat
+ import androidx.lifecycle.ViewModel
+ import androidx.lifecycle.asFlow
+ import androidx.lifecycle.viewModelScope
++import com.kompakt.camera.Storage
+ import com.kompakt.camera.Styles
+ import kotlinx.coroutines.Dispatchers
+ import kotlinx.coroutines.ExperimentalCoroutinesApi
+@@ -1091,6 +1092,7 @@ class CameraViewModel(application: Application) : ApertureViewModel(application)
+             mimeType,
+             timestamp,
+             photoOutputStream,
++            Storage.volume(applicationContext),
+         )
+ 
+         // Set up image capture listener, which is triggered after photo has
+@@ -1167,6 +1169,7 @@ class CameraViewModel(application: Application) : ApertureViewModel(application)
+                     },
+                     "image/x-adobe-dng",
+                     timestamp,
++                    volumeName = Storage.volume(applicationContext),
+                 )
+ 
+                 cameraController.takePicture(
+@@ -1204,7 +1207,8 @@ class CameraViewModel(application: Application) : ApertureViewModel(application)
+         val outputOptions = StorageUtils.getVideoMediaStoreOutputOptions(
+             applicationContext.contentResolver,
+             System.currentTimeMillis(),
+-            location.value.takeUnless { inSingleCaptureMode.value }
++            location.value.takeUnless { inSingleCaptureMode.value },
++            Storage.volume(applicationContext),
+         )
+ 
+         // Play shutter sound
+diff --git a/app/src/main/res/values/kompakt_storage_strings.xml b/app/src/main/res/values/kompakt_storage_strings.xml
+new file mode 100644
+index 0000000..342ae34
+--- /dev/null
++++ b/app/src/main/res/values/kompakt_storage_strings.xml
+@@ -0,0 +1,6 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Kompakt: the Save to SD card setting. -->
++<resources>
++    <string name="kompakt_save_to_sd_title">Save to SD card</string>
++    <string name="kompakt_save_to_sd_summary">Photos and videos go to the SD card when one is in, otherwise to the phone</string>
++</resources>
+diff --git a/app/src/main/res/xml/root_preferences.xml b/app/src/main/res/xml/root_preferences.xml
+index e3f847b..6c3b526 100644
+--- a/app/src/main/res/xml/root_preferences.xml
++++ b/app/src/main/res/xml/root_preferences.xml
+@@ -23,6 +23,14 @@
+             app:summary="@string/save_location_summary"
+             app:title="@string/save_location_title" />
+ 
++        <!-- Kompakt: photos and videos on the SD card when one is in (com.kompakt.camera.Storage). -->
++        <SwitchPreference
++            app:defaultValue="false"
++            app:iconSpaceReserved="false"
++            app:key="kompakt_save_to_sd"
++            app:summary="@string/kompakt_save_to_sd_summary"
++            app:title="@string/kompakt_save_to_sd_title" />
++
+         <SwitchPreference
+             app:defaultValue="true"
+             app:iconSpaceReserved="false"
+-- 
+2.43.0
+

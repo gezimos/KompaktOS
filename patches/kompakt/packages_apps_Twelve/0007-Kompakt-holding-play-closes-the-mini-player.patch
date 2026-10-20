@@ -1,0 +1,69 @@
+From d44f58efdecaacbeeb880c7175da5a9249f671d8 Mon Sep 17 00:00:00 2001
+From: Gezim <25499045+gezimos@users.noreply.github.com>
+Date: Sun, 11 Oct 2026 18:04:25 +0200
+Subject: [PATCH] Kompakt: holding play closes the mini player
+
+The mini player stays as long as anything is loaded, and nothing but closing
+the app unloaded it. Holding its play or pause button now stops playback
+and empties the queue, so the media item is gone and the bar slides away.
+
+Change-Id: Ie25ebdfb70c86657556f7b83b1b9e46b11863fb0
+---
+ app/src/main/java/org/lineageos/twelve/MainActivity.kt    | 6 ++++++
+ .../java/org/lineageos/twelve/ui/views/NowPlayingBar.kt   | 3 +++
+ .../lineageos/twelve/viewmodels/NowPlayingViewModel.kt    | 8 ++++++++
+ 3 files changed, 17 insertions(+)
+
+diff --git a/app/src/main/java/org/lineageos/twelve/MainActivity.kt b/app/src/main/java/org/lineageos/twelve/MainActivity.kt
+index c59891e..8491b98 100644
+--- a/app/src/main/java/org/lineageos/twelve/MainActivity.kt
++++ b/app/src/main/java/org/lineageos/twelve/MainActivity.kt
+@@ -142,6 +142,12 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
+             nowPlayingViewModel.togglePlayPause()
+         }
+ 
++        // Kompakt: holding play or pause closes the mini player.
++        nowPlayingBar.setOnPlayPauseLongClickListener {
++            nowPlayingViewModel.closePlayback()
++            true
++        }
++
+         lifecycleScope.launch {
+             lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                 loadData()
+diff --git a/app/src/main/java/org/lineageos/twelve/ui/views/NowPlayingBar.kt b/app/src/main/java/org/lineageos/twelve/ui/views/NowPlayingBar.kt
+index 5f6600a..24c9b0f 100644
+--- a/app/src/main/java/org/lineageos/twelve/ui/views/NowPlayingBar.kt
++++ b/app/src/main/java/org/lineageos/twelve/ui/views/NowPlayingBar.kt
+@@ -53,6 +53,9 @@ class NowPlayingBar @JvmOverloads constructor(
+     fun setOnPlayPauseClickListener(l: OnClickListener?) =
+         playPauseMaterialButton.setOnClickListener(l)
+ 
++    fun setOnPlayPauseLongClickListener(l: OnLongClickListener?) =
++        playPauseMaterialButton.setOnLongClickListener(l)
++
+     fun updateIsPlaying(isPlaying: Boolean) {
+         playPauseMaterialButton.setIconResource(
+             when (isPlaying) {
+diff --git a/app/src/main/java/org/lineageos/twelve/viewmodels/NowPlayingViewModel.kt b/app/src/main/java/org/lineageos/twelve/viewmodels/NowPlayingViewModel.kt
+index 6a40ae7..55c8e8a 100644
+--- a/app/src/main/java/org/lineageos/twelve/viewmodels/NowPlayingViewModel.kt
++++ b/app/src/main/java/org/lineageos/twelve/viewmodels/NowPlayingViewModel.kt
+@@ -431,6 +431,14 @@ open class NowPlayingViewModel(application: Application) : TwelveViewModel(appli
+             initialValue = null
+         )
+ 
++    /** Kompakt: stop and empty the queue, which takes the mini player away, as closing the app does. */
++    fun closePlayback() {
++        mediaController.value?.let {
++            it.stop()
++            it.clearMediaItems()
++        }
++    }
++
+     fun togglePlayPause() {
+         mediaController.value?.let {
+             if (it.isPlaying) {
+-- 
+2.43.0
+

@@ -1,0 +1,27 @@
+From 341ae410ca7e025b23ed53810de125ca6324221e Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Mon, 5 Oct 2026 19:30:00 +0200
+Subject: [PATCH 52/99] Kompakt: Home gets the Prevent accidental wake-up check
+
+---
+ .../java/com/android/server/policy/PhoneWindowManager.java    | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/services/core/java/com/android/server/policy/PhoneWindowManager.java b/services/core/java/com/android/server/policy/PhoneWindowManager.java
+index 3a78c025524f..6e48ef223c6a 100644
+--- a/services/core/java/com/android/server/policy/PhoneWindowManager.java
++++ b/services/core/java/com/android/server/policy/PhoneWindowManager.java
+@@ -5709,7 +5709,9 @@ public class PhoneWindowManager implements WindowManagerPolicy {
+ 
+         if (isWakeKey) {
+             // Check proximity only on wake key
+-            wakeUpFromWakeKey(event, event.getKeyCode() == KeyEvent.KEYCODE_WAKEUP);
++            // Kompakt: Home gets the proximity check too (Prevent accidental wake-up).
++            wakeUpFromWakeKey(event, event.getKeyCode() == KeyEvent.KEYCODE_WAKEUP
++                    || event.getKeyCode() == KeyEvent.KEYCODE_HOME);
+         }
+ 
+         // If the key event is targeted to a specific display, then the user is interacting with
+-- 
+2.43.0
+

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Kompakt: Prevent accidental wake up (Settings, Display), on by default. Before
+         Home or another wake key wakes the phone, the proximity sensor is read, and a
+         covered sensor (a pocket) keeps it asleep. frameworks_base 0052 adds the Home key
+         under the screen and the fingerprint to it. -->
+    <bool name="config_proximityCheckOnWake">true</bool>
+    <bool name="config_proximityCheckOnWakeEnabledByDefault">true</bool>
+    <!-- The MTK sensor took 211 ms to give its first reading; the default 250 ms leaves
+         too little margin before the wake goes ahead unchecked. -->
+    <integer name="config_proximityCheckTimeout">500</integer>
+</resources>

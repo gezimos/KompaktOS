@@ -1,0 +1,25 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sat, 17 Oct 2026 23:40:00 +0200
+Subject: [PATCH] Kompakt: no widget hub toggle in Settings
+
+0003 turned the glanceable hub off, but Settings still listed "Widgets on
+lock screen" on the Lock screen page, because this overlay shows the toggle
+on mobile. The hub and its lock screen button are gone, so the toggle is too.
+
+---
+diff --git a/overlay/common/packages/apps/Settings/res/values/config.xml b/overlay/common/packages/apps/Settings/res/values/config.xml
+--- a/overlay/common/packages/apps/Settings/res/values/config.xml
++++ b/overlay/common/packages/apps/Settings/res/values/config.xml
+@@ -37,6 +37,7 @@
+     <!-- Action name for the styles & wallpaper picker activity. -->
+     <string name="config_styles_and_wallpaper_picker_action" translatable="false">android.intent.action.SET_WALLPAPER</string>
+ 
+-    <!-- Whether to show the "glanceable hub" settings on mobile. -->
+-    <bool name="config_show_glanceable_hub_toggle_setting_mobile">true</bool>
++    <!-- Whether to show the "glanceable hub" settings on mobile.
++         Kompakt: off; the hub and its lock screen button are gone. -->
++    <bool name="config_show_glanceable_hub_toggle_setting_mobile">false</bool>
+ </resources>
+-- 
+2.43.0

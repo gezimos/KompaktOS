@@ -1,0 +1,97 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sun, 18 Oct 2026 02:10:00 +0200
+Subject: [PATCH] Kompakt: the lock screen draws nothing when there is no lock screen
+
+With no lock screen at all, waking the phone still runs the lockscreen to
+home scene transition, and for its first frames the lock screen's own clock
+was drawn over the home screen (screen recording, 2026-10-18).
+
+LockscreenContentViewModel.isHiddenWithoutLockscreen is true while the device
+is awake, unlocked and cannot swipe to enter, and LockscreenContent gives its
+root zero alpha then. The scene and the keyguard state change as before; the
+sleep screen, which is drawn while asleep, is unchanged.
+
+---
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/LockscreenContent.kt b/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/LockscreenContent.kt
+index 5e898ad..0e50cf7 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/LockscreenContent.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/LockscreenContent.kt
+@@ -161,7 +161,11 @@ class LockscreenContent(
+                 modifier
+                     .sysuiResTag("keyguard_root_view")
+                     .element(LockscreenElementKeys.Root)
+-                    .graphicsLayer { alpha = min(viewModel.alpha, contentAlphaAnimatable.value) },
++                    .graphicsLayer {
++                        alpha =
++                            if (viewModel.isHiddenWithoutLockscreen) 0f
++                            else min(viewModel.alpha, contentAlphaAnimatable.value)
++                    },
+             )
+             LockscreenFrontScrim(lockscreenFrontScrimViewModel)
+         }
+diff --git a/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/LockscreenContentViewModel.kt b/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/LockscreenContentViewModel.kt
+index d3720bf..9f018e1 100644
+--- a/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/LockscreenContentViewModel.kt
++++ b/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/LockscreenContentViewModel.kt
+@@ -20,12 +20,15 @@ import androidx.compose.runtime.getValue
+ import com.android.app.tracing.coroutines.launchTraced as launch
+ import com.android.compose.animation.scene.content.state.TransitionState
+ import com.android.systemui.deviceentry.domain.interactor.DeviceEntryBypassInteractor
++import com.android.systemui.deviceentry.domain.interactor.DeviceEntryInteractor
+ import com.android.systemui.deviceentry.domain.interactor.DeviceEntryUdfpsInteractor
++import com.android.systemui.deviceentry.domain.interactor.DeviceUnlockedInteractor
+ import com.android.systemui.keyguard.domain.interactor.KeyguardBlueprintInteractor
+ import com.android.systemui.keyguard.shared.transition.KeyguardTransitionAnimationCallback
+ import com.android.systemui.keyguard.shared.transition.KeyguardTransitionAnimationCallbackDelegator
+ import com.android.systemui.lifecycle.ExclusiveActivatable
+ import com.android.systemui.lifecycle.Hydrator
++import com.android.systemui.power.domain.interactor.PowerInteractor
+ import com.android.systemui.scene.shared.model.Overlays
+ import com.android.systemui.scene.shared.model.Scenes
+ import com.android.systemui.shade.domain.interactor.ShadeModeInteractor
+@@ -37,6 +40,7 @@ import dagger.assisted.AssistedFactory
+ import dagger.assisted.AssistedInject
+ import kotlinx.coroutines.awaitCancellation
+ import kotlinx.coroutines.coroutineScope
++import kotlinx.coroutines.flow.combine
+ import kotlinx.coroutines.flow.distinctUntilChanged
+ import kotlinx.coroutines.flow.map
+ 
+@@ -48,6 +52,9 @@ constructor(
+     shadeModeInteractor: ShadeModeInteractor,
+     deviceEntryBypassInteractor: DeviceEntryBypassInteractor,
+     deviceEntryUdfpsInteractor: DeviceEntryUdfpsInteractor,
++    deviceEntryInteractor: DeviceEntryInteractor,
++    deviceUnlockedInteractor: DeviceUnlockedInteractor,
++    powerInteractor: PowerInteractor,
+     private val keyguardTransitionAnimationCallbackDelegator:
+         KeyguardTransitionAnimationCallbackDelegator,
+     private val wallpaperFocalAreaInteractor: WallpaperFocalAreaInteractor,
+@@ -92,6 +99,24 @@ constructor(
+             initialValue = deviceEntryUdfpsInteractor.isUdfpsSupported.value,
+         )
+ 
++    /**
++     * Kompakt: awake, unlocked and nothing to swipe: there is no lock screen, so none of it is drawn.
++     * Its clock showed over the home screen while the scene left.
++     */
++    val isHiddenWithoutLockscreen: Boolean by
++        hydrator.hydratedStateOf(
++            traceName = "isHiddenWithoutLockscreen",
++            initialValue = false,
++            source =
++                combine(
++                    deviceUnlockedInteractor.deviceUnlockStatus,
++                    deviceEntryInteractor.canSwipeToEnter,
++                    powerInteractor.isAwake,
++                ) { unlockStatus, canSwipeToEnter, isAwake ->
++                    isAwake && unlockStatus.isUnlocked && canSwipeToEnter == false
++                },
++        )
++
+     /** Alpha value applied to all LockscreenElements. */
+     val alpha: Float
+         get() = lockscreenAlphaViewModel.alpha
+-- 
+2.43.0

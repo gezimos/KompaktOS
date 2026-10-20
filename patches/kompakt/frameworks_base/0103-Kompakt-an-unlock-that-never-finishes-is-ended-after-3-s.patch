@@ -1,0 +1,73 @@
+From e202700cb316e5f11d2e9dc7a4c685460f44bfce Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Mon, 12 Oct 2026 18:13:29 +0200
+Subject: [PATCH 103/103] Kompakt: an unlock that never finishes is ended after
+ 3 s
+
+A keyguard going-away transition whose finish callback is lost stays open
+in Shell for good, and the focused app then refuses input until it is
+reported as not responding. WM's own going-away timeout only resets its
+flags. KeyguardService now cancels and finishes such a transition 3 s after
+it started, the way a merge does; with no lock pending, SystemUI ends up
+unlocked with the app or home showing.
+
+Change-Id: I943b4969bfa5d9068843bd0b5c7ea96ec7313c98
+---
+ .../systemui/keyguard/KeyguardService.java    | 26 +++++++++++++++++++
+ 1 file changed, 26 insertions(+)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/keyguard/KeyguardService.java b/packages/SystemUI/src/com/android/systemui/keyguard/KeyguardService.java
+index da616bddfc14..d7cb637cf24d 100644
+--- a/packages/SystemUI/src/com/android/systemui/keyguard/KeyguardService.java
++++ b/packages/SystemUI/src/com/android/systemui/keyguard/KeyguardService.java
+@@ -44,7 +44,9 @@ import android.content.Intent;
+ import android.os.Binder;
+ import android.os.Bundle;
+ import android.os.Debug;
++import android.os.Handler;
+ import android.os.IBinder;
++import android.os.Looper;
+ import android.os.PowerManager;
+ import android.os.Process;
+ import android.os.RemoteException;
+@@ -112,6 +114,8 @@ import javax.inject.Inject;
+ 
+ public class KeyguardService extends Service {
+     static final String TAG = "KeyguardService";
++    // Kompakt: animations are off, so a normal unlock finishes well inside this.
++    private static final long KOMPAKT_GOING_AWAY_TIMEOUT_MS = 3000;
+     static final String SCREEN_LOCK_BY_WATCH = "screen_lock_by_watch";
+     static final String PERMISSION = android.Manifest.permission.CONTROL_KEYGUARD;
+ 
+@@ -270,6 +274,28 @@ public class KeyguardService extends Service {
+                                 finish(transition);
+                             }
+                         });
++
++                // Kompakt: an unlock nobody finishes leaves the screen refusing input; end it.
++                if ((info.getFlags() & TRANSIT_FLAG_KEYGUARD_GOING_AWAY) != 0) {
++                    mKompaktHandler.postDelayed(() -> kompaktFinishIfStuck(transition),
++                            KOMPAKT_GOING_AWAY_TIMEOUT_MS);
++                }
++            }
++
++            private final Handler mKompaktHandler = new Handler(Looper.getMainLooper());
++
++            /** Kompakt: cancels and finishes a going-away transition still open, as a merge does. */
++            private void kompaktFinishIfStuck(IBinder transition) {
++                synchronized (mLeashMap) {
++                    if (!mFinishCallbacks.containsKey(transition)) return;
++                }
++                Slog.w(TAG, "Kompakt: keyguard going away never finished, ending it");
++                try {
++                    runner.onAnimationCancelled();
++                    finish(transition);
++                } catch (RemoteException e) {
++                    // Ignore.
++                }
+             }
+ 
+             public void mergeAnimation(IBinder candidateTransition, TransitionInfo candidateInfo,
+-- 
+2.43.0
+

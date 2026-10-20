@@ -7,4 +7,7 @@
     <integer name="def_accessibility_text_cursor_blink_interval_ms">0</integer>
     <!-- Kompakt: 2000 (stock 1000). -->
     <integer name="config_keyguardDrawnTimeout">2000</integer>
+
+    <!-- Kompakt: 32 cached apps (stock 1024, which assumes the freezer this kernel lacks). -->
+    <integer name="config_customizedMaxCachedProcesses">32</integer>
 </resources>

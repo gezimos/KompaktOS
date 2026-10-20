@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Kompakt: menu icon and text where Calendar has them. -->
+    <dimen name="drawer_side_padding">26dp</dimen>
+    <dimen name="drawer_item_text_margin">6dp</dimen>
+</resources>

@@ -10,7 +10,7 @@ import kotlin.math.ln
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
-/** Front light steps for Brightness mode, a tenth of the perceptual slider each. */
+/** Front light steps for Brightness mode, a tenth of the perceptual slider each, and on/off. */
 object FrontLight {
     private const val TAG = "KompaktLight"
     private const val STEPS = 10
@@ -30,6 +30,34 @@ object FrontLight {
             Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL)
         dm.setBrightness(Display.DEFAULT_DISPLAY, fromSlider(next.toFloat() / STEPS, min, max))
         Log.i(TAG, "brightness step %d -> %d of %d".format(level, next, STEPS))
+    }
+
+    private const val OFF = 1
+    private const val KEY_LAST = "light_last"
+    private const val KEY_MODE = "light_mode"
+
+    /** Off and back as inkOS does it: off is a system brightness of 1 or less, so the two agree. */
+    fun toggle(ctx: Context) {
+        val cr = ctx.contentResolver
+        val prefs = ctx.getSharedPreferences("front_light", Context.MODE_PRIVATE)
+        val manual = Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL
+        val now = Settings.System.getInt(cr, Settings.System.SCREEN_BRIGHTNESS, 128)
+        val mode = Settings.System.getInt(cr, Settings.System.SCREEN_BRIGHTNESS_MODE, manual)
+        if (now <= OFF && mode == manual) {
+            Settings.System.putInt(cr, Settings.System.SCREEN_BRIGHTNESS,
+                prefs.getInt(KEY_LAST, 128).coerceIn(OFF + 1, 255))
+            Settings.System.putInt(cr, Settings.System.SCREEN_BRIGHTNESS_MODE,
+                prefs.getInt(KEY_MODE, manual))
+            Log.i(TAG, "light on")
+        } else {
+            val edit = prefs.edit().putInt(KEY_MODE, mode)
+            if (now > OFF) edit.putInt(KEY_LAST, now)
+            edit.apply()
+            // Auto would pull the light straight back up.
+            Settings.System.putInt(cr, Settings.System.SCREEN_BRIGHTNESS_MODE, manual)
+            Settings.System.putInt(cr, Settings.System.SCREEN_BRIGHTNESS, OFF)
+            Log.i(TAG, "light off, was %d".format(now))
+        }
     }
 
     // BrightnessUtils: a square root curve for the bottom twelfth of the range,

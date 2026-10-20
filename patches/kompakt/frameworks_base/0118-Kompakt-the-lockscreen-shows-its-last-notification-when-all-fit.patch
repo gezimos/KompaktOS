@@ -1,0 +1,39 @@
+From 1edfe65bb51f99cb767cb1a891e849d9b912c46e Mon Sep 17 00:00:00 2001
+From: Gezim <25499045+gezimos@users.noreply.github.com>
+Date: Mon, 19 Oct 2026 10:20:44 +0300
+Subject: [PATCH] Kompakt: the lockscreen shows its last notification when all
+ fit
+
+0054 hides a lockscreen notification that does not fit whole above
+shelfStart, the stack bottom less the shelf height. NotificationStackSizeCalculator
+keeps room for the shelf only when some notifications overflow into it; when
+all of them fit, the stack ends at the bottom of the last row. That row then
+always reached past shelfStart and was hidden: with WhatsApp, USB debugging
+and Music on the lockscreen only the first two showed, while four
+notifications showed three. With nothing in the shelf
+(firstViewInShelf == null) the fit is now checked against the stack bottom.
+---
+ .../statusbar/notification/stack/StackScrollAlgorithm.java   | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/StackScrollAlgorithm.java b/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/StackScrollAlgorithm.java
+index db38ac9..5492357 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/StackScrollAlgorithm.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/StackScrollAlgorithm.java
+@@ -817,9 +817,12 @@ public class StackScrollAlgorithm {
+                     // Kompakt: on the lockscreen a notification that does not fit whole is
+                     // hidden, not left as a sliver above the shelf (which is not drawn there).
+                     // Measured collapsed, as NotificationStackSizeCalculator counts it.
++                    // With nothing for the shelf the stack has no room kept for one.
++                    final float keyguardFitEnd = algorithmState.firstViewInShelf == null
++                            ? stackBottom : shelfStart;
+                     if (ambientState.isOnKeyguard() && !viewState.hidden && !view.isPinned()
+                             && viewState.getYTranslation() + view.getMinHeight(true)
+-                                    > shelfStart) {
++                                    > keyguardFitEnd) {
+                         viewState.hidden = true;
+                         viewState.inShelf = true;
+                     }
+-- 
+2.56.0
+

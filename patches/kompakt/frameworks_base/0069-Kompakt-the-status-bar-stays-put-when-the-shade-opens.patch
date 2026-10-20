@@ -1,0 +1,61 @@
+From 016826adf16f029701fd86555bf58df62a7a6973 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Wed, 7 Oct 2026 12:00:00 +0000
+Subject: [PATCH 69/99] Kompakt: the status bar stays put when the shade opens
+
+---
+ .../systemui/shade/ui/composable/ShadeHeader.kt       | 11 +++++++++--
+ .../shared/ui/viewmodel/HomeStatusBarViewModel.kt     |  3 ++-
+ 2 files changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/ShadeHeader.kt b/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/ShadeHeader.kt
+index 6073db1e1cfb..2e0a89e0df8b 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/ShadeHeader.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/ShadeHeader.kt
+@@ -350,12 +350,18 @@ fun ContentScope.OverlayShadeHeader(
+ ) {
+     val horizontalPadding =
+         max(LocalScreenCornerRadius.current / 2f, Shade.Dimensions.HorizontalPadding)
++    // Kompakt: the clock and icons sit exactly where the status bar draws them (5 px in, 8 px in).
++    val clockShift = with(LocalDensity.current) { 5.toDp() }
++    val iconsShift = with(LocalDensity.current) { 8.toDp() }
+ 
+     // This layout assumes it is globally positioned at (0, 0) and is the same size as the screen.
+     CutoutAwareShadeHeader(
+         modifier = modifier,
+         startContent = {
+-            Box(modifier = Modifier.padding(horizontal = horizontalPadding)) {
++            Box(
++                modifier =
++                    Modifier.padding(start = horizontalPadding + clockShift, end = horizontalPadding)
++            ) {
+                 ShadeHighlightChip(
+                     backgroundColor = notificationsHighlight.backgroundColor,
+                     onHoveredBackgroundColor = notificationsHighlight.onHoveredBackgroundColor,
+@@ -389,7 +395,8 @@ fun ContentScope.OverlayShadeHeader(
+             Row(
+                 horizontalArrangement = Arrangement.End,
+                 verticalAlignment = Alignment.CenterVertically,
+-                modifier = Modifier.padding(horizontal = horizontalPadding),
++                modifier =
++                    Modifier.padding(start = horizontalPadding, end = horizontalPadding + iconsShift),
+             ) {
+                 ShadeHighlightChip(
+                     backgroundColor = quickSettingsHighlight.backgroundColor,
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/pipeline/shared/ui/viewmodel/HomeStatusBarViewModel.kt b/packages/SystemUI/src/com/android/systemui/statusbar/pipeline/shared/ui/viewmodel/HomeStatusBarViewModel.kt
+index ca640b4a03e2..2789d779288a 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/pipeline/shared/ui/viewmodel/HomeStatusBarViewModel.kt
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/pipeline/shared/ui/viewmodel/HomeStatusBarViewModel.kt
+@@ -387,7 +387,8 @@ constructor(
+                 if (isOccluded) {
+                     true
+                 } else if (isShadeWindowOnThisDisplay) {
+-                    currentScene == Scenes.Gone && !isShadeVisibleOnAnyDisplay
++                    // Kompakt: stays up under the opaque shade overlays, so it never rebuilds in steps.
++                    currentScene == Scenes.Gone
+                 } else {
+                     // When the shade is visible on another display,
+                     // allow the home status bar on the current display.
+-- 
+2.43.0
+

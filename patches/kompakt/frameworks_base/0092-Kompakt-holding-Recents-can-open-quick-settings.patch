@@ -1,0 +1,91 @@
+From 78920d8b9ae25936fe976b35d349813bf55c8a9e Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sat, 10 Oct 2026 19:44:53 +0200
+Subject: [PATCH 092/101] Kompakt: holding Recents can open quick settings
+
+A Kompakt app switch (Settings.Secure kompakt_recents_long_press_qs, off by
+default). When on, the Recents key supports a long press, and the long press
+opens the quick settings panel instead of the LineageOS long-press action.
+
+Change-Id: I09c24e5f290cb87b295a8a4cf5b9bdfaa7a653f9
+---
+ .../server/policy/PhoneWindowManager.java     | 28 ++++++++++++++++++-
+ 1 file changed, 27 insertions(+), 1 deletion(-)
+
+diff --git a/services/core/java/com/android/server/policy/PhoneWindowManager.java b/services/core/java/com/android/server/policy/PhoneWindowManager.java
+index 908874c7b6bb..515025032bed 100644
+--- a/services/core/java/com/android/server/policy/PhoneWindowManager.java
++++ b/services/core/java/com/android/server/policy/PhoneWindowManager.java
+@@ -704,6 +704,8 @@ public class PhoneWindowManager implements WindowManagerPolicy {
+     private Action mAssistLongPressAction;
+     private Action mAppSwitchPressAction;
+     private Action mAppSwitchLongPressAction;
++    // Kompakt: holding Recents opens quick settings (Kompakt app, Settings).
++    private boolean mKompaktRecentsLongPressQs;
+     private Action mEdgeLongSwipeAction;
+ 
+     // support for activating the lock screen while the screen is on
+@@ -1050,6 +1052,8 @@ public class PhoneWindowManager implements WindowManagerPolicy {
+             resolver.registerContentObserver(LineageSettings.System.getUriFor(
+                     LineageSettings.System.KEY_APP_SWITCH_LONG_PRESS_ACTION), false, this,
+                     UserHandle.USER_ALL);
++            resolver.registerContentObserver(Settings.Secure.getUriFor(
++                    "kompakt_recents_long_press_qs"), false, this, UserHandle.USER_ALL);
+             resolver.registerContentObserver(LineageSettings.System.getUriFor(
+                     LineageSettings.System.KEY_EDGE_LONG_SWIPE_ACTION), false, this,
+                     UserHandle.USER_ALL);
+@@ -1754,6 +1758,14 @@ public class PhoneWindowManager implements WindowManagerPolicy {
+     }
+ 
+     private void appSwitchLongPress() {
++        if (mKompaktRecentsLongPressQs) {
++            if (!keyguardOn()) {
++                cancelPreloadRecentApps();
++                performHapticFeedback(HapticFeedbackConstants.LONG_PRESS, "Recents - Long Press");
++                kompaktExpandQuickSettings();
++            }
++            return;
++        }
+         if (!keyguardOn() && mAppSwitchLongPressAction != Action.NOTHING) {
+             if (mAppSwitchLongPressAction != Action.APP_SWITCH) {
+                 cancelPreloadRecentApps();
+@@ -2235,6 +2247,18 @@ public class PhoneWindowManager implements WindowManagerPolicy {
+         dismissKeyboardShortcutsMenu();
+     }
+ 
++    /** Kompakt: the quick settings panel, as the status bar opens it. */
++    private void kompaktExpandQuickSettings() {
++        IStatusBarService statusBarService = getStatusBarService();
++        if (isUserSetupComplete() && statusBarService != null) {
++            try {
++                statusBarService.expandSettingsPanel(null);
++            } catch (RemoteException e) {
++                // do nothing.
++            }
++        }
++    }
++
+     private void toggleNotificationPanel() {
+         IStatusBarService statusBarService = getStatusBarService();
+         if (isUserSetupComplete() && statusBarService != null) {
+@@ -3023,7 +3047,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
+ 
+         @Override
+         boolean supportLongPress() {
+-            return mAppSwitchLongPressAction != Action.NOTHING;
++            return mKompaktRecentsLongPressQs || mAppSwitchLongPressAction != Action.NOTHING;
+         }
+ 
+         @Override
+@@ -3360,6 +3384,8 @@ public class PhoneWindowManager implements WindowManagerPolicy {
+         mAppSwitchLongPressAction = Action.fromSettings(resolver,
+                 LineageSettings.System.KEY_APP_SWITCH_LONG_PRESS_ACTION,
+                 mAppSwitchLongPressAction);
++        mKompaktRecentsLongPressQs = Settings.Secure.getIntForUser(resolver,
++                "kompakt_recents_long_press_qs", 0, UserHandle.USER_CURRENT) != 0;
+ 
+         mEdgeLongSwipeAction = Action.fromSettings(resolver,
+                 LineageSettings.System.KEY_EDGE_LONG_SWIPE_ACTION,
+-- 
+2.43.0
+

@@ -1,0 +1,43 @@
+From 89c5f0b8e46bfb823e171e1cfaea730b74447b95 Mon Sep 17 00:00:00 2001
+From: Gezim <25499045+gezimos@users.noreply.github.com>
+Date: Sun, 18 Oct 2026 23:27:55 +0300
+Subject: [PATCH] Kompakt: the PIN pad opens whole on a swipe
+
+A swipe up from the lock screen drove the bouncer with the finger over half the
+screen height. The keys have no fade, but the background faded in over the
+first 5% of that distance, so the first frames of every swipe showed the keys
+and their circles over the lock screen before the white background. The
+swipe now uses KompaktInstantDistance, as the shade does: one pixel completes
+it, and the lock screen and the PIN pad swap in one frame.
+---
+ .../scene/ui/composable/transitions/ToBouncerTransition.kt | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/ToBouncerTransition.kt b/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/ToBouncerTransition.kt
+index 080905b..1eacc67 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/ToBouncerTransition.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/ToBouncerTransition.kt
+@@ -19,7 +19,6 @@ package com.android.systemui.scene.ui.composable.transitions
+ import androidx.compose.animation.core.snap
+ import androidx.compose.animation.core.tween
+ import com.android.compose.animation.scene.TransitionBuilder
+-import com.android.compose.animation.scene.UserActionDistance
+ import com.android.systemui.bouncer.ui.composable.Bouncer
+ 
+ const val TO_BOUNCER_FADE_FRACTION = 0.5f
+@@ -29,10 +28,8 @@ fun TransitionBuilder.toBouncerTransition() {
+     // Kompakt: the bouncer is there in one frame.
+     spec = snap()
+ 
+-    distance = UserActionDistance { fromContent, _, _ ->
+-        val fromContentSize = checkNotNull(fromContent.targetSize())
+-        fromContentSize.height * TO_BOUNCER_SWIPE_DISTANCE_FRACTION
+-    }
++    // Kompakt: and on a swipe; tracking the finger drew the keys before the background.
++    distance = KompaktInstantDistance
+ 
+     // Kompakt: the background is a solid drawRect.
+     fractionRange(end = 0.05f) { fade(Bouncer.Elements.Background) }
+-- 
+2.56.0
+

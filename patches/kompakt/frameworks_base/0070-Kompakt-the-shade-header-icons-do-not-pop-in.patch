@@ -1,0 +1,36 @@
+From a6e88d29679967dab13dab40eed8e4f0e0768cdb Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Wed, 7 Oct 2026 12:00:00 +0000
+Subject: [PATCH 70/99] Kompakt: the shade header icons do not pop in
+
+---
+ .../ui/compose/SystemStatusIconsLegacy.kt              | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/systemstatusicons/ui/compose/SystemStatusIconsLegacy.kt b/packages/SystemUI/src/com/android/systemui/statusbar/systemstatusicons/ui/compose/SystemStatusIconsLegacy.kt
+index 9ccf8994d767..19a2cf576d99 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/systemstatusicons/ui/compose/SystemStatusIconsLegacy.kt
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/systemstatusicons/ui/compose/SystemStatusIconsLegacy.kt
+@@ -157,11 +157,17 @@ private fun SystemStatusIconsLegacyAndroidView(
+ ) {
+     AndroidView(
+         factory = {
+-            statusBarIconController.addIconGroup(iconManager)
++            // Kompakt: registered once and kept, so the icons survive between openings and none
++            // (Wi-Fi was last) pops in after the header.
++            if (registeredIconGroups.add(iconManager)) {
++                statusBarIconController.addIconGroup(iconManager)
++            }
+             iconContainer
+         },
+-        onRelease = { statusBarIconController.removeIconGroup(iconManager) },
+         update = update,
+         modifier = modifier,
+     )
+ }
++
++/** Kompakt: the header icon groups already registered with the controller. */
++private val registeredIconGroups = mutableSetOf<TintedIconManager>()
+-- 
+2.43.0
+

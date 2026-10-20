@@ -1,0 +1,29 @@
+From f667ec77ee81b12153af1193d8d0c7ef494019f9 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Wed, 14 Oct 2026 21:08:39 +0300
+Subject: [PATCH] Kompakt: the camera's status bar hides again after a swipe
+
+The camera hid the status bar with BEHAVIOR_DEFAULT, under which a swipe
+from the top edge, opening the shade or just brushing it, brings the bar
+back for good: it stayed over the viewfinder until the camera was opened
+again. With BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE, as other fullscreen apps
+use, the swipe shows it briefly and it hides itself.
+---
+ app/src/main/java/org/lineageos/aperture/CameraActivity.kt | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/app/src/main/java/org/lineageos/aperture/CameraActivity.kt b/app/src/main/java/org/lineageos/aperture/CameraActivity.kt
+index 3b131e0..f2f4a7c 100644
+--- a/app/src/main/java/org/lineageos/aperture/CameraActivity.kt
++++ b/app/src/main/java/org/lineageos/aperture/CameraActivity.kt
+@@ -374,8 +374,9 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
+         enableEdgeToEdge()
+ 
+         // Hide the status bars
++        // Kompakt: transient, so a swipe from the top shows them briefly and they hide again.
+         window.updateBarsVisibility(
+-            WindowInsetsControllerCompat.BEHAVIOR_DEFAULT,
++            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE,
+             statusBars = false,
+         )
+ 

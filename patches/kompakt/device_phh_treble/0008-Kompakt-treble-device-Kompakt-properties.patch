@@ -1,0 +1,86 @@
+From 8d4dd34de330964582499a441e48d977095b9d68 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sat, 26 Sep 2026 02:52:57 +0200
+Subject: [PATCH 08/14] Kompakt: treble device: Kompakt properties
+
+---
+ lineage.mk                                           |  2 --
+ .../frameworks/base/core/res/res/values/config.xml   |  3 +--
+ sepolicy/kompakt_service.te                          | 12 ++++++++++++
+ system.prop                                          |  9 ++++++++-
+ 4 files changed, 21 insertions(+), 5 deletions(-)
+ create mode 100755 sepolicy/kompakt_service.te
+
+diff --git a/lineage.mk b/lineage.mk
+index 29a33cc..5a86f91 100644
+--- a/lineage.mk
++++ b/lineage.mk
+@@ -9,7 +9,6 @@ PRODUCT_MANUFACTURER := google
+ 
+ # Bootanimation
+ # Kompakt: size the generated boot animation to the 480x800 panel.
+-# Set here so := lands before common.mk's ?= and before BoardConfigSoong.mk reads it.
+ TARGET_SCREEN_WIDTH := 480
+ TARGET_SCREEN_HEIGHT := 800
+ 
+@@ -22,5 +21,4 @@ $(call soong_config_set,surfaceflinger,udfps_lib,//hardware/oplus:libudfps_exten
+ TARGET_SYSTEM_PROP += device/phh/treble/system.prop
+ 
+ # Kompakt additions: e-ink launchers, and anything else device-specific.
+-# -if-exists so a tree without vendor/kompakt still builds.
+ $(call inherit-product-if-exists, vendor/kompakt/kompakt.mk)
+diff --git a/overlay/frameworks/base/core/res/res/values/config.xml b/overlay/frameworks/base/core/res/res/values/config.xml
+index c72299b..799fa05 100644
+--- a/overlay/frameworks/base/core/res/res/values/config.xml
++++ b/overlay/frameworks/base/core/res/res/values/config.xml
+@@ -35,8 +35,7 @@
+ 
+ 	<bool name="config_cellBroadcastAppLinks">true</bool>
+ 
+-	<!-- Kompakt: the panel holds its image unpowered, so no frontlight in doze.
+-	     Float is already 0.0. -->
++	<!-- Kompakt: the panel holds its image unpowered, so no frontlight in doze. -->
+ 	<integer name="config_screenBrightnessDoze">0</integer>
+ 
+     <array name="config_availableColorModes">
+diff --git a/sepolicy/kompakt_service.te b/sepolicy/kompakt_service.te
+new file mode 100755
+index 0000000..b6fddfc
+--- /dev/null
++++ b/sepolicy/kompakt_service.te
+@@ -0,0 +1,12 @@
++# KompaktService: SELinux rules.
++
++# The hardware nodes: e-ink panel, flash LEDs, offline switch. Keep sysfs_type bare.
++allow system_app sysfs_type:file rw_file_perms;
++allow system_app sysfs_type:dir r_dir_perms;
++
++# The offline switch, /dev/input/event0; read only.
++allow system_app input_device:dir search;
++allow system_app input_device:chr_file r_file_perms;
++
++# FM radio: KompaktFMRadio opens /dev/fm directly; fm_device is vendor-declared.
++allow system_app dev_type:chr_file rw_file_perms;
+diff --git a/system.prop b/system.prop
+index 41a0688..257de41 100644
+--- a/system.prop
++++ b/system.prop
+@@ -5,7 +5,14 @@ persist.sys.overlay.nightmode=true
+ 
+ #Disable debugging strict mode toasts
+ persist.sys.strictmode.disable=true
+-persist.sys.phh.mainkeys=0
++# Kompakt: 1 means hardware keys, so no on-screen bar.
++persist.sys.phh.mainkeys=1
++
++# Kompakt: 0, or the MediaTek driver never drops pri_disp_wakelock in doze.
++persist.sys.phh.disable_display_doze_suspend=0
++
++# Kompakt: let the MediaTek HWC enter its doze power mode.
++ro.vendor.mtk_aod_support=1
+ 
+ fw.max_users=10
+ persist.sys.max_profiles=10
+-- 
+2.43.0
+

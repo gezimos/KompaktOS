@@ -1,0 +1,44 @@
+From 7cbb716d50b03f5a59cf445a7ce8f021c6d6c4ad Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sun, 11 Oct 2026 18:23:10 +0200
+Subject: [PATCH 098/101] Kompakt: no black frame going home
+
+Going home from an opaque app, WM Shell starts the transition with every
+opening change at alpha 0, the wallpaper included, and DefaultTransitionHandler
+never animates the wallpaper: only the finish transaction shows it again. With
+the animation scale at 0 the launcher\x27s zero-length animation applies its end
+state at once, but the finish only comes after the animator ends on the next
+vsync. For that frame the launcher stood over a hidden wallpaper, which e-ink
+painted as a black flash (recorded on 328, inkOS from Phone). With animations
+off the handler now merges the finish transaction into the start transaction
+and finishes at once, so the end state lands in one frame.
+
+Change-Id: I7a7c782cea7d97c7b1b825d3cf9c54b1e5be5a7e
+---
+ .../wm/shell/transition/DefaultTransitionHandler.java      | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/libs/WindowManager/Shell/src/com/android/wm/shell/transition/DefaultTransitionHandler.java b/libs/WindowManager/Shell/src/com/android/wm/shell/transition/DefaultTransitionHandler.java
+index 9daeed72cfdb..1851f8adb31d 100644
+--- a/libs/WindowManager/Shell/src/com/android/wm/shell/transition/DefaultTransitionHandler.java
++++ b/libs/WindowManager/Shell/src/com/android/wm/shell/transition/DefaultTransitionHandler.java
+@@ -347,10 +347,15 @@ public class DefaultTransitionHandler implements Transitions.TransitionHandler {
+             return true;
+         }
+ 
++        // Kompakt: with animations off, jump to the end state in one transaction; a zero-length
++        // animation lands a frame before the finish shows the wallpaper again, a black frame on home.
++        final boolean kompaktJumpCut = mTransitionAnimationScaleSetting == 0f;
+         // Early check if the transition doesn't warrant an animation.
+-        if (isAnimationsDisabledForAnyDisplay(info) || TransitionUtil.isAllNoAnimation(info)
++        if (kompaktJumpCut || isAnimationsDisabledForAnyDisplay(info)
++                || TransitionUtil.isAllNoAnimation(info)
+                 || TransitionUtil.isAllOrderOnly(info)
+                 || (info.getFlags() & WindowManager.TRANSIT_FLAG_INVISIBLE) != 0) {
++            if (kompaktJumpCut) startTransaction.merge(finishTransaction);
+             startTransaction.apply();
+             // As a contract, finishTransaction should only be applied in Transitions#onFinish
+             finishCallback.onTransitionFinished(null /* wct */);
+-- 
+2.43.0
+

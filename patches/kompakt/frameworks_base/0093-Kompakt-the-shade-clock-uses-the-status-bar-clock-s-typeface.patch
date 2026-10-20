@@ -1,0 +1,49 @@
+From 4c6a95d6dbd7ceab4f2767911300a215177089f4 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sun, 11 Oct 2026 11:32:44 +0200
+Subject: [PATCH 093/101] Kompakt: the shade clock uses the status bar clock's
+ typeface
+
+The status bar clock is TextAppearance.StatusBar.Default (the label-large
+emphasized role); the shade header clock took the quick settings header
+theme (body-medium emphasized), a lighter weight, so the clock thinned when
+the shade opened. It now takes the status bar clock's typeface; its size
+and scale are unchanged. With the same typeface it sits 8 px out, as the
+icons do; the 13 px of 0081 made up for the old typeface.
+
+Change-Id: I0155def890c3c3079d014482c44a614d84b6695a
+---
+ .../systemui/shade/ui/composable/ShadeHeader.kt        | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/ShadeHeader.kt b/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/ShadeHeader.kt
+index 48635d67b343..f40405f24258 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/ShadeHeader.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/ShadeHeader.kt
+@@ -350,8 +350,8 @@ fun ContentScope.OverlayShadeHeader(
+ ) {
+     val horizontalPadding =
+         max(LocalScreenCornerRadius.current / 2f, Shade.Dimensions.HorizontalPadding)
+-    // Kompakt: the clock and icons sit exactly where the status bar draws them (13 and 8 px out).
+-    val clockShift = with(LocalDensity.current) { (-13).toDp() }
++    // Kompakt: the clock and icons sit exactly where the status bar draws them (8 px out each).
++    val clockShift = with(LocalDensity.current) { (-8).toDp() }
+     val iconsShift = with(LocalDensity.current) { (-8).toDp() }
+ 
+     // This layout assumes it is globally positioned at (0, 0) and is the same size as the screen.
+@@ -544,6 +544,12 @@ private fun ContentScope.Clock(
+                             isSingleLine = true
+                             textDirection = View.TEXT_DIRECTION_LOCALE
+                             gravity = Gravity.START or Gravity.CENTER_VERTICAL
++                            // Kompakt: the status bar clock's typeface, so the two read alike.
++                            typeface =
++                                android.widget
++                                    .TextView(context)
++                                    .apply { setTextAppearance(R.style.TextAppearance_StatusBar_Default) }
++                                    .typeface
+                         }
+                 },
+                 update = { view -> textColor?.let { view.setTextColor(it.toArgb()) } },
+-- 
+2.43.0
+

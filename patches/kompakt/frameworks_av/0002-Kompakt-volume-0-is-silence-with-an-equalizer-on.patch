@@ -1,0 +1,42 @@
+From 07b49c80d281e1bba329b0b5dfb214d7cef0d96b Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Wed, 7 Oct 2026 23:01:36 +0200
+Subject: [PATCH] Kompakt: volume 0 is silence with an equalizer on
+
+When an effect such as the NXP bundle (AudioFX equalizer) controls a track
+volume, AudioFlinger hands it the volume and plays the track at unity. The
+bundle cannot go below -96 dB, so at volume 0 the song stayed faintly audible
+on the speaker. A track whose volume is zero is now mixed at zero.
+
+Change-Id: Ic7480652a2b11efdc9a60e7bfbd58ee1284485c8
+---
+ services/audioflinger/Threads.cpp | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/services/audioflinger/Threads.cpp b/services/audioflinger/Threads.cpp
+index 2cd715ccda..def41a8ead 100644
+--- a/services/audioflinger/Threads.cpp
++++ b/services/audioflinger/Threads.cpp
+@@ -6057,6 +6057,7 @@ PlaybackThread::mixer_state MixerThread::prepareTracks_l(
+             }
+ 
+             track->setFinalVolume(vlf, vrf);
++            const bool kompaktSilent = vlf == 0.f && vrf == 0.f;
+ 
+             // Delegate volume control to effect in track effect chain if needed
+             if (chain != 0 && chain->setVolume(&vl, &vr)) {
+@@ -6065,6 +6066,11 @@ PlaybackThread::mixer_state MixerThread::prepareTracks_l(
+                 // Update remaining floating point volume levels
+                 vlf = (float)vl / (1 << 24);
+                 vrf = (float)vr / (1 << 24);
++                // Kompakt: an effect's volume stops short of silence (NXP bundle, -96 dB); zero stays zero.
++                if (kompaktSilent) {
++                    vlf = 0.f;
++                    vrf = 0.f;
++                }
+                 track->setHasVolumeController(true);
+             } else {
+                 // force no volume ramp when volume controller was just disabled or removed
+-- 
+2.43.0
+

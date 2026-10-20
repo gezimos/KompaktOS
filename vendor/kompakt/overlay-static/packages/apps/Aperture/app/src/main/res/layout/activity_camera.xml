@@ -141,6 +141,13 @@
                 android:layout_width="16dp"
                 android:layout_height="match_parent" />
 
+            <!-- Kompakt: Style first (Normal, B/W, Film or VHS), applied to the saved file -->
+            <Button
+                android:id="@+id/styleButton"
+                style="@style/Theme.Aperture.Camera.SecondaryTopBarButton"
+                android:drawableTop="@drawable/ic_style_normal"
+                android:text="@string/kompakt_style_normal" />
+
             <!-- Photo mode specific settings -->
             <Button
                 android:id="@+id/aspectRatioButton"

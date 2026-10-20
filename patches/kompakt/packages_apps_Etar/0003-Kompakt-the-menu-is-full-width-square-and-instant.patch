@@ -1,0 +1,64 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Tue, 6 Oct 2026 00:05:00 +0200
+Subject: [PATCH 1/1] Kompakt: the menu is full width, square and instant
+
+---
+diff --git a/app/src/main/java/com/android/calendar/AllInOneActivity.java b/app/src/main/java/com/android/calendar/AllInOneActivity.java
+--- a/app/src/main/java/com/android/calendar/AllInOneActivity.java
++++ b/app/src/main/java/com/android/calendar/AllInOneActivity.java
+@@ -353,6 +353,9 @@
+ 
+         mDrawerLayout = binding.drawerLayout;
+         mNavigationView = binding.navigationView;
++        // Kompakt: full width menu, no scrim behind it.
++        mNavigationView.getLayoutParams().width = getResources().getDisplayMetrics().widthPixels;
++        mDrawerLayout.setScrimColor(android.graphics.Color.TRANSPARENT);
+ 
+         mFab = binding.floatingActionButton;
+ 
+@@ -512,7 +515,7 @@
+     }
+ 
+     public void openDrawer() {
+-        mDrawerLayout.openDrawer(GravityCompat.START);
++        mDrawerLayout.openDrawer(GravityCompat.START, false);
+     }
+ 
+     public void setupNavDrawer() {
+@@ -977,7 +980,7 @@
+             Intent intent = new Intent(this, AboutActivity.class);
+             startActivity(intent);
+         }
+-        mDrawerLayout.closeDrawers();
++        mDrawerLayout.closeDrawer(GravityCompat.START, false);
+         return true;
+     }
+ 
+diff --git a/app/src/main/res/layout/all_in_one_material.xml b/app/src/main/res/layout/all_in_one_material.xml
+--- a/app/src/main/res/layout/all_in_one_material.xml
++++ b/app/src/main/res/layout/all_in_one_material.xml
+@@ -55,5 +55,8 @@
+         android:layout_height="match_parent"
+         android:layout_gravity="start"
+         android:fitsSystemWindows="true"
++        android:maxWidth="10000dp"
++        app:drawerLayoutCornerSize="0dp"
++        app:shapeAppearanceOverlay="@style/ShapeAppearance.Kompakt.Square"
+         app:menu="@menu/calendar_view" />
+ </androidx.drawerlayout.widget.DrawerLayout>
+diff --git a/app/src/main/res/values/kompakt_shapes.xml b/app/src/main/res/values/kompakt_shapes.xml
+new file mode 100644
+--- /dev/null
++++ b/app/src/main/res/values/kompakt_shapes.xml
+@@ -0,0 +1,7 @@
++<?xml version="1.0" encoding="utf-8"?>
++<resources>
++    <!-- Kompakt: the full width menu has square corners. -->
++    <style name="ShapeAppearance.Kompakt.Square" parent="">
++        <item name="cornerSize">0dp</item>
++    </style>
++</resources>
+-- 
+2.43.0
+

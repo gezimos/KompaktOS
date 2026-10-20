@@ -1,0 +1,62 @@
+From d480eb4686d4f4f5a505f7ba6b102497fb2802b4 Mon Sep 17 00:00:00 2001
+From: Gezim <25499045+gezimos@users.noreply.github.com>
+Date: Sun, 11 Oct 2026 13:42:18 +0200
+Subject: [PATCH 5/5] Kompakt: a page shows once it is built
+
+Returning from an album rebuilt the main page in view: the grid at one size,
+then its real size 30 ms later, then the tabs moving down and the selected
+pill appearing 80 ms after that. Opening an album painted a blank page, then
+the cover, then the tracks. E-ink paints each of those frames. Each page in
+the navigation host now postpones its entrance for 250 ms, so the previous
+page stays until the new one is whole and the panel paints once.
+
+Change-Id: I3343978f5c61c29113c2d42d62ecc5128dcb976d
+---
+ .../main/java/org/lineageos/twelve/MainActivity.kt  | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/app/src/main/java/org/lineageos/twelve/MainActivity.kt b/app/src/main/java/org/lineageos/twelve/MainActivity.kt
+index 0bb85bf..c59891e 100644
+--- a/app/src/main/java/org/lineageos/twelve/MainActivity.kt
++++ b/app/src/main/java/org/lineageos/twelve/MainActivity.kt
+@@ -8,11 +8,13 @@ package org.lineageos.twelve
+ import android.content.Intent
+ import android.view.View
+ import android.view.ViewGroup
++import androidx.fragment.app.DialogFragment
+ import androidx.fragment.app.Fragment
+ import androidx.fragment.app.FragmentManager
+ import androidx.recyclerview.widget.RecyclerView
+ import com.kompakt.eink.PagedScroll
+ import android.os.Bundle
++import java.util.concurrent.TimeUnit
+ import android.util.Log
+ import android.widget.FrameLayout
+ import androidx.activity.enableEdgeToEdge
+@@ -81,7 +83,13 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
+             object : FragmentManager.FragmentLifecycleCallbacks() {
+                 override fun onFragmentViewCreated(
+                     fm: FragmentManager, f: Fragment, v: View, savedInstanceState: Bundle?
+-                ) = pageLists(v)
++                ) {
++                    pageLists(v)
++                    // Kompakt: a page shows once built; e-ink would paint every step of its building.
++                    if (f.parentFragment is NavHostFragment && f !is DialogFragment) {
++                        f.postponeEnterTransition(KOMPAKT_SETTLE_MS, TimeUnit.MILLISECONDS)
++                    }
++                }
+             }, true
+         )
+ 
+@@ -329,5 +337,8 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
+          * Type: [Boolean]
+          */
+         const val EXTRA_OPEN_NOW_PLAYING = "extra_now_playing"
++
++        /** Kompakt: how long a new page builds unseen; the art and lists land within it. */
++        private const val KOMPAKT_SETTLE_MS = 250L
+     }
+ }
+-- 
+2.43.0
+

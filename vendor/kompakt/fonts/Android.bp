@@ -1,0 +1,8 @@
+// Kompakt: Google's monochrome Noto Emoji (SIL OFL 1.1, see OFL.txt), from
+// github.com/google/fonts/ofl/notoemoji. It leads the emoji fallback unless
+// persist.sys.kompakt.emoji is "color"; see SystemFonts.
+
+prebuilt_font {
+    name: "NotoEmoji-Regular.ttf",
+    src: "NotoEmoji-Regular.ttf",
+}

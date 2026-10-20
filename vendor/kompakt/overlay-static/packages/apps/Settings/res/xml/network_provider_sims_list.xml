@@ -29,8 +29,8 @@
     <Preference
         android:key="kompakt_sim_mode"
         android:icon="@drawable/ic_sim_card"
-        android:title="SIM 2 slot"
-        android:summary="Use the SIM tray or an eSIM"
+        android:title="Switch SIM 2 mode"
+        android:summary="Use SIM 2 or an eSIM"
         android:order="90">
         <intent android:action="com.kompakt.service.action.SIM_MODE"
                 android:targetPackage="com.kompakt.service"

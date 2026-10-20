@@ -1,0 +1,27 @@
+From 7e6770d77fa947a950de61b98b607de7ac2c17f4 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Mon, 5 Oct 2026 22:20:00 +0200
+Subject: [PATCH 57/99] Kompakt: no key vibration while the screen is off
+
+---
+ .../java/com/android/server/policy/PhoneWindowManager.java    | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/services/core/java/com/android/server/policy/PhoneWindowManager.java b/services/core/java/com/android/server/policy/PhoneWindowManager.java
+index ce4d19c60d13..908874c7b6bb 100644
+--- a/services/core/java/com/android/server/policy/PhoneWindowManager.java
++++ b/services/core/java/com/android/server/policy/PhoneWindowManager.java
+@@ -5177,6 +5177,10 @@ public class PhoneWindowManager implements WindowManagerPolicy {
+                 UserHandle.USER_CURRENT) == 0) {
+             useHapticFeedback = false;
+         }
++        // Kompakt: no key vibration while the screen is off.
++        if (!interactive) {
++            useHapticFeedback = false;
++        }
+ 
+         // Specific device key handling
+         if (dispatchKeyToKeyHandlers(event)) {
+-- 
+2.43.0
+

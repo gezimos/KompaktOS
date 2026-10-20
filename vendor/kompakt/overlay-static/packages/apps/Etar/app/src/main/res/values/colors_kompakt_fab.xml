@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: the FAB in the page colour with the ink on it. -->
+<resources>
+    <color name="kompakt_fab_face">#fffffffe</color>
+    <color name="kompakt_fab_ink">#ff000000</color>
+</resources>

@@ -1,0 +1,119 @@
+From 045e0e4504b0efd706300c3c01b84129a8e9b4c0 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sun, 11 Oct 2026 13:12:09 +0200
+Subject: [PATCH 095/101] Kompakt: Settings shows apps by their monochrome
+ icons
+
+Settings app icons come through Utils.getBadgedIcon (lists and headers)
+and, on the All apps page, the SPA AppRepository. Where the app ships a
+monochrome layer, both now show it in the text ink (black, white in dark
+mode), inset the way ZenIconLoader insets one. It is not wrapped in an
+AdaptiveIconDrawable, which paints black under its layers and turned every
+icon into a black disc; the icon factory is skipped too, since its path
+shadow would ring the shape in grey. Apps without one keep their icon.
+
+Change-Id: Ie551735081497cc50e1d6f6f372914e981fa8b3d
+---
+ .../spaprivileged/model/app/AppRepository.kt  | 20 ++++++++++----
+ .../src/com/android/settingslib/Utils.java    | 26 ++++++++++++++++---
+ 2 files changed, 37 insertions(+), 9 deletions(-)
+
+diff --git a/packages/SettingsLib/SpaPrivileged/src/com/android/settingslib/spaprivileged/model/app/AppRepository.kt b/packages/SettingsLib/SpaPrivileged/src/com/android/settingslib/spaprivileged/model/app/AppRepository.kt
+index cea3d13e27ab..6fe89dedf413 100644
+--- a/packages/SettingsLib/SpaPrivileged/src/com/android/settingslib/spaprivileged/model/app/AppRepository.kt
++++ b/packages/SettingsLib/SpaPrivileged/src/com/android/settingslib/spaprivileged/model/app/AppRepository.kt
+@@ -18,11 +18,15 @@ package com.android.settingslib.spaprivileged.model.app
+ 
+ import android.content.Context
+ import android.content.pm.ApplicationInfo
++import android.content.res.Configuration
+ import android.graphics.drawable.Drawable
+ import android.util.IconDrawableFactory
+ import androidx.compose.runtime.Composable
+ import androidx.compose.runtime.State
++import androidx.compose.runtime.mutableStateOf
+ import androidx.compose.runtime.produceState
++import androidx.compose.runtime.remember
++import java.util.concurrent.ConcurrentHashMap
+ import androidx.compose.ui.platform.LocalContext
+ import com.android.settingslib.spa.framework.compose.rememberContext
+ import com.android.settingslib.spaprivileged.R
+@@ -70,13 +74,19 @@ internal class AppRepositoryImpl(private val context: Context) : AppRepository {
+ 
+     override fun loadLabel(app: ApplicationInfo): String = app.loadLabel(packageManager).toString()
+ 
++    // Kompakt: the monochrome icon, cached and drawn in the frame that shows its row, so a page paints once.
+     @Composable
+-    override fun produceIcon(app: ApplicationInfo) =
+-        produceState<Drawable?>(initialValue = null, app) {
+-            withContext(Dispatchers.IO) {
+-                value = iconDrawableFactory.getBadgedIcon(app)
+-            }
++    override fun produceIcon(app: ApplicationInfo): State<Drawable?> = remember(app) {
++        val night = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
++        val icon = iconCache.getOrPut("${app.packageName}:${app.userId}:${app.sourceDir}:$night") {
++            com.android.settingslib.Utils.getBadgedIcon(context, app)
+         }
++        mutableStateOf(icon.constantState?.newDrawable(context.resources) ?: icon)
++    }
++
++    private companion object {
++        val iconCache = ConcurrentHashMap<String, Drawable>()
++    }
+ 
+     @Composable
+     override fun produceIconContentDescription(app: ApplicationInfo) =
+diff --git a/packages/SettingsLib/src/com/android/settingslib/Utils.java b/packages/SettingsLib/src/com/android/settingslib/Utils.java
+index 5f5eb3ba674a..1c8d4b5aa7c0 100644
+--- a/packages/SettingsLib/src/com/android/settingslib/Utils.java
++++ b/packages/SettingsLib/src/com/android/settingslib/Utils.java
+@@ -9,6 +9,7 @@ import android.content.Intent;
+ import android.content.pm.ApplicationInfo;
+ import android.content.pm.PackageInfo;
+ import android.content.pm.PackageManager;
++import android.content.res.Configuration;
+ import android.content.pm.PackageManager.NameNotFoundException;
+ import android.content.pm.ResolveInfo;
+ import android.content.pm.Signature;
+@@ -22,6 +23,8 @@ import android.graphics.Color;
+ import android.graphics.ColorFilter;
+ import android.graphics.ColorMatrix;
+ import android.graphics.ColorMatrixColorFilter;
++import android.graphics.drawable.AdaptiveIconDrawable;
++import android.graphics.drawable.InsetDrawable;
+ import android.graphics.drawable.Drawable;
+ import android.hardware.usb.UsbManager;
+ import android.hardware.usb.UsbPort;
+@@ -736,10 +739,25 @@ public class Utils {
+ 
+     /** Get the {@link Drawable} that represents the app icon */
+     public static Drawable getBadgedIcon(Context context, ApplicationInfo appInfo) {
+-        return getBadgedIcon(
+-                context,
+-                appInfo.loadUnbadgedIcon(context.getPackageManager()),
+-                UserHandle.getUserHandleForUid(appInfo.uid));
++        final Drawable icon = appInfo.loadUnbadgedIcon(context.getPackageManager());
++        final UserHandle user = UserHandle.getUserHandleForUid(appInfo.uid);
++        // Kompakt: the monochrome icon where the app has one, without the icon factory's shadow.
++        final Drawable mono = kompaktMonochrome(context, icon);
++        if (mono != icon) return context.getPackageManager().getUserBadgedIcon(mono, user);
++        return getBadgedIcon(context, icon, user);
++    }
++
++    /** Kompakt: an app's monochrome layer in the text ink, inset as ZenIconLoader does; others as they are. */
++    public static Drawable kompaktMonochrome(Context context, Drawable icon) {
++        if (!(icon instanceof AdaptiveIconDrawable adaptive) || adaptive.getMonochrome() == null) {
++            return icon;
++        }
++        final boolean night = (context.getResources().getConfiguration().uiMode
++                & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
++        final Drawable mono = adaptive.getMonochrome().mutate();
++        mono.setTint(night ? Color.WHITE : Color.BLACK);
++        // Not an AdaptiveIconDrawable: it paints black under its layers.
++        return new InsetDrawable(mono, -2.0f * AdaptiveIconDrawable.getExtraInsetFraction());
+     }
+ 
+     /**
+-- 
+2.43.0
+

@@ -1,0 +1,24 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Mon, 5 Oct 2026 22:35:00 +0200
+Subject: [PATCH 1/1] Kompakt: letter avatars follow the mode
+
+---
+diff --git a/src/com/android/contacts/lettertiles/LetterTileDrawable.java b/src/com/android/contacts/lettertiles/LetterTileDrawable.java
+--- a/src/com/android/contacts/lettertiles/LetterTileDrawable.java
++++ b/src/com/android/contacts/lettertiles/LetterTileDrawable.java
+@@ -94,6 +94,11 @@
+         // Kompakt: the two inks are re-read every time.
+         sDefaultColor = res.getColor(R.color.letter_tile_default_color);
+         sTileFontColor = res.getColor(R.color.letter_tile_font_color);
++        // Kompakt: the disc colours follow the mode too.
++        if (sColors != null) {
++            sColors.recycle();
++            sColors = res.obtainTypedArray(R.array.letter_tile_colors);
++        }
+         if (sColors == null) {
+             sColors = res.obtainTypedArray(R.array.letter_tile_colors);
+             sDefaultColor = res.getColor(R.color.letter_tile_default_color);
+-- 
+2.43.0
+

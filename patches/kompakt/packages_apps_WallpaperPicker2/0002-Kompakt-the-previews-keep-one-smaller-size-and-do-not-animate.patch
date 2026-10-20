@@ -1,0 +1,186 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Tue, 6 Oct 2026 16:10:00 +0200
+Subject: [PATCH 1/1] Kompakt: the previews keep one smaller size and do not animate
+
+---
+diff --git a/res/values/dimens.xml b/res/values/dimens.xml
+--- a/res/values/dimens.xml
++++ b/res/values/dimens.xml
+@@ -410,8 +410,9 @@
+     <dimen name="wallpaper_effect_exit_button_text_size">14sp</dimen>
+ 
+     <!-- Dimensions for the customization picker  -->
+-    <dimen name="customization_picker_preview_header_collapsed_height">250dp</dimen>
+-    <dimen name="customization_picker_preview_header_expanded_height">530dp</dimen>
++    <!-- Kompakt: one preview height, open or scrolled. -->
++    <dimen name="customization_picker_preview_header_collapsed_height">300dp</dimen>
++    <dimen name="customization_picker_preview_header_expanded_height">300dp</dimen>
+     <dimen name="customization_picker_min_preview_collapsed_height">70dp</dimen>
+     <dimen name="customization_picker_min_preview_expanded_height">100dp</dimen>
+     <dimen name="customization_picker_max_preview_expanded_height">580dp</dimen>
+diff --git a/res/xml/customization_picker_layout_scene.xml b/res/xml/customization_picker_layout_scene.xml
+--- a/res/xml/customization_picker_layout_scene.xml
++++ b/res/xml/customization_picker_layout_scene.xml
+@@ -16,18 +16,14 @@
+   -->
+ 
+ <MotionScene xmlns:android="http://schemas.android.com/apk/res/android"
+-    xmlns:app="http://schemas.android.com/apk/res-auto">
++    xmlns:app="http://schemas.android.com/apk/res-auto"
++    app:defaultDuration="1">
+ 
+     <Transition
+         android:id="@+id/transition_primary"
+         app:constraintSetStart="@id/expanded_header_primary"
+         app:constraintSetEnd="@id/collapsed_header_primary">
+-
+-        <OnSwipe
+-            app:dragDirection="dragUp"
+-            app:onTouchUp="autoComplete"
+-            app:touchAnchorId="@+id/bottom_scroll_view"
+-            app:touchAnchorSide="top" />
++        <!-- Kompakt: no swipe to collapse the previews; a drag scrolls the options. -->
+     </Transition>
+ 
+     <ConstraintSet android:id="@+id/expanded_header_primary">
+diff --git a/res/xml/preview_pager_motion_scene.xml b/res/xml/preview_pager_motion_scene.xml
+--- a/res/xml/preview_pager_motion_scene.xml
++++ b/res/xml/preview_pager_motion_scene.xml
+@@ -15,14 +15,15 @@
+   ~
+   -->
+ <MotionScene xmlns:android="http://schemas.android.com/apk/res/android"
+-    xmlns:app="http://schemas.android.com/apk/res-auto">
++    xmlns:app="http://schemas.android.com/apk/res-auto"
++    app:defaultDuration="1">
+ 
+     <!-- Main preview swipe transition -->
+     <Transition
+         android:id="@+id/preview_swipe_transition"
+         app:constraintSetStart="@id/lock_preview_selected"
+         app:constraintSetEnd="@id/home_preview_selected"
+-        app:duration="200">
++        app:duration="1">
+         <OnSwipe
+             app:touchAnchorId="@id/lock_preview"
+             app:dragDirection="dragStart" />
+@@ -33,7 +34,7 @@
+         android:id="@+id/leftEdgeTransition"
+         app:constraintSetStart="@id/lock_preview_selected"
+         app:constraintSetEnd="@id/leftEdgeActive"
+-        app:duration="100"
++        app:duration="1"
+         motionInterpolator="spring(1.0, 0.4)"/>
+ 
+     <!-- Right edge effect transition (when at home screen and trying to swipe more right) -->
+@@ -41,7 +42,7 @@
+         android:id="@+id/rightEdgeTransition"
+         app:constraintSetStart="@id/home_preview_selected"
+         app:constraintSetEnd="@id/rightEdgeActive"
+-        app:duration="100"
++        app:duration="1"
+         motionInterpolator="spring(1.0, 0.4)"/>
+ 
+     <!-- Lock preview selected -->
+diff --git a/res/xml/preview_pager_motion_scene_handheld.xml b/res/xml/preview_pager_motion_scene_handheld.xml
+--- a/res/xml/preview_pager_motion_scene_handheld.xml
++++ b/res/xml/preview_pager_motion_scene_handheld.xml
+@@ -15,12 +15,13 @@
+   ~
+   -->
+ <MotionScene xmlns:android="http://schemas.android.com/apk/res/android"
+-    xmlns:app="http://schemas.android.com/apk/res-auto">
++    xmlns:app="http://schemas.android.com/apk/res-auto"
++    app:defaultDuration="1">
+ 
+     <Transition
+         app:constraintSetStart="@id/lock_preview_selected"
+         app:constraintSetEnd="@id/home_preview_selected"
+-        app:duration="200">
++        app:duration="1">
+         <OnSwipe
+             app:dragDirection="dragStart"
+             app:maxAcceleration="50"/>
+diff --git a/res/xml/preview_tabs_motion_scene.xml b/res/xml/preview_tabs_motion_scene.xml
+--- a/res/xml/preview_tabs_motion_scene.xml
++++ b/res/xml/preview_tabs_motion_scene.xml
+@@ -15,12 +15,13 @@
+   -->
+ 
+ <MotionScene xmlns:android="http://schemas.android.com/apk/res/android"
+-    xmlns:app="http://schemas.android.com/apk/res-auto">
++    xmlns:app="http://schemas.android.com/apk/res-auto"
++    app:defaultDuration="1">
+ 
+     <Transition
+         app:constraintSetStart="@id/primary_tab_selected"
+         app:constraintSetEnd="@id/secondary_tab_selected"
+-        app:duration="200">
++        app:duration="1">
+         <OnSwipe
+             app:maxAcceleration="50"
+             app:dragDirection="dragEnd"
+diff --git a/src/com/android/wallpaper/picker/customization/ui/CustomizationPickerFragment2.kt b/src/com/android/wallpaper/picker/customization/ui/CustomizationPickerFragment2.kt
+--- a/src/com/android/wallpaper/picker/customization/ui/CustomizationPickerFragment2.kt
++++ b/src/com/android/wallpaper/picker/customization/ui/CustomizationPickerFragment2.kt
+@@ -526,52 +526,18 @@
+         packThemeSuggestedChip: PackThemeSuggestedChip?,
+         bottomInset: Int,
+     ) {
+-        val isLargeScreenSingleDisplayPortrait = displayUtils.isLargeScreenSingleDisplayPortrait()
+-        val wallpaperPickerEntryExpandedHeight = wallpaperPickerEntry.height
+-        // Do not collapse the wallpaper entry when isLargeScreenSingleDisplayPortrait
+-        val wallpaperPickerEntryCollapsedHeight =
+-            if (isLargeScreenSingleDisplayPortrait) wallpaperPickerEntryExpandedHeight
+-            else wallpaperPickerEntry.collapsedButton.height
+-        val minCollapsedPreviewHeight =
+-            resources.getDimensionPixelSize(
+-                R.dimen.customization_picker_min_preview_collapsed_height
+-            )
++        // Kompakt: one fixed preview height, so it neither shrinks on open nor collapses on scroll.
+         wallpaperPickerEntry.configureForAnimation()
+-
+-        val minCollapsedPagerHeight = minCollapsedPreviewHeight + previewLabelHeight
+-        val minExpandedPreviewHeight =
++        val headerHeight =
+             resources.getDimensionPixelSize(
+-                R.dimen.customization_picker_min_preview_expanded_height
++                R.dimen.customization_picker_preview_header_expanded_height
+             )
+-        val maxExpandedPreviewHeight =
+-            resources.getDimensionPixelSize(
+-                R.dimen.customization_picker_max_preview_expanded_height
+-            )
+-        val minExpandedPagerHeight = minExpandedPreviewHeight + previewLabelHeight
+-        val maxExpandedPagerHeight = maxExpandedPreviewHeight + previewLabelHeight
+-
+-        // For collapsed, it needs to show the all option entries, with the collapsed wallpaper
+-        // entry, which shows as a single button.
+-        val collapsedHeaderHeight =
+-            (pickerMotionContainer.height -
+-                    (optionContainerHeight -
+-                        (packThemeSuggestedChip?.height ?: 0) -
+-                        (wallpaperPickerEntryExpandedHeight - wallpaperPickerEntryCollapsedHeight)))
+-                .coerceAtLeast(minCollapsedPagerHeight)
+         pickerMotionContainer
+             .getConstraintSet(R.id.collapsed_header_primary)
+-            ?.constrainHeight(R.id.preview_header, collapsedHeaderHeight)
+-        // For expanded, it needs to show at least half of the entry view below the wallpaper entry.
+-        val expandedHeaderHeight =
+-            (pickerMotionContainer.height -
+-                    wallpaperPickerEntryExpandedHeight -
+-                    bottomInset -
+-                    resources.getDimensionPixelSize(R.dimen.customization_option_entry_height) / 2)
+-                .coerceAtMost(maxExpandedPagerHeight)
+-                .coerceAtLeast(minExpandedPagerHeight)
++            ?.constrainHeight(R.id.preview_header, headerHeight)
+         pickerMotionContainer
+             .getConstraintSet(R.id.expanded_header_primary)
+-            ?.constrainHeight(R.id.preview_header, expandedHeaderHeight)
++            ?.constrainHeight(R.id.preview_header, headerHeight)
+     }
+ 
+     private fun setMotionLayoutOnTransitionCompleteListener(
+-- 
+2.43.0

@@ -1,0 +1,60 @@
+// Kompakt: JetBrains Mono, monospace (SIL OFL 1.1, see OFL.txt), from the v2.304 release
+// at github.com/JetBrains/JetBrainsMono, subset with pyftsubset to Latin, Greek, Cyrillic,
+// Vietnamese and punctuation, without ligatures or hinting, and given Roboto's line metrics
+// so it fits the boxes Roboto fits. A system font choice in the Kompakt app
+// (persist.sys.kompakt.font); see SystemFonts.
+
+prebuilt_font {
+    name: "JetBrainsMono-Regular.ttf",
+    src: "JetBrainsMono-Regular.ttf",
+}
+
+prebuilt_font {
+    name: "JetBrainsMono-Italic.ttf",
+    src: "JetBrainsMono-Italic.ttf",
+}
+
+prebuilt_font {
+    name: "JetBrainsMono-Medium.ttf",
+    src: "JetBrainsMono-Medium.ttf",
+}
+
+prebuilt_font {
+    name: "JetBrainsMono-MediumItalic.ttf",
+    src: "JetBrainsMono-MediumItalic.ttf",
+}
+
+prebuilt_font {
+    name: "JetBrainsMono-SemiBold.ttf",
+    src: "JetBrainsMono-SemiBold.ttf",
+}
+
+prebuilt_font {
+    name: "JetBrainsMono-SemiBoldItalic.ttf",
+    src: "JetBrainsMono-SemiBoldItalic.ttf",
+}
+
+prebuilt_font {
+    name: "JetBrainsMono-Bold.ttf",
+    src: "JetBrainsMono-Bold.ttf",
+}
+
+prebuilt_font {
+    name: "JetBrainsMono-BoldItalic.ttf",
+    src: "JetBrainsMono-BoldItalic.ttf",
+}
+
+filegroup {
+    name: "JetBrainsMono",
+    srcs: ["font_config.json"],
+    required: [
+        "JetBrainsMono-Regular.ttf",
+        "JetBrainsMono-Italic.ttf",
+        "JetBrainsMono-Medium.ttf",
+        "JetBrainsMono-MediumItalic.ttf",
+        "JetBrainsMono-SemiBold.ttf",
+        "JetBrainsMono-SemiBoldItalic.ttf",
+        "JetBrainsMono-Bold.ttf",
+        "JetBrainsMono-BoldItalic.ttf",
+    ],
+}

@@ -16,9 +16,9 @@ index e7290737..36f74479 100644
           For example, a device with notification and battery lights that supports
           pulsating and RGB control would set this config to 75. -->
 -    <integer name="config_deviceLightCapabilities">8</integer>
-+    <!-- Kompakt: 1 (RGB notification LED) + 512 (no brightness control).
-+         Never 8: the LED cannot pulse, and claiming it crashes system_server. -->
-+    <integer name="config_deviceLightCapabilities">513</integer>
++    <!-- Kompakt: 1 (RGB notification LED) + 8 (pulsing) + 32 (brightness).
++         LineageOS's lights HAL breathes it on the PMIC (kernel patch 0027). -->
++    <integer name="config_deviceLightCapabilities">41</integer>
  
      <!-- Defines external services to be started by the LineageSystemServer at boot. The service itself
           should publish as a binder services in its onStart -->

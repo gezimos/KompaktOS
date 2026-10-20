@@ -1,0 +1,146 @@
+From 450264211bc101c00ce253a0094a9f93bfb80f39 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Mon, 12 Oct 2026 00:23:32 +0200
+Subject: [PATCH 100/101] Kompakt: a warm flashlight lock screen shortcut
+
+Change-Id: I00d740cc8f9c77c4b7f8a7e9a803f49a0138976f
+---
+ .../SystemUI/res/values/kompakt_torch.xml     |  5 +
+ .../KeyguardDataQuickAffordanceModule.kt      |  3 +
+ .../WarmFlashlightQuickAffordanceConfig.kt    | 91 +++++++++++++++++++
+ 3 files changed, 99 insertions(+)
+ create mode 100644 packages/SystemUI/res/values/kompakt_torch.xml
+ create mode 100644 packages/SystemUI/src/com/android/systemui/keyguard/data/quickaffordance/WarmFlashlightQuickAffordanceConfig.kt
+
+diff --git a/packages/SystemUI/res/values/kompakt_torch.xml b/packages/SystemUI/res/values/kompakt_torch.xml
+new file mode 100644
+index 000000000000..e605883a7733
+--- /dev/null
++++ b/packages/SystemUI/res/values/kompakt_torch.xml
+@@ -0,0 +1,5 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Kompakt: the warm flash LED's lock screen shortcut. -->
++<resources>
++    <string name="kompakt_warm_flashlight_label">Warm flashlight</string>
++</resources>
+diff --git a/packages/SystemUI/src/com/android/systemui/keyguard/data/quickaffordance/KeyguardDataQuickAffordanceModule.kt b/packages/SystemUI/src/com/android/systemui/keyguard/data/quickaffordance/KeyguardDataQuickAffordanceModule.kt
+index 787a9837b860..4c757c9aaec8 100644
+--- a/packages/SystemUI/src/com/android/systemui/keyguard/data/quickaffordance/KeyguardDataQuickAffordanceModule.kt
++++ b/packages/SystemUI/src/com/android/systemui/keyguard/data/quickaffordance/KeyguardDataQuickAffordanceModule.kt
+@@ -41,6 +41,8 @@ interface KeyguardDataQuickAffordanceModule {
+             quickAccessWallet: QuickAccessWalletKeyguardQuickAffordanceConfig,
+             qrCodeScanner: QrCodeScannerKeyguardQuickAffordanceConfig,
+             videoCamera: VideoCameraQuickAffordanceConfig,
++            // Kompakt: the warm flash LED, beside Android's flashlight (the cold one).
++            warmFlashlight: WarmFlashlightQuickAffordanceConfig,
+         ): Set<KeyguardQuickAffordanceConfig> {
+             return setOf(
+                 camera,
+@@ -51,6 +53,7 @@ interface KeyguardDataQuickAffordanceModule {
+                 quickAccessWallet,
+                 qrCodeScanner,
+                 videoCamera,
++                warmFlashlight,
+             )
+         }
+     }
+diff --git a/packages/SystemUI/src/com/android/systemui/keyguard/data/quickaffordance/WarmFlashlightQuickAffordanceConfig.kt b/packages/SystemUI/src/com/android/systemui/keyguard/data/quickaffordance/WarmFlashlightQuickAffordanceConfig.kt
+new file mode 100644
+index 000000000000..6f1de9bdb8fd
+--- /dev/null
++++ b/packages/SystemUI/src/com/android/systemui/keyguard/data/quickaffordance/WarmFlashlightQuickAffordanceConfig.kt
+@@ -0,0 +1,91 @@
++/*
++ * SPDX-FileCopyrightText: KompaktOS
++ * SPDX-License-Identifier: Apache-2.0
++ */
++
++package com.android.systemui.keyguard.data.quickaffordance
++
++import android.content.Context
++import android.content.Intent
++import android.database.ContentObserver
++import android.provider.Settings
++import com.android.systemui.animation.Expandable
++import com.android.systemui.common.coroutine.ChannelExt.trySendWithFailureLogging
++import com.android.systemui.common.shared.model.ContentDescription
++import com.android.systemui.common.shared.model.Icon
++import com.android.systemui.dagger.SysUISingleton
++import com.android.systemui.keyguard.shared.quickaffordance.ActivationState
++import com.android.systemui.res.R
++import com.android.systemui.shade.ShadeDisplayAware
++import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
++import javax.inject.Inject
++import kotlinx.coroutines.channels.awaitClose
++import kotlinx.coroutines.flow.Flow
++
++/**
++ * Kompakt: a lock screen shortcut for the warm flash LED. The Kompakt app owns the LED (SystemUI
++ * cannot write it), so a tap asks it to switch, and it publishes the state in a global setting.
++ */
++@SysUISingleton
++class WarmFlashlightQuickAffordanceConfig
++@Inject
++constructor(@ShadeDisplayAware private val context: Context) : KeyguardQuickAffordanceConfig {
++
++    override val key: String
++        get() = KEY
++
++    override fun pickerName(): String =
++        context.getString(R.string.kompakt_warm_flashlight_label)
++
++    override val pickerIconResourceId: Int
++        get() = R.drawable.ic_flashlight_off
++
++    override val lockScreenState: Flow<KeyguardQuickAffordanceConfig.LockScreenState> =
++        conflatedCallbackFlow {
++            val resolver = context.contentResolver
++            val send = {
++                val on = Settings.Global.getInt(resolver, SETTING, 0) == 1
++                trySendWithFailureLogging(state(on), TAG)
++            }
++            val observer =
++                object : ContentObserver(null) {
++                    override fun onChange(selfChange: Boolean) {
++                        send()
++                    }
++                }
++            resolver.registerContentObserver(Settings.Global.getUriFor(SETTING), false, observer)
++            send()
++            awaitClose { resolver.unregisterContentObserver(observer) }
++        }
++
++    private fun state(on: Boolean) =
++        KeyguardQuickAffordanceConfig.LockScreenState.Visible(
++            Icon.Resource(
++                if (on) R.drawable.qs_flashlight_icon_on else R.drawable.qs_flashlight_icon_off,
++                ContentDescription.Resource(R.string.kompakt_warm_flashlight_label),
++            ),
++            if (on) ActivationState.Active else ActivationState.Inactive,
++        )
++
++    override fun onTriggered(
++        expandable: Expandable?
++    ): KeyguardQuickAffordanceConfig.OnTriggeredResult {
++        context.sendBroadcast(
++            Intent(ACTION_TOGGLE)
++                .setPackage(KOMPAKT_PACKAGE)
++                .addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
++        )
++        return KeyguardQuickAffordanceConfig.OnTriggeredResult.Handled(false)
++    }
++
++    override suspend fun getPickerScreenState(): KeyguardQuickAffordanceConfig.PickerScreenState =
++        KeyguardQuickAffordanceConfig.PickerScreenState.Default()
++
++    companion object {
++        private const val TAG = "WarmFlashlightQuickAffordanceConfig"
++        const val KEY = "kompakt_warm_flashlight"
++        private const val SETTING = "kompakt_torch_warm"
++        private const val ACTION_TOGGLE = "com.kompakt.service.action.TORCH_WARM"
++        private const val KOMPAKT_PACKAGE = "com.kompakt.service"
++    }
++}
+-- 
+2.43.0
+

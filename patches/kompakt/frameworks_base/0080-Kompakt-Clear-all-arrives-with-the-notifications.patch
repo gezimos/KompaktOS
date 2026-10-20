@@ -1,0 +1,41 @@
+From 20aebcfb6b406b7202b41f498d2c803994c20181 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Fri, 9 Oct 2026 06:55:25 +0200
+Subject: [PATCH 80/99] Kompakt: Clear all arrives with the notifications
+
+The footer shows its content through a ViewPropertyAnimator fade. With
+animations off the fade has no length but still starts on the next animation
+frame, so Clear all and its buttons were drawn one frame after the
+notifications: one more panel repaint on every opening. With animators
+disabled the alpha is set at once.
+
+Change-Id: Idaaef61eb6b77e89f3d0010fc58ce22580d11d6f
+---
+ .../statusbar/notification/row/StackScrollerDecorView.java    | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/notification/row/StackScrollerDecorView.java b/packages/SystemUI/src/com/android/systemui/statusbar/notification/row/StackScrollerDecorView.java
+index e9411ed22403..4dd6f0c2f9a7 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/notification/row/StackScrollerDecorView.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/notification/row/StackScrollerDecorView.java
+@@ -18,6 +18,7 @@ package com.android.systemui.statusbar.notification.row;
+ 
+ import android.animation.Animator;
+ import android.animation.AnimatorListenerAdapter;
++import android.animation.ValueAnimator;
+ import android.content.Context;
+ import android.util.AttributeSet;
+ import android.view.View;
+@@ -223,7 +224,8 @@ public abstract class StackScrollerDecorView extends ExpandableView {
+         // cancel any previous animations
+         view.animate().cancel();
+         float endValue = visible ? 1.0f : 0.0f;
+-        if (!animate) {
++        // Kompakt: with animations off a zero-length fade still lands a frame late; set it now.
++        if (!animate || !ValueAnimator.areAnimatorsEnabled()) {
+             view.setAlpha(endValue);
+             if (onAnimationEnded != null) {
+                 onAnimationEnded.accept(true);
+-- 
+2.43.0
+

@@ -1,0 +1,35 @@
+From 2f955cd53e98059ef4afa2d06b5fa785aa470c82 Mon Sep 17 00:00:00 2001
+From: Gezim <25499045+gezimos@users.noreply.github.com>
+Date: Sun, 18 Oct 2026 21:20:00 +0200
+Subject: [PATCH] Kompakt: the lockscreen measures notifications collapsed
+
+0054 hides a lockscreen notification that does not fit whole, since there
+is no shelf to take it. It measured each row with getMaxAllowedChildHeight,
+the intrinsic height, which for a bundle (a group summary with children,
+as the Google app posts its weather) includes the children. The lockscreen
+draws every row collapsed, and NotificationStackSizeCalculator counts them
+collapsed (getMinHeight), so it allowed the bundle while this check hid it:
+a weather notification under any other one never showed, though there was
+room for it. The check now measures with getMinHeight as the counter does.
+---
+ .../statusbar/notification/stack/StackScrollAlgorithm.java     | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/StackScrollAlgorithm.java b/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/StackScrollAlgorithm.java
+index 5bbf076..db38ac9 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/StackScrollAlgorithm.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/StackScrollAlgorithm.java
+@@ -816,8 +816,9 @@ public class StackScrollAlgorithm {
+                     }
+                     // Kompakt: on the lockscreen a notification that does not fit whole is
+                     // hidden, not left as a sliver above the shelf (which is not drawn there).
++                    // Measured collapsed, as NotificationStackSizeCalculator counts it.
+                     if (ambientState.isOnKeyguard() && !viewState.hidden && !view.isPinned()
+-                            && viewState.getYTranslation() + getMaxAllowedChildHeight(view)
++                            && viewState.getYTranslation() + view.getMinHeight(true)
+                                     > shelfStart) {
+                         viewState.hidden = true;
+                         viewState.inShelf = true;
+-- 
+2.56.0
+

@@ -1,0 +1,49 @@
+From b907e5f4c7c1aaba004b1ba297d97dcba2127df9 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Mon, 5 Oct 2026 20:40:00 +0200
+Subject: [PATCH 54/99] Kompakt: the lockscreen shows whole notifications and
+ no shelf
+
+---
+ .../com/android/systemui/statusbar/NotificationShelf.java | 5 ++++-
+ .../notification/stack/StackScrollAlgorithm.java          | 8 ++++++++
+ 2 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/NotificationShelf.java b/packages/SystemUI/src/com/android/systemui/statusbar/NotificationShelf.java
+index 04a22a18c273..e53d72d40c82 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/NotificationShelf.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/NotificationShelf.java
+@@ -552,7 +552,10 @@ public class NotificationShelf extends ActivatableNotificationView {
+         boolean isHidden = getViewState().hidden
+                 || clipTopAmount >= getIntrinsicHeight()
+                 || !mShowNotificationShelf
+-                || numViewsInShelf < 1f;
++                || numViewsInShelf < 1f
++                // Kompakt: no shelf on the lockscreen. Its pill held only an overflow dot,
++                // which said nothing; the rest of the notifications are in the shade.
++                || mAmbientState.isOnKeyguard();
+ 
+         final float fractionToShade = Interpolators.STANDARD.getInterpolation(
+                 mAmbientState.getFractionToShade());
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/StackScrollAlgorithm.java b/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/StackScrollAlgorithm.java
+index 918db535ce7b..3bbb873b612d 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/StackScrollAlgorithm.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/StackScrollAlgorithm.java
+@@ -783,6 +783,14 @@ public class StackScrollAlgorithm {
+                             - ambientState.getShelf().getIntrinsicHeight()
+                             - mPaddingBetweenElements;
+                     updateViewWithShelf(view, viewState, shelfStart);
++                    // Kompakt: on the lockscreen a notification that does not fit whole is
++                    // hidden, not left as a sliver above the shelf (which is not drawn there).
++                    if (ambientState.isOnKeyguard() && !viewState.hidden && !view.isPinned()
++                            && viewState.getYTranslation() + getMaxAllowedChildHeight(view)
++                                    > shelfStart) {
++                        viewState.hidden = true;
++                        viewState.inShelf = true;
++                    }
+                 }
+             }
+             viewState.height = getMaxAllowedChildHeight(view);
+-- 
+2.43.0
+

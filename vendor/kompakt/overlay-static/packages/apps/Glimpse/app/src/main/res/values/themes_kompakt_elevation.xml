@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Kompakt: copies of the app's own Material 3 themes with the elevation overlay switched off. -->
+<!-- Kompakt: copies of the app's own Material 3 themes with the elevation overlay switched off and the ink tab pill. -->
 <resources>
     <style name="Theme.Glimpse" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="android:windowLayoutInDisplayCutoutMode">always</item>
         <item name="windowActionModeOverlay">true</item>
         <item name="elevationOverlayEnabled">false</item>
+        <item name="bottomNavigationStyle">@style/KompaktBottomNavigation</item>
     </style>
     <style name="Theme.Glimpse.MediaViewer" parent="Theme.Material3.Dark.NoActionBar">
         <item name="android:windowLayoutInDisplayCutoutMode">always</item>

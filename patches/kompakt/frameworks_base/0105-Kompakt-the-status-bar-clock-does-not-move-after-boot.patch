@@ -1,0 +1,44 @@
+From 887af46de8937a36636b3eea346f6584128be3ef Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Mon, 12 Oct 2026 20:17:29 +0200
+Subject: [PATCH 105/105] Kompakt: the status bar clock does not move after
+ boot
+
+status_bar.xml inflates the clock with the left-clock paddings (0dp start),
+but Clock.reloadDimens() sets status_bar_clock_starting_padding (4dp) on the
+first configuration change, such as switching dark mode. So after every boot
+the clock sat 5 px left of where it stood after any change, and 5 px left of
+the shade header clock, which is aligned to the changed position. The layout
+now inflates the clock with the paddings reloadDimens() sets.
+
+Change-Id: Iea825da707d8ae534c104e546d5d851cfeefd9ab
+---
+ packages/SystemUI/res/layout/status_bar.xml | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/packages/SystemUI/res/layout/status_bar.xml b/packages/SystemUI/res/layout/status_bar.xml
+index 63c344cbfbd7..9d4f19d231c4 100644
+--- a/packages/SystemUI/res/layout/status_bar.xml
++++ b/packages/SystemUI/res/layout/status_bar.xml
+@@ -91,6 +91,7 @@
+                         android:layout_height="match_parent"
+                         android:layout="@layout/operator_name" />
+ 
++                    <!-- Kompakt: the paddings Clock.reloadDimens sets on any configuration change, so the clock does not move 5 px after boot. -->
+                     <com.android.systemui.statusbar.policy.Clock
+                         android:id="@+id/clock"
+                         android:layout_width="wrap_content"
+@@ -99,8 +100,8 @@
+                         android:layout_gravity="center_vertical"
+                         android:textAppearance="@style/TextAppearance.StatusBar.Default"
+                         android:singleLine="true"
+-                        android:paddingStart="@dimen/status_bar_left_clock_starting_padding"
+-                        android:paddingEnd="@dimen/status_bar_left_clock_end_padding"
++                        android:paddingStart="@dimen/status_bar_clock_starting_padding"
++                        android:paddingEnd="@dimen/status_bar_clock_end_padding"
+                         android:gravity="center_vertical|start"
+                     />
+ 
+-- 
+2.43.0
+

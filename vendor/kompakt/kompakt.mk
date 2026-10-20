@@ -3,13 +3,38 @@
 # Static framework overlay: the monochrome palette plus the framework configs.
 PRODUCT_PACKAGE_OVERLAYS += vendor/kompakt/overlay
 
-# Product identity: a branded, self consistent fingerprint.
-# Needs /metadata/securize_disable, or securize overwrites it at boot.
+# Product identity: Mudita / Kompakt. With Securize on (the default, see
+# etc/init/kompakt-securize.rc), phh copies the vendor fingerprint over it at boot.
 PRODUCT_BRAND := Mudita
 PRODUCT_MANUFACTURER := Mudita
 PRODUCT_MODEL := Kompakt
 
-# Ship the securize marker: see etc/init/kompakt-securize.rc.
+# The 4.19 kernel cannot run the userfaultfd GC, so ART uses the read barrier one; precompile for it.
+OVERRIDE_ENABLE_UFFD_GC := false
+
+# Fully precompiled, so the apps opened most start fast from the first boot after an update.
+PRODUCT_DEXPREOPT_SPEED_APPS += \
+    Settings \
+    Dialer \
+    Contacts \
+    messaging \
+    LatinIME \
+    Etar \
+    DeskClock \
+    KompaktService \
+    Aperture \
+    Glimpse \
+    DocumentsUI \
+    Twelve \
+    ExactCalculator \
+    ThemePicker \
+    Recorder \
+    Jelly \
+    KompaktFMRadio \
+    TeleService \
+    Katapult
+
+# Securize on by default: see etc/init/kompakt-securize.rc.
 PRODUCT_COPY_FILES += \
     vendor/kompakt/etc/init/kompakt-securize.rc:$(TARGET_COPY_OUT_SYSTEM)/etc/init/kompakt-securize.rc
 
@@ -29,6 +54,7 @@ PRODUCT_PACKAGES += KompaktService
 # Google's setup wizard is prebuilt, so product overlays never reach it; its
 # dark-mode buttons get the light ink from this overlay instead. Unused on Vanilla.
 PRODUCT_PACKAGES += KompaktGoogleSetupWizardOverlay
+PRODUCT_PACKAGES += KompaktPermissionControllerOverlay
 
 # aee_core_forwarder -- see vendor/kompakt/aee/aee_core_forwarder.c.
 PRODUCT_PACKAGES += aee_core_forwarder
@@ -40,6 +66,66 @@ PRODUCT_PACKAGES += kpoc_charger
 TARGET_BOOTANIMATION := vendor/kompakt/bootanimation/bootanimation.zip
 TARGET_BOOTANIMATION_HALF_RES := false
 PRODUCT_PRODUCT_PROPERTIES += debug.sf.nobootanimation=0
+
+# Monochrome emoji by default; the Kompakt app switches to colour (persist.sys.kompakt.emoji).
+PRODUCT_PACKAGES += NotoEmoji-Regular.ttf
+
+# JetBrains Mono, Lato, Manrope, Noto Serif and Source Serif, system font choices in the Kompakt app (persist.sys.kompakt.font).
+PRODUCT_PACKAGES += \
+    KompaktLato-Light.ttf \
+    KompaktLato-LightItalic.ttf \
+    KompaktLato-Regular.ttf \
+    KompaktLato-Italic.ttf \
+    KompaktLato-Medium.ttf \
+    KompaktLato-MediumItalic.ttf \
+    KompaktLato-SemiBold.ttf \
+    KompaktLato-SemiBoldItalic.ttf \
+    KompaktLato-Bold.ttf \
+    KompaktLato-BoldItalic.ttf \
+    KompaktLato-Heavy.ttf \
+    KompaktLato-HeavyItalic.ttf \
+    KompaktLato-Black.ttf \
+    KompaktLato-BlackItalic.ttf \
+    KompaktNotoSerif-Regular.ttf \
+    KompaktNotoSerif-Italic.ttf \
+    KompaktNotoSerif-Medium.ttf \
+    KompaktNotoSerif-MediumItalic.ttf \
+    KompaktNotoSerif-SemiBold.ttf \
+    KompaktNotoSerif-SemiBoldItalic.ttf \
+    KompaktNotoSerif-Bold.ttf \
+    KompaktNotoSerif-BoldItalic.ttf \
+    KompaktSourceSerif-Regular.ttf \
+    KompaktSourceSerif-Italic.ttf \
+    KompaktSourceSerif-Medium.ttf \
+    KompaktSourceSerif-MediumItalic.ttf \
+    KompaktSourceSerif-SemiBold.ttf \
+    KompaktSourceSerif-SemiBoldItalic.ttf \
+    KompaktSourceSerif-Bold.ttf \
+    KompaktSourceSerif-BoldItalic.ttf \
+    KompaktManrope-Regular.ttf \
+    KompaktManrope-Medium.ttf \
+    KompaktManrope-SemiBold.ttf \
+    KompaktManrope-Bold.ttf \
+    JetBrainsMono-Regular.ttf \
+    JetBrainsMono-Italic.ttf \
+    JetBrainsMono-Medium.ttf \
+    JetBrainsMono-MediumItalic.ttf \
+    JetBrainsMono-SemiBold.ttf \
+    JetBrainsMono-SemiBoldItalic.ttf \
+    JetBrainsMono-Bold.ttf \
+    JetBrainsMono-BoldItalic.ttf
+
+# Lockscreen text is black on any mostly light wallpaper, ink drawings included.
+PRODUCT_SYSTEM_PROPERTIES += \
+    persist.wallpapercolors.threshold=50 \
+    persist.wallpapercolors.max_dark_area=100
+
+# 30 media volume steps instead of 15; the lowest is half as loud.
+PRODUCT_SYSTEM_PROPERTIES += ro.config.media_vol_steps=30
+# Six call volume steps: the audio HAL makes speech levels 1 to 6 from the call volume, (int)(v*5)+1.
+PRODUCT_SYSTEM_PROPERTIES += \
+    ro.config.vc_call_vol_steps=6 \
+    ro.config.vc_call_vol_default=4
 
 # VoLTE and Wi-Fi calling switches on by default (PHH's override properties).
 PRODUCT_SYSTEM_PROPERTIES += \
@@ -82,15 +168,16 @@ PRODUCT_PACKAGES += OpenEUICC
 
 # Release version: About phone shows BP4A.251205.006.<version>. The build
 # number stays in ro.build.version.incremental, which Diagnostics reads.
-KOMPAKT_VERSION := 1.1
+KOMPAKT_VERSION := 1.2
 # The product build.prop repeats the build info and is read last, so it needs
 # the version too.
 PRODUCT_SYSTEM_PROPERTIES += ro.build.display.id=$(BUILD_ID).$(KOMPAKT_VERSION)
 PRODUCT_PRODUCT_PROPERTIES += ro.build.display.id=$(BUILD_ID).$(KOMPAKT_VERSION)
 
 # Updates: the latest GitHub release carries one list per edition and region.
+# Named for 1.2, the first build that may update over the air; 1.1 reads the old name.
 PRODUCT_SYSTEM_PROPERTIES += \
-    lineage.updater.uri=https://github.com/gezimos/KompaktOS/releases/latest/download/{type}-{region}.json
+    lineage.updater.uri=https://github.com/gezimos/KompaktOS/releases/latest/download/{type}-{region}-from-1.2.json
 
 # FM radio.
 PRODUCT_PACKAGES += \

@@ -1,0 +1,236 @@
+From 7331112b62333f68192fa647044307e45b5909ba Mon Sep 17 00:00:00 2001
+From: Gezim <25499045+gezimos@users.noreply.github.com>
+Date: Sat, 10 Oct 2026 12:59:04 +0200
+Subject: [PATCH] Kompakt: the contact list turns a page per swipe
+
+Change-Id: I8d4ee9cf286c5880dd251cd0c41a8cddd36f565e
+---
+ .../list/ContactEntryListFragment.java        |  9 +-
+ src/com/kompakt/eink/PageGestureListener.java | 84 +++++++++++++++++
+ src/com/kompakt/eink/PagedList.java           | 89 +++++++++++++++++++
+ 3 files changed, 178 insertions(+), 4 deletions(-)
+ create mode 100644 src/com/kompakt/eink/PageGestureListener.java
+ create mode 100644 src/com/kompakt/eink/PagedList.java
+
+diff --git a/src/com/android/contacts/list/ContactEntryListFragment.java b/src/com/android/contacts/list/ContactEntryListFragment.java
+index 72aa44c29..216282f10 100644
+--- a/src/com/android/contacts/list/ContactEntryListFragment.java
++++ b/src/com/android/contacts/list/ContactEntryListFragment.java
+@@ -569,7 +569,7 @@ public abstract class ContactEntryListFragment<T extends ContactEntryListAdapter
+         boolean hasScrollbar = isVisibleScrollbarEnabled() && isSectionHeaderDisplayEnabled();
+ 
+         if (mListView != null) {
+-            mListView.setFastScrollEnabled(hasScrollbar);
++            mListView.setFastScrollEnabled(false);
+             mListView.setVerticalScrollbarPosition(mVerticalScrollbarPosition);
+             mListView.setScrollBarStyle(ListView.SCROLLBARS_OUTSIDE_OVERLAY);
+         }
+@@ -644,7 +644,7 @@ public abstract class ContactEntryListFragment<T extends ContactEntryListAdapter
+             }
+ 
+             if (mListView != null) {
+-                mListView.setFastScrollEnabled(!flag);
++                mListView.setFastScrollEnabled(false);
+             }
+         }
+     }
+@@ -799,8 +799,9 @@ public abstract class ContactEntryListFragment<T extends ContactEntryListAdapter
+         mListView.setOnItemClickListener(this);
+         mListView.setOnItemLongClickListener(this);
+         mListView.setOnFocusChangeListener(this);
+-        mListView.setOnTouchListener(this);
+-        mListView.setFastScrollEnabled(!isSearchMode());
++        // Kompakt: a page per swipe; the fast scroller would fight the paging finger.
++        com.kompakt.eink.PagedList.attach(mListView, this);
++        mListView.setFastScrollEnabled(false);
+ 
+         // Tell list view to not show dividers. We'll do it ourself so that we can *not* show
+         // them when an A-Z headers is visible.
+diff --git a/src/com/kompakt/eink/PageGestureListener.java b/src/com/kompakt/eink/PageGestureListener.java
+new file mode 100644
+index 000000000..fd209053d
+--- /dev/null
++++ b/src/com/kompakt/eink/PageGestureListener.java
+@@ -0,0 +1,84 @@
++package com.kompakt.eink;
++
++import android.content.Context;
++import android.view.GestureDetector;
++import android.view.MotionEvent;
++
++/** Turns touch into page moves, matching inkOS (ui/compose/GestureHelper.kt). */
++final class PageGestureListener extends GestureDetector.SimpleOnGestureListener {
++
++    /** What to do with a page move; delta is +1 (down/forward) or -1 (up/back). */
++    interface Pager {
++        boolean page(int delta);
++    }
++
++    /** Drag distance before a page turns. */
++    private static final float THRESHOLD_DP = 56f;
++    private static final long COOLDOWN_MS = 200L;
++
++    /** Minimum vertical fling speed, dp/s. */
++    private static final float MIN_FLING_DP_PER_S = 600f;
++
++    /** How many pages the hardest flick may cover. */
++    private static final int MAX_FLING_PAGES = 5;
++
++    private final Pager pager;
++    private final float thresholdPx;
++    private final float minFlingPxPerS;
++
++    private float lastPageMoveY;
++    private long lastPageMoveTime;
++    /** inkOS's scrollPageMoveTriggered: did this gesture already page while dragging? */
++    private boolean pagedDuringDrag;
++
++    PageGestureListener(Context context, Pager pager) {
++        this.pager = pager;
++        final float density = context.getResources().getDisplayMetrics().density;
++        this.thresholdPx = Math.max(8f, THRESHOLD_DP * density);
++        this.minFlingPxPerS = MIN_FLING_DP_PER_S * density;
++    }
++
++    @Override
++    public boolean onDown(MotionEvent e) {
++        // Measure the next drag from here, not from the previous gesture.
++        lastPageMoveY = e.getY();
++        pagedDuringDrag = false;
++        return true;
++    }
++
++    @Override
++    public boolean onScroll(MotionEvent down, MotionEvent now, float dx, float dy) {
++        if (down == null) return false;
++
++        // Vertical-dominant only.
++        if (Math.abs(now.getX() - down.getX()) > Math.abs(now.getY() - down.getY())) return false;
++
++        final float travelled = now.getY() - lastPageMoveY;
++        if (Math.abs(travelled) <= thresholdPx) return false;
++
++        final long t = android.os.SystemClock.uptimeMillis();
++        if (t - lastPageMoveTime < COOLDOWN_MS) return false;
++
++        // Dragging content up (negative) means "go down a page".
++        if (!pager.page(travelled < 0 ? 1 : -1)) return false;
++        lastPageMoveTime = t;
++        lastPageMoveY = now.getY();
++        pagedDuringDrag = true;
++        return true;
++    }
++
++    @Override
++    public boolean onFling(MotionEvent down, MotionEvent up, float vx, float vy) {
++        // A drag that already paged must not page again on lift.
++        if (pagedDuringDrag) return false;
++        // Vertical-dominant, and fast enough to be a deliberate flick.
++        if (Math.abs(vy) < Math.abs(vx)) return false;
++        if (Math.abs(vy) < minFlingPxPerS) return false;
++        // ...and far enough.
++        if (down != null && up != null
++                && Math.abs(up.getY() - down.getY()) < thresholdPx) return false;
++        final int pages = Math.max(1,
++                Math.min(MAX_FLING_PAGES, (int) (Math.abs(vy) / minFlingPxPerS)));
++        return pager.page(vy < 0 ? pages : -pages);
++    }
++}
+diff --git a/src/com/kompakt/eink/PagedList.java b/src/com/kompakt/eink/PagedList.java
+new file mode 100644
+index 000000000..f3bccbee4
+--- /dev/null
++++ b/src/com/kompakt/eink/PagedList.java
+@@ -0,0 +1,89 @@
++package com.kompakt.eink;
++
++import android.os.SystemClock;
++import android.view.GestureDetector;
++import android.view.MotionEvent;
++import android.view.View;
++import android.view.ViewConfiguration;
++import android.widget.ListView;
++
++/** Paged scrolling for a ListView, as PagedScroll does it for a RecyclerView in Settings (Etar's copy). */
++public final class PagedList {
++
++    private PagedList() {}
++
++    public static void attach(final ListView list) {
++        attach(list, null);
++    }
++
++    /** The list's own touch listener, if any, still sees every event first. */
++    public static void attach(final ListView list, final View.OnTouchListener before) {
++        if (list == null) return;
++        final int slop = ViewConfiguration.get(list.getContext()).getScaledTouchSlop();
++        final boolean[] cancelled = new boolean[1];
++        final float[] downY = new float[1];
++
++        final GestureDetector detector = new GestureDetector(list.getContext(),
++                new PageGestureListener(list.getContext(), delta -> {
++                    // A swipe that turns a page is not a tap or a long press on a row.
++                    cancelRow(list, cancelled);
++                    return page(list, delta);
++                }));
++
++        list.setOnTouchListener((View v, MotionEvent e) -> {
++            if (before != null) before.onTouch(v, e);
++            detector.onTouchEvent(e);
++            switch (e.getActionMasked()) {
++                case MotionEvent.ACTION_DOWN:
++                    cancelled[0] = false;
++                    downY[0] = e.getY();
++                    return false;
++                case MotionEvent.ACTION_MOVE:
++                    // The list never drags; past the slop the row under the finger lets go.
++                    if (Math.abs(e.getY() - downY[0]) > slop) cancelRow(list, cancelled);
++                    return true;
++                case MotionEvent.ACTION_UP:
++                case MotionEvent.ACTION_CANCEL:
++                    return cancelled[0];
++                default:
++                    return false;
++            }
++        });
++    }
++
++    private static void cancelRow(ListView list, boolean[] cancelled) {
++        if (cancelled[0]) return;
++        cancelled[0] = true;
++        final long t = SystemClock.uptimeMillis();
++        final MotionEvent cancel = MotionEvent.obtain(t, t, MotionEvent.ACTION_CANCEL, 0, 0, 0);
++        list.onTouchEvent(cancel);
++        cancel.recycle();
++    }
++
++    /** One page: forward to the first row the bottom edge cuts, back by a screen. */
++    private static boolean page(ListView list, int delta) {
++        if (delta == 0 || list.getChildCount() == 0) return false;
++        if (!list.canScrollList(delta > 0 ? 1 : -1)) return false;
++        final int topEdge = list.getPaddingTop();
++        final int bottomEdge = list.getHeight() - list.getPaddingBottom();
++        final int viewport = bottomEdge - topEdge;
++        if (viewport <= 0) return false;
++        if (delta > 0) {
++            for (int c = 1, n = list.getChildCount(); c < n; c++) {
++                if (list.getChildAt(c).getBottom() > bottomEdge) {
++                    list.setSelectionFromTop(list.getFirstVisiblePosition() + c, topEdge);
++                    return true;
++                }
++            }
++            list.scrollListBy(viewport);
++        } else {
++            list.scrollListBy(-viewport);
++            final View top = list.getChildAt(0);
++            if (top != null && top.getTop() < topEdge) {
++                list.setSelectionFromTop(list.getFirstVisiblePosition(), topEdge);
++            }
++        }
++        return true;
++    }
++
++}
+-- 
+2.43.0
+

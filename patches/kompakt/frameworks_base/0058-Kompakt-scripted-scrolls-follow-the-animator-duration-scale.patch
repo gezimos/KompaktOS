@@ -1,0 +1,57 @@
+From 7047a51b0ab6b4c7c040045e9a7d5c8cdb263383 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Mon, 5 Oct 2026 22:50:00 +0200
+Subject: [PATCH 58/99] Kompakt: scripted scrolls follow the animator duration
+ scale
+
+---
+ core/java/android/widget/OverScroller.java | 3 +++
+ core/java/android/widget/Scroller.java     | 4 +++-
+ 2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/core/java/android/widget/OverScroller.java b/core/java/android/widget/OverScroller.java
+index df209fb876ba..1242b3f7b4cc 100644
+--- a/core/java/android/widget/OverScroller.java
++++ b/core/java/android/widget/OverScroller.java
+@@ -16,6 +16,7 @@
+ 
+ package android.widget;
+ 
++import android.animation.ValueAnimator;
+ import android.companion.virtualdevice.flags.Flags;
+ import android.compat.annotation.UnsupportedAppUsage;
+ import android.content.Context;
+@@ -364,6 +365,8 @@ public class OverScroller {
+      * @param duration Duration of the scroll in milliseconds.
+      */
+     public void startScroll(int startX, int startY, int dx, int dy, int duration) {
++        // Kompakt: scripted scrolls follow the animator duration scale; at 0 they jump.
++        duration = (int) (duration * ValueAnimator.getDurationScale());
+         mMode = SCROLL_MODE;
+         mScrollerX.startScroll(startX, dx, duration);
+         mScrollerY.startScroll(startY, dy, duration);
+diff --git a/core/java/android/widget/Scroller.java b/core/java/android/widget/Scroller.java
+index bd298da296c4..7971bda0a0b3 100644
+--- a/core/java/android/widget/Scroller.java
++++ b/core/java/android/widget/Scroller.java
+@@ -16,6 +16,7 @@
+ 
+ package android.widget;
+ 
++import android.animation.ValueAnimator;
+ import android.companion.virtualdevice.flags.Flags;
+ import android.compat.annotation.UnsupportedAppUsage;
+ import android.content.Context;
+@@ -396,7 +397,8 @@ public class Scroller  {
+     public void startScroll(int startX, int startY, int dx, int dy, int duration) {
+         mMode = SCROLL_MODE;
+         mFinished = false;
+-        mDuration = duration;
++        // Kompakt: scripted scrolls follow the animator duration scale; at 0 they jump.
++        mDuration = (int) (duration * ValueAnimator.getDurationScale());
+         mStartTime = AnimationUtils.currentAnimationTimeMillis();
+         mStartX = startX;
+         mStartY = startY;
+-- 
+2.43.0
+

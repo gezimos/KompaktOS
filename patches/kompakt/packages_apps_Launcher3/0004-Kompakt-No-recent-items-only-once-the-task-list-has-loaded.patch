@@ -1,0 +1,53 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sat, 10 Oct 2026 22:30:00 +0000
+Subject: [PATCH] Kompakt: "No recent items" only once the task list has loaded
+
+The Recents view showed its empty state whenever it had no task views,
+which is also the moment before the task list arrives. The message and
+icon flashed over the app or home screen, then gave way to the tasks.
+It now waits for the first applied task list after a reset.
+
+---
+diff --git a/quickstep/src/com/android/quickstep/views/RecentsView.java b/quickstep/src/com/android/quickstep/views/RecentsView.java
+--- a/quickstep/src/com/android/quickstep/views/RecentsView.java
++++ b/quickstep/src/com/android/quickstep/views/RecentsView.java
+@@ -734,6 +734,8 @@
+     // Used to keep track of the last requested task list id, so that we do not request to load the
+     // tasks again if we have already requested it and the task list has not changed
+     private int mAppliedTaskListChangeId = -1;
++    // Kompakt: a task list arrived since the last reset, empty or not.
++    private boolean mKompaktTasksLoaded;
+ 
+     // Only valid until the launcher state changes to NORMAL
+     /**
+@@ -2016,6 +2018,7 @@
+             mLoadPlanEverApplied = true;
+             mPageScrolls = null;
+         }
++        mKompaktTasksLoaded = true;
+         if (taskGroups == null || taskGroups.isEmpty()) {
+             removeAllTaskViews();
+             onTaskStackUpdated();
+@@ -2853,6 +2856,7 @@
+         mCurrentPageScrollDiff = 0;
+         mIgnoreResetTaskId = -1;
+         mAppliedTaskListChangeId = -1;
++        mKompaktTasksLoaded = false;
+         setFocusedTaskViewId(INVALID_TASK_ID);
+         mAnyTaskHasBeenDismissed = false;
+         setTaskIconVisible(true);
+@@ -4958,7 +4962,9 @@
+     }
+ 
+     public void updateEmptyMessage() {
+-        boolean isEmpty = !hasTaskViews() && !isSplitSelectionActive();
++        // Kompakt: "No recent items" only once the task list has loaded; before that the view
++        // does not know, and the message flashed over the app or home screen first.
++        boolean isEmpty = !hasTaskViews() && !isSplitSelectionActive() && mKompaktTasksLoaded;
+         boolean hasSizeChanged = mLastMeasureSize.x != getWidth()
+                 || mLastMeasureSize.y != getHeight();
+         if (isEmpty == mShowEmptyMessage && !hasSizeChanged) {
+-- 
+2.43.0
+

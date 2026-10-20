@@ -1,0 +1,33 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Mon, 5 Oct 2026 11:45:00 +0200
+Subject: [PATCH 1/1] Kompakt: Create IMS APN leaves a carrier's own IMS APN alone
+
+---
+diff --git a/app/src/main/java/me/phh/treble/app/ImsSettings.kt b/app/src/main/java/me/phh/treble/app/ImsSettings.kt
+--- a/app/src/main/java/me/phh/treble/app/ImsSettings.kt
++++ b/app/src/main/java/me/phh/treble/app/ImsSettings.kt
+@@ -85,6 +85,20 @@
+                 return@setOnPreferenceClickListener true
+             }
+ 
++            // Kompakt: a carrier that already lists an IMS APN does not get a second one. Both
++            // would reach the modem as the IMS profile, and it may take ours over the carrier's.
++            val carrierIms = cr.query(
++                    Uri.parse("content://telephony/carriers/current"),
++                    arrayOf("name"), "type LIKE ?", arrayOf("%ims%"), null
++            )?.use { if (it.moveToFirst()) it.getString(0) else null }
++            if (carrierIms != null) {
++                Log.d("PHH", "Carrier already has an IMS APN: $carrierIms")
++                Toast.makeText(activity,
++                        "Your carrier already has an IMS APN ($carrierIms). Nothing added.",
++                        Toast.LENGTH_LONG).show()
++                return@setOnPreferenceClickListener true
++            }
++
+             Log.d("PHH", "No APN called PHH IMS, adding our own")
+ 
+             val cv = ContentValues()
+-- 
+2.43.0
+

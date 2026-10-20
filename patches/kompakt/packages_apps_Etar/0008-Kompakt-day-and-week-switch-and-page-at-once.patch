@@ -1,0 +1,134 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Tue, 6 Oct 2026 13:10:00 +0200
+Subject: [PATCH 1/1] Kompakt: day and week switch and page at once
+
+---
+diff --git a/app/src/main/java/com/android/calendar/DayView.java b/app/src/main/java/com/android/calendar/DayView.java
+--- a/app/src/main/java/com/android/calendar/DayView.java
++++ b/app/src/main/java/com/android/calendar/DayView.java
+@@ -1898,9 +1898,10 @@
+         inAnimation.setInterpolator(mHScrollInterpolator);
+         outAnimation.setInterpolator(mHScrollInterpolator);
+         outAnimation.setDuration(duration);
+-        outAnimation.setAnimationListener(new GotoBroadcaster(start, end));
+-        mViewSwitcher.setInAnimation(inAnimation);
+-        mViewSwitcher.setOutAnimation(outAnimation);
++        // Kompakt: switch with no animation; even at duration 0 its first frame was the slide.
++        final GotoBroadcaster broadcaster = new GotoBroadcaster(start, end);
++        mViewSwitcher.setInAnimation(null);
++        mViewSwitcher.setOutAnimation(null);
+ 
+         DayView view = (DayView) mViewSwitcher.getCurrentView();
+         view.cleanup();
+@@ -1911,6 +1912,7 @@
+         view.reloadEvents();
+         view.updateTitle();
+         view.restartCurrentTimeUpdates();
++        broadcaster.onAnimationEnd(null);
+ 
+         return view;
+     }
+@@ -2180,8 +2182,8 @@
+         canvas.save();
+ 
+         float yTranslate = -mViewStartY + DAY_HEADER_HEIGHT + mAlldayHeight;
+-        // offset canvas by the current drag and header position
+-        canvas.translate(-mViewStartX, yTranslate);
++        // Kompakt: the view does not follow a sideways drag; the swipe switches on release.
++        canvas.translate(0, yTranslate);
+         // clip to everything below the allDay area
+         Rect dest = mDestRect;
+         dest.top = (int) (mFirstCell - yTranslate);
+@@ -2196,32 +2198,8 @@
+         canvas.restore();
+         // save again for doing drawHours() later
+         canvas.save();
+-
+-        if ((mTouchMode & TOUCH_MODE_HSCROLL) != 0) {
+-            float xTranslate;
+-            if (mViewStartX > 0) {
+-                xTranslate = mViewWidth;
+-            } else {
+-                xTranslate = -mViewWidth;
+-            }
+-            // Move the canvas around to prep it for the next view
+-            // specifically, shift it by a screen and undo the
+-            // yTranslation which will be redone in the nextView's onDraw().
+-            canvas.translate(xTranslate, -yTranslate);
+-            DayView nextView = (DayView) mViewSwitcher.getNextView();
+ 
+-            // Prevent infinite recursive calls to onDraw().
+-            nextView.mTouchMode = TOUCH_MODE_INITIAL_STATE;
+-
+-            nextView.onDraw(canvas);
+-            // Move it back for this view
+-            canvas.translate(-xTranslate, 0);
+-        } else {
+-            // If we drew another view we already translated it back
+-            // If we didn't draw another view we should be at the edge of the
+-            // screen
+-            canvas.translate(mViewStartX, -yTranslate);
+-        }
++        canvas.translate(0, -yTranslate);
+ 
+         // Draw the fixed areas (that don't scroll) directly to the canvas.
+         drawAfterScroll(canvas);
+@@ -4059,6 +4037,10 @@
+         }
+ 
+         if ((mTouchMode & TOUCH_MODE_VSCROLL) != 0) {
++            // Kompakt: the hours do not follow the finger; the swipe pages on release.
++            mKompaktSwipeY = distanceY;
++        }
++        if (false) {
+             // Calculate the top of the visible region in the calendar grid.
+             // Increasing/decrease this will scroll the calendar grid up/down.
+             mViewStartY = (int) ((mGestureCenterHour * (mCellHeight + DAY_GAP))
+@@ -4099,6 +4081,18 @@
+ 
+         mScrolling = true;
+ 
++        invalidate();
++    }
++
++    private int mKompaktSwipeY;
++
++    /** Kompakt: move the hours by one visible page, within the day. */
++    private void kompaktPageHours(int direction) {
++        final int page = mGridAreaHeight > 0 ? mGridAreaHeight : mViewHeight / 2;
++        mViewStartY = Math.max(0, Math.min(mMaxViewStartY, mViewStartY + direction * page));
++        mKompaktSwipeY = 0;
++        computeFirstHour();
++        mRecalCenterHour = true;
+         invalidate();
+     }
+ 
+@@ -4156,6 +4150,11 @@
+             Log.d(TAG, "doFling: mViewStartY" + mViewStartY + " velocityY " + velocityY);
+         }
+ 
++        // Kompakt: a fling is one page of hours, at once.
++        kompaktPageHours(velocityY < 0 ? 1 : -1);
++        if (true) {
++            return;
++        }
+         // Continue scrolling vertically
+         mScrolling = true;
+         mScroller.fling(0 /* startX */, mViewStartY /* startY */, 0 /* velocityX */,
+@@ -4338,6 +4337,12 @@
+                     invalidate();
+                 }
+ 
++                if ((mTouchMode & TOUCH_MODE_VSCROLL) != 0) {
++                    mTouchMode = TOUCH_MODE_INITIAL_STATE;
++                    if (Math.abs(mKompaktSwipeY) > mScaledPagingTouchSlop) {
++                        kompaktPageHours(mKompaktSwipeY > 0 ? 1 : -1);
++                    }
++                }
+                 if ((mTouchMode & TOUCH_MODE_HSCROLL) != 0) {
+                     mTouchMode = TOUCH_MODE_INITIAL_STATE;
+                     if (Math.abs(mViewStartX) > mHorizontalSnapBackThreshold) {
+-- 
+2.43.0
+

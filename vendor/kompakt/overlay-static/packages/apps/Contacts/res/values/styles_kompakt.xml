@@ -162,4 +162,27 @@
         <item name="android:textAllCaps">true</item>
     </style>
 
+    <!-- Kompakt: the selected menu item is an ink pill, so its text is the page colour. -->
+    <style name="DrawerItemTextActiveStyle">
+        <item name="android:textColor">@color/kompakt_ground</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+    <!-- Kompakt: the Contacts dialogs (Discard changes and the rest) follow the mode, and their
+         buttons are in the ink. primary_color, their accent before, is white for the toolbar,
+         so the buttons were white on white by day; the AppCompat parent was always light, so
+         the dialog was white at night. No shadow. -->
+    <style name="ContactsAlertDialogTheme" parent="@android:style/Theme.Material.Light.Dialog">
+        <item name="android:colorAccent">@color/kompakt_ink</item>
+        <item name="android:colorBackgroundFloating">@color/kompakt_ground</item>
+        <item name="android:windowBackground">@drawable/dialog_background</item>
+        <item name="android:windowElevation">0dp</item>
+    </style>
+
+    <style name="ContactsAlertDialogThemeAppCompat" parent="Theme.AppCompat.Light.Dialog.MinWidth">
+        <item name="android:colorAccent">@color/kompakt_ink</item>
+        <item name="android:colorBackgroundFloating">@color/kompakt_ground</item>
+        <item name="android:windowBackground">@drawable/dialog_background</item>
+        <item name="android:windowElevation">0dp</item>
+        <item name="colorAccent">@color/kompakt_ink</item>
+    </style>
 </resources>

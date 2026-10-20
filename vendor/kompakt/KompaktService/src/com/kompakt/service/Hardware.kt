@@ -1,8 +1,9 @@
 package com.kompakt.service
 
+import android.content.Context
+import android.provider.Settings
 import android.util.Log
 import java.io.File
-import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 
 /** Direct sysfs access. */
@@ -231,12 +232,21 @@ object Eink {
         }
     }
 
+
     /** Offset in degrees on the panel's reported temperature. */
-    val TEMPS: List<Int> = listOf(0, 5, 10, 20, 30, 40)
+    val TEMPS: List<Int> = listOf(0, 5, 11, 20, 30, 40)
+    const val STOCK_TEMP = 11
 
     /** eink_temperature, not temperature_offset: same labelling reason as update_mode. */
     fun setTemperature(offset: Int) = Sysfs.onIo {
         write("eink_temperature", offset.toString())
+        // meink reads the offset only when it loads a waveform, so load the current one again.
+        val m = MODES[applied ?: return@onIo] ?: return@onIo
+        write("waveform_mode", if (m.waveform == AUTO_WAVEFORM && autoWorks != true) {
+            MODES["quality"]?.waveform ?: return@onIo
+        } else {
+            m.waveform
+        })
     }
 
     /** Full-panel flush. A2 is 1bpp and never fully settles, so ghosting accumulates. */
@@ -309,163 +319,6 @@ object OfflineSwitch {
     fun readable(): Boolean = File(STATE).canRead()
 }
 
-/** The notification LED: the MT6370 PMU red, green and blue sinks. */
-object Leds {
-    private const val DIR = "/sys/class/leds"
-    private val COLOURS = listOf("red", "green", "blue")
-
-    /** Hardware modes, chosen by writing the trigger. Writing `none` leaves the mode as it was. */
-    private const val BREATH = "breath_mode"
-    private const val SOLID = "cc_mode"
-
-    /** The driver applies the enable bits 100 ms after the last brightness write. */
-    private const val SETTLE_MS = 250L
-
-    /** Cached because it cannot change, and every notification would re-read it. */
-    private val maxCache = ConcurrentHashMap<String, Int>()
-
-    /** max_brightness reads 6 on this device. */
-    private const val MAX_FALLBACK = 6
-
-    private fun maxBrightness(colour: String): Int = maxCache.getOrPut(colour) {
-        Sysfs.read("$DIR/$colour/max_brightness")?.toIntOrNull()?.takeIf { it > 0 } ?: MAX_FALLBACK
-    }
-
-    /** Which channels are lit, and whether they breathe. Null is off. */
-    private data class Shown(val r: Boolean, val g: Boolean, val b: Boolean, val breathing: Boolean)
-
-    @Volatile private var shown: Shown? = null
-
-    /** False until the first write: at start the channels hold whatever boot left there. */
-    @Volatile private var known = false
-
-    /** A channel is on or off, so it lights when it carries at least half the strongest component. */
-    private fun lit(component: Int, strongest: Int): Boolean =
-        component > 0 && component * 2 >= strongest
-
-    /** Show a colour Lineage resolved. Timings are ignored: it always breathes. */
-    fun apply(argb: Int, onMs: Int, offMs: Int) = colour(argb, breathing = true)
-
-    private fun colour(argb: Int, breathing: Boolean) {
-        val r = (argb shr 16) and 0xFF
-        val g = (argb shr 8) and 0xFF
-        val b = argb and 0xFF
-        val top = maxOf(r, g, b)
-        if (top == 0) {
-            off()
-            return
-        }
-        show(Shown(lit(r, top), lit(g, top), lit(b, top), breathing))
-    }
-
-    fun off() = show(null)
-
-    /** All channels off, then the lit ones on together, so their breaths stay in phase. */
-    private fun show(want: Shown?) {
-        if (known && want == shown) {
-            Log.i(Sysfs.TAG, "leds: $want unchanged, left alone")
-            return
-        }
-        for (c in COLOURS) {
-            Sysfs.putBlocking("$DIR/$c/trigger", "none")
-            Sysfs.putBlocking("$DIR/$c/brightness", "0")
-        }
-        shown = want
-        known = true
-        if (want == null) {
-            Log.i(Sysfs.TAG, "leds: off")
-            return
-        }
-        val on = listOf("red" to want.r, "green" to want.g, "blue" to want.b)
-            .filter { it.second }
-            .map { it.first }
-        // The off above has to reach the chip before the channels come back on,
-        // or a channel that stays lit is never restarted.
-        sleep(SETTLE_MS)
-        val mode = if (want.breathing) BREATH else SOLID
-        for (c in on) Sysfs.putBlocking("$DIR/$c/trigger", mode)
-        for (c in on) Sysfs.putBlocking("$DIR/$c/brightness", maxBrightness(c).toString())
-        Log.i(Sysfs.TAG, "leds: ${on.joinToString("+")} $mode")
-    }
-
-    private fun sleep(ms: Long) {
-        try {
-            Thread.sleep(ms)
-        } catch (t: InterruptedException) {
-            Thread.currentThread().interrupt()
-        }
-    }
-
-    /** What is there, as the app sees it. */
-    fun probe() {
-        for (c in COLOURS) {
-            Log.i(
-                Sysfs.TAG,
-                "leds: $c writable=${Sysfs.writable("$DIR/$c/brightness")}/" +
-                    "${Sysfs.writable("$DIR/$c/trigger")} " +
-                    "brightness=${Sysfs.read("$DIR/$c/brightness")} " +
-                    "max=${Sysfs.read("$DIR/$c/max_brightness")} " +
-                    "trigger=${Sysfs.read("$DIR/$c/trigger")}",
-            )
-        }
-    }
-
-    /** Every colour the LED can make, solid, then white breathing. */
-    private val TEST_COLOURS = listOf(
-        "white" to 0xFFFFFF,
-        "red" to 0xFF0000,
-        "green" to 0x00FF00,
-        "blue" to 0x0000FF,
-        "yellow" to 0xFFFF00,
-        "cyan" to 0x00FFFF,
-        "magenta" to 0xFF00FF,
-    )
-
-    /** Stop a test. Caller's thread, not Sysfs.onIo: that queue is serial. */
-    @Volatile private var testCancel = false
-
-    fun stopTest() {
-        testCancel = true
-    }
-
-    /** Slept in slices, so a cancel is acted on within one of them, not one step. */
-    private fun hold(ms: Long): Boolean {
-        var left = ms
-        while (left > 0) {
-            if (testCancel) return false
-            val slice = if (left < CANCEL_SLICE_MS) left else CANCEL_SLICE_MS
-            try {
-                Thread.sleep(slice)
-            } catch (t: InterruptedException) {
-                Thread.currentThread().interrupt()
-                return false
-            }
-            left -= slice
-        }
-        return !testCancel
-    }
-
-    private const val CANCEL_SLICE_MS = 100L
-
-    fun selfTest(holdMs: Long = 1200L) {
-        testCancel = false
-        Log.i(Sysfs.TAG, "leds: self test starting")
-        probe()
-        for ((name, rgb) in TEST_COLOURS) {
-            Log.i(Sysfs.TAG, "leds: -> $name")
-            colour(rgb, breathing = false)
-            if (!hold(holdMs)) break
-        }
-        if (!testCancel) {
-            Log.i(Sysfs.TAG, "leds: breathing white for 12s")
-            colour(0xFFFFFF, breathing = true)
-            hold(12_000L)
-        }
-        off()
-        Log.i(Sysfs.TAG, "leds: self test done")
-    }
-}
-
 /** Kompakt: The eSIM slot switch. */
 object ESim {
     /** Kompakt: The SIM / eSIM mux. */
@@ -498,7 +351,19 @@ object Torch {
     const val WARM = "$B/mt6370_pmu_fled.0/rt-flash-led.0/flashlight/mt-flash-led1/flashlight_led1_onoff"
     const val COLD = "$B/mt6370_pmu_fled.1/rt-flash-led.1/flashlight/mt-flash-led2/flashlight_led2_onoff"
 
-    fun set(node: String, on: Boolean) = Sysfs.put(node, if (on) "1" else "0")
+    /** The warm LED's state, for SystemUI's lock screen shortcut, which cannot read the LED. */
+    const val WARM_SETTING = "kompakt_torch_warm"
+    const val ACTION_TOGGLE_WARM = "com.kompakt.service.action.TORCH_WARM"
+
+    /** Switches an LED, then publishes the warm one's state, so every switch keeps the shortcut right. */
+    fun set(c: Context, node: String, on: Boolean) = Sysfs.onIo {
+        Sysfs.putBlocking(node, if (on) "1" else "0")
+        if (node == WARM) publish(c)
+    }
+
+    fun publish(c: Context) {
+        Settings.Global.putInt(c.applicationContext.contentResolver, WARM_SETTING, if (isOn(WARM)) 1 else 0)
+    }
 
     fun isOn(node: String): Boolean = Sysfs.read(node) == "1"
 

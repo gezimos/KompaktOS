@@ -1,0 +1,67 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Mon, 5 Oct 2026 14:50:00 +0200
+Subject: [PATCH 1/1] Kompakt: dialogs on the page colour
+
+---
+diff --git a/app/src/main/res/values/themes.xml b/app/src/main/res/values/themes.xml
+--- a/app/src/main/res/values/themes.xml
++++ b/app/src/main/res/values/themes.xml
+@@ -9,8 +9,36 @@
+         <item name="colorSecondaryContainer">@color/colorSecondaryContainer</item>
+         <item name="android:statusBarColor">?android:colorBackground</item>
+         <item name="android:navigationBarColor">?android:colorBackground</item>
++        <!-- Kompakt: no elevation overlay. Material 3 tints every raised surface with
++             colorPrimary, which is the ink here, so white dialogs, menus and pickers
++             came out grey. -->
++        <item name="elevationOverlayEnabled">false</item>
++        <item name="materialAlertDialogTheme">@style/ThemeOverlay.Kompakt.MaterialAlertDialog</item>
++        <item name="materialCalendarTheme">@style/ThemeOverlay.Kompakt.MaterialCalendar</item>
++        <item name="materialTimePickerTheme">@style/ThemeOverlay.Kompakt.MaterialTimePicker</item>
+     </style>
+ 
++    <!-- Kompakt: dialogs and pickers on the page colour. Material 3 fills them with its
++         own surface container high, because this app takes no dynamic colour and so
++         never sees the system palette. -->
++    <style name="ThemeOverlay.Kompakt.MaterialAlertDialog"
++        parent="ThemeOverlay.Material3.MaterialAlertDialog">
++        <item name="colorSurfaceContainerHigh">@color/kompakt_dialog_surface</item>
++        <item name="elevationOverlayEnabled">false</item>
++    </style>
++
++    <style name="ThemeOverlay.Kompakt.MaterialCalendar"
++        parent="ThemeOverlay.Material3.MaterialCalendar">
++        <item name="colorSurfaceContainerHigh">@color/kompakt_dialog_surface</item>
++        <item name="elevationOverlayEnabled">false</item>
++    </style>
++
++    <style name="ThemeOverlay.Kompakt.MaterialTimePicker"
++        parent="ThemeOverlay.Material3.MaterialTimePicker">
++        <item name="colorSurfaceContainerHigh">@color/kompakt_dialog_surface</item>
++        <item name="elevationOverlayEnabled">false</item>
++    </style>
++
+     <!-- Inherit base theme to allow overriding Light Theme as per API levels -->
+     <style name="Theme.Etar" parent="BaseTheme">
+         <item name="android:windowLightStatusBar">true</item>
+diff --git a/app/src/main/res/values/colors.xml b/app/src/main/res/values/colors.xml
+--- a/app/src/main/res/values/colors.xml
++++ b/app/src/main/res/values/colors.xml
+@@ -437,4 +437,5 @@
+ 
+     <color name="kompakt_fab_icon">#fffffffe</color>
+     <color name="kompakt_now_line">#ff000000</color>
++    <color name="kompakt_dialog_surface">@android:color/system_surface_container_high_light</color>
+ </resources>
+diff --git a/app/src/main/res/values-night/colors.xml b/app/src/main/res/values-night/colors.xml
+--- a/app/src/main/res/values-night/colors.xml
++++ b/app/src/main/res/values-night/colors.xml
+@@ -115,4 +115,5 @@
+     <color name="week_sunday">#fffffffe</color>
+     <color name="week_today">#fffffffe</color>
+     <color name="kompakt_now_line">#fffffffe</color>
++    <color name="kompakt_dialog_surface">@android:color/system_surface_container_high_dark</color>
+ </resources>
+-- 
+2.43.0
+

@@ -1,3 +1,56 @@
+diff --git a/app-common/src/main/java/im/angry/openeuicc/service/EuiccChannelManagerService.kt b/app-common/src/main/java/im/angry/openeuicc/service/EuiccChannelManagerService.kt
+index bce9efc..3511261 100644
+--- a/app-common/src/main/java/im/angry/openeuicc/service/EuiccChannelManagerService.kt
++++ b/app-common/src/main/java/im/angry/openeuicc/service/EuiccChannelManagerService.kt
+@@ -414,6 +414,8 @@ open class EuiccChannelManagerService : LifecycleService(), OpenEuiccContextMark
+         ) { backChannel ->
+             euiccChannelManager.beginTrackedOperation(slotId, portId, seId) {
+                 euiccChannelManager.withEuiccChannel(slotId, portId, seId) { channel ->
++                    // Kompakt: what the chip held before, so the new profile can be found afterwards.
++                    val before = channel.lpa.profiles.map { it.iccid }.toSet()
+                     channel.lpa.downloadProfile(input) { state ->
+                         val progress = state.downloadProgress
+                         foregroundTaskState.value = ForegroundTaskState.InProgress(
+@@ -448,6 +450,16 @@ open class EuiccChannelManagerService : LifecycleService(), OpenEuiccContextMark
+ 
+                         true
+                     }
++
++                    // Kompakt: turn the new profile on, as Android's own add-eSIM flow does; a failure leaves it downloaded.
++                    channel.lpa.profiles.firstOrNull { it.iccid !in before }?.let { added ->
++                        try {
++                            val refresh = preferenceRepository.refreshAfterSwitchFlow.first()
++                            Log.i(TAG, "Enabling downloaded profile ${added.iccid}: ${channel.lpa.switchProfile(added.iccid, true, refresh)}")
++                        } catch (e: Exception) {
++                            Log.w(TAG, "Downloaded profile ${added.iccid} not enabled", e)
++                        }
++                    }
+                 }
+ 
+                 preferenceRepository.notificationDownloadFlow.first()
+diff --git a/app-common/src/main/java/im/angry/openeuicc/ui/EuiccManagementFragment.kt b/app-common/src/main/java/im/angry/openeuicc/ui/EuiccManagementFragment.kt
+index 49006a7..a143275 100644
+--- a/app-common/src/main/java/im/angry/openeuicc/ui/EuiccManagementFragment.kt
++++ b/app-common/src/main/java/im/angry/openeuicc/ui/EuiccManagementFragment.kt
+@@ -26,7 +26,7 @@ import androidx.lifecycle.lifecycleScope
+ import androidx.recyclerview.widget.LinearLayoutManager
+ import androidx.recyclerview.widget.RecyclerView
+ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+-import com.google.android.material.floatingactionbutton.FloatingActionButton
++import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
+ import im.angry.openeuicc.common.R
+ import im.angry.openeuicc.core.EuiccChannel
+ import im.angry.openeuicc.service.EuiccChannelManagerService
+@@ -56,7 +56,8 @@ open class EuiccManagementFragment : Fragment(), EuiccProfilesChangedListener,
+     }
+ 
+     private lateinit var swipeRefresh: SwipeRefreshLayout
+-    private lateinit var fab: FloatingActionButton
++    // Kompakt: a MaterialButton, so the page fill, ink edge and flat elevation take.
++    private lateinit var fab: ExtendedFloatingActionButton
+     private lateinit var profileList: RecyclerView
+     private var logicalSlotId: Int = -1
+     private lateinit var eid: String
 diff --git a/app-common/src/main/java/im/angry/openeuicc/util/PreferenceUtils.kt b/app-common/src/main/java/im/angry/openeuicc/util/PreferenceUtils.kt
 index 7f2663c..8987b50 100644
 --- a/app-common/src/main/java/im/angry/openeuicc/util/PreferenceUtils.kt
@@ -45,3 +98,69 @@ index c124b32..ec6d789 100644
  }
  
  /*
+diff --git a/app-common/src/main/res/layout/fragment_euicc.xml b/app-common/src/main/res/layout/fragment_euicc.xml
+index fb4d492..9c67486 100644
+--- a/app-common/src/main/res/layout/fragment_euicc.xml
++++ b/app-common/src/main/res/layout/fragment_euicc.xml
+@@ -21,15 +21,29 @@
+ 
+     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+ 
+-    <com.google.android.material.floatingactionbutton.FloatingActionButton
++    <!-- Kompakt: the rounded square of the Calendar and Messaging buttons: page fill, ink edge and icon, no shadow. -->
++    <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
+         android:id="@+id/fab"
+-        android:layout_width="wrap_content"
+-        android:layout_height="wrap_content"
++        android:layout_width="56dp"
++        android:layout_height="56dp"
+         android:layout_marginEnd="16dp"
+         android:layout_marginBottom="16dp"
+         android:contentDescription="@string/profile_download"
+-        android:src="@drawable/ic_add"
+         android:tooltipText="@string/profile_download"
++        android:minWidth="56dp"
++        android:paddingStart="16dp"
++        android:paddingEnd="16dp"
++        android:elevation="0dp"
++        android:stateListAnimator="@null"
++        app:elevation="0dp"
++        app:shapeAppearanceOverlay="@style/ShapeAppearance.Kompakt.Fab"
++        app:backgroundTint="@color/kompakt_fab_face"
++        app:strokeColor="@color/kompakt_fab_ink"
++        app:strokeWidth="2dp"
++        app:icon="@drawable/ic_add"
++        app:iconGravity="textStart"
++        app:iconPadding="0dp"
++        app:iconTint="@color/kompakt_fab_ink"
+         app:layout_constraintBottom_toBottomOf="parent"
+         app:layout_constraintRight_toRightOf="parent" />
+ 
+diff --git a/app-common/src/main/res/values-night/kompakt.xml b/app-common/src/main/res/values-night/kompakt.xml
+new file mode 100644
+index 0000000..19e915d
+--- /dev/null
++++ b/app-common/src/main/res/values-night/kompakt.xml
+@@ -0,0 +1,6 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Kompakt: the add button's inks at night. -->
++<resources>
++    <color name="kompakt_fab_face">#ff000000</color>
++    <color name="kompakt_fab_ink">#fffffffe</color>
++</resources>
+diff --git a/app-common/src/main/res/values/kompakt.xml b/app-common/src/main/res/values/kompakt.xml
+new file mode 100644
+index 0000000..6dc6674
+--- /dev/null
++++ b/app-common/src/main/res/values/kompakt.xml
+@@ -0,0 +1,10 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Kompakt: the rounded square of the Calendar and Messaging buttons. -->
++<resources>
++    <color name="kompakt_fab_face">#fffffffe</color>
++    <color name="kompakt_fab_ink">#ff000000</color>
++    <style name="ShapeAppearance.Kompakt.Fab" parent="">
++        <item name="cornerFamily">rounded</item>
++        <item name="cornerSize">16dp</item>
++    </style>
++</resources>

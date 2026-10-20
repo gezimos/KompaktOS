@@ -7,6 +7,7 @@ import android.app.Service
 import android.os.Looper
 import android.os.Handler
 import android.telephony.TelephonyManager
+import android.app.KeyguardManager
 import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
@@ -50,7 +51,6 @@ class OfflineWatcherService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (!running) {
             running = true
-            Sysfs.onIo { Leds.probe() }
             TetherOffload.keepOff(this)
             registerScreenOnWatcher()
             // Sync to the real position first.
@@ -66,15 +66,23 @@ class OfflineWatcherService : Service() {
         val r = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
                 FingerScroll.sync(context)
-                if (intent.action != Intent.ACTION_SCREEN_ON) return
+                if (intent.action != Intent.ACTION_SCREEN_ON &&
+                    intent.action != Intent.ACTION_USER_PRESENT) return
+                // Kompakt: a fingerprint unlock sends USER_PRESENT before SCREEN_ON, so both ask where we are.
+                val locked = context.getSystemService(KeyguardManager::class.java)?.isKeyguardLocked == true
+                val pkg = EinkAppWatcher.foreground
+                val mode = if (!locked && pkg != null && Prefs.perAppEnabled(context))
+                    Prefs.appMode(context, pkg) else Prefs.mode(context)
+                Log.i(Sysfs.TAG, "eink: ${intent.action?.substringAfterLast('.')} locked=$locked front=$pkg -> $mode")
                 // setMode already hops to the IO thread.
-                Eink.setMode(Prefs.mode(context))
+                Eink.setMode(mode)
             }
         }
         screenReceiver = r
         registerReceiver(r, IntentFilter().apply {
             addAction(Intent.ACTION_SCREEN_ON)
             addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_USER_PRESENT)
         })
         FingerScroll.sync(this)
     }
@@ -196,26 +204,39 @@ class BootReceiver : BroadcastReceiver() {
                 Intent(context, com.kompakt.service.link.LinkService::class.java))
             return
         }
+        // Kompakt: before the first unlock only the sleep screen, from device storage; the rest waits for BOOT_COMPLETED.
+        if (intent.action == Intent.ACTION_LOCKED_BOOT_COMPLETED) {
+            val done = goAsync()
+            Sysfs.onIo { try { SleepImage.restore(context) } finally { done.finish() } }
+            return
+        }
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
         context.startService(Intent(context, OfflineWatcherService::class.java))
         ensureWatcherEnabled(context)
-        ensureNotifLightEnabled(context)
+        ensureUncertifiedNoticeEnabled(context)
         grantLauncherDefaultsOnce(context)
         LedMigration.run(context)
         context.startService(
             Intent(context, com.kompakt.service.link.LinkService::class.java))
+        // The temperature offset lives in meink and is back to its +11 after a boot; set it before the mode loads.
+        Prefs.migrateTemperature(context)
+        Eink.setTemperature(Prefs.temperature(context))
         // Re-apply the e-ink mode: the panel keeps whatever the last writer left, and nothing else restores it across a.
         Eink.setMode(Prefs.mode(context))
         // The sleep screen is an array in meink.ko, reloaded from vendor at every boot.
         Sysfs.onIo { SleepImage.restore(context) }
+        // The clearing flash at every lock is a meink_hal module parameter, reset at boot.
+        LockFlash.apply()
+        // The LEDs start off; the lock screen's warm flashlight shortcut reads this.
+        Sysfs.onIo { Torch.publish(context) }
     }
 }
 
-
-/** Fires the LED self test on demand: adb shell am broadcast -a com.kompakt.service.action.LED_TEST Exported so. */
-class LedTestReceiver : BroadcastReceiver() {
+/** Kompakt: the lock screen's warm flashlight shortcut (SystemUI) toggles the warm LED here. */
+class TorchReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        Sysfs.onIo { Leds.selfTest() }
+        if (intent.action != Torch.ACTION_TOGGLE_WARM || !Torch.available(Torch.WARM)) return
+        Torch.set(context, Torch.WARM, !Torch.isOn(Torch.WARM))
     }
 }
 
@@ -238,14 +259,14 @@ private fun ensureWatcherEnabled(context: Context) {
 }
 
 
-/** Enable NotifLight, through the API that owns the setting. */
-private fun ensureNotifLightEnabled(context: Context) {
+/** Enable UncertifiedNotice, through the API that owns the setting. */
+private fun ensureUncertifiedNoticeEnabled(context: Context) {
     try {
-        val component = ComponentName(context, NotifLight::class.java)
+        val component = ComponentName(context, UncertifiedNotice::class.java)
         context.getSystemService(NotificationManager::class.java)
             ?.setNotificationListenerAccessGranted(component, true)
-        Log.i(Sysfs.TAG, "leds: notification listener access granted")
+        Log.i(Sysfs.TAG, "notices: listener access granted")
     } catch (t: Throwable) {
-        Log.w(Sysfs.TAG, "leds: cannot grant listener access (${t.javaClass.simpleName})")
+        Log.w(Sysfs.TAG, "notices: cannot grant listener access (${t.javaClass.simpleName})")
     }
 }

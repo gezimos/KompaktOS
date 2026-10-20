@@ -1,0 +1,73 @@
+From b29185ac2961a6fbfac26bd407a8b262ce952dea Mon Sep 17 00:00:00 2001
+From: Gezim <25499045+gezimos@users.noreply.github.com>
+Date: Sun, 18 Oct 2026 21:45:00 +0200
+Subject: [PATCH] Kompakt: the shade over the lockscreen keeps its own stack
+ top
+
+0018 lets the lockscreen's ConstrainedNotificationStack feed its position to
+the NSSL whenever its nested layout is idle, since Scenes.Lockscreen is never
+the current scene there. Under the locked shade that layout is idle as well,
+so collapsing an expanded notification there re-laid out the lockscreen stack
+and set the stack top back to the lockscreen's (218 px, recorded on 372; the
+shade's own is 58): the rows dropped to the middle and Clear all followed
+them. The lockscreen stack now feeds its position only while the shade and
+QS are closed, the test SharedNotificationContainerViewModel uses for
+isOnLockscreenWithoutShade (shade or QS expansion above 0). The placeholder
+view model holds it as a hydrated state, so closing the shade recomposes the
+lockscreen stack and its position is applied again.
+---
+ .../notifications/ui/composable/Notifications.kt     |  7 +++++--
+ .../viewmodel/NotificationsPlaceholderViewModel.kt   | 12 ++++++++++++
+ 2 files changed, 17 insertions(+), 2 deletions(-)
+
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/notifications/ui/composable/Notifications.kt b/packages/SystemUI/compose/features/src/com/android/systemui/notifications/ui/composable/Notifications.kt
+index f75ca51..2653e99 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/notifications/ui/composable/Notifications.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/notifications/ui/composable/Notifications.kt
+@@ -310,8 +310,11 @@ fun ContentScope.ConstrainedNotificationStack(
+     viewModel: NotificationsPlaceholderViewModel,
+     modifier: Modifier = Modifier,
+ ) {
+-    // Kompakt: not Scenes.Lockscreen; this runs in a nested layout.
+-    val useLockscreenBounds = { layoutState.transitionState.isIdle() }
++    // Kompakt: not Scenes.Lockscreen; this runs in a nested layout. Not under an open shade
++    // either: a row collapse there re-lays out this stack and would pull the shade to its top.
++    val useLockscreenBounds = {
++        layoutState.transitionState.isIdle() && !viewModel.isShadeOrQsExpanded
++    }
+     Box(
+         modifier =
+             modifier
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/ui/viewmodel/NotificationsPlaceholderViewModel.kt b/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/ui/viewmodel/NotificationsPlaceholderViewModel.kt
+index ebe02a7..8841db3 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/ui/viewmodel/NotificationsPlaceholderViewModel.kt
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/ui/viewmodel/NotificationsPlaceholderViewModel.kt
+@@ -48,6 +48,7 @@ import dagger.assisted.AssistedInject
+ import java.util.function.Consumer
+ import kotlinx.coroutines.coroutineScope
+ import kotlinx.coroutines.flow.Flow
++import kotlinx.coroutines.flow.combine
+ import kotlinx.coroutines.flow.filter
+ import kotlinx.coroutines.flow.map
+ 
+@@ -111,6 +112,17 @@ constructor(
+         )
+ 
+     /** DEBUG: whether the placeholder should be made slightly visible for positional debugging. */
++    /** Kompakt: shade or QS open, over the lockscreen too, as SharedNotificationContainerViewModel has it. */
++    val isShadeOrQsExpanded: Boolean by
++        hydrator.hydratedStateOf(
++            traceName = "isShadeOrQsExpanded",
++            initialValue = false,
++            source =
++                combine(shadeInteractor.shadeExpansion, shadeInteractor.qsExpansion) { shade, qs ->
++                    shade > 0f || qs > 0f
++                },
++        )
++
+     val isVisualDebuggingEnabled: Boolean = featureFlags.isEnabled(Flags.NSSL_DEBUG_LINES)
+ 
+     /** DEBUG: whether the debug logging should be output. */
+-- 
+2.56.0
+

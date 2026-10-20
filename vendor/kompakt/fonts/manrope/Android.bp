@@ -1,0 +1,36 @@
+// Kompakt: Manrope (SIL OFL 1.1, see OFL.txt) by Mikhail Sharanda and the Manrope Project
+// Authors, from github.com/google/fonts/ofl/manrope. Cut from the variable font with fontTools
+// in four fixed weights (it has no italics), with Roboto's line metrics (0.928 and -0.244 em,
+// no gap) so it fits the 72 dp collapsed notification as Source Serif does.
+// A system font choice in the Kompakt app (persist.sys.kompakt.font); see SystemFonts.
+
+prebuilt_font {
+    name: "KompaktManrope-Regular.ttf",
+    src: "KompaktManrope-Regular.ttf",
+}
+
+prebuilt_font {
+    name: "KompaktManrope-Medium.ttf",
+    src: "KompaktManrope-Medium.ttf",
+}
+
+prebuilt_font {
+    name: "KompaktManrope-SemiBold.ttf",
+    src: "KompaktManrope-SemiBold.ttf",
+}
+
+prebuilt_font {
+    name: "KompaktManrope-Bold.ttf",
+    src: "KompaktManrope-Bold.ttf",
+}
+
+filegroup {
+    name: "KompaktManrope",
+    srcs: ["font_config.json"],
+    required: [
+        "KompaktManrope-Regular.ttf",
+        "KompaktManrope-Medium.ttf",
+        "KompaktManrope-SemiBold.ttf",
+        "KompaktManrope-Bold.ttf",
+    ],
+}

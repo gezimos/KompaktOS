@@ -1,0 +1,63 @@
+From 81c486242b1bc9b3e6b39c4a99961b81c2cb7358 Mon Sep 17 00:00:00 2001
+From: Gezim <25499045+gezimos@users.noreply.github.com>
+Date: Sun, 11 Oct 2026 18:05:03 +0200
+Subject: [PATCH] Kompakt: the home screen makes room for the mini player
+
+The home screen stacked the Play random button, the labelled tabs and the
+mini player at the bottom. While something is loaded, which is when the mini
+player shows, the button is hidden and the tabs drop their labels (icons and
+the selected pill only); both return once the mini player has gone.
+
+Change-Id: I581d5971673bb51733b02a93dce50f83b95414be
+---
+ .../org/lineageos/twelve/fragments/MainFragment.kt  | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+diff --git a/app/src/main/java/org/lineageos/twelve/fragments/MainFragment.kt b/app/src/main/java/org/lineageos/twelve/fragments/MainFragment.kt
+index 212d39c..1c5f5e4 100644
+--- a/app/src/main/java/org/lineageos/twelve/fragments/MainFragment.kt
++++ b/app/src/main/java/org/lineageos/twelve/fragments/MainFragment.kt
+@@ -20,6 +20,7 @@ import androidx.core.view.get
+ import androidx.core.view.isVisible
+ import androidx.core.widget.addTextChangedListener
+ import androidx.fragment.app.Fragment
++import androidx.fragment.app.activityViewModels
+ import androidx.fragment.app.viewModels
+ import androidx.lifecycle.Lifecycle
+ import androidx.lifecycle.lifecycleScope
+@@ -61,6 +62,7 @@ import org.lineageos.twelve.models.areItemsTheSame
+ import org.lineageos.twelve.ui.recyclerview.SimpleListAdapter
+ import org.lineageos.twelve.ui.views.ListItem
+ import org.lineageos.twelve.viewmodels.MainViewModel
++import org.lineageos.twelve.viewmodels.NowPlayingViewModel
+ 
+ /**
+  * The home page.
+@@ -68,6 +70,7 @@ import org.lineageos.twelve.viewmodels.MainViewModel
+ class MainFragment : Fragment(R.layout.fragment_main) {
+     // View models
+     private val viewModel by viewModels<MainViewModel>()
++    private val nowPlayingViewModel by activityViewModels<NowPlayingViewModel>()
+ 
+     // Views
+     private val navigationBarView by getViewProperty<NavigationBarView>(R.id.navigationBarView)
+@@ -397,6 +400,16 @@ class MainFragment : Fragment(R.layout.fragment_main) {
+ 
+         viewLifecycleOwner.lifecycleScope.launch {
+             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
++                // Kompakt: with the mini player up, no Play random and tabs without labels.
++                launch {
++                    nowPlayingViewModel.mediaItem.collectLatest {
++                        playRandomSongsExtendedFloatingActionButton.isVisible = it == null
++                        navigationBarView.labelVisibilityMode = if (it == null)
++                            NavigationBarView.LABEL_VISIBILITY_LABELED
++                        else NavigationBarView.LABEL_VISIBILITY_UNLABELED
++                    }
++                }
++
+                 launch {
+                     viewModel.navigationProvider.collectLatest {
+                         it?.let {
+-- 
+2.43.0
+

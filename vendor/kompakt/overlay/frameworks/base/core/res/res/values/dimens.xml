@@ -9,4 +9,7 @@
     <item name="config_scrollFriction" format="float" type="dimen">0.10</item>
     <!-- No toast shadow: a grey edge dithers. The toast frame has a border instead. -->
     <dimen name="toast_elevation">0dp</dimen>
+    <!-- No wallpaper zoom: the wallpaper stays at 1x when the shade, Recents or an app
+         opens, instead of 1.1x. On e-ink the zoom is a full screen repaint for nothing. -->
+    <item name="config_wallpaperMaxScale" format="float" type="dimen">1</item>
 </resources>

@@ -1,0 +1,43 @@
+From 2166a0f1c6e6e5c6d6966ba4ab5b792c516e5a40 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Thu, 8 Oct 2026 09:49:13 +0200
+Subject: [PATCH 78/99] Kompakt: every column of a large pattern grid can be
+ reached
+
+The pattern bouncer asks for 131 dp per column, 655 dp for 5x5, while the
+screen is 360 dp wide. The grid is drawn in the width it gets, but touches
+were mapped against the requested width, so they landed a column and a half
+to the right and the first column could not be reached. Touches now use the
+laid out width.
+
+Change-Id: I27eec6174413f0e66d8bb037b9ed3b0113a08ed2
+---
+ .../systemui/bouncer/ui/composable/PatternBouncer.kt     | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/bouncer/ui/composable/PatternBouncer.kt b/packages/SystemUI/compose/features/src/com/android/systemui/bouncer/ui/composable/PatternBouncer.kt
+index 9d7e991b05f0..85ee149f1470 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/bouncer/ui/composable/PatternBouncer.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/bouncer/ui/composable/PatternBouncer.kt
+@@ -269,13 +269,14 @@ fun PatternBouncer(
+                             },
+                         ) { change, _ ->
+                             inputPosition = change.position
++                            // Kompakt: the grid as laid out; past 3x3 the requested width is wider than the screen.
++                            val gridWidthPx =
++                                gridCoordinates?.size?.width ?: dotDrawingArea.width.roundToPx()
+                             change.position.minus(offset).div(scale).let {
+                                 viewModel.onDrag(
+-                                    xPx =
+-                                        it.x -
+-                                            ((size.width - dotDrawingArea.width.roundToPx()) / 2),
++                                    xPx = it.x - ((size.width - gridWidthPx) / 2),
+                                     yPx = it.y,
+-                                    containerSizePx = dotDrawingArea.width.roundToPx(),
++                                    containerSizePx = gridWidthPx,
+                                 )
+                             }
+                         }
+-- 
+2.43.0
+

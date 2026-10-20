@@ -1,0 +1,164 @@
+From 2a415aa71bed52fb9b04167ef1fc82b259515256 Mon Sep 17 00:00:00 2001
+From: Gezim <25499045+gezimos@users.noreply.github.com>
+Date: Sun, 11 Oct 2026 20:56:08 +0200
+Subject: [PATCH 10/10] Kompakt: a setting turns the floating buttons off
+
+Change-Id: I8a97eba97431fbbdc16cca5f48da40fae5dbbaf0
+---
+ .../java/org/lineageos/twelve/ext/SharedPreferences.kt    | 6 ++++++
+ .../java/org/lineageos/twelve/fragments/AlbumFragment.kt  | 6 ++++++
+ .../java/org/lineageos/twelve/fragments/MainFragment.kt   | 8 ++++++--
+ .../org/lineageos/twelve/fragments/PlaylistFragment.kt    | 6 ++++++
+ app/src/main/res/values/kompakt_strings.xml               | 6 ++++++
+ app/src/main/res/xml/root_preferences.xml                 | 8 ++++++++
+ 6 files changed, 38 insertions(+), 2 deletions(-)
+ create mode 100644 app/src/main/res/values/kompakt_strings.xml
+
+diff --git a/app/src/main/java/org/lineageos/twelve/ext/SharedPreferences.kt b/app/src/main/java/org/lineageos/twelve/ext/SharedPreferences.kt
+index 4270b9d..960580b 100644
+--- a/app/src/main/java/org/lineageos/twelve/ext/SharedPreferences.kt
++++ b/app/src/main/java/org/lineageos/twelve/ext/SharedPreferences.kt
+@@ -75,6 +75,12 @@ private const val SKIP_SILENCE_DEFAULT = false
+ val SharedPreferences.skipSilence: Boolean
+     get() = getBoolean(SKIP_SILENCE_KEY, SKIP_SILENCE_DEFAULT)
+ 
++// Kompakt: Play random on the home screen and the album and playlist play buttons.
++private const val FLOATING_BUTTONS_KEY = "floating_buttons"
++private const val FLOATING_BUTTONS_DEFAULT = true
++val SharedPreferences.floatingButtons: Boolean
++    get() = getBoolean(FLOATING_BUTTONS_KEY, FLOATING_BUTTONS_DEFAULT)
++
+ const val DEFAULT_PROVIDER_KEY = "default_provider"
+ var SharedPreferences.defaultProvider: ProviderIdentifier?
+     get() = getString(DEFAULT_PROVIDER_KEY, null)?.let {
+diff --git a/app/src/main/java/org/lineageos/twelve/fragments/AlbumFragment.kt b/app/src/main/java/org/lineageos/twelve/fragments/AlbumFragment.kt
+index 9659a92..1c6e443 100644
+--- a/app/src/main/java/org/lineageos/twelve/fragments/AlbumFragment.kt
++++ b/app/src/main/java/org/lineageos/twelve/fragments/AlbumFragment.kt
+@@ -23,6 +23,7 @@ import androidx.lifecycle.lifecycleScope
+ import androidx.lifecycle.repeatOnLifecycle
+ import androidx.navigation.fragment.findNavController
+ import androidx.navigation.ui.setupWithNavController
++import androidx.preference.PreferenceManager
+ import androidx.recyclerview.widget.RecyclerView
+ import com.google.android.material.appbar.AppBarLayout
+ import com.google.android.material.appbar.MaterialToolbar
+@@ -35,6 +36,7 @@ import kotlinx.coroutines.launch
+ import org.lineageos.twelve.R
+ import org.lineageos.twelve.ext.Bundle
+ import org.lineageos.twelve.ext.getParcelable
++import org.lineageos.twelve.ext.floatingButtons
+ import org.lineageos.twelve.ext.getViewProperty
+ import org.lineageos.twelve.ext.loadThumbnail
+ import org.lineageos.twelve.ext.navigateSafe
+@@ -178,6 +180,10 @@ class AlbumFragment : CollapsingToolbarLayoutFragment(R.layout.fragment_album) {
+     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+         super.onViewCreated(view, savedInstanceState)
+ 
++        // Kompakt: the play buttons can be turned off in Settings.
++        playButtonsLinearLayout.isVisible =
++            PreferenceManager.getDefaultSharedPreferences(requireContext()).floatingButtons
++
+         // Insets
+         ViewCompat.setOnApplyWindowInsetsListener(toolbar) { v, windowInsets ->
+             val insets = windowInsets.getInsets(WindowInsetsCompat.Type.displayCutout())
+diff --git a/app/src/main/java/org/lineageos/twelve/fragments/MainFragment.kt b/app/src/main/java/org/lineageos/twelve/fragments/MainFragment.kt
+index 1c5f5e4..0897622 100644
+--- a/app/src/main/java/org/lineageos/twelve/fragments/MainFragment.kt
++++ b/app/src/main/java/org/lineageos/twelve/fragments/MainFragment.kt
+@@ -27,6 +27,7 @@ import androidx.lifecycle.lifecycleScope
+ import androidx.lifecycle.repeatOnLifecycle
+ import androidx.navigation.fragment.findNavController
+ import androidx.navigation.ui.setupWithNavController
++import androidx.preference.PreferenceManager
+ import androidx.recyclerview.widget.DiffUtil
+ import androidx.recyclerview.widget.RecyclerView
+ import androidx.viewpager2.adapter.FragmentStateAdapter
+@@ -42,6 +43,7 @@ import kotlinx.coroutines.flow.collectLatest
+ import kotlinx.coroutines.launch
+ import org.lineageos.twelve.R
+ import org.lineageos.twelve.SettingsActivity
++import org.lineageos.twelve.ext.floatingButtons
+ import org.lineageos.twelve.ext.getViewProperty
+ import org.lineageos.twelve.ext.isLandscape
+ import org.lineageos.twelve.ext.isRtl
+@@ -400,10 +402,12 @@ class MainFragment : Fragment(R.layout.fragment_main) {
+ 
+         viewLifecycleOwner.lifecycleScope.launch {
+             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+-                // Kompakt: with the mini player up, no Play random and tabs without labels.
++                // Kompakt: with the mini player up, no Play random and tabs without labels; Play random can be off.
+                 launch {
+                     nowPlayingViewModel.mediaItem.collectLatest {
+-                        playRandomSongsExtendedFloatingActionButton.isVisible = it == null
++                        playRandomSongsExtendedFloatingActionButton.isVisible = it == null &&
++                                PreferenceManager.getDefaultSharedPreferences(requireContext())
++                                    .floatingButtons
+                         navigationBarView.labelVisibilityMode = if (it == null)
+                             NavigationBarView.LABEL_VISIBILITY_LABELED
+                         else NavigationBarView.LABEL_VISIBILITY_UNLABELED
+diff --git a/app/src/main/java/org/lineageos/twelve/fragments/PlaylistFragment.kt b/app/src/main/java/org/lineageos/twelve/fragments/PlaylistFragment.kt
+index a34c3a4..02648da 100644
+--- a/app/src/main/java/org/lineageos/twelve/fragments/PlaylistFragment.kt
++++ b/app/src/main/java/org/lineageos/twelve/fragments/PlaylistFragment.kt
+@@ -23,6 +23,7 @@ import androidx.lifecycle.lifecycleScope
+ import androidx.lifecycle.repeatOnLifecycle
+ import androidx.navigation.fragment.findNavController
+ import androidx.navigation.ui.setupWithNavController
++import androidx.preference.PreferenceManager
+ import androidx.recyclerview.widget.RecyclerView
+ import com.google.android.material.appbar.AppBarLayout
+ import com.google.android.material.appbar.MaterialToolbar
+@@ -35,6 +36,7 @@ import kotlinx.coroutines.launch
+ import org.lineageos.twelve.R
+ import org.lineageos.twelve.ext.Bundle
+ import org.lineageos.twelve.ext.getParcelable
++import org.lineageos.twelve.ext.floatingButtons
+ import org.lineageos.twelve.ext.getViewProperty
+ import org.lineageos.twelve.ext.loadThumbnail
+ import org.lineageos.twelve.ext.navigateSafe
+@@ -133,6 +135,10 @@ class PlaylistFragment : CollapsingToolbarLayoutFragment(R.layout.fragment_playl
+     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+         super.onViewCreated(view, savedInstanceState)
+ 
++        // Kompakt: the play buttons can be turned off in Settings.
++        playButtonsLinearLayout.isVisible =
++            PreferenceManager.getDefaultSharedPreferences(requireContext()).floatingButtons
++
+         // Insets
+         ViewCompat.setOnApplyWindowInsetsListener(toolbar) { v, windowInsets ->
+             val insets = windowInsets.getInsets(WindowInsetsCompat.Type.displayCutout())
+diff --git a/app/src/main/res/values/kompakt_strings.xml b/app/src/main/res/values/kompakt_strings.xml
+new file mode 100644
+index 0000000..13ff108
+--- /dev/null
++++ b/app/src/main/res/values/kompakt_strings.xml
+@@ -0,0 +1,6 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Kompakt: the floating buttons setting. -->
++<resources>
++    <string name="kompakt_floating_buttons">Floating buttons</string>
++    <string name="kompakt_floating_buttons_summary">The play buttons on the home screen, albums and playlists</string>
++</resources>
+diff --git a/app/src/main/res/xml/root_preferences.xml b/app/src/main/res/xml/root_preferences.xml
+index bd792b6..1a41d67 100644
+--- a/app/src/main/res/xml/root_preferences.xml
++++ b/app/src/main/res/xml/root_preferences.xml
+@@ -44,6 +44,14 @@
+             app:summary="@string/skip_silence_summary"
+             app:title="@string/skip_silence" />
+ 
++        <!-- Kompakt: Play random and the album and playlist play buttons. -->
++        <SwitchPreference
++            app:defaultValue="true"
++            app:iconSpaceReserved="false"
++            app:key="floating_buttons"
++            app:summary="@string/kompakt_floating_buttons_summary"
++            app:title="@string/kompakt_floating_buttons" />
++
+         <Preference
+             app:iconSpaceReserved="false"
+             app:key="reset_local_stats"
+-- 
+2.43.0
+

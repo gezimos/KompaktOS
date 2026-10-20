@@ -1,0 +1,28 @@
+From cccb3ff8b1905b59d4534ad04dec3277a2bc8bc0 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Mon, 5 Oct 2026 21:40:00 +0200
+Subject: [PATCH 56/99] Kompakt: Home on AOD leaves the dream to the wake
+
+---
+ .../java/com/android/server/policy/PhoneWindowManager.java   | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/services/core/java/com/android/server/policy/PhoneWindowManager.java b/services/core/java/com/android/server/policy/PhoneWindowManager.java
+index 6e48ef223c6a..ce4d19c60d13 100644
+--- a/services/core/java/com/android/server/policy/PhoneWindowManager.java
++++ b/services/core/java/com/android/server/policy/PhoneWindowManager.java
+@@ -2150,7 +2150,10 @@ public class PhoneWindowManager implements WindowManagerPolicy {
+         // but don't actually go home.
+         final DreamManagerInternal dreamManagerInternal = getDreamManagerInternal();
+         if (dreamManagerInternal != null && dreamManagerInternal.isDreaming()) {
+-            dreamManagerInternal.stopDream(false /*immediate*/, "short press on home" /*reason*/);
++            // Kompakt: on AOD the wake ends the dream, and the pocket check may refuse it.
++            if (mPowerManager.isInteractive()) {
++                dreamManagerInternal.stopDream(false /*immediate*/, "short press on home");
++            }
+             if (mHasFeatureLeanback) {
+                 if (localLOGV) Log.v(TAG, "TV will launch home after stopping dream");
+             } else {
+-- 
+2.43.0
+

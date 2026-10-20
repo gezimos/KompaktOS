@@ -1,0 +1,26 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Mon, 5 Oct 2026 14:15:00 +0200
+Subject: [PATCH 1/1] Kompakt: dialog buttons are drawn in the ink
+
+---
+diff --git a/res/values/styles.xml b/res/values/styles.xml
+--- a/res/values/styles.xml
++++ b/res/values/styles.xml
+@@ -582,6 +582,13 @@
+     <style name="AlertDialogTheme" parent="@style/ThemeOverlay.AppCompat.Dialog.Alert">
+         <item name="android:background">@color/window_background</item>
+         <item name="dialogCornerRadius">28dp</item>
++        <!-- Kompakt: dialog buttons are coloured with the primary colour, which here is the
++             action bar background: white on a white dialog, black on a black one, so the
++             buttons could not be seen. Dialogs take the ink instead. -->
++        <item name="colorPrimary">@color/lineage_accent</item>
++        <item name="android:colorPrimary">@color/lineage_accent</item>
++        <item name="colorAccent">@color/lineage_accent</item>
++        <item name="android:colorAccent">@color/lineage_accent</item>
+     </style>
+ 
+     <style name="AppPreferenceThemeOverlay" parent="@style/PreferenceThemeOverlay">
+-- 
+2.43.0
+

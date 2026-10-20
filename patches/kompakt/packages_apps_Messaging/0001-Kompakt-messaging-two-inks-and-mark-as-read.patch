@@ -82,8 +82,8 @@ index a9f30c4..0b6de5a 100644
      private Drawable mFastScrollThumbPressedDrawable;
      private Drawable mFastScrollPreviewDrawableLeft;
      private Drawable mFastScrollPreviewDrawableRight;
-+    /** Kompakt: the edge a selected bubble draws, against 1dp for an unselected one. */
-+    private static final float KOMPAKT_SELECTED_STROKE_DP = 3f;
++    /** Kompakt: the edge a selected bubble draws, in pixels, against 2px for an unselected one. */
++    private static final int KOMPAKT_SELECTED_STROKE_PX = 4;
 +
      private final Context mContext;
      private int mOutgoingBubbleColor;
@@ -126,9 +126,9 @@ index a9f30c4..0b6de5a 100644
 +                ? state.newDrawable(mContext.getResources()).mutate()
 +                : protoDrawable;
 +        if (selected && out instanceof GradientDrawable) {
-+            final float density = mContext.getResources().getDisplayMetrics().density;
++            // Kompakt: whole pixels, so the edge has no grey fringe.
 +            ((GradientDrawable) out).setStroke(
-+                    Math.round(KOMPAKT_SELECTED_STROKE_DP * density), mSelectedBubbleColor);
++                    KOMPAKT_SELECTED_STROKE_PX, mSelectedBubbleColor);
          }
 -
 -        return ImageUtils.getTintedDrawable(mContext, protoDrawable, color);

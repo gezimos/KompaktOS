@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: the answer button. White on a white page with only a shadow to show it; the
+     shadow is gone (swipe_up_down_method.xml) and an ink outline takes its place. -->
+<shape
+  xmlns:android="http://schemas.android.com/apk/res/android"
+  android:shape="oval">
+  <solid android:color="#FFFFFFFF"/>
+  <stroke android:width="2dp" android:color="?android:attr/textColorPrimary"/>
+</shape>

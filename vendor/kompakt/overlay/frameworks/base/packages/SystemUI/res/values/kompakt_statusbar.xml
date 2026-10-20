@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Kompakt: the space kept for the privacy dot at the end, 8dp instead of 20dp, so the
+         battery sits 16dp from the edge, as the clock does at the start. The dot is 6dp. -->
+    <dimen name="ongoing_appops_dot_min_padding">8dp</dimen>
+</resources>

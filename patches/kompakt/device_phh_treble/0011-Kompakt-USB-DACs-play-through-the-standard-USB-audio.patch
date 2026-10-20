@@ -1,0 +1,31 @@
+From 3719644492ee0a5c1667e7e85d1433a412c4c44a Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Tue, 29 Sep 2026 17:00:00 +0200
+Subject: [PATCH 11/14] Kompakt: USB DACs play through the standard USB audio
+ HAL
+
+---
+ rw-system.sh | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/rw-system.sh b/rw-system.sh
+index bd3ef6d..8b62ce7 100644
+--- a/rw-system.sh
++++ b/rw-system.sh
+@@ -1364,3 +1364,13 @@ if grep -q 'name="c2.mtk.mp3.decoder"' "$mtkcodecs" 2>/dev/null; then
+     chmod 644 /mnt/phh/media_codecs_c2.xml
+     mount -o bind /mnt/phh/media_codecs_c2.xml "$mtkcodecs"
+ fi
++
++# Kompakt: USB playback through audio.usb.default; MediaTek's primary HAL never opens the DAC.
++kaudio=/vendor/etc/audio_policy_configuration.xml
++if [ -f /system/etc/kompakt/audio_policy_configuration.xml ] && \
++   [ "$(md5sum "$kaudio" 2>/dev/null | cut -d' ' -f1)" = bbe31547f44c9b30e22adac7952bdad9 ]; then
++    cp /system/etc/kompakt/audio_policy_configuration.xml /mnt/phh/kompakt_audio_policy_configuration.xml
++    chcon u:object_r:vendor_configs_file:s0 /mnt/phh/kompakt_audio_policy_configuration.xml
++    chmod 644 /mnt/phh/kompakt_audio_policy_configuration.xml
++    mount -o bind /mnt/phh/kompakt_audio_policy_configuration.xml "$kaudio"
++fi
+-- 
+2.43.0
+

@@ -1,0 +1,30 @@
+From 58260a253b5167544a0827e410f258ca55c43380 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Wed, 7 Oct 2026 12:00:00 +0000
+Subject: [PATCH 73/99] Kompakt: the shade header follows the narrower status
+ bar
+
+---
+ .../com/android/systemui/shade/ui/composable/ShadeHeader.kt | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/ShadeHeader.kt b/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/ShadeHeader.kt
+index 2e0a89e0df8b..69b5e23f8df2 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/ShadeHeader.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/ShadeHeader.kt
+@@ -350,9 +350,9 @@ fun ContentScope.OverlayShadeHeader(
+ ) {
+     val horizontalPadding =
+         max(LocalScreenCornerRadius.current / 2f, Shade.Dimensions.HorizontalPadding)
+-    // Kompakt: the clock and icons sit exactly where the status bar draws them (5 px in, 8 px in).
+-    val clockShift = with(LocalDensity.current) { 5.toDp() }
+-    val iconsShift = with(LocalDensity.current) { 8.toDp() }
++    // Kompakt: the clock and icons sit exactly where the status bar draws them (8 px out each).
++    val clockShift = with(LocalDensity.current) { (-8).toDp() }
++    val iconsShift = with(LocalDensity.current) { (-8).toDp() }
+ 
+     // This layout assumes it is globally positioned at (0, 0) and is the same size as the screen.
+     CutoutAwareShadeHeader(
+-- 
+2.43.0
+

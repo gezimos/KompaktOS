@@ -1,7 +1,7 @@
-From 083a4bacda8e712f155bcee5020422d1b166a58e Mon Sep 17 00:00:00 2001
+From 83f575f71b211a16b813c82cf76b60aed0d6929a Mon Sep 17 00:00:00 2001
 From: gezimos <>
 Date: Tue, 8 Sep 2026 14:18:24 +0200
-Subject: [PATCH 02/38] SystemUI: remove marquee scrolling for e-ink
+Subject: [PATCH 02/99] SystemUI: remove marquee scrolling for e-ink
 
 ---
  packages/SystemUI/res/layout/bluetooth_device_item.xml      | 3 +--
@@ -291,3 +291,6 @@ index 1708ec647c3c..e0e4ed60b0ae 100644
              android:focusable="true" />
      </LinearLayout>
  
+-- 
+2.43.0
+

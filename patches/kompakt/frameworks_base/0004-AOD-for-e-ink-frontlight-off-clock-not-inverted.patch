@@ -1,7 +1,7 @@
-From 49c8e8d56ae5cb9dbf86836caac87af3d0fbdae3 Mon Sep 17 00:00:00 2001
+From 3966c3b48ccd53a271ea5330d7031fc125a7fac1 Mon Sep 17 00:00:00 2001
 From: gezimos <>
 Date: Tue, 8 Sep 2026 14:26:39 +0200
-Subject: [PATCH 04/38] AOD for e-ink: frontlight off, clock not inverted
+Subject: [PATCH 04/99] AOD for e-ink: frontlight off, clock not inverted
 
 ---
  core/res/res/values/config.xml                            | 2 +-
@@ -47,3 +47,6 @@ index 5597b2f19956..7b4673f9a44b 100644
          private const val FORMAT_NUMBER = 1234567890
      }
  }
+-- 
+2.43.0
+

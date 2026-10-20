@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     SPDX-FileCopyrightText: The LineageOS Project
+     SPDX-License-Identifier: Apache-2.0
+-->
+<!-- Kompakt: shuffle play and play all side by side, icon only, as the Messaging and Calendar add buttons: 56dp, 16dp corners, a 2dp ink edge, no shadow. Margins, not padding: the fragment sets the row's bottom padding to the inset; the top padding keeps the buttons from being pushed out of the row by it. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/playButtonsLinearLayout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    android:gravity="bottom|end"
+    android:orientation="horizontal"
+    android:paddingTop="24dp">
+
+    <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
+        android:id="@+id/shufflePlayExtendedFloatingActionButton"
+        style="@style/Theme.Twelve.Kompakt.SquareFab"
+        android:layout_marginEnd="12dp"
+        android:layout_marginBottom="16dp"
+        android:contentDescription="@string/shuffle_play"
+        android:tooltipText="@string/shuffle_play"
+        android:visibility="gone"
+        app:icon="@drawable/ic_shuffle_play"
+        app:materialThemeOverlay="@style/ThemeOverlay.Material3Expressive.FloatingActionButton.TertiaryContainer"
+        tools:visibility="visible" />
+
+    <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
+        android:id="@+id/playAllExtendedFloatingActionButton"
+        style="@style/Theme.Twelve.Kompakt.SquareFab"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="16dp"
+        android:contentDescription="@string/play_all"
+        android:tooltipText="@string/play_all"
+        android:visibility="gone"
+        app:icon="@drawable/ic_play_arrow"
+        app:materialThemeOverlay="@style/ThemeOverlay.Material3Expressive.FloatingActionButton.PrimaryContainer"
+        tools:visibility="visible" />
+
+</LinearLayout>

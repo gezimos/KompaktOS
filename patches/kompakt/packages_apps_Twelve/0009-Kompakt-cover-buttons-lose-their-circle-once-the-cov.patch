@@ -1,0 +1,67 @@
+From 5b8486417c54abc1d5f091b1976b7a8758a0ebd2 Mon Sep 17 00:00:00 2001
+From: Gezim <25499045+gezimos@users.noreply.github.com>
+Date: Sun, 11 Oct 2026 20:56:08 +0200
+Subject: [PATCH 09/10] Kompakt: cover buttons lose their circle once the cover
+ is hidden
+
+Change-Id: I8f59da61d773c91453b3fd5eca143fbf483b196f
+---
+ .../java/com/kompakt/eink/PagedScroll.java    | 32 +++++++++++++++++++
+ 1 file changed, 32 insertions(+)
+
+diff --git a/app/src/main/java/com/kompakt/eink/PagedScroll.java b/app/src/main/java/com/kompakt/eink/PagedScroll.java
+index aff1b16..da43f4d 100644
+--- a/app/src/main/java/com/kompakt/eink/PagedScroll.java
++++ b/app/src/main/java/com/kompakt/eink/PagedScroll.java
+@@ -7,6 +7,7 @@ import android.view.ViewGroup;
+ import android.view.ViewParent;
+ 
+ import androidx.annotation.NonNull;
++import androidx.appcompat.widget.Toolbar;
+ import androidx.coordinatorlayout.widget.CoordinatorLayout;
+ import androidx.recyclerview.widget.GridLayoutManager;
+ import androidx.recyclerview.widget.LinearLayoutManager;
+@@ -159,9 +160,40 @@ public final class PagedScroll {
+             detector.onTouchEvent(e);
+             return true;
+         });
++        coverButtons(bar);
+         return bar;
+     }
+ 
++    /** Kompakt: toolbar buttons lose their cover circle (activated state) once the cover is hidden. */
++    private static void coverButtons(final AppBarLayout bar) {
++        final Toolbar toolbar = findToolbar(bar);
++        if (toolbar == null) return;
++        bar.addOnOffsetChangedListener((b, offset) -> activate(toolbar, collapsed(b)));
++        // The menu's buttons are rebuilt when it changes, so set them again on layout.
++        toolbar.addOnLayoutChangeListener((v, l, t, r, bt, ol, ot, or, ob) ->
++                activate(toolbar, collapsed(bar)));
++    }
++
++    private static Toolbar findToolbar(View v) {
++        if (v instanceof Toolbar) return (Toolbar) v;
++        if (!(v instanceof ViewGroup)) return null;
++        final ViewGroup g = (ViewGroup) v;
++        for (int i = 0; i < g.getChildCount(); i++) {
++            final Toolbar t = findToolbar(g.getChildAt(i));
++            if (t != null) return t;
++        }
++        return null;
++    }
++
++    private static void activate(View v, boolean on) {
++        if (v.isActivated() != on) {
++            v.setActivated(on);
++        } else if (v instanceof ViewGroup) {
++            final ViewGroup g = (ViewGroup) v;
++            for (int i = 0; i < g.getChildCount(); i++) activate(g.getChildAt(i), on);
++        }
++    }
++
+     /** Move by whole pages, in pixels, measured off the rows that are on screen. */
+     private static boolean page(RecyclerView rv, PagedLayoutManager lm, int delta) {
+         if (delta == 0) return false;
+-- 
+2.43.0
+

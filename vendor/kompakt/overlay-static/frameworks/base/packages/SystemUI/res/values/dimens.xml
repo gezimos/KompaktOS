@@ -12,4 +12,7 @@
     <dimen name="aux_spacing_overlay_panel_shape_radius">0dp</dimen>
     <dimen name="overlay_shade_panel_shape_radius">0dp</dimen>
     <dimen name="notification_scrim_corner_radius">0dp</dimen>
+
+    <!-- Kompakt: a heads up notification sits as far from the top as from the sides (notification_side_paddings). -->
+    <dimen name="heads_up_status_bar_padding">16dp</dimen>
 </resources>

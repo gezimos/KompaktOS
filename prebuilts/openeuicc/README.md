@@ -1,7 +1,8 @@
 OpenEUICC is an upstream checkout and is deliberately not vendored here.
 
 build.sh clones it to vendor/kompakt/OpenEUICC at the commit below, applies the
-two local changes in patches/openeuicc, and copies the prebuilt AAR from this
+local changes in patches/openeuicc (one diff: the slot and telephony fixes, a newly downloaded profile turned on as Android's own flow does, and the
+add button as the rounded square the other apps use: an ExtendedFloatingActionButton, since the Material3 FloatingActionButton keeps its tonal grey and shadow whatever the layout says), and copies the prebuilt AAR from this
 directory in (upstream resolves that through Gradle, which this build cannot).
 
   upstream commit: 9a537a2

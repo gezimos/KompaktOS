@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Kompakt: no gear and snooze menu behind a swiped card. The card stays still while
+         swiped, so the menu could never show. Long press still opens the settings. -->
+    <bool name="config_showNotificationGear">false</bool>
+</resources>

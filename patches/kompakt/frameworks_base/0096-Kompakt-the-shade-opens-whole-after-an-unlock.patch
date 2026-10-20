@@ -1,0 +1,56 @@
+From 36fa6e092971119bd181509a8f58e7453bcea789 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sun, 11 Oct 2026 16:53:17 +0200
+Subject: [PATCH 096/101] Kompakt: the shade opens whole after an unlock
+
+At unlock, setMaxDisplayedNotifications(-1) asked for the lockscreen to full
+shade animation. The shade window is invisible by then, so it waited and
+played on the next pull: rows delayed by index^0.7 x 48 ms (0 to 127 ms),
+and with physical_notification_movement on, PhysicsPropertyAnimator waits
+those delays with a plain postDelayed that the animation scale never
+shortens. The first pull after every unlock drew the stack in four or five
+steps, growing and reordering (recorded on 328). The request is gone, and
+with animations off a physics property lands at once and calls its end
+listener, so actualHeightAnimating clears.
+
+Change-Id: I7c6b7df5e7295663163f74959657dad0d23f6a3d
+---
+ .../statusbar/notification/PhysicsPropertyAnimator.kt       | 6 ++++++
+ .../notification/stack/NotificationStackScrollLayout.java   | 4 +---
+ 2 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/notification/PhysicsPropertyAnimator.kt b/packages/SystemUI/src/com/android/systemui/statusbar/notification/PhysicsPropertyAnimator.kt
+index a2b129c7fedb..0b9d698a353c 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/notification/PhysicsPropertyAnimator.kt
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/notification/PhysicsPropertyAnimator.kt
+@@ -134,6 +134,12 @@ class PhysicsPropertyAnimator {
+             endListener: DynamicAnimation.OnAnimationEndListener? = null,
+             maxOvershoot: Float? = null,
+         ) {
++            // Kompakt: animations off means land now; the delay is posted unscaled and the spring skips a frame.
++            if (animated && android.animation.ValueAnimator.getDurationScale() == 0f) {
++                animatableProperty.setFinalValue(view, newEndValue)
++                endListener?.onAnimationEnd(null, false, newEndValue, 0f)
++                return
++            }
+             if (animated) {
+                 startAnimation(
+                     view,
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/NotificationStackScrollLayout.java b/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/NotificationStackScrollLayout.java
+index d39434b44d41..02c86ebc57ff 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/NotificationStackScrollLayout.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/NotificationStackScrollLayout.java
+@@ -5755,9 +5755,7 @@ public class NotificationStackScrollLayout
+             if (SceneContainerFlag.isEnabled()) {
+                 updateIntrinsicStackHeight();
+                 updateStackEndHeightAndStackHeight(mAmbientState.getExpansionFraction());
+-                if (maxDisplayedNotifications == -1) {
+-                    animateGoToFullShade(0);
+-                }
++                // Kompakt: no lockscreen to shade stagger; it waited for the next pull and played there.
+             } else {
+                 updateContentHeight();
+             }
+-- 
+2.43.0
+

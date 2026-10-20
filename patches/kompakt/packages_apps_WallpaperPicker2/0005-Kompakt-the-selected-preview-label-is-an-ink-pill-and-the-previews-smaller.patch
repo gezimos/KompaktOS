@@ -1,0 +1,130 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Tue, 6 Oct 2026 19:00:00 +0200
+Subject: [PATCH 1/1] Kompakt: the selected preview label is an ink pill, and the previews smaller
+
+---
+diff --git a/res/drawable/kompakt_preview_label_selected.xml b/res/drawable/kompakt_preview_label_selected.xml
+new file mode 100644
+--- /dev/null
++++ b/res/drawable/kompakt_preview_label_selected.xml
+@@ -0,0 +1,6 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Kompakt: the selected lock or home label is an ink pill. -->
++<shape xmlns:android="http://schemas.android.com/apk/res/android">
++    <corners android:radius="100dp" />
++    <solid android:color="@color/system_on_surface" />
++</shape>
+diff --git a/res/layout/fragment_customization_picker2.xml b/res/layout/fragment_customization_picker2.xml
+--- a/res/layout/fragment_customization_picker2.xml
++++ b/res/layout/fragment_customization_picker2.xml
+@@ -107,9 +107,10 @@
+ 
+                     <TextView
+                         android:id="@+id/lock_preview_label"
+-                        android:layout_width="match_parent"
++                        android:layout_width="wrap_content"
+                         android:layout_height="wrap_content"
+-                        android:paddingBottom="@dimen/customization_picker_preview_label_padding_bottom"
++                        android:paddingHorizontal="@dimen/kompakt_preview_tab_padding_horizontal"
++                        android:paddingVertical="@dimen/kompakt_preview_tab_padding_vertical"
+                         android:gravity="center"
+                         android:layout_gravity="center"
+                         android:textColor="@color/system_on_surface"
+@@ -130,8 +131,10 @@
+ 
+                     <TextView
+                         android:id="@+id/home_preview_label"
+-                        android:layout_width="match_parent"
++                        android:layout_width="wrap_content"
+                         android:layout_height="wrap_content"
++                        android:paddingHorizontal="@dimen/kompakt_preview_tab_padding_horizontal"
++                        android:paddingVertical="@dimen/kompakt_preview_tab_padding_vertical"
+                         android:gravity="center"
+                         android:layout_gravity="center"
+                         android:textColor="@color/system_on_surface"
+diff --git a/res/values/colors.xml b/res/values/colors.xml
+--- a/res/values/colors.xml
++++ b/res/values/colors.xml
+@@ -71,6 +71,7 @@
+     <color name="system_on_secondary">@android:color/system_on_secondary_light</color>
+     <color name="system_on_secondary_container">@android:color/system_on_secondary_container_light</color>
+     <color name="system_on_surface">@android:color/system_on_surface_light</color>
++    <color name="kompakt_page">@android:color/system_surface_light</color>
+     <color name="system_on_surface_variant">@android:color/system_on_surface_variant_light</color>
+     <color name="system_surface_container">@android:color/system_surface_container_light</color>
+     <color name="system_surface_container_low">@android:color/system_surface_container_low_light</color>
+diff --git a/res/values/dimens.xml b/res/values/dimens.xml
+--- a/res/values/dimens.xml
++++ b/res/values/dimens.xml
+@@ -411,9 +411,11 @@
+ 
+     <!-- Dimensions for the customization picker  -->
+     <!-- Kompakt: side by side previews that scroll away with the options at their size. -->
+-    <dimen name="customization_picker_preview_header_collapsed_height">310dp</dimen>
++    <dimen name="customization_picker_preview_header_collapsed_height">270dp</dimen>
+     <dimen name="kompakt_preview_half_gap">8dp</dimen>
+-    <dimen name="customization_picker_preview_header_expanded_height">310dp</dimen>
++    <dimen name="kompakt_preview_tab_padding_horizontal">12dp</dimen>
++    <dimen name="kompakt_preview_tab_padding_vertical">3dp</dimen>
++    <dimen name="customization_picker_preview_header_expanded_height">270dp</dimen>
+     <dimen name="customization_picker_min_preview_collapsed_height">70dp</dimen>
+     <dimen name="customization_picker_min_preview_expanded_height">100dp</dimen>
+     <dimen name="customization_picker_max_preview_expanded_height">580dp</dimen>
+diff --git a/res/values/styles.xml b/res/values/styles.xml
+--- a/res/values/styles.xml
++++ b/res/values/styles.xml
+@@ -364,8 +364,9 @@
+         <item name="android:textColor">@color/system_on_surface</item>
+     </style>
+ 
++    <!-- Kompakt: the selected label sits on an ink pill, so it takes the page colour. -->
+     <style name="TextAppearance.Preview.Label.Selected" parent="TextAppearance.DeviceDefault.Small.TitleMediumEmphasized">
+-        <item name="android:textColor">@color/system_on_surface</item>
++        <item name="android:textColor">@color/kompakt_page</item>
+     </style>
+ 
+     <style name="TextAppearance.DeviceDefault.Large" parent="@android:style/TextAppearance.DeviceDefault.Large" />
+diff --git a/res/values-night/colors.xml b/res/values-night/colors.xml
+--- a/res/values-night/colors.xml
++++ b/res/values-night/colors.xml
+@@ -33,6 +33,7 @@
+     <color name="system_on_secondary">@android:color/system_on_secondary_dark</color>
+     <color name="system_on_secondary_container">@android:color/system_on_secondary_container_dark</color>
+     <color name="system_on_surface">@android:color/system_on_surface_dark</color>
++    <color name="kompakt_page">@android:color/system_surface_dark</color>
+     <color name="system_on_surface_variant">@android:color/system_on_surface_variant_dark</color>
+     <color name="system_surface_container">@android:color/system_surface_container_dark</color>
+     <color name="system_surface_container_low">@android:color/system_surface_container_low_dark</color>
+diff --git a/src/com/android/wallpaper/picker/common/preview/ui/binder/PreviewAlphaAnimationBinder.kt b/src/com/android/wallpaper/picker/common/preview/ui/binder/PreviewAlphaAnimationBinder.kt
+--- a/src/com/android/wallpaper/picker/common/preview/ui/binder/PreviewAlphaAnimationBinder.kt
++++ b/src/com/android/wallpaper/picker/common/preview/ui/binder/PreviewAlphaAnimationBinder.kt
+@@ -77,15 +77,26 @@
+                 launch {
+                     viewModel.lockPreviewLabelTextAppearance.collect {
+                         lockPreviewLabel.setTextAppearance(it)
++                        lockPreviewLabel.setKompaktTab(it)
+                     }
+                 }
+ 
+                 launch {
+                     viewModel.homePreviewLabelTextAppearance.collect {
+                         homePreviewLabel.setTextAppearance(it)
++                        homePreviewLabel.setKompaktTab(it)
+                     }
+                 }
+             }
+         }
+     }
++}
++
++/** Kompakt: the selected label is an ink pill, the unselected one plain text. */
++private fun TextView.setKompaktTab(textAppearance: Int) {
++    setBackgroundResource(
++        if (textAppearance == R.style.TextAppearance_Preview_Label_Selected)
++            R.drawable.kompakt_preview_label_selected
++        else 0
++    )
+ }
+-- 
+2.43.0

@@ -1,0 +1,52 @@
+From c18aa4c85be151cf4d74da839cd84b9938d16545 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Mon, 12 Oct 2026 00:23:33 +0200
+Subject: [PATCH 101/101] Kompakt: the power button can switch the warm light
+
+Change-Id: I2c727ff47edb3a2f176c8d3c74d455ce37a25c88
+---
+ .../server/policy/PhoneWindowManager.java     | 19 ++++++++++++++++++-
+ 1 file changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/services/core/java/com/android/server/policy/PhoneWindowManager.java b/services/core/java/com/android/server/policy/PhoneWindowManager.java
+index 515025032bed..f5ddaed00c44 100644
+--- a/services/core/java/com/android/server/policy/PhoneWindowManager.java
++++ b/services/core/java/com/android/server/policy/PhoneWindowManager.java
+@@ -1860,7 +1860,8 @@ public class PhoneWindowManager implements WindowManagerPolicy {
+         if (FactoryTest.isLongPressOnPowerOffEnabled()) {
+             return LONG_PRESS_POWER_SHUT_OFF_NO_CONFIRM;
+         }
+-        if (mTorchLongPressPowerEnabled && (!isScreenOn() || isDozeMode() || mTorchEnabled)) {
++        if (mTorchLongPressPowerEnabled && (!isScreenOn() || isDozeMode() || mTorchEnabled
++                || (kompaktWarmTorch() && kompaktWarmTorchOn()))) {
+             return LONG_PRESS_POWER_TORCH;
+         }
+ 
+@@ -7520,8 +7521,24 @@ public class PhoneWindowManager implements WindowManagerPolicy {
+         }
+     }
+ 
++    // Kompakt: the power button may switch the warm flash LED, which the Kompakt app owns.
++    private boolean kompaktWarmTorch() {
++        return "warm".equals(Settings.Global.getString(mContext.getContentResolver(),
++                "kompakt_power_torch"));
++    }
++
++    private boolean kompaktWarmTorchOn() {
++        return Settings.Global.getInt(mContext.getContentResolver(), "kompakt_torch_warm", 0) == 1;
++    }
++
+     private void toggleTorch() {
+         cancelTorchOff();
++        if (kompaktWarmTorch()) {
++            mContext.sendBroadcastAsUser(new Intent("com.kompakt.service.action.TORCH_WARM")
++                    .setPackage("com.kompakt.service")
++                    .addFlags(Intent.FLAG_RECEIVER_FOREGROUND), UserHandle.SYSTEM);
++            return;
++        }
+         final boolean origEnabled = mTorchEnabled;
+         try {
+             final String rearFlashCameraId = getRearFlashCameraId();
+-- 
+2.43.0
+

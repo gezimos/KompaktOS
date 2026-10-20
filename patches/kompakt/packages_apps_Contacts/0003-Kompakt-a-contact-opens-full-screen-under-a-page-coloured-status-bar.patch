@@ -1,0 +1,237 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Mon, 5 Oct 2026 20:25:00 +0200
+Subject: [PATCH 1/1] Kompakt: a contact opens full screen under a page-coloured
+ status bar
+
+---
+diff --git a/res/drawable/kompakt_quickcontact_icon_background.xml b/res/drawable/kompakt_quickcontact_icon_background.xml
+new file mode 100644
+--- /dev/null
++++ b/res/drawable/kompakt_quickcontact_icon_background.xml
+@@ -0,0 +1,12 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Kompakt: a circle of the page colour with an ink outline, behind each icon in the
++     contact header, so the icons read over a photo. White with a black outline by day,
++     black with a white outline at night. -->
++<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
++    <item android:gravity="center" android:width="40dp" android:height="40dp">
++        <shape android:shape="oval">
++            <solid android:color="@color/background_primary"/>
++            <stroke android:width="2dp" android:color="@color/kompakt_accent"/>
++        </shape>
++    </item>
++</layer-list>
+diff --git a/res/drawable/kompakt_quickcontact_overflow_background.xml b/res/drawable/kompakt_quickcontact_overflow_background.xml
+new file mode 100644
+--- /dev/null
++++ b/res/drawable/kompakt_quickcontact_overflow_background.xml
+@@ -0,0 +1,12 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Kompakt: the overflow button is narrower than the star and edit buttons, so its
++     outline is an upright pill of the same height as their circles. -->
++<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
++    <item android:gravity="center" android:width="28dp" android:height="40dp">
++        <shape android:shape="rectangle">
++            <corners android:radius="14dp"/>
++            <solid android:color="@color/background_primary"/>
++            <stroke android:width="2dp" android:color="@color/kompakt_accent"/>
++        </shape>
++    </item>
++</layer-list>
+diff --git a/res/layout/quickcontact_activity.xml b/res/layout/quickcontact_activity.xml
+--- a/res/layout/quickcontact_activity.xml
++++ b/res/layout/quickcontact_activity.xml
+@@ -20,6 +20,7 @@
+     android:layout_height="match_parent"
+     android:orientation="vertical"
+     android:id="@+id/multiscroller"
++    android:fitsSystemWindows="true"
+     android:focusable="true"
+     android:focusableInTouchMode="true"
+     android:descendantFocusability="afterDescendants" >
+diff --git a/res/values/styles.xml b/res/values/styles.xml
+--- a/res/values/styles.xml
++++ b/res/values/styles.xml
+@@ -25,7 +25,10 @@
+     </style>
+ 
+     <style name="Theme.QuickContact" parent="@style/PeopleTheme">
+-        <item name="android:windowBackground">@android:color/transparent</item>
++        <!-- Kompakt: QuickContact always opens full screen, so it is an opaque page. Its
++             contents start below the status bar (fitsSystemWindows), which shows this page
++             colour with the light status bar icons that PeopleTheme sets by day. -->
++        <item name="android:windowBackground">@color/background_primary</item>
+         <item name="android:colorBackgroundCacheHint">@null</item>
+         <item name="android:windowFrame">@null</item>
+         <item name="android:windowContentOverlay">@null</item>
+@@ -34,13 +37,21 @@
+         <item name="android:windowIsTranslucent">true</item>
+         <item name="android:windowNoTitle">true</item>
+         <item name="android:listViewStyle">@style/ListViewStyle</item>
+-        <!-- We need to use a light ripple behind ActionBar items in order for them to
+-             be visible when using some of the darker ActionBar tints -->
+-        <item name="android:actionBarItemBackground">
+-            @drawable/item_background_material_borderless_dark
+-        </item>
++        <!-- Kompakt: the star and edit icons each sit on a circle of the page colour with
++             an ink outline, so they read over a photo; the overflow button too. -->
++        <item name="android:actionBarItemBackground">@drawable/kompakt_quickcontact_icon_background</item>
++        <item name="android:actionOverflowButtonStyle">@style/KompaktQuickContactOverflow</item>
+     </style>
+ 
++    <style name="KompaktQuickContactOverflow" parent="ContactsActionBarOverflowQP">
++        <item name="android:background">@drawable/kompakt_quickcontact_overflow_background</item>
++        <item name="android:tint">@color/kompakt_accent</item>
++        <!-- The framework pads the overflow button 6dp before and 10dp after the dots, which
++             left them off centre in the pill. -->
++        <item name="android:paddingStart">8dp</item>
++        <item name="android:paddingEnd">8dp</item>
++    </style>
++
+     <style name="PeopleTheme" parent="@android:style/Theme.Material.Light.DarkActionBar">
+         <!-- Kompakt: the drawer icon and the selection tick are controls; they take the ink so they show in both modes. -->
+         <item name="colorControlNormal">#ff000000</item>
+diff --git a/src/com/android/contacts/quickcontact/QuickContactActivity.java b/src/com/android/contacts/quickcontact/QuickContactActivity.java
+--- a/src/com/android/contacts/quickcontact/QuickContactActivity.java
++++ b/src/com/android/contacts/quickcontact/QuickContactActivity.java
+@@ -36,6 +36,7 @@
+ import android.content.pm.ResolveInfo;
+ import android.content.pm.ShortcutInfo;
+ import android.content.pm.ShortcutManager;
++import android.content.res.ColorStateList;
+ import android.content.res.Resources;
+ import android.graphics.Bitmap;
+ import android.graphics.BitmapFactory;
+@@ -91,6 +92,7 @@
+ import android.view.View.OnClickListener;
+ import android.view.View.OnCreateContextMenuListener;
+ import android.view.WindowManager;
++import android.widget.TextView;
+ import android.widget.Toast;
+ import android.widget.Toolbar;
+ 
+@@ -778,7 +780,9 @@
+ 
+         mHasAlreadyBeenOpened = savedInstanceState != null;
+         mIsEntranceAnimationFinished = mHasAlreadyBeenOpened;
+-        mWindowScrim = new ColorDrawable(SCRIM_COLOR);
++        // Kompakt: the scrim is the window background, and it shows under the status bar. Full
++        // screen it is drawn opaque, so it is the page colour, not 78% black.
++        mWindowScrim = new ColorDrawable(getColor(R.color.background_primary));
+         mWindowScrim.setAlpha(0);
+         getWindow().setBackgroundDrawable(mWindowScrim);
+ 
+@@ -927,11 +931,10 @@
+                     RawContacts.getContactLookupUri(
+                             getContentResolver(),
+                             ContentUris.withAppendedId(RawContacts.CONTENT_URI, rawContactId));
+-        }
+-        mExtraMode = getIntent().getIntExtra(QuickContact.EXTRA_MODE, QuickContact.MODE_LARGE);
+-        if (isMultiWindowOnPhone()) {
+-            mExtraMode = QuickContact.MODE_LARGE;
+         }
++        // Kompakt: always open full screen. The collapsed card sat over a dark scrim on top of
++        // the previous screen, and needed a drag to reach the header.
++        mExtraMode = MODE_FULLY_EXPANDED;
+         mExtraPrioritizedMimeType =
+                 getIntent().getStringExtra(QuickContact.EXTRA_PRIORITIZED_MIMETYPE);
+         final Uri oldLookupUri = mLookupUri;
+@@ -2315,9 +2318,19 @@
+         mStatusBarColor = palette.mSecondaryColor;
+         updateStatusBarColor();
+ 
+-        mColorFilter = new PorterDuffColorFilter(mColorFilterColor, PorterDuff.Mode.SRC_ATOP);
+-        mContactCard.setColorAndFilter(mColorFilterColor, mColorFilter);
+-        mAboutCard.setColorAndFilter(mColorFilterColor, mColorFilter);
++        // Kompakt: the name is in the ink, on the page colour (the whole header without a
++        // photo, a strip under the name over one).
++        final TextView largeTitle = (TextView) findViewById(R.id.large_title);
++        if (largeTitle != null) {
++            largeTitle.setTextColor(getColor(R.color.kompakt_accent));
++        }
++
++        // Kompakt: the card icons are in the ink, not the photo's colour; a black tint left
++        // them invisible on the black card at night.
++        final int cardInk = getColor(R.color.kompakt_accent);
++        mColorFilter = new PorterDuffColorFilter(cardInk, PorterDuff.Mode.SRC_ATOP);
++        mContactCard.setColorAndFilter(cardInk, mColorFilter);
++        mAboutCard.setColorAndFilter(cardInk, mColorFilter);
+     }
+ 
+     private void updateStatusBarColor() {
+@@ -2704,6 +2717,17 @@
+             final MenuItem helpMenu = menu.findItem(R.id.menu_help);
+             helpMenu.setVisible(HelpUtils.isHelpAndFeedbackAvailable());
+ 
++            // Kompakt: the star, edit and overflow icons are in the ink, each on a circle of
++            // the page colour (actionBarItemBackground in Theme.QuickContact).
++            final int ink = getColor(R.color.kompakt_accent);
++            for (int i = 0; i < menu.size(); i++) {
++                menu.getItem(i).setIconTintList(ColorStateList.valueOf(ink));
++            }
++            final Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
++            if (toolbar != null && toolbar.getOverflowIcon() != null) {
++                toolbar.getOverflowIcon().setTint(ink);
++            }
++
+             return true;
+         }
+         return false;
+diff --git a/src/com/android/contacts/widget/MultiShrinkScroller.java b/src/com/android/contacts/widget/MultiShrinkScroller.java
+--- a/src/com/android/contacts/widget/MultiShrinkScroller.java
++++ b/src/com/android/contacts/widget/MultiShrinkScroller.java
+@@ -325,6 +325,12 @@
+         mTitleGradientView.setBackground(mTitleGradientDrawable);
+         mActionBarGradientView = findViewById(R.id.action_bar_gradient);
+         mActionBarGradientView.setBackground(mActionBarGradientDrawable);
++        // Kompakt: over a photo the name sits on a strip of the page colour, in the ink; a
++        // dark fade is a grey dither on this panel. The icons have their own circles, so the
++        // top fade goes.
++        final int page = getContext().getColor(R.color.background_primary);
++        mTitleGradientDrawable.setColors(new int[] {page, page});
++        mActionBarGradientView.setBackground(null);
+         mCollapsedTitleStartMargin = ((Toolbar) findViewById(R.id.toolbar)).getContentInsetStart();
+ 
+         mPhotoTouchInterceptOverlay = findViewById(R.id.photo_touch_intercept_overlay);
+@@ -1126,8 +1132,10 @@
+         titleLayoutParams.setMarginStart((int) (mCollapsedTitleStartMargin * (1 - x)
+                 + mMaximumTitleMargin * x) + startColumnWidth);
+         // How offset the title should be from the bottom of the toolbar
+-        final int pretendBottomMargin =  (int) (mCollapsedTitleBottomMargin * (1 - x)
+-                + mMaximumTitleMargin * x) ;
++        // Kompakt: fully open, the name sits at the bottom of the header. The page below is
++        // the same colour as its strip, so the margin read as padding under the name; it
++        // goes above it instead.
++        final int pretendBottomMargin =  (int) (mCollapsedTitleBottomMargin * (1 - x));
+         // Calculate how offset the title should be from the top of the screen. Instead of
+         // calling mTitleAndPhoneticNameView.getHeight() use the mMaximumHeaderTextSize for this
+         // calculation. The getHeight() value acts unexpectedly when mTitleAndPhoneticNameView is
+@@ -1205,7 +1213,8 @@
+             float linearBeforeIntermediate = Math.max(1 - (1 - ratio) / intermediateRatio
+                     / slowingFactor, 0);
+             float colorAlpha = 1 - (float) Math.pow(linearBeforeIntermediate, TILE_EXPONENT);
+-            mColorMatrix.postConcat(alphaMatrix(colorAlpha, mHeaderTintColor));
++            // Kompakt: no filter on a contact without a photo. Fully open, this matrix turned
++            // every pixel white; the person is drawn as is, black by day, white at night.
+             gradientAlpha = 0;
+         }
+ 
+diff --git a/src/com/android/contacts/widget/QuickContactImageView.java b/src/com/android/contacts/widget/QuickContactImageView.java
+--- a/src/com/android/contacts/widget/QuickContactImageView.java
++++ b/src/com/android/contacts/widget/QuickContactImageView.java
+@@ -41,7 +41,10 @@
+     public void setTint(int color) {
+         if (mBitmapDrawable == null || mBitmapDrawable.getBitmap() == null
+                 || mBitmapDrawable.getBitmap().hasAlpha()) {
+-            setBackgroundColor(color);
++            // Kompakt: a contact without a photo sits on the page colour, not the theme colour
++            // (the ink here, which also colours the cards). The person is drawn in the ink:
++            // person_white_540dp is overlaid black by day.
++            setBackgroundColor(getContext().getColor(R.color.background_primary));
+         } else {
+             setBackground(null);
+         }
+-- 
+2.43.0
+

@@ -1,13 +1,18 @@
-From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From 453749620dee94876abfdaeccb781ed4f4157f2e Mon Sep 17 00:00:00 2001
 From: Gezim <gezimos@users.noreply.github.com>
 Date: Mon, 28 Sep 2026 21:00:00 +0200
-Subject: [PATCH 45/45] Kompakt: the carrier text shows a SIM label the user set
+Subject: [PATCH 45/99] Kompakt: the carrier text shows a SIM label the user
+ set
 
 ---
+ .../src/com/android/keyguard/CarrierTextManager.java     | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
 diff --git a/packages/SystemUI/src/com/android/keyguard/CarrierTextManager.java b/packages/SystemUI/src/com/android/keyguard/CarrierTextManager.java
+index b0c0f19714d1..2b67cebfbb10 100644
 --- a/packages/SystemUI/src/com/android/keyguard/CarrierTextManager.java
 +++ b/packages/SystemUI/src/com/android/keyguard/CarrierTextManager.java
-@@ -30,6 +30,7 @@
+@@ -30,6 +30,7 @@ import android.content.res.Resources;
  import android.os.Trace;
  import android.telephony.ServiceState;
  import android.telephony.SubscriptionInfo;
@@ -15,7 +20,7 @@ diff --git a/packages/SystemUI/src/com/android/keyguard/CarrierTextManager.java 
  import android.telephony.TelephonyCallback.ActiveDataSubscriptionIdListener;
  import android.telephony.TelephonyManager;
  import android.text.TextUtils;
-@@ -373,7 +374,13 @@
+@@ -373,7 +374,13 @@ public class CarrierTextManager {
              subsIds[i] = subId;
              subOrderBySlot[slotId] = i;
              int simState = mKeyguardUpdateMonitor.getSimStateForSlotId(slotId);
@@ -30,3 +35,6 @@ diff --git a/packages/SystemUI/src/com/android/keyguard/CarrierTextManager.java 
              CharSequence carrierTextForSimState = getCarrierTextForSimState(simState, carrierName);
              mLogger.logUpdateLoopStart(subId, simState, String.valueOf(carrierName));
              if (carrierTextForSimState != null) {
+-- 
+2.43.0
+

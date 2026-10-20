@@ -1,0 +1,45 @@
+From 37ad09089410d91b4b603e60dcd926802dbe37c2 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Tue, 6 Oct 2026 14:45:00 +0200
+Subject: [PATCH 62/99] Kompakt: every AOD paint redraws the whole lockscreen
+
+---
+ .../SystemUI/src/com/android/systemui/doze/DozeUi.java     | 3 ++-
+ .../android/systemui/statusbar/phone/DozeServiceHost.java  | 7 +++++++
+ 2 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/doze/DozeUi.java b/packages/SystemUI/src/com/android/systemui/doze/DozeUi.java
+index 186b17073684..e0a0432ffc5a 100644
+--- a/packages/SystemUI/src/com/android/systemui/doze/DozeUi.java
++++ b/packages/SystemUI/src/com/android/systemui/doze/DozeUi.java
+@@ -60,7 +60,8 @@ public class DozeUi implements DozeMachine.Part {
+     // If time tick is scheduled and there's not a pending runnable to cancel:
+     private volatile boolean mTimeTickScheduled;
+ 
+-    private static final long[] AOD_PAINT_PUSH_MS = {0, 500};
++    // Kompakt: the 1500 push lands after the lockscreen to AOD transition has settled.
++    private static final long[] AOD_PAINT_PUSH_MS = {0, 500, 1500};
+     private final Runnable mCancelTimeTickerRunnable =  new Runnable() {
+         @Override
+         public void run() {
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/phone/DozeServiceHost.java b/packages/SystemUI/src/com/android/systemui/statusbar/phone/DozeServiceHost.java
+index fd706f052e12..2d0d7c226d1c 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/phone/DozeServiceHost.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/phone/DozeServiceHost.java
+@@ -387,6 +387,13 @@ public final class DozeServiceHost implements DozeHost {
+             if (mAmbientIndicationContainer instanceof DozeReceiver) {
+                 ((DozeReceiver) mAmbientIndicationContainer).dozeTimeTick();
+             }
++            // Kompakt: lay out and redraw the whole shade, so AOD shows what changed since the last pass.
++            View shade = mNotificationShadeWindowViewController != null
++                    ? mNotificationShadeWindowViewController.getView() : null;
++            if (shade != null) {
++                shade.requestLayout();
++                shade.invalidate();
++            }
+             return Unit.INSTANCE;
+         });
+     }
+-- 
+2.43.0
+

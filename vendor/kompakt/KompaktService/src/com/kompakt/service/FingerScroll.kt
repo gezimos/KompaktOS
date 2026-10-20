@@ -47,7 +47,7 @@ object FingerScroll {
 
     /** What a double tap, a triple tap, or a finger held still, on the sensor does. */
     val ACTIONS = listOf("off", "mode", "enter", "recents", "refresh", "shade", "qs",
-        "torch_warm", "torch_cold", "orient", "key")
+        "light", "torch_warm", "torch_cold", "orient", "key")
 
     private const val CLICK_MS = 50L
     private const val KEY_TAP = "finger_double_tap"
@@ -83,13 +83,18 @@ object FingerScroll {
         prefs(c).getString(KEY_STYLE, null)?.takeIf { it in STYLES } ?: home(c)
     private fun setStyle(c: Context, v: String) = prefs(c).edit().putString(KEY_STYLE, v).apply()
 
-    /** Every mode in the user's order; until one is saved, the legacy mode comes first. */
+    /**
+     * Every mode in the user's order. The first read saves it: the legacy default first if
+     * there is one, else STYLES. Never seeded from the live mode, which Switch mode changes,
+     * or the list (and with it the default) would follow every switch.
+     */
     fun order(c: Context): List<String> {
         val saved = prefs(c).getString(KEY_ORDER, null)?.split(',')?.filter { it in STYLES }
         if (saved != null) return saved.distinct() + (STYLES - saved.toSet())
-        val first = (prefs(c).getString(KEY_HOME, null) ?: prefs(c).getString(KEY_STYLE, null))
-            ?.takeIf { it in STYLES }
-        return if (first == null) STYLES else listOf(first) + (STYLES - first)
+        val first = prefs(c).getString(KEY_HOME, null)?.takeIf { it in STYLES }
+        val seeded = if (first == null) STYLES else listOf(first) + (STYLES - first)
+        setOrder(c, seeded)
+        return seeded
     }
 
     fun setOrder(c: Context, modes: List<String>) =
@@ -264,6 +269,7 @@ object FingerScroll {
             // Up (towards zone 0) brightens; Natural and Sideways do not apply.
             val steps = streak +
                 if (long) LONG_KEYS_MIN + Math.round(more * (LONG_KEYS_MAX - LONG_KEYS_MIN)) else 1
+            poke(ctx)
             FrontLight.step(ctx, if (towardHigh) -steps else steps)
             return
         }
@@ -288,17 +294,27 @@ object FingerScroll {
         }
     }
 
+    /** Kompakt: a sensor gesture is use of the phone, so it restarts the screen timeout like a touch. */
+    private fun poke(ctx: Context) = try {
+        ctx.getSystemService(PowerManager::class.java)
+            ?.userActivity(SystemClock.uptimeMillis(), PowerManager.USER_ACTIVITY_EVENT_OTHER, 0)
+    } catch (t: Throwable) {
+        Log.w(TAG, "userActivity failed (${t.javaClass.simpleName})")
+    }
+
     /** One of ACTIONS, for a tap gesture or a hold; button is the one "key" presses for it. */
     private fun act(ctx: Context, action: String, button: Int) {
         if (ctx.getSystemService(KeyguardManager::class.java)?.isKeyguardLocked == true) return
+        poke(ctx)
         when (action) {
             // The confirm key: presses whatever holds focus, the element the D-pad is on.
             "enter" -> key(ctx, KeyEvent.KEYCODE_DPAD_CENTER)
             "recents" -> key(ctx, KeyEvent.KEYCODE_APP_SWITCH)
             "key" -> Buttons.click(button)
             "refresh" -> Flash.show(ctx)
-            "torch_warm" -> Torch.set(Torch.WARM, !Torch.isOn(Torch.WARM))
-            "torch_cold" -> Torch.set(Torch.COLD, !Torch.isOn(Torch.COLD))
+            "light" -> FrontLight.toggle(ctx)
+            "torch_warm" -> Torch.set(ctx, Torch.WARM, !Torch.isOn(Torch.WARM))
+            "torch_cold" -> Torch.set(ctx, Torch.COLD, !Torch.isOn(Torch.COLD))
             // Switch the scrolling itself, from wherever the phone is.
             "orient" -> {
                 val sideways = !horizontal(ctx)
@@ -377,6 +393,7 @@ object FingerScroll {
             return
         }
         if (ctx.getSystemService(KeyguardManager::class.java)?.isKeyguardLocked == true) return
+        poke(ctx)
         Buttons.down(Buttons.HOLD)
         heldKeyDown = true
     }

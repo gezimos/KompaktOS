@@ -1,0 +1,31 @@
+From 9b74589392c355e79a739ce2f618647558fbf185 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Tue, 13 Oct 2026 12:57:19 +0300
+Subject: [PATCH] Kompakt: light: a dim steady light rounds up to the lowest
+ level
+
+scaleBrightness rounded down, so on an LED with few levels (the MT6370
+sinks have six) any steady light under 1/6 of full brightness was written
+as 0 and stayed off. It rounds up: 0 is still off, anything above it is at
+least level 1, and full brightness is still the top level.
+---
+ light/Utils.cpp | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/light/Utils.cpp b/light/Utils.cpp
+index c814332..2b5b4bb 100644
+--- a/light/Utils.cpp
++++ b/light/Utils.cpp
+@@ -43,7 +43,8 @@ State fromAidl(const HwLightState& value) {
+ }
+ 
+ uint32_t scaleBrightness(uint8_t brightness, uint32_t maxBrightness) {
+-    return brightness * maxBrightness / 0xFF;
++    // Kompakt: round up, so a dim light on a six-level LED is level 1, not off.
++    return (brightness * maxBrightness + 0xFE) / 0xFF;
+ }
+ 
+ }  // namespace light
+-- 
+2.50.1 (Apple Git-155)
+

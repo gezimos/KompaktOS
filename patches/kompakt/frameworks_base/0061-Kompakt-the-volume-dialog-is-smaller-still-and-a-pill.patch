@@ -1,0 +1,88 @@
+From d9a4b902cab05b3a53b29a0dd2c4ed71eb9deba4 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Tue, 6 Oct 2026 14:40:00 +0200
+Subject: [PATCH 61/99] Kompakt: the volume dialog is smaller, still and a pill
+
+---
+ packages/SystemUI/res/values/dimens.xml       | 19 ++++++++++---------
+ ...lume_dialog_ringer_drawer_motion_scene.xml |  2 +-
+ .../ui/VolumeDialogOverscrollViewBinder.kt    |  2 ++
+ 3 files changed, 13 insertions(+), 10 deletions(-)
+
+diff --git a/packages/SystemUI/res/values/dimens.xml b/packages/SystemUI/res/values/dimens.xml
+index 87a6ec95fd8a..8670c2840243 100644
+--- a/packages/SystemUI/res/values/dimens.xml
++++ b/packages/SystemUI/res/values/dimens.xml
+@@ -2231,11 +2231,12 @@
+ 
+     <!-- Volume start -->
+     <dimen name="volume_dialog_window_width">176dp</dimen>
+-    <dimen name="volume_dialog_width">60dp</dimen>
++    <!-- Kompakt: the volume dialog is a sixth smaller, and its ringer drawer keeps the pill corners. -->
++    <dimen name="volume_dialog_width">50dp</dimen>
+ 
+-    <dimen name="volume_dialog_background_corner_radius">30dp</dimen>
++    <dimen name="volume_dialog_background_corner_radius">25dp</dimen>
+     <!-- top margin covers half the ringer button + components spacing -->
+-    <dimen name="volume_dialog_background_top_margin">-28dp</dimen>
++    <dimen name="volume_dialog_background_top_margin">-24dp</dimen>
+     <dimen name="volume_dialog_background_margin">6dp</dimen>
+     <dimen name="volume_dialog_background_margin_negative">-6dp</dimen>
+ 
+@@ -2247,9 +2248,9 @@
+     </dimen>
+     <dimen name="volume_dialog_floating_sliders_horizontal_padding">4dp</dimen>
+     <dimen name="volume_dialog_floating_sliders_vertical_padding">10dp</dimen>
+-    <dimen name="volume_dialog_button_size">48dp</dimen>
+-    <dimen name="volume_dialog_slider_width">52dp</dimen>
+-    <dimen name="volume_dialog_slider_height">254dp</dimen>
++    <dimen name="volume_dialog_button_size">40dp</dimen>
++    <dimen name="volume_dialog_slider_width">44dp</dimen>
++    <dimen name="volume_dialog_slider_height">212dp</dimen>
+     <!--
+         A primary goal of this margin is to vertically constraint slider height in the landscape
+         orientation when the vertical space is limited
+@@ -2259,11 +2260,11 @@
+     <dimen name="volume_dialog_half_opened_offset">-128dp</dimen>
+     <dimen name="volume_dialog_slider_max_deviation">56dp</dimen>
+ 
+-    <dimen name="volume_dialog_background_square_corner_radius">12dp</dimen>
++    <dimen name="volume_dialog_background_square_corner_radius">@dimen/volume_dialog_background_corner_radius</dimen>
+ 
+     <dimen name="volume_dialog_ringer_drawer_button_size">@dimen/volume_dialog_button_size</dimen>
+-    <dimen name="volume_dialog_ringer_drawer_button_icon_radius">10dp</dimen>
+-    <dimen name="volume_dialog_ringer_selected_button_background_radius">20dp</dimen>
++    <dimen name="volume_dialog_ringer_drawer_button_icon_radius">8dp</dimen>
++    <dimen name="volume_dialog_ringer_selected_button_background_radius">16dp</dimen>
+ 
+     <dimen name="volume_panel_slice_vertical_padding">8dp</dimen>
+     <dimen name="volume_panel_slice_horizontal_padding">24dp</dimen>
+diff --git a/packages/SystemUI/res/xml/volume_dialog_ringer_drawer_motion_scene.xml b/packages/SystemUI/res/xml/volume_dialog_ringer_drawer_motion_scene.xml
+index 4c3dbd78cc3e..a90c54c459f6 100644
+--- a/packages/SystemUI/res/xml/volume_dialog_ringer_drawer_motion_scene.xml
++++ b/packages/SystemUI/res/xml/volume_dialog_ringer_drawer_motion_scene.xml
+@@ -20,7 +20,7 @@
+         android:id="@+id/close_to_open_transition"
+         app:constraintSetEnd="@+id/volume_dialog_ringer_drawer_open"
+         app:constraintSetStart="@+id/volume_dialog_ringer_drawer_close"
+-        app:duration="400"
++        app:duration="1"
+         app:transitionEasing="cubic(0.05, 0.7, 0.1, 1.0)" />
+ 
+     <ConstraintSet android:id="@+id/volume_dialog_ringer_drawer_close" />
+diff --git a/packages/SystemUI/src/com/android/systemui/volume/dialog/sliders/ui/VolumeDialogOverscrollViewBinder.kt b/packages/SystemUI/src/com/android/systemui/volume/dialog/sliders/ui/VolumeDialogOverscrollViewBinder.kt
+index fa3b63cb25e6..352ceaf161af 100644
+--- a/packages/SystemUI/src/com/android/systemui/volume/dialog/sliders/ui/VolumeDialogOverscrollViewBinder.kt
++++ b/packages/SystemUI/src/com/android/systemui/volume/dialog/sliders/ui/VolumeDialogOverscrollViewBinder.kt
+@@ -45,6 +45,8 @@ constructor(
+      * NOT animated by default.
+      */
+     fun CoroutineScope.bind(view: View, viewsToAnimate: Array<View>) {
++        // Kompakt: dragging past either end no longer moves the dialog.
++        if (true) return
+         val animationValueHolder = FloatValueHolder(0f)
+         val animation: SpringAnimation =
+             SpringAnimation(animationValueHolder)
+-- 
+2.43.0
+

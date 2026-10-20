@@ -1,0 +1,33 @@
+From cf56490a18eb486acdb5b4892ecf850db904040a Mon Sep 17 00:00:00 2001
+From: Gezim <25499045+gezimos@users.noreply.github.com>
+Date: Sun, 11 Oct 2026 13:19:34 +0200
+Subject: [PATCH] Kompakt: no visualizer
+
+A visualizer is a picture that never stops moving, which on e-ink is a
+constant repaint. Its button is hidden by the overlay and the call it made
+does nothing, so the visualizer cannot start.
+
+Change-Id: I89f0a1170a8d2f9820530ae9133118932aaf5a90
+---
+ .../org/lineageos/twelve/viewmodels/NowPlayingViewModel.kt   | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/app/src/main/java/org/lineageos/twelve/viewmodels/NowPlayingViewModel.kt b/app/src/main/java/org/lineageos/twelve/viewmodels/NowPlayingViewModel.kt
+index bdf27a1..6a40ae7 100644
+--- a/app/src/main/java/org/lineageos/twelve/viewmodels/NowPlayingViewModel.kt
++++ b/app/src/main/java/org/lineageos/twelve/viewmodels/NowPlayingViewModel.kt
+@@ -470,9 +470,8 @@ open class NowPlayingViewModel(application: Application) : TwelveViewModel(appli
+         typedRepeatMode = typedRepeatMode.next()
+     }
+ 
+-    fun nextVisualizerType() {
+-        _currentVisualizerType.value = _currentVisualizerType.value.next()
+-    }
++    // Kompakt: no visualizer; a moving picture is a constant repaint on e-ink.
++    fun nextVisualizerType() {}
+ 
+     suspend fun toggleFavorites() {
+         audio.value.getOrNull()?.let {
+-- 
+2.43.0
+

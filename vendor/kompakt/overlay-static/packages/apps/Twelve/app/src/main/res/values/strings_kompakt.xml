@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: the shuffle button says Play. -->
+<resources>
+    <string name="play_random_songs">Play</string>
+</resources>

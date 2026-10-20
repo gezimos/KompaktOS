@@ -1,0 +1,47 @@
+[
+    {
+        "name": "kompakt-serif",
+        "fonts": [
+            {
+                "file": "KompaktNotoSerif-Regular.ttf",
+                "weight": "400",
+                "style": "normal"
+            },
+            {
+                "file": "KompaktNotoSerif-Italic.ttf",
+                "weight": "400",
+                "style": "italic"
+            },
+            {
+                "file": "KompaktNotoSerif-Medium.ttf",
+                "weight": "500",
+                "style": "normal"
+            },
+            {
+                "file": "KompaktNotoSerif-MediumItalic.ttf",
+                "weight": "500",
+                "style": "italic"
+            },
+            {
+                "file": "KompaktNotoSerif-SemiBold.ttf",
+                "weight": "600",
+                "style": "normal"
+            },
+            {
+                "file": "KompaktNotoSerif-SemiBoldItalic.ttf",
+                "weight": "600",
+                "style": "italic"
+            },
+            {
+                "file": "KompaktNotoSerif-Bold.ttf",
+                "weight": "700",
+                "style": "normal"
+            },
+            {
+                "file": "KompaktNotoSerif-BoldItalic.ttf",
+                "weight": "700",
+                "style": "italic"
+            }
+        ]
+    }
+]

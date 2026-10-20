@@ -1,0 +1,149 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Tue, 6 Oct 2026 11:10:00 +0200
+Subject: [PATCH 1/1] Kompakt: events in the ink and agenda rows on the page
+
+---
+diff --git a/app/src/main/java/com/android/calendar/Utils.java b/app/src/main/java/com/android/calendar/Utils.java
+--- a/app/src/main/java/com/android/calendar/Utils.java
++++ b/app/src/main/java/com/android/calendar/Utils.java
+@@ -889,6 +889,10 @@
+      * @param color
+      */
+     public static int getDisplayColorFromColor(Context context, int color) {
++        // Kompakt: every event is drawn in the ink.
++        if (context != null) {
++            return context.getColor(R.color.kompakt_event_ink);
++        }
+         if (!Utils.getSharedPreference(context, GeneralPreferences.KEY_REAL_EVENT_COLORS, false)) {
+             float[] hsv = new float[3];
+             Color.colorToHSV(color, hsv);
+diff --git a/app/src/main/res/drawable/agenda_item_bg_primary.xml b/app/src/main/res/drawable/agenda_item_bg_primary.xml
+--- a/app/src/main/res/drawable/agenda_item_bg_primary.xml
++++ b/app/src/main/res/drawable/agenda_item_bg_primary.xml
+@@ -1,28 +1,4 @@
+ <?xml version="1.0" encoding="utf-8"?>
+-<!-- Copyright (C) 2011 The Android Open Source Project
+-
+-     Licensed under the Apache License, Version 2.0 (the "License");
+-     you may not use this file except in compliance with the License.
+-     You may obtain a copy of the License at
+-
+-          http://www.apache.org/licenses/LICENSE-2.0
+-
+-     Unless required by applicable law or agreed to in writing, software
+-     distributed under the License is distributed on an "AS IS" BASIS,
+-     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-     See the License for the specific language governing permissions and
+-     limitations under the License.
+--->
+-
+-<selector xmlns:android="http://schemas.android.com/apk/res/android"
+-        android:exitFadeDuration="@android:integer/config_mediumAnimTime">
+-    <item
+-        android:state_focused="false"
+-        android:state_pressed="false"
+-        android:drawable="@drawable/list_primary_holo" />
+-    <item
+-        android:state_focused="true"
+-        android:drawable="@drawable/list_focused_holo" />
+-    <item
+-        android:drawable="@drawable/list_pressed_holo" />
+-</selector>
++<!-- Kompakt: agenda rows are the page, past or not; the day headers draw the dividers. -->
++<color xmlns:android="http://schemas.android.com/apk/res/android"
++    android:color="@color/kompakt_event_page" />
+diff --git a/app/src/main/res/drawable/agenda_item_bg_secondary.xml b/app/src/main/res/drawable/agenda_item_bg_secondary.xml
+--- a/app/src/main/res/drawable/agenda_item_bg_secondary.xml
++++ b/app/src/main/res/drawable/agenda_item_bg_secondary.xml
+@@ -1,28 +1,4 @@
+ <?xml version="1.0" encoding="utf-8"?>
+-<!-- Copyright (C) 2011 The Android Open Source Project
+-
+-     Licensed under the Apache License, Version 2.0 (the "License");
+-     you may not use this file except in compliance with the License.
+-     You may obtain a copy of the License at
+-
+-          http://www.apache.org/licenses/LICENSE-2.0
+-
+-     Unless required by applicable law or agreed to in writing, software
+-     distributed under the License is distributed on an "AS IS" BASIS,
+-     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-     See the License for the specific language governing permissions and
+-     limitations under the License.
+--->
+-
+-<selector xmlns:android="http://schemas.android.com/apk/res/android"
+-        android:exitFadeDuration="@android:integer/config_mediumAnimTime">
+-    <item
+-        android:state_focused="false"
+-        android:state_pressed="false"
+-        android:drawable="@drawable/list_secondary_holo" />
+-    <item
+-        android:state_focused="true"
+-        android:drawable="@drawable/list_focused_holo" />
+-    <item
+-        android:drawable="@drawable/list_pressed_holo" />
+-</selector>
++<!-- Kompakt: agenda rows are the page, past or not; the day headers draw the dividers. -->
++<color xmlns:android="http://schemas.android.com/apk/res/android"
++    android:color="@color/kompakt_event_page" />
+diff --git a/app/src/main/res/values-night/colors.xml b/app/src/main/res/values-night/colors.xml
+--- a/app/src/main/res/values-night/colors.xml
++++ b/app/src/main/res/values-night/colors.xml
+@@ -105,7 +105,7 @@
+     <color name="month_week_num_color">#fffffffe</color>
+     <color name="new_event_hint_text_color">#fffffffe</color>
+     <color name="panel_text_foreground">#fffffffe</color>
+-    <color name="pressed">#33ffffff</color>
++    <color name="pressed">#fffffffe</color>
+     <color name="recurrence_bubble_text_normal">#fffffffe</color>
+     <color name="recurrence_picker_background">#ff000000</color>
+     <color name="spinner_privacy_popupBackground">#ff000000</color>
+@@ -116,4 +116,6 @@
+     <color name="week_today">#fffffffe</color>
+     <color name="kompakt_now_line">#fffffffe</color>
+     <color name="kompakt_dialog_surface">@android:color/system_surface_container_high_dark</color>
++    <color name="kompakt_event_ink">#fffffffe</color>
++    <color name="kompakt_event_page">#ff000000</color>
+ </resources>
+diff --git a/app/src/main/res/values/colors.xml b/app/src/main/res/values/colors.xml
+--- a/app/src/main/res/values/colors.xml
++++ b/app/src/main/res/values/colors.xml
+@@ -26,7 +26,7 @@
+     <color name="titleTextColor">#fffffffe</color>
+     <color name="app_bar">#ff000000</color>
+ 
+-    <color name="pressed">#33000000</color>
++    <color name="pressed">#ff000000</color>
+ 
+     <color name="selection">#ff000000</color>
+ 
+@@ -232,7 +232,7 @@
+     <color name="calendar_grid_line_inner_horizontal_color_black">@color/grid_line_black</color>
+     <color name="calendar_grid_line_inner_vertical_color_black">@color/grid_line_black</color>
+     <color name="calendar_grid_line_highlight_color_black">#fffffffe</color>
+-    <color name="pressed_black">#33ffffff</color>
++    <color name="pressed_black">#fffffffe</color>
+     <color name="day_event_clicked_background_color_black">#ff000000</color>
+     <color name="calendar_event_text_color_black">#fffffffe</color>
+     <color name="month_event_other_color_black">#fffffffe</color>
+@@ -335,7 +335,7 @@
+     <color name="calendar_grid_line_inner_horizontal_color_dark">@color/grid_line_dark</color>
+     <color name="calendar_grid_line_inner_vertical_color_dark">@color/grid_line_dark</color>
+     <color name="calendar_grid_line_highlight_color_dark">#fffffffe</color>
+-    <color name="pressed_dark">#33ffffff</color>
++    <color name="pressed_dark">#fffffffe</color>
+     <color name="day_event_clicked_background_color_dark">#ff000000</color>
+     <color name="calendar_event_text_color_dark">#fffffffe</color>
+     <color name="month_event_other_color_dark">#fffffffe</color>
+@@ -438,4 +438,6 @@
+     <color name="kompakt_fab_icon">#fffffffe</color>
+     <color name="kompakt_now_line">#ff000000</color>
+     <color name="kompakt_dialog_surface">@android:color/system_surface_container_high_light</color>
++    <color name="kompakt_event_ink">#ff000000</color>
++    <color name="kompakt_event_page">#fffffffe</color>
+ </resources>
+-- 
+2.43.0
+

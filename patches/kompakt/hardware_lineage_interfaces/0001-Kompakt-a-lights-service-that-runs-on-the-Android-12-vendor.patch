@@ -1,0 +1,51 @@
+From e868cfc3ebb0bd509792c0cadec3b66c4ea4ae00 Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Tue, 13 Oct 2026 12:00:00 +0200
+Subject: [PATCH] Kompakt: a lights service that runs on the Android 12 vendor
+
+---
+ light/Android.bp | 31 +++++++++++++++++++++++++++++++
+ 1 file changed, 31 insertions(+)
+
+diff --git a/light/Android.bp b/light/Android.bp
+index 82efed2..e42fca4 100644
+--- a/light/Android.bp
++++ b/light/Android.bp
+@@ -35,3 +35,34 @@ cc_binary {
+         "android.hardware.light-V2-ndk",
+     ],
+ }
++
++// Kompakt: the same service for a vendor on the Android 12 VNDK (v31), which
++// has no android.hardware.light-V2-ndk and an older libbase and libc++. Those
++// are linked in; only LLNDK libraries come from the system.
++cc_binary {
++    name: "android.hardware.light-service.kompakt",
++    defaults: ["hidl_defaults"],
++    vendor: true,
++    relative_install_path: "hw",
++    srcs: [
++        "devices/BacklightDevice.cpp",
++        "devices/LedDevice.cpp",
++        "devices/RgbLedDevice.cpp",
++        "models/Color.cpp",
++        "models/State.cpp",
++        "Devices.cpp",
++        "Lights.cpp",
++        "Utils.cpp",
++        "service.cpp",
++    ],
++    local_include_dirs: ["."],
++    stl: "c++_static",
++    static_libs: [
++        "libbase",
++        "android.hardware.light-V2-ndk",
++    ],
++    shared_libs: [
++        "libbinder_ndk",
++        "liblog",
++    ],
++}
+-- 
+2.50.1 (Apple Git-155)
+

@@ -1,0 +1,124 @@
+From a052c3c29ddf53a4735f4eebf42cdf883269b33f Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sat, 10 Oct 2026 12:28:52 +0200
+Subject: [PATCH 090/101] Kompakt: the bouncer and the lockscreen swap in one
+ frame
+
+Change-Id: I13d00617a1e098b78b7d1567dcbab0e1f99cc58d
+---
+ .../systemui/bouncer/ui/composable/BouncerContent.kt      | 8 +++++---
+ .../android/systemui/bouncer/ui/composable/PinBouncer.kt  | 3 ++-
+ .../transitions/FromBouncerToLockscreenTransition.kt      | 4 +++-
+ .../ui/composable/transitions/FromBouncerTransition.kt    | 4 +++-
+ .../ui/composable/transitions/ToBouncerTransition.kt      | 4 +++-
+ 5 files changed, 16 insertions(+), 7 deletions(-)
+
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/bouncer/ui/composable/BouncerContent.kt b/packages/SystemUI/compose/features/src/com/android/systemui/bouncer/ui/composable/BouncerContent.kt
+index 4c981fb3925d..535c25dad5e0 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/bouncer/ui/composable/BouncerContent.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/bouncer/ui/composable/BouncerContent.kt
+@@ -711,7 +711,8 @@ private fun StatusMessage(viewModel: BouncerMessageViewModel, modifier: Modifier
+     Crossfade(
+         targetState = message,
+         label = "Bouncer message",
+-        animationSpec = if (message?.isUpdateAnimated == true) tween() else snap(),
++        // Kompakt: the message changes in one frame too.
++        animationSpec = snap(),
+         modifier = modifier.fillMaxWidth(),
+     ) { msg ->
+         // Kompakt: centre wrapped lines too, and keep off the panel edges.
+@@ -803,8 +804,9 @@ private fun InputArea(
+ private fun ActionArea(viewModel: BouncerOverlayContentViewModel, modifier: Modifier = Modifier) {
+     val actionButton: BouncerActionButtonModel? by
+         viewModel.actionButton.collectAsStateWithLifecycle()
+-    val appearFadeInAnimatable = remember { Animatable(0f) }
+-    val appearMoveAnimatable = remember { Animatable(0f) }
++    // Kompakt: the emergency button is there with the pad, not 133 ms late and sliding.
++    val appearFadeInAnimatable = remember { Animatable(1f) }
++    val appearMoveAnimatable = remember { Animatable(1f) }
+     val appearAnimationInitialOffset = with(LocalDensity.current) { 80.dp.toPx() }
+ 
+     actionButton?.let { actionButtonModel ->
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/bouncer/ui/composable/PinBouncer.kt b/packages/SystemUI/compose/features/src/com/android/systemui/bouncer/ui/composable/PinBouncer.kt
+index 4e8c2697cac6..48a44c7c3451 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/bouncer/ui/composable/PinBouncer.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/bouncer/ui/composable/PinBouncer.kt
+@@ -212,7 +212,8 @@ private fun ActionButton(
+     scaling: () -> Float,
+ ) {
+     val isHidden = appearance == ActionButtonAppearance.Hidden
+-    val hiddenAlpha by animateFloatAsState(if (isHidden) 0f else 1f, label = "Action button alpha")
++    // Kompakt: no fade for the backspace and enter keys.
++    val hiddenAlpha = if (isHidden) 0f else 1f
+ 
+     val foregroundColor = MaterialTheme.colorScheme.onSurface
+ 
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/FromBouncerToLockscreenTransition.kt b/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/FromBouncerToLockscreenTransition.kt
+index 78f86e5f101c..95e36c14d486 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/FromBouncerToLockscreenTransition.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/FromBouncerToLockscreenTransition.kt
+@@ -16,6 +16,7 @@
+ 
+ package com.android.systemui.scene.ui.composable.transitions
+ 
++import androidx.compose.animation.core.snap
+ import androidx.compose.animation.core.tween
+ import androidx.compose.ui.unit.dp
+ import com.android.compose.animation.scene.TransitionBuilder
+@@ -23,7 +24,8 @@ import com.android.systemui.plugins.keyguard.ui.composable.elements.LockscreenEl
+ import kotlin.time.Duration.Companion.milliseconds
+ 
+ fun TransitionBuilder.bouncerToLockscreenTransition(durationScale: Double = 1.0) {
+-    spec = tween(durationMillis = (DefaultDuration * durationScale).inWholeMilliseconds.toInt())
++    // Kompakt: one frame; the lockscreen shortcuts came back 400 ms late with the 500 ms tween.
++    spec = snap()
+ 
+     fromBouncerTransition()
+ 
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/FromBouncerTransition.kt b/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/FromBouncerTransition.kt
+index 3d604444fb47..cc3ccb104255 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/FromBouncerTransition.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/FromBouncerTransition.kt
+@@ -16,6 +16,7 @@
+ 
+ package com.android.systemui.scene.ui.composable.transitions
+ 
++import androidx.compose.animation.core.snap
+ import androidx.compose.animation.core.tween
+ import androidx.compose.ui.unit.dp
+ import com.android.compose.animation.scene.TransitionBuilder
+@@ -25,7 +26,8 @@ import com.android.systemui.bouncer.ui.composable.Bouncer
+ val BOUNCER_INITIAL_TRANSLATION = 48.dp
+ 
+ fun TransitionBuilder.fromBouncerTransition() {
+-    spec = tween(durationMillis = 500)
++    // Kompakt: and gone in one frame; the fades below only matter while a finger drives it.
++    spec = snap()
+ 
+     distance = UserActionDistance { fromContent, _, _ ->
+         val fromContentSize = checkNotNull(fromContent.targetSize())
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/ToBouncerTransition.kt b/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/ToBouncerTransition.kt
+index 2da725274b01..080905b922a1 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/ToBouncerTransition.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/ToBouncerTransition.kt
+@@ -16,6 +16,7 @@
+ 
+ package com.android.systemui.scene.ui.composable.transitions
+ 
++import androidx.compose.animation.core.snap
+ import androidx.compose.animation.core.tween
+ import com.android.compose.animation.scene.TransitionBuilder
+ import com.android.compose.animation.scene.UserActionDistance
+@@ -25,7 +26,8 @@ const val TO_BOUNCER_FADE_FRACTION = 0.5f
+ const val TO_BOUNCER_SWIPE_DISTANCE_FRACTION = 0.5f
+ 
+ fun TransitionBuilder.toBouncerTransition() {
+-    spec = tween(durationMillis = 250)
++    // Kompakt: the bouncer is there in one frame.
++    spec = snap()
+ 
+     distance = UserActionDistance { fromContent, _, _ ->
+         val fromContentSize = checkNotNull(fromContent.targetSize())
+-- 
+2.43.0
+

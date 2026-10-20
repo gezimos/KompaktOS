@@ -1,0 +1,32 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Wed, 7 Oct 2026 12:00:00 +0000
+Subject: [PATCH] Kompakt: Orange France attaches dual stack, as on MuditaOS
+
+---
+diff --git a/FR.xml b/FR.xml
+--- a/FR.xml
++++ b/FR.xml
+@@ -305,7 +305,8 @@
+         mnc="01"
+         carrier="Orange World"
+         apn=""
+-        protocol="IPV6"
++        protocol="IPV4V6"
++        roaming_protocol="IPV4V6"
+         type="ia"
+     />
+     <apn
+@@ -317,7 +318,8 @@
+         bearer_bitmask="1|2|3|9|10|11|13|14|15|20"
+         mmsc="http://mms.orange.fr"
+         password="orange"
+-        protocol="IPV6"
++        protocol="IPV4V6"
++        roaming_protocol="IPV4V6"
+         type="default,dun,supl,xcap,mms"
+         user="orange"
+     />
+-- 
+2.43.0
+

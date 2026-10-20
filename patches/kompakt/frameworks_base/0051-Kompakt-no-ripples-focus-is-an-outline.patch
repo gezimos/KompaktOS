@@ -1,0 +1,78 @@
+From 0351cbefbdb9302692567a1123e90ba03040fbd1 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Mon, 5 Oct 2026 18:00:00 +0200
+Subject: [PATCH 51/99] Kompakt: no ripples, focus is an outline
+
+---
+ .../graphics/drawable/RippleDrawable.java     | 41 ++++++++++++++++++-
+ 1 file changed, 39 insertions(+), 2 deletions(-)
+
+diff --git a/graphics/java/android/graphics/drawable/RippleDrawable.java b/graphics/java/android/graphics/drawable/RippleDrawable.java
+index 641a2ae7b2c3..b945eede9112 100644
+--- a/graphics/java/android/graphics/drawable/RippleDrawable.java
++++ b/graphics/java/android/graphics/drawable/RippleDrawable.java
+@@ -195,6 +195,10 @@ public class RippleDrawable extends LayerDrawable {
+     /** Whether we expect to draw a ripple when visible. */
+     private boolean mRippleActive;
+ 
++    // Kompakt: focus is the only state drawn, as an outline; see drawKompaktFocus.
++    private boolean mKompaktFocused;
++    private Paint mKompaktFocusPaint;
++
+     // Hotspot coordinates that are awaiting activation.
+     private float mPendingX;
+     private float mPendingY;
+@@ -337,8 +341,14 @@ public class RippleDrawable extends LayerDrawable {
+                 windowFocused = true;
+             }
+         }
+-        setRippleActive(enabled && pressed);
+-        setBackgroundActive(hovered, focused, pressed, windowFocused);
++        // Kompakt: an e-ink panel has no partial alpha, so a ripple is a dither pattern that
++        // spreads under the finger and stays while it is held. No press ripple and no hover or
++        // focus wash; focus is drawn as an outline instead, so a D-pad still shows where it is.
++        final boolean kompaktFocused = enabled && focused;
++        if (mKompaktFocused != kompaktFocused) {
++            mKompaktFocused = kompaktFocused;
++            invalidateSelf();
++        }
+ 
+         return changed;
+     }
+@@ -810,6 +820,33 @@ public class RippleDrawable extends LayerDrawable {
+         } else {
+             drawPatterned(canvas);
+         }
++        if (mKompaktFocused) {
++            drawKompaktFocus(canvas);
++        }
++    }
++
++    /**
++     * Kompakt: the focus mark, a 2dp outline in the ripple's ink at full opacity: black for
++     * a dark ripple, white for a light one. Round for a borderless ripple.
++     */
++    private void drawKompaktFocus(Canvas canvas) {
++        if (mKompaktFocusPaint == null) {
++            mKompaktFocusPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
++            mKompaktFocusPaint.setStyle(Paint.Style.STROKE);
++        }
++        final int color = mState.mColor.getColorForState(getState(), Color.BLACK);
++        final float width = 2f * Resources.getSystem().getDisplayMetrics().density;
++        final Paint p = mKompaktFocusPaint;
++        p.setColor(Color.luminance(color | 0xff000000) > 0.5f ? Color.WHITE : Color.BLACK);
++        p.setStrokeWidth(width);
++        final Rect b = getBounds();
++        final float inset = width / 2f;
++        if (isBounded()) {
++            canvas.drawRect(b.left + inset, b.top + inset, b.right - inset, b.bottom - inset, p);
++        } else {
++            canvas.drawCircle(b.exactCenterX(), b.exactCenterY(),
++                    Math.min(b.width(), b.height()) / 2f - inset, p);
++        }
+     }
+ 
+     private void drawSolid(Canvas canvas) {
+-- 
+2.43.0
+

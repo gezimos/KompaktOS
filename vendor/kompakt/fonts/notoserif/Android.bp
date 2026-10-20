@@ -1,0 +1,59 @@
+// Kompakt: Noto Serif 2.015 (SIL OFL 1.1, see OFL.txt), one file per weight, from
+// github.com/notofonts. The system's own Noto Serif has only Regular and Bold, so Settings
+// titles (Medium) came out Regular; the Noto Serif choice in the Kompakt app uses this family.
+// The files carry a Kompakt prefix so they do not replace the system's NotoSerif-*.ttf.
+
+prebuilt_font {
+    name: "KompaktNotoSerif-Regular.ttf",
+    src: "KompaktNotoSerif-Regular.ttf",
+}
+
+prebuilt_font {
+    name: "KompaktNotoSerif-Italic.ttf",
+    src: "KompaktNotoSerif-Italic.ttf",
+}
+
+prebuilt_font {
+    name: "KompaktNotoSerif-Medium.ttf",
+    src: "KompaktNotoSerif-Medium.ttf",
+}
+
+prebuilt_font {
+    name: "KompaktNotoSerif-MediumItalic.ttf",
+    src: "KompaktNotoSerif-MediumItalic.ttf",
+}
+
+prebuilt_font {
+    name: "KompaktNotoSerif-SemiBold.ttf",
+    src: "KompaktNotoSerif-SemiBold.ttf",
+}
+
+prebuilt_font {
+    name: "KompaktNotoSerif-SemiBoldItalic.ttf",
+    src: "KompaktNotoSerif-SemiBoldItalic.ttf",
+}
+
+prebuilt_font {
+    name: "KompaktNotoSerif-Bold.ttf",
+    src: "KompaktNotoSerif-Bold.ttf",
+}
+
+prebuilt_font {
+    name: "KompaktNotoSerif-BoldItalic.ttf",
+    src: "KompaktNotoSerif-BoldItalic.ttf",
+}
+
+filegroup {
+    name: "KompaktNotoSerif",
+    srcs: ["font_config.json"],
+    required: [
+        "KompaktNotoSerif-Regular.ttf",
+        "KompaktNotoSerif-Italic.ttf",
+        "KompaktNotoSerif-Medium.ttf",
+        "KompaktNotoSerif-MediumItalic.ttf",
+        "KompaktNotoSerif-SemiBold.ttf",
+        "KompaktNotoSerif-SemiBoldItalic.ttf",
+        "KompaktNotoSerif-Bold.ttf",
+        "KompaktNotoSerif-BoldItalic.ttf",
+    ],
+}

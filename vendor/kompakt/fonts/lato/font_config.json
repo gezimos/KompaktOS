@@ -1,0 +1,77 @@
+[
+    {
+        "name": "lato",
+        "fonts": [
+            {
+                "file": "Lato-Light.ttf",
+                "weight": "300",
+                "style": "normal"
+            },
+            {
+                "file": "Lato-LightItalic.ttf",
+                "weight": "300",
+                "style": "italic"
+            },
+            {
+                "file": "Lato-Regular.ttf",
+                "weight": "400",
+                "style": "normal"
+            },
+            {
+                "file": "Lato-Italic.ttf",
+                "weight": "400",
+                "style": "italic"
+            },
+            {
+                "file": "Lato-Medium.ttf",
+                "weight": "500",
+                "style": "normal"
+            },
+            {
+                "file": "Lato-MediumItalic.ttf",
+                "weight": "500",
+                "style": "italic"
+            },
+            {
+                "file": "Lato-SemiBold.ttf",
+                "weight": "600",
+                "style": "normal"
+            },
+            {
+                "file": "Lato-SemiBoldItalic.ttf",
+                "weight": "600",
+                "style": "italic"
+            },
+            {
+                "file": "Lato-Bold.ttf",
+                "weight": "700",
+                "style": "normal"
+            },
+            {
+                "file": "Lato-BoldItalic.ttf",
+                "weight": "700",
+                "style": "italic"
+            },
+            {
+                "file": "Lato-Heavy.ttf",
+                "weight": "800",
+                "style": "normal"
+            },
+            {
+                "file": "Lato-HeavyItalic.ttf",
+                "weight": "800",
+                "style": "italic"
+            },
+            {
+                "file": "Lato-Black.ttf",
+                "weight": "900",
+                "style": "normal"
+            },
+            {
+                "file": "Lato-BlackItalic.ttf",
+                "weight": "900",
+                "style": "italic"
+            }
+        ]
+    }
+]

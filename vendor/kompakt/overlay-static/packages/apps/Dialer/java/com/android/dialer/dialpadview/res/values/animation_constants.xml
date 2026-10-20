@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <!-- Kompakt: the dialpad slides with a view Animation, which the system animation scale
+       does not reach, so it slid for 400 ms with animations off. It appears at once. -->
+  <integer name="dialpad_slide_in_duration">0</integer>
+</resources>

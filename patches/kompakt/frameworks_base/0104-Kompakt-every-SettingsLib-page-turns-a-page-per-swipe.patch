@@ -1,0 +1,330 @@
+From 0de98b6712acb834ae014d34ccadd5c057dcca70 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Mon, 12 Oct 2026 20:16:56 +0200
+Subject: [PATCH 104/105] Kompakt: every SettingsLib page turns a page per
+ swipe
+
+Settings pages its lists through its own PagedScroll, attached in
+SettingsPreferenceFragment, so apps that build on SettingsLib's collapsing
+toolbar base (LineageParts, PermissionController, DeviceDiagnostics,
+CellBroadcastReceiver) still scrolled with the finger. KompaktPaging, a copy
+of Settings' PagedScroll and PageGestureListener, is attached to every plain
+vertical list in the fragments those activities and fragments host; lists
+that already page, grids and carousels keep their own layout manager.
+
+Change-Id: I634cf0d8494a3e982aefe5c64f4fb114038bb005
+---
+ .../CollapsingToolbarBaseActivity/Android.bp  |   2 +
+ .../CollapsingToolbarAppCompatActivity.java   |   3 +
+ .../CollapsingToolbarBaseActivity.java        |   3 +
+ .../CollapsingToolbarBaseFragment.java        |   3 +
+ .../collapsingtoolbar/KompaktPaging.java      | 242 ++++++++++++++++++
+ 5 files changed, 253 insertions(+)
+ create mode 100644 packages/SettingsLib/CollapsingToolbarBaseActivity/src/com/android/settingslib/collapsingtoolbar/KompaktPaging.java
+
+diff --git a/packages/SettingsLib/CollapsingToolbarBaseActivity/Android.bp b/packages/SettingsLib/CollapsingToolbarBaseActivity/Android.bp
+index 548e24ee4523..b9c80e019e2d 100644
+--- a/packages/SettingsLib/CollapsingToolbarBaseActivity/Android.bp
++++ b/packages/SettingsLib/CollapsingToolbarBaseActivity/Android.bp
+@@ -27,6 +27,8 @@ android_library {
+         "androidx.activity_activity",
+         "androidx.annotation_annotation",
+         "androidx.core_core",
++        "androidx.fragment_fragment",
++        "androidx.recyclerview_recyclerview",
+         "com.google.android.material_material",
+     ],
+     sdk_version: "system_current",
+diff --git a/packages/SettingsLib/CollapsingToolbarBaseActivity/src/com/android/settingslib/collapsingtoolbar/CollapsingToolbarAppCompatActivity.java b/packages/SettingsLib/CollapsingToolbarBaseActivity/src/com/android/settingslib/collapsingtoolbar/CollapsingToolbarAppCompatActivity.java
+index 55961a44d414..8516898f6e66 100644
+--- a/packages/SettingsLib/CollapsingToolbarBaseActivity/src/com/android/settingslib/collapsingtoolbar/CollapsingToolbarAppCompatActivity.java
++++ b/packages/SettingsLib/CollapsingToolbarBaseActivity/src/com/android/settingslib/collapsingtoolbar/CollapsingToolbarAppCompatActivity.java
+@@ -76,6 +76,9 @@ public class CollapsingToolbarAppCompatActivity extends AppCompatActivity implem
+     protected void onCreate(@Nullable Bundle savedInstanceState) {
+         EdgeToEdgeUtils.enable(this);
+         super.onCreate(savedInstanceState);
++        // Kompakt: lists turn a page per swipe.
++        getSupportFragmentManager().registerFragmentLifecycleCallbacks(
++                KompaktPaging.CALLBACKS, true);
+ 
+         getToolbarDelegate().registerToolbarCollapseBehavior(this);
+ 
+diff --git a/packages/SettingsLib/CollapsingToolbarBaseActivity/src/com/android/settingslib/collapsingtoolbar/CollapsingToolbarBaseActivity.java b/packages/SettingsLib/CollapsingToolbarBaseActivity/src/com/android/settingslib/collapsingtoolbar/CollapsingToolbarBaseActivity.java
+index a5bc3b29538c..085720f3a850 100644
+--- a/packages/SettingsLib/CollapsingToolbarBaseActivity/src/com/android/settingslib/collapsingtoolbar/CollapsingToolbarBaseActivity.java
++++ b/packages/SettingsLib/CollapsingToolbarBaseActivity/src/com/android/settingslib/collapsingtoolbar/CollapsingToolbarBaseActivity.java
+@@ -69,6 +69,9 @@ public class CollapsingToolbarBaseActivity extends FragmentActivity implements
+     protected void onCreate(@Nullable Bundle savedInstanceState) {
+         EdgeToEdgeUtils.enable(this);
+         super.onCreate(savedInstanceState);
++        // Kompakt: lists turn a page per swipe.
++        getSupportFragmentManager().registerFragmentLifecycleCallbacks(
++                KompaktPaging.CALLBACKS, true);
+ 
+         getToolbarDelegate().registerToolbarCollapseBehavior(this);
+ 
+diff --git a/packages/SettingsLib/CollapsingToolbarBaseActivity/src/com/android/settingslib/collapsingtoolbar/CollapsingToolbarBaseFragment.java b/packages/SettingsLib/CollapsingToolbarBaseActivity/src/com/android/settingslib/collapsingtoolbar/CollapsingToolbarBaseFragment.java
+index 9183a0ef1a7f..df1169ad0481 100644
+--- a/packages/SettingsLib/CollapsingToolbarBaseActivity/src/com/android/settingslib/collapsingtoolbar/CollapsingToolbarBaseFragment.java
++++ b/packages/SettingsLib/CollapsingToolbarBaseActivity/src/com/android/settingslib/collapsingtoolbar/CollapsingToolbarBaseFragment.java
+@@ -67,6 +67,9 @@ public abstract class CollapsingToolbarBaseFragment extends Fragment {
+         super.onAttach(context);
+         mToolbardelegate =
+                 new CollapsingToolbarDelegate(new DelegateCallback(), useCollapsingToolbar());
++        // Kompakt: lists in this page's child fragments turn a page per swipe.
++        getChildFragmentManager().registerFragmentLifecycleCallbacks(
++                KompaktPaging.CALLBACKS, true);
+     }
+ 
+     @Nullable
+diff --git a/packages/SettingsLib/CollapsingToolbarBaseActivity/src/com/android/settingslib/collapsingtoolbar/KompaktPaging.java b/packages/SettingsLib/CollapsingToolbarBaseActivity/src/com/android/settingslib/collapsingtoolbar/KompaktPaging.java
+new file mode 100644
+index 000000000000..854029a9bcdf
+--- /dev/null
++++ b/packages/SettingsLib/CollapsingToolbarBaseActivity/src/com/android/settingslib/collapsingtoolbar/KompaktPaging.java
+@@ -0,0 +1,242 @@
++/*
++ * SPDX-FileCopyrightText: KompaktOS
++ * SPDX-License-Identifier: Apache-2.0
++ */
++
++package com.android.settingslib.collapsingtoolbar;
++
++import android.content.Context;
++import android.os.Bundle;
++import android.os.SystemClock;
++import android.view.GestureDetector;
++import android.view.MotionEvent;
++import android.view.View;
++import android.view.ViewGroup;
++import android.view.ViewOutlineProvider;
++
++import androidx.annotation.NonNull;
++import androidx.annotation.Nullable;
++import androidx.fragment.app.Fragment;
++import androidx.fragment.app.FragmentManager;
++import androidx.recyclerview.widget.LinearLayoutManager;
++import androidx.recyclerview.widget.RecyclerView;
++
++/**
++ * Kompakt: every vertical list on a SettingsLib page turns a page per swipe, as Settings'
++ * own pages do (Settings' com.kompakt.eink.PagedScroll and PageGestureListener, copied).
++ */
++final class KompaktPaging {
++
++    private KompaktPaging() {}
++
++    /** Pages the lists of every fragment view the host creates, child fragments included. */
++    static final FragmentManager.FragmentLifecycleCallbacks CALLBACKS =
++            new FragmentManager.FragmentLifecycleCallbacks() {
++                @Override
++                public void onFragmentViewCreated(@NonNull FragmentManager fm,
++                        @NonNull Fragment f, @NonNull View v, @Nullable Bundle state) {
++                    attachAll(v);
++                }
++            };
++
++    private static void attachAll(View v) {
++        if (v instanceof RecyclerView) {
++            final RecyclerView rv = (RecyclerView) v;
++            // Only a plain vertical list: grids, carousels and lists that already page keep theirs.
++            final RecyclerView.LayoutManager lm = rv.getLayoutManager();
++            if (lm != null && lm.getClass() == LinearLayoutManager.class
++                    && ((LinearLayoutManager) lm).getOrientation() == RecyclerView.VERTICAL) {
++                attach(rv);
++            }
++            return;
++        }
++        if (v instanceof ViewGroup) {
++            final ViewGroup group = (ViewGroup) v;
++            for (int i = 0; i < group.getChildCount(); i++) attachAll(group.getChildAt(i));
++        }
++    }
++
++    private static void attach(final RecyclerView rv) {
++        // Rows scrolled past the top must not draw above the list.
++        rv.setOutlineProvider(ViewOutlineProvider.BOUNDS);
++        rv.setClipToOutline(true);
++
++        final PagedLayoutManager lm = new PagedLayoutManager(rv.getContext());
++        rv.setLayoutManager(lm);
++
++        final GestureDetector detector = new GestureDetector(rv.getContext(),
++                new PageGestureListener(rv.getContext(), delta -> page(rv, lm, delta)));
++
++        rv.addOnItemTouchListener(new RecyclerView.OnItemTouchListener() {
++            @Override
++            public boolean onInterceptTouchEvent(@NonNull RecyclerView r, @NonNull MotionEvent e) {
++                detector.onTouchEvent(e);
++                return false; // taps go through to the rows
++            }
++
++            @Override
++            public void onTouchEvent(@NonNull RecyclerView r, @NonNull MotionEvent e) {
++            }
++
++            @Override
++            public void onRequestDisallowInterceptTouchEvent(boolean disallow) {
++            }
++        });
++    }
++
++    /** Move by whole pages, measured off the rows that are on screen. */
++    private static boolean page(RecyclerView rv, PagedLayoutManager lm, int delta) {
++        if (delta == 0) return false;
++        final int viewport = rv.getHeight() - rv.getPaddingTop() - rv.getPaddingBottom();
++        if (viewport <= 0) return false;
++
++        // scrollBy() is a no-op while the LayoutManager refuses vertical scrolling.
++        lm.allowProgrammaticScroll = true;
++        try {
++            final long before = mark(lm);
++            for (int i = Math.abs(delta); i > 0; i--) {
++                if (delta > 0) {
++                    forward(rv, lm, viewport);
++                } else {
++                    rv.scrollBy(0, -viewport);
++                    snapTopRowWhole(rv, lm);
++                }
++            }
++            // At either end nothing moves.
++            return mark(lm) != before;
++        } finally {
++            lm.allowProgrammaticScroll = false;
++        }
++    }
++
++    /** Forward one page: to the top of the first row the bottom edge cuts. */
++    private static void forward(RecyclerView rv, PagedLayoutManager lm, int viewport) {
++        final int topEdge = rv.getPaddingTop();
++        final int bottomEdge = rv.getHeight() - rv.getPaddingBottom();
++        int next = Integer.MAX_VALUE;
++        for (int i = 0, n = lm.getChildCount(); i < n; i++) {
++            final View row = lm.getChildAt(i);
++            if (row == null) continue;
++            if (lm.getDecoratedBottom(row) > bottomEdge && lm.getDecoratedTop(row) < next) {
++                next = lm.getDecoratedTop(row);
++            }
++        }
++        int dy = (next == Integer.MAX_VALUE) ? viewport : next - topEdge;
++        // A row taller than the whole page would stand still forever.
++        if (dy <= 0) dy = viewport;
++        rv.scrollBy(0, dy);
++    }
++
++    /** Pull the row under the top edge down until it is whole. */
++    private static void snapTopRowWhole(RecyclerView rv, PagedLayoutManager lm) {
++        final int topEdge = rv.getPaddingTop();
++        for (int i = 0, n = lm.getChildCount(); i < n; i++) {
++            final View row = lm.getChildAt(i);
++            if (row == null) continue;
++            if (lm.getDecoratedTop(row) <= topEdge && lm.getDecoratedBottom(row) > topEdge) {
++                final int dy = lm.getDecoratedTop(row) - topEdge;
++                if (dy < 0) rv.scrollBy(0, dy);
++                return;
++            }
++        }
++    }
++
++    /** Which row is at the top and how far into it the list is. */
++    private static long mark(PagedLayoutManager lm) {
++        final int first = lm.findFirstVisibleItemPosition();
++        if (first == RecyclerView.NO_POSITION) return Long.MIN_VALUE;
++        final View row = lm.findViewByPosition(first);
++        final int top = (row == null) ? 0 : lm.getDecoratedTop(row);
++        return ((long) first << 32) | (top & 0xffffffffL);
++    }
++
++    /** Reports "cannot scroll vertically" to touch handling, so a finger never drags the list. */
++    static final class PagedLayoutManager extends LinearLayoutManager {
++        boolean allowProgrammaticScroll = false;
++
++        PagedLayoutManager(Context context) {
++            super(context);
++        }
++
++        @Override
++        public boolean canScrollVertically() {
++            return allowProgrammaticScroll;
++        }
++
++        /** A jump to a row lands it at the top of the page; the gate above would stop a smooth scroll. */
++        @Override
++        public void smoothScrollToPosition(RecyclerView recyclerView, RecyclerView.State state,
++                int position) {
++            scrollToPositionWithOffset(position, 0);
++        }
++    }
++
++    /** Turns touch into page moves, as inkOS does. */
++    private static final class PageGestureListener
++            extends GestureDetector.SimpleOnGestureListener {
++
++        interface Pager {
++            boolean page(int delta);
++        }
++
++        private static final float THRESHOLD_DP = 56f;
++        private static final long COOLDOWN_MS = 200L;
++        private static final float MIN_FLING_DP_PER_S = 600f;
++        private static final int MAX_FLING_PAGES = 5;
++
++        private final Pager pager;
++        private final float thresholdPx;
++        private final float minFlingPxPerS;
++
++        private float lastPageMoveY;
++        private long lastPageMoveTime;
++        private boolean pagedDuringDrag;
++
++        PageGestureListener(Context context, Pager pager) {
++            this.pager = pager;
++            final float density = context.getResources().getDisplayMetrics().density;
++            this.thresholdPx = Math.max(8f, THRESHOLD_DP * density);
++            this.minFlingPxPerS = MIN_FLING_DP_PER_S * density;
++        }
++
++        @Override
++        public boolean onDown(MotionEvent e) {
++            lastPageMoveY = e.getY();
++            pagedDuringDrag = false;
++            return true;
++        }
++
++        @Override
++        public boolean onScroll(MotionEvent down, MotionEvent now, float dx, float dy) {
++            if (down == null) return false;
++            if (Math.abs(now.getX() - down.getX()) > Math.abs(now.getY() - down.getY())) {
++                return false;
++            }
++            final float travelled = now.getY() - lastPageMoveY;
++            if (Math.abs(travelled) <= thresholdPx) return false;
++            final long t = SystemClock.uptimeMillis();
++            if (t - lastPageMoveTime < COOLDOWN_MS) return false;
++            // Dragging content up means the next page.
++            if (!pager.page(travelled < 0 ? 1 : -1)) return false;
++            lastPageMoveTime = t;
++            lastPageMoveY = now.getY();
++            pagedDuringDrag = true;
++            return true;
++        }
++
++        @Override
++        public boolean onFling(MotionEvent down, MotionEvent up, float vx, float vy) {
++            // A drag that already paged must not page again on lift.
++            if (pagedDuringDrag) return false;
++            if (Math.abs(vy) < Math.abs(vx)) return false;
++            if (Math.abs(vy) < minFlingPxPerS) return false;
++            if (down != null && up != null
++                    && Math.abs(up.getY() - down.getY()) < thresholdPx) {
++                return false;
++            }
++            final int pages = Math.max(1,
++                    Math.min(MAX_FLING_PAGES, (int) (Math.abs(vy) / minFlingPxPerS)));
++            return pager.page(vy < 0 ? pages : -pages);
++        }
++    }
++}
+-- 
+2.43.0
+

@@ -1,0 +1,31 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sat, 10 Oct 2026 20:00:00 +0000
+Subject: [PATCH] Kompakt: the empty Recents state is drawn at its final size
+
+The Recents key shows Overview through a recents animation that starts
+the view at the app window scale and settles to the overview scale. The
+"No recent items" icon and text are drawn inside that scaled view, so they
+appeared large and then shrank: two repaints, and the large one could be
+left on the panel. They are now drawn with the view scale undone.
+
+---
+diff --git a/quickstep/src/com/android/quickstep/views/RecentsView.java b/quickstep/src/com/android/quickstep/views/RecentsView.java
+--- a/quickstep/src/com/android/quickstep/views/RecentsView.java
++++ b/quickstep/src/com/android/quickstep/views/RecentsView.java
+@@ -5784,6 +5784,12 @@
+             int offset = (mEmptyIcon.getIntrinsicHeight() + mEmptyMessagePadding) / 2;
+ 
+             canvas.save();
++            // Kompakt: undo the view's own scale, so the empty state is drawn at its final size
++            // from the first frame instead of shrinking into place (two repaints on e-ink).
++            if (getScaleX() > 0 && getScaleY() > 0) {
++                canvas.scale(1f / getScaleX(), 1f / getScaleY(),
++                        getScrollX() + getPivotX(), getPivotY());
++            }
+             canvas.translate(getScrollX() + (mInsets.left - mInsets.right) / 2f,
+                     (mInsets.top - mInsets.bottom) / 2f - offset);
+             mEmptyIcon.draw(canvas);
+-- 
+2.43.0
+

@@ -1,0 +1,152 @@
+From 0b904e11e124b73f57cb42bdfa56f37357de1d45 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Fri, 9 Oct 2026 21:43:26 +0200
+Subject: [PATCH 088/101] Kompakt: a Bars battery style, as on MuditaOS
+
+Change-Id: I164f6a2d35b8f758314867d066f2b54d2fffcc40
+---
+ .../battery/ui/composable/UnifiedBattery.kt   | 81 +++++++++++++++++--
+ 1 file changed, 76 insertions(+), 5 deletions(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/pipeline/battery/ui/composable/UnifiedBattery.kt b/packages/SystemUI/src/com/android/systemui/statusbar/pipeline/battery/ui/composable/UnifiedBattery.kt
+index 5d46c7639e12..ef257e6b4ff6 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/pipeline/battery/ui/composable/UnifiedBattery.kt
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/pipeline/battery/ui/composable/UnifiedBattery.kt
+@@ -219,10 +219,7 @@ fun BatteryLayout(
+         content = {
+             val iconStyle = iconStyleProvider()
+ 
+-            if (
+-                iconStyle == BatteryRepository.ICON_STYLE_CIRCLE ||
+-                    iconStyle == BatteryRepository.ICON_STYLE_CIRCLE_DOTTED
+-            ) {
++            if (iconStyle == BatteryRepository.ICON_STYLE_CIRCLE) {
+                 CircleBatteryBody(
+                     attr = attribution,
+                     iconStyleProvider = iconStyleProvider,
+@@ -234,6 +231,24 @@ fun BatteryLayout(
+                 )
+             } else if (iconStyle == BatteryRepository.ICON_STYLE_TEXT) {
+                 // Empty on purpose
++            } else if (iconStyle == BatteryRepository.ICON_STYLE_CIRCLE_DOTTED) {
++                // Kompakt: Bars, MuditaOS's battery, in the dotted circle's slot and the default's box.
++                BarsBatteryBody(
++                    levelProvider = levelProvider,
++                    colorsProvider = colorsProvider,
++                    modifier = Modifier.layoutId(BatteryMeasurePolicy.LayoutId.FrameBars),
++                    contentDescription = contentDescription,
++                )
++                if (attribution != null) {
++                    BatteryAttribution(
++                        attr = attribution,
++                        colorsProvider = colorsProvider,
++                        modifier =
++                            Modifier.layoutId(
++                                BatteryMeasurePolicy.LayoutId.Attribution(wrapped = attribution)
++                            ),
++                    )
++                }
+             } else {
+                 BatteryBody(
+                     pathSpec = BatteryFrame.bodyPathSpec,
+@@ -275,6 +290,9 @@ class BatteryMeasurePolicy : MeasurePolicy {
+ 
+         data object FrameCircle : LayoutId()
+ 
++        // Kompakt: the four-bar battery, narrower than the default frame.
++        data object FrameBars : LayoutId()
++
+         data object Cap : LayoutId()
+ 
+         // We don't have to depend on the whole [BatteryGlyph] here, we just need to know the
+@@ -288,13 +306,21 @@ class BatteryMeasurePolicy : MeasurePolicy {
+     ): MeasureResult {
+         val batteryFrame =
+             measurables.fastFirstOrNull {
+-                it.layoutId == LayoutId.Frame || it.layoutId == LayoutId.FrameCircle
++                it.layoutId == LayoutId.Frame || it.layoutId == LayoutId.FrameCircle ||
++                    it.layoutId == LayoutId.FrameBars
+             } ?: return layout(0, 0) {}
+ 
+         // We will scale the entire battery icon based on the given height
+         val scale = constraints.maxHeight / BatteryFrame.innerHeight
+ 
+         val batterySize = BatteryFrame.bodyPathSpec.scaledSize(scale)
++        // Kompakt: four bars as wide as the five-bar ones were: the frame loses one bar and one
++        // gap (stroke and gap are 2 of the body's 18 height units).
++        val barsWidth = run {
++            val unit = batterySize.height / 18f
++            val fiveBar = (batterySize.width - 16f * unit) / 5f
++            (batterySize.width - fiveBar - 2f * unit).roundToInt()
++        }
+         val batteryFramePlaceable =
+             batteryFrame.measure(
+                 constraints =
+@@ -302,12 +328,16 @@ class BatteryMeasurePolicy : MeasurePolicy {
+                         minWidth =
+                             if (batteryFrame.layoutId == LayoutId.FrameCircle) {
+                                 batterySize.height.roundToInt()
++                            } else if (batteryFrame.layoutId == LayoutId.FrameBars) {
++                                barsWidth
+                             } else {
+                                 batterySize.width.roundToInt()
+                             },
+                         maxWidth =
+                             if (batteryFrame.layoutId == LayoutId.FrameCircle) {
+                                 batterySize.height.roundToInt()
++                            } else if (batteryFrame.layoutId == LayoutId.FrameBars) {
++                                barsWidth
+                             } else {
+                                 batterySize.width.roundToInt()
+                             },
+@@ -418,6 +448,47 @@ class BatteryMeasurePolicy : MeasurePolicy {
+     }
+ }
+ 
++/**
++ * Kompakt: MuditaOS's battery: an outline with up to four bars, one per 25%. Stroke, gaps and
++ * corners keep the proportions of its 31.5x18 body, scaled to the height it is given.
++ */
++@Composable
++fun BarsBatteryBody(
++    levelProvider: () -> Int?,
++    colorsProvider: () -> BatteryColors,
++    modifier: Modifier = Modifier,
++    contentDescription: String = "",
++) {
++    Canvas(modifier = modifier, contentDescription = contentDescription) {
++        val level = levelProvider()
++        val ink = colorsProvider().attribution
++        val unit = size.height / 18f
++        val stroke = 2f * unit
++        drawRoundRect(
++            ink,
++            topLeft = Offset(stroke / 2f, stroke / 2f),
++            size = Size(size.width - stroke, size.height - stroke),
++            cornerRadius = CornerRadius(2f * unit),
++            style = Stroke(stroke),
++        )
++        // Any charge in a quarter shows that quarter; only 0 is an empty outline.
++        val bars = if (level == null) 0 else ((level + 24) / 25).coerceIn(0, 4)
++        val gap = 2f * unit
++        val barWidth = (size.width - 2f * stroke - 5f * gap) / 4f
++        val barHeight = size.height - 2f * stroke - 2f * gap
++        val rtl = layoutDirection == LayoutDirection.Rtl
++        for (i in 0 until bars) {
++            val x = stroke + gap + i * (barWidth + gap)
++            drawRoundRect(
++                ink,
++                topLeft = Offset(if (rtl) size.width - x - barWidth else x, stroke + gap),
++                size = Size(barWidth, barHeight),
++                cornerRadius = CornerRadius(0.5f * unit),
++            )
++        }
++    }
++}
++
+ @Composable
+ fun CircleBatteryBody(
+     attr: BatteryGlyph?,
+-- 
+2.43.0
+

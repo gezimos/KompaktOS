@@ -1,0 +1,68 @@
+From d70dbecc1fbc50410b807e964fb0fab83854294f Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Mon, 5 Oct 2026 09:45:00 +0200
+Subject: [PATCH 48/99] Kompakt: the AOD clock is the lockscreen clock
+
+---
+ .../clocks/view/DigitalClockTextView.kt        |  2 ++
+ .../shared/clocks/view/FlexClockTextView.kt    | 18 ++++++++++--------
+ 2 files changed, 12 insertions(+), 8 deletions(-)
+
+diff --git a/packages/SystemUI/customization/clocks/common/src/com/android/systemui/customization/clocks/view/DigitalClockTextView.kt b/packages/SystemUI/customization/clocks/common/src/com/android/systemui/customization/clocks/view/DigitalClockTextView.kt
+index 2c421da1f780..d3e4b1f508f3 100644
+--- a/packages/SystemUI/customization/clocks/common/src/com/android/systemui/customization/clocks/view/DigitalClockTextView.kt
++++ b/packages/SystemUI/customization/clocks/common/src/com/android/systemui/customization/clocks/view/DigitalClockTextView.kt
+@@ -381,6 +381,8 @@ abstract class DigitalClockTextView(
+     }
+ 
+     fun animateFidget(pt: VPointF, enforceBounds: Boolean): Boolean {
++        // Kompakt: no fidget. A tap on the clock would buzz and redraw it for nothing.
++        return false
+         if (!this::textAnimator.isInitialized || textAnimator.isRunning) {
+             // Skip fidget animation if other animation is already playing.
+             return false
+diff --git a/packages/SystemUI/customization/src/com/android/systemui/shared/clocks/view/FlexClockTextView.kt b/packages/SystemUI/customization/src/com/android/systemui/shared/clocks/view/FlexClockTextView.kt
+index dae3db7c0a53..dcfba2495e8e 100644
+--- a/packages/SystemUI/customization/src/com/android/systemui/shared/clocks/view/FlexClockTextView.kt
++++ b/packages/SystemUI/customization/src/com/android/systemui/shared/clocks/view/FlexClockTextView.kt
+@@ -44,17 +44,17 @@ class FlexClockTextView(
+         }
+ 
+     override fun initializeFontVariations(): FontVariations {
+-        val roundAxis = if (!isLegacyFlex) ROUND_AXIS else FLEX_ROUND_AXIS
+         val lsFontAxes =
+             if (!isLegacyFlex) fromAxes(LS_WEIGHT_AXIS, WIDTH_AXIS, ROUND_AXIS, SLANT_AXIS)
+             else fromAxes(FLEX_LS_WEIGHT_AXIS, FLEX_LS_WIDTH_AXIS, FLEX_ROUND_AXIS, SLANT_AXIS)
+-        val aodAxes = fixedAodAxes.copyWith(fromAxes(roundAxis, SLANT_AXIS))
+-        return buildFontVariations(lsFontAxes, aodAxes)
++        // Kompakt: AOD draws the lockscreen's own axes. The thinner, narrower AOD face is
++        // burn-in protection, which e-ink does not need, and it made the two clocks differ.
++        return buildFontVariations(lsFontAxes, lsFontAxes)
+     }
+ 
+     override fun updateFontVariations(lsAxes: ClockAxisStyle): FontVariations {
+-        val aodAxes = lsAxes.copyWith(fixedAodAxes)
+-        return buildFontVariations(lsAxes, aodAxes)
++        // Kompakt: the user's chosen axes on AOD too.
++        return buildFontVariations(lsAxes, lsAxes)
+     }
+ 
+     private fun buildFontVariations(
+@@ -64,9 +64,11 @@ class FlexClockTextView(
+         return FontVariations(
+             lockscreen = lsAxes.toFVar(),
+             doze = aodAxes.toFVar(),
+-            fidget = buildAnimationTargetVariation(lsAxes, FIDGET_DISTS).toFVar(),
+-            chargeLockscreen = buildAnimationTargetVariation(lsAxes, CHARGE_DISTS).toFVar(),
+-            chargeDoze = buildAnimationTargetVariation(aodAxes, CHARGE_DISTS).toFVar(),
++            // Kompakt: the tap and charger animations keep the face as it is; every step of
++            // a weight animation is a repaint, and a frame frozen mid-way stays on AOD.
++            fidget = lsAxes.toFVar(),
++            chargeLockscreen = lsAxes.toFVar(),
++            chargeDoze = aodAxes.toFVar(),
+         )
+     }
+ 
+-- 
+2.43.0
+

@@ -1,0 +1,27 @@
+From d93ed80cb22969e265c38ac63cc1c58b5f21f2e4 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Mon, 5 Oct 2026 14:40:00 +0200
+Subject: [PATCH 50/99] Kompakt: Material dialogs get the dialog border too
+
+---
+ core/java/com/android/internal/policy/DecorView.java | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/core/java/com/android/internal/policy/DecorView.java b/core/java/com/android/internal/policy/DecorView.java
+index 4f3ac061881d..4a9b5f1c6df5 100644
+--- a/core/java/com/android/internal/policy/DecorView.java
++++ b/core/java/com/android/internal/policy/DecorView.java
+@@ -843,6 +843,10 @@ public class DecorView extends FrameLayout implements RootViewSurfaceTaker, Wind
+             return;
+         }
+         mKompaktOutline.setEmpty();
++        // Opaque unless the drawable says otherwise: a new Outline's alpha is 0, and
++        // Material's shape drawable never sets it, so Material dialogs got no border.
++        // ColorDrawable and GradientDrawable still report their own alpha.
++        mKompaktOutline.setAlpha(1f);
+         background.getOutline(mKompaktOutline);
+         if (mKompaktOutline.getAlpha() == 0f
+                 || !mKompaktOutline.getRect(mKompaktFrameRect)
+-- 
+2.43.0
+

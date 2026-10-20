@@ -1,0 +1,212 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sat, 17 Oct 2026 23:10:00 +0200
+Subject: [PATCH] Kompakt: a swipe anywhere on the picker pages, and Shortcuts has no previews
+
+The page swipe (0006) was caught by the options scroll view only, so a swipe
+on the previews did nothing. The detector now lives on the picker's motion
+layout (PagedMotionLayout) and sees every touch first; the scroll view only
+pages. An open option page (the sheet) does not page.
+
+The Shortcuts page showed the lock and home previews although Home has no
+shortcuts. An opaque cover, drawn over the previews and under the sheet, hides
+them on that page only (the previews are not touched, so they redraw as they
+did). It is set in the secondary constraint set, so leaving the page restores
+the primary state.
+
+---
+diff --git a/res/layout/fragment_customization_picker2.xml b/res/layout/fragment_customization_picker2.xml
+index af1b2b0..bb5500c 100755
+--- a/res/layout/fragment_customization_picker2.xml
++++ b/res/layout/fragment_customization_picker2.xml
+@@ -62,7 +62,7 @@
+         app:layout_constraintTop_toTopOf="@id/toolbar"
+         app:layout_constraintBottom_toBottomOf="@id/toolbar" />
+ 
+-    <androidx.constraintlayout.motion.widget.MotionLayout
++    <com.kompakt.eink.PagedMotionLayout
+         android:id="@+id/picker_motion_layout"
+         android:layout_width="0dp"
+         android:layout_height="0dp"
+@@ -228,6 +228,19 @@
+             </androidx.constraintlayout.widget.ConstraintLayout>
+         </com.kompakt.eink.PagedScrollView>
+ 
++        <!-- Kompakt: covers the previews on option pages that have nothing to preview. -->
++        <View
++            android:id="@+id/kompakt_preview_cover"
++            android:layout_width="0dp"
++            android:layout_height="0dp"
++            android:background="?android:attr/colorBackground"
++            android:clickable="true"
++            android:visibility="gone"
++            app:layout_constraintTop_toTopOf="parent"
++            app:layout_constraintBottom_toBottomOf="parent"
++            app:layout_constraintStart_toStartOf="parent"
++            app:layout_constraintEnd_toEndOf="parent" />
++
+         <FrameLayout
+             android:id="@+id/customization_option_floating_sheet_container"
+             android:layout_width="0dp"
+@@ -235,6 +248,6 @@
+             app:layout_constraintStart_toStartOf="parent"
+             app:layout_constraintEnd_toEndOf="parent"
+             app:layout_constraintTop_toBottomOf="parent" />
+-    </androidx.constraintlayout.motion.widget.MotionLayout>
++    </com.kompakt.eink.PagedMotionLayout>
+ </androidx.constraintlayout.widget.ConstraintLayout>
+ 
+diff --git a/src/com/android/wallpaper/picker/customization/ui/CustomizationPickerFragment2.kt b/src/com/android/wallpaper/picker/customization/ui/CustomizationPickerFragment2.kt
+index 69b65ab..31ce2d9 100644
+--- a/src/com/android/wallpaper/picker/customization/ui/CustomizationPickerFragment2.kt
++++ b/src/com/android/wallpaper/picker/customization/ui/CustomizationPickerFragment2.kt
+@@ -248,11 +248,13 @@ class CustomizationPickerFragment2 :
+         val pickerMotionContainer: MotionLayout = view.requireViewById(R.id.picker_motion_layout)
+ 
+         val bottomScrollView: NestedScrollView = view.requireViewById(R.id.bottom_scroll_view)
+-        // Kompakt: a page down first collapses the previews, then turns the options; a page up
+-        // at the top brings the previews back, each in one step.
+-        (bottomScrollView as? com.kompakt.eink.PagedScrollView)?.setPager { delta ->
++        // Kompakt: a swipe anywhere on the page; a page down first collapses the previews, then
++        // turns the options; a page up at the top brings the previews back, each in one step.
++        (pickerMotionContainer as? com.kompakt.eink.PagedMotionLayout)?.setPager { delta ->
+             val paged = bottomScrollView as com.kompakt.eink.PagedScrollView
+             when {
++                // An open option page does not page.
++                pickerMotionContainer.currentState == R.id.secondary -> false
+                 delta > 0 && pickerMotionContainer.progress < 1f -> {
+                     pickerMotionContainer.progress = 1f
+                     true
+@@ -617,6 +619,14 @@ class CustomizationPickerFragment2 :
+         )
+     }
+ 
++    /** Kompakt: Shortcuts has no previews (Home has no shortcuts); a cover hides them there. */
++    private fun setPreviewCover(pickerMotionContainer: MotionLayout, option: CustomizationOption?) {
++        val cover = (option as? Enum<*>)?.name == "SHORTCUTS"
++        pickerMotionContainer
++            .getConstraintSet(R.id.secondary)
++            ?.setVisibility(R.id.kompakt_preview_cover, if (cover) View.VISIBLE else View.GONE)
++    }
++
+     /** Only called when the first screen shown on the picker is a secondary screen. */
+     private fun initSecondaryScreen(
+         customizationOptionFloatingSheetViewMap: Map<CustomizationOption, View>,
+@@ -647,6 +657,7 @@ class CustomizationPickerFragment2 :
+                         }
+                     )
+                     pickerMotionContainer.setTransitionDuration(0)
++                    setPreviewCover(pickerMotionContainer, initSelectedOption)
+                     pickerMotionContainer.transitionToState(R.id.secondary)
+                 },
+             )
+@@ -705,6 +716,7 @@ class CustomizationPickerFragment2 :
+                                 )
+                                 // Transition to secondary screen after content is set
+                                 fullyCollapsed = pickerMotionContainer.progress == 1.0f
++                                setPreviewCover(pickerMotionContainer, option)
+                                 pickerMotionContainer.transitionToState(R.id.secondary)
+                             },
+                         )
+diff --git a/src/com/kompakt/eink/PagedMotionLayout.java b/src/com/kompakt/eink/PagedMotionLayout.java
+new file mode 100644
+index 0000000..04ac439
+--- /dev/null
++++ b/src/com/kompakt/eink/PagedMotionLayout.java
+@@ -0,0 +1,45 @@
++package com.kompakt.eink;
++
++import android.content.Context;
++import android.util.AttributeSet;
++import android.view.GestureDetector;
++import android.view.MotionEvent;
++
++import androidx.constraintlayout.motion.widget.MotionLayout;
++
++/** Kompakt: a swipe anywhere on the picker page turns a page, not only on the options. */
++public class PagedMotionLayout extends MotionLayout {
++
++    /** Moves by delta pages, +1 forward and -1 back; true if anything moved. */
++    public interface Pager {
++        boolean page(int delta);
++    }
++
++    private Pager mPager;
++    private final GestureDetector mDetector;
++
++    public PagedMotionLayout(Context context) {
++        this(context, null);
++    }
++
++    public PagedMotionLayout(Context context, AttributeSet attrs) {
++        this(context, attrs, 0);
++    }
++
++    public PagedMotionLayout(Context context, AttributeSet attrs, int defStyleAttr) {
++        super(context, attrs, defStyleAttr);
++        mDetector = new GestureDetector(context, new PageGestureListener(context,
++                delta -> mPager != null && mPager.page(delta)));
++    }
++
++    public void setPager(Pager pager) {
++        mPager = pager;
++    }
++
++    /** The detector sees every touch first; taps and clicks still reach the children. */
++    @Override
++    public boolean dispatchTouchEvent(MotionEvent ev) {
++        mDetector.onTouchEvent(ev);
++        return super.dispatchTouchEvent(ev);
++    }
++}
+diff --git a/src/com/kompakt/eink/PagedScrollView.java b/src/com/kompakt/eink/PagedScrollView.java
+index 3e6c4a8..80ecf25 100644
+--- a/src/com/kompakt/eink/PagedScrollView.java
++++ b/src/com/kompakt/eink/PagedScrollView.java
+@@ -2,30 +2,15 @@ package com.kompakt.eink;
+ 
+ import android.content.Context;
+ import android.util.AttributeSet;
+-import android.view.GestureDetector;
+ import android.view.MotionEvent;
+ 
+ import androidx.core.widget.NestedScrollView;
+ 
+-/** Kompakt: the picker options turn a page per swipe; the owner decides what a page is. */
++/** Kompakt: the picker options page; the swipe itself is caught by PagedMotionLayout. */
+ public class PagedScrollView extends NestedScrollView {
+ 
+-    /** Moves by delta pages, +1 forward and -1 back; true if anything moved. */
+-    public interface Pager {
+-        boolean page(int delta);
+-    }
+-
+-    private Pager mPager;
+-    private final GestureDetector mDetector;
+-
+     public PagedScrollView(Context context, AttributeSet attrs) {
+         super(context, attrs);
+-        mDetector = new GestureDetector(context, new PageGestureListener(context,
+-                delta -> mPager != null ? mPager.page(delta) : pageSelf(delta)));
+-    }
+-
+-    public void setPager(Pager pager) {
+-        mPager = pager;
+     }
+ 
+     /** One viewport, clamped at either end; true if it moved. */
+@@ -35,12 +20,6 @@ public class PagedScrollView extends NestedScrollView {
+         return getScrollY() != before;
+     }
+ 
+-    @Override
+-    public boolean dispatchTouchEvent(MotionEvent ev) {
+-        mDetector.onTouchEvent(ev);
+-        return super.dispatchTouchEvent(ev);
+-    }
+-
+     /** No drag of its own: taps reach the options, drags only page. */
+     @Override
+     public boolean onInterceptTouchEvent(MotionEvent ev) {
+-- 
+2.43.0

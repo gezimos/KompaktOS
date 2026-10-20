@@ -1,0 +1,121 @@
+From 4d1612fe255f2a4ba46b607f95d072bc0563a642 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Fri, 9 Oct 2026 11:37:15 +0200
+Subject: [PATCH 084/101] Kompakt: Clear all is pinned to the bottom of the
+ shade
+
+The footer (Clear all, history, settings) sat at the end of the list, so with
+more than a page of notifications it was a page away, and with a few the
+shade ended right under it. The notifications shade is now screen high, and
+in it the footer is always held at the bottom of the visible stack, drawn
+opaque in the panel colour over any rows behind it; the shade pages end above
+it.
+
+Change-Id: I53db5cfa17325eb61fa29b15ec895eb297b7c644
+---
+ .../notifications/ui/composable/Notifications.kt  | 15 ++++++++++++---
+ .../ui/composable/NotificationsShadeOverlay.kt    |  3 ++-
+ .../notification/footer/ui/view/FooterView.java   |  3 +++
+ .../notification/stack/StackScrollAlgorithm.java  |  9 ++++++++-
+ 4 files changed, 25 insertions(+), 5 deletions(-)
+
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/notifications/ui/composable/Notifications.kt b/packages/SystemUI/compose/features/src/com/android/systemui/notifications/ui/composable/Notifications.kt
+index aa2727391ff9..f75ca51608b5 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/notifications/ui/composable/Notifications.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/notifications/ui/composable/Notifications.kt
+@@ -127,6 +127,7 @@ import com.android.systemui.statusbar.notification.stack.ui.viewmodel.Notificati
+ import com.android.systemui.statusbar.notification.stack.ui.viewmodel.NotificationsPlaceholderViewModel
+ import android.view.ViewGroup
+ import com.android.systemui.statusbar.NotificationShelf
++import com.android.systemui.statusbar.notification.footer.ui.view.FooterView
+ import com.android.systemui.statusbar.notification.row.ExpandableView
+ import kotlin.math.abs
+ import kotlin.math.max
+@@ -627,9 +628,13 @@ fun ContentScope.NotificationScrollingStack(
+                 fun pageStop(forward: Boolean): Int {
+                     val viewport = pageViewport.value
+                     val scroll = scrollState.value
+-                    val height = viewport.height.roundToInt()
+-                    if (height <= 0) return scroll
+                     val stack = stackScrollView.asView() as? ViewGroup ?: return scroll
++                    val footer =
++                        (0 until stack.childCount).map { stack.getChildAt(it) }
++                            .filterIsInstance<FooterView>()
++                            .firstOrNull { it.visibility == android.view.View.VISIBLE }
++                    val height = viewport.height.roundToInt() - (footer?.actualHeight ?: 0)
++                    if (height <= 0) return scroll
+                     val origin = IntArray(2).also { stack.getLocationInWindow(it) }
+                     val rows =
+                         (0 until stack.childCount)
+@@ -638,6 +643,7 @@ fun ContentScope.NotificationScrollingStack(
+                             .filter {
+                                 it.visibility == android.view.View.VISIBLE &&
+                                     it !is NotificationShelf &&
++                                    it !is FooterView &&
+                                     it.actualHeight > 0
+                             }
+                             .map {
+@@ -781,7 +787,10 @@ fun ContentScope.NotificationScrollingStack(
+         Spacer(
+             modifier =
+                 Modifier.thenIf(shouldFillMaxSize) { Modifier.fillMaxSize() }
+-                    .drawBehind { drawRect(Color.Black, blendMode = BlendMode.DstOut) }
++                    // Kompakt: no hole without a scrim; it cleared the panel and showed the app below.
++                    .thenIf(shouldShowScrim) {
++                        Modifier.drawBehind { drawRect(Color.Black, blendMode = BlendMode.DstOut) }
++                    }
+         )
+         Box(
+             modifier =
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/notifications/ui/composable/NotificationsShadeOverlay.kt b/packages/SystemUI/compose/features/src/com/android/systemui/notifications/ui/composable/NotificationsShadeOverlay.kt
+index 3463aeac201f..cf11afc0c8c4 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/notifications/ui/composable/NotificationsShadeOverlay.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/notifications/ui/composable/NotificationsShadeOverlay.kt
+@@ -171,7 +171,8 @@ constructor(
+                     shouldPunchHoleBehindScrim = false,
+                     stackTopPadding = notificationStackPadding,
+                     stackBottomPadding = notificationStackPadding,
+-                    shouldFillMaxSize = false,
++                    // Kompakt: the panel is screen high, so the pinned footer is at the bottom.
++                    shouldFillMaxSize = true,
+                     shouldShowScrim = false,
+                     supportNestedScrolling = false,
+                     modifier =
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/notification/footer/ui/view/FooterView.java b/packages/SystemUI/src/com/android/systemui/statusbar/notification/footer/ui/view/FooterView.java
+index 3caaf542e787..7902b762dc8a 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/notification/footer/ui/view/FooterView.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/notification/footer/ui/view/FooterView.java
+@@ -442,6 +442,9 @@ public class FooterView extends StackScrollerDecorView {
+                             + " backgroundTint(surfaceContainerHigh)=" + hexColorString(scHigh)
+                             + " background=" + DrawableDumpKt.dumpToString(settingsBg));
+         }
++        // Kompakt: pinned over the rows at the bottom of the shade, so it is opaque in the panel's colour.
++        setBackgroundColor(com.android.systemui.shade.ui.ShadeColors.shadePanel(
++                mContext, /* blurSupported= */ false, /* withScrim= */ false));
+     }
+ 
+     public void setIsBlurSupported(boolean isBlurSupported) {
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/StackScrollAlgorithm.java b/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/StackScrollAlgorithm.java
+index f7f70384a2b8..5bbf076e5c17 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/StackScrollAlgorithm.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/StackScrollAlgorithm.java
+@@ -750,8 +750,15 @@ public class StackScrollAlgorithm {
+                 final float footerEnd =
+                         stackTop + viewState.getYTranslation() + view.getIntrinsicHeight();
+                 final boolean noSpaceForFooter = footerEnd > ambientState.getStackCutoff();
++                // Kompakt: in the shade the footer always sits at the bottom of the visible stack.
++                final boolean pinned = !ambientState.isOnKeyguard()
++                        && ambientState.getStackCutoff() > stackTop + view.getIntrinsicHeight();
++                if (pinned) {
++                    viewState.setYTranslation(ambientState.getStackCutoff() - stackTop
++                            - view.getIntrinsicHeight());
++                }
+                 ((FooterView.FooterViewState) viewState).hideContent =
+-                        noSpaceForFooter || (ambientState.isClearAllInProgress()
++                        (noSpaceForFooter && !pinned) || (ambientState.isClearAllInProgress()
+                                 && !hasNonClearableNotifs(algorithmState));
+             } else {
+                 // TODO(b/333445519): shouldBeHidden should reflect whether the shade is closed
+-- 
+2.43.0
+

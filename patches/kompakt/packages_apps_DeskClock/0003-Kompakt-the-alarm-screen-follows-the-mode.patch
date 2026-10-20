@@ -1,0 +1,215 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Mon, 5 Oct 2026 16:30:00 +0200
+Subject: [PATCH 1/1] Kompakt: the alarm screen follows the mode
+
+---
+diff --git a/res/values/kompakt_alarm.xml b/res/values/kompakt_alarm.xml
+new file mode 100644
+--- /dev/null
++++ b/res/values/kompakt_alarm.xml
+@@ -0,0 +1,6 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Kompakt: the alarm screen's ink. It was white only, so in light mode the clock,
++     the buttons and the text were white on white. -->
++<resources>
++    <color name="kompakt_alarm_ink">#ff000000</color>
++</resources>
+diff --git a/res/values-night/kompakt_alarm.xml b/res/values-night/kompakt_alarm.xml
+new file mode 100644
+--- /dev/null
++++ b/res/values-night/kompakt_alarm.xml
+@@ -0,0 +1,4 @@
++<?xml version="1.0" encoding="utf-8"?>
++<resources>
++    <color name="kompakt_alarm_ink">#fffffffe</color>
++</resources>
+diff --git a/res/drawable/kompakt_alarm_button_bg.xml b/res/drawable/kompakt_alarm_button_bg.xml
+new file mode 100644
+--- /dev/null
++++ b/res/drawable/kompakt_alarm_button_bg.xml
+@@ -0,0 +1,7 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Kompakt: snooze and dismiss. Shown only while selected (AlarmActivity fades its
++     alpha in), an ink disc under the icon drawn in the page colour. -->
++<shape xmlns:android="http://schemas.android.com/apk/res/android"
++    android:shape="oval">
++    <solid android:color="@color/kompakt_alarm_ink" />
++</shape>
+diff --git a/res/layout/alarm_activity.xml b/res/layout/alarm_activity.xml
+--- a/res/layout/alarm_activity.xml
++++ b/res/layout/alarm_activity.xml
+@@ -34,6 +34,7 @@
+         <TextClock
+             android:id="@+id/digital_clock"
+             style="@style/display_time"
++            android:textColor="@color/kompakt_alarm_ink"
+             android:layout_width="0dp"
+             android:layout_height="wrap_content"
+             android:layout_marginTop="?attr/actionBarSize"
+@@ -50,6 +51,7 @@
+         <TextView
+             android:id="@+id/title"
+             style="@style/body"
++            android:textColor="@color/kompakt_alarm_ink"
+             android:layout_width="0dp"
+             android:layout_height="wrap_content"
+             android:gravity="center"
+@@ -70,33 +72,34 @@
+             app:layout_column="0"
+             app:layout_columnSpan="3"
+             app:layout_gravity="fill"
+-            app:fillColor="@android:color/white"
++            app:fillColor="@color/kompakt_alarm_ink"
+             app:radius="@dimen/alarm_lockscreen_pulse_radius" />
+ 
+         <ImageView
+             android:id="@+id/snooze"
+             android:layout_width="wrap_content"
+             android:layout_height="wrap_content"
+-            android:background="@drawable/bg_circle_white"
++            android:background="@drawable/kompakt_alarm_button_bg"
+             android:contentDescription="@string/alarm_alert_snooze_text"
+             app:layout_row="2"
+             app:layout_column="0"
+             app:layout_columnWeight="1"
+             app:layout_gravity="center"
+-            app:backgroundTint="?attr/colorAccent"
+-            app:srcCompat="@drawable/ic_snooze" />
++            app:srcCompat="@drawable/ic_snooze"
++            app:tint="@color/kompakt_alarm_ink" />
+ 
+         <ImageView
+             android:id="@+id/dismiss"
+             android:layout_width="wrap_content"
+             android:layout_height="wrap_content"
+-            android:background="@drawable/bg_circle_white"
++            android:background="@drawable/kompakt_alarm_button_bg"
+             android:contentDescription="@string/alarm_alert_dismiss_text"
+             app:layout_row="2"
+             app:layout_column="2"
+             app:layout_columnWeight="1"
+             app:layout_gravity="center"
+-            app:srcCompat="@drawable/ic_dismiss" />
++            app:srcCompat="@drawable/ic_dismiss"
++            app:tint="@color/kompakt_alarm_ink" />
+ 
+         <ImageView
+             android:id="@+id/alarm"
+@@ -112,14 +115,15 @@
+             app:layout_column="1"
+             app:layout_columnWeight="1"
+             app:layout_gravity="center"
+-            app:srcCompat="@drawable/ic_fab_alarm" />
++            app:srcCompat="@drawable/ic_fab_alarm"
++            app:tint="@color/kompakt_alarm_ink" />
+ 
+         <TextView
+             android:id="@+id/hint"
+             android:layout_width="wrap_content"
+             android:layout_height="wrap_content"
+             android:layout_marginBottom="@dimen/alarm_lockscreen_bottom_margin"
+-            android:textColor="@android:color/white"
++            android:textColor="@color/kompakt_alarm_ink"
+             android:textSize="@dimen/bottom_text_size"
+             android:visibility="gone"
+             app:layout_row="2"
+@@ -144,7 +148,7 @@
+             android:layout_height="wrap_content"
+             android:gravity="center_horizontal"
+             android:textAppearance="@style/alarm_lockscreen_thin"
+-            android:textColor="@android:color/white" />
++            android:textColor="@color/kompakt_alarm_ink" />
+ 
+         <TextView
+             android:id="@+id/alert_info"
+@@ -152,7 +156,7 @@
+             android:layout_height="wrap_content"
+             android:gravity="center_horizontal"
+             android:textAppearance="@style/alarm_lockscreen_thin"
+-            android:textColor="@android:color/white"
++            android:textColor="@color/kompakt_alarm_ink"
+             android:textStyle="bold"
+             android:visibility="gone" />
+ 
+diff --git a/src/com/android/deskclock/alarms/AlarmActivity.java b/src/com/android/deskclock/alarms/AlarmActivity.java
+--- a/src/com/android/deskclock/alarms/AlarmActivity.java
++++ b/src/com/android/deskclock/alarms/AlarmActivity.java
+@@ -85,7 +85,8 @@
+     private static final int ALERT_DISMISS_DELAY_MILLIS = 2000;
+ 
+     private static final float BUTTON_SCALE_DEFAULT = 0.7f;
+-    private static final int BUTTON_DRAWABLE_ALPHA_DEFAULT = 165;
++    // Kompakt: opaque. A resting icon was 65% ink, which the panel dithers into grey.
++    private static final int BUTTON_DRAWABLE_ALPHA_DEFAULT = 255;
+ 
+     private final Handler mHandler = new Handler(Looper.myLooper());
+     private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
+@@ -131,6 +132,8 @@
+     private boolean mAlarmHandled;
+     private AlarmVolumeButtonBehavior mVolumeBehavior;
+     private int mCurrentHourColor;
++    /** Kompakt: the ink, black by day and white at night; this screen was white only. */
++    private int mInk;
+     private boolean mReceiverRegistered;
+     /** Whether the AlarmService is currently bound */
+     private boolean mServiceBound;
+@@ -219,7 +222,9 @@
+         mDismissButton.setOnClickListener(this);
+ 
+         mAlarmAnimator = AnimatorUtils.getScaleAnimator(mAlarmButton, 1.0f, 0.0f);
+-        mSnoozeAnimator = getButtonAnimator(mSnoozeButton, Color.WHITE);
++        mInk = getColor(R.color.kompakt_alarm_ink);
++        // Kompakt: a selected button is an ink disc with the icon in the page colour.
++        mSnoozeAnimator = getButtonAnimator(mSnoozeButton, mCurrentHourColor);
+         mDismissAnimator = getButtonAnimator(mDismissButton, mCurrentHourColor);
+         mPulseAnimator = ObjectAnimator.ofPropertyValuesHolder(pulseView,
+                 PropertyValuesHolder.ofFloat(CircleView.RADIUS, 0.0f, pulseView.getRadius()),
+@@ -422,9 +427,16 @@
+     }
+ 
+     private void hideNavigationBar() {
++        // Kompakt: these flags replace all the others, light status bar included, so the
++        // status bar icons were white on the white light mode screen. Keep dark icons by day.
++        final boolean kompaktNight = (getResources().getConfiguration().uiMode
++                & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
++                == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+         getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                 | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+-                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
++                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
++                | (kompaktNight ? 0 : View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
++                        | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR));
+     }
+ 
+     /**
+@@ -493,7 +505,7 @@
+                 R.plurals.alarm_alert_snooze_set, snoozeMinutes, snoozeMinutes);
+ 
+         getAlertAnimator(mSnoozeButton, R.string.alarm_alert_snoozed_text, infoText,
+-                accessibilityText, Color.DKGRAY, mCurrentHourColor).start();
++                accessibilityText, mCurrentHourColor, mCurrentHourColor).start();
+ 
+         AlarmStateManager.setSnoozeState(this, mAlarmInstance, false /* showToast */);
+ 
+@@ -514,7 +526,7 @@
+ 
+         getAlertAnimator(mDismissButton, R.string.alarm_alert_off_text, null /* infoText */,
+                 getString(R.string.alarm_alert_off_text) /* accessibilityText */,
+-                Color.DKGRAY, mCurrentHourColor).start();
++                mCurrentHourColor, mCurrentHourColor).start();
+ 
+         AlarmStateManager.deleteInstanceAndUpdateParent(this, mAlarmInstance);
+ 
+@@ -564,7 +576,7 @@
+                 PropertyValuesHolder.ofInt(AnimatorUtils.DRAWABLE_ALPHA,
+                         BUTTON_DRAWABLE_ALPHA_DEFAULT, 255),
+                 PropertyValuesHolder.ofObject(AnimatorUtils.DRAWABLE_TINT,
+-                        AnimatorUtils.ARGB_EVALUATOR, Color.WHITE, tintColor));
++                        AnimatorUtils.ARGB_EVALUATOR, mInk, tintColor));
+     }
+ 
+     private ValueAnimator getAlarmBounceAnimator(float translationX, final int hintResId) {
+-- 
+2.43.0
+

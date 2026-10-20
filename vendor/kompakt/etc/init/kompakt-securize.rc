@@ -1,6 +1,8 @@
-# Disables phh securize; the kompakt- prefix must sort before vndk-.
+# Securize on by default: remove phh's securize marker before rw-system.sh reads it.
+# The marker survives updates, and 1.0 and 1.1 wrote it, so it is removed on every
+# boot rather than simply no longer written. A user who switches Securize off still
+# gets the marker back from phh-prop-handler.sh when the saved setting loads, which
+# stops the faked boot state; the fingerprint copy in rw-system.sh has run by then.
+# The kompakt- prefix must sort before vndk-, whose post-fs runs rw-system.sh.
 on post-fs
-    write /metadata/securize_disable 1
-
-on post-fs-data
-    write /metadata/securize_disable 1
+    rm /metadata/securize_disable

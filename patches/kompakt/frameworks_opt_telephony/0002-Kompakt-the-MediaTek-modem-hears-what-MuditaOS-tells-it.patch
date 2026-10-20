@@ -1,0 +1,731 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Wed, 7 Oct 2026 12:00:00 +0000
+Subject: [PATCH] Kompakt: the MediaTek modem hears what MuditaOS tells it
+
+
+---
+diff --git a/Android.bp b/Android.bp
+--- a/Android.bp
++++ b/Android.bp
+@@ -110,6 +110,8 @@
+         "modules-utils-fastxmlserializer",
+         "modules-utils-statemachine",
+         "services-config-update",
++        // Kompakt: the MediaTek radio HAL, for kompakt/MtkModem.
++        "kompakt-mtkradioex-java",
+     ],
+ 
+     optimize: {
+diff --git a/src/java/com/android/internal/telephony/PhoneFactory.java b/src/java/com/android/internal/telephony/PhoneFactory.java
+--- a/src/java/com/android/internal/telephony/PhoneFactory.java
++++ b/src/java/com/android/internal/telephony/PhoneFactory.java
+@@ -50,6 +50,7 @@
+ import com.android.internal.telephony.flags.FeatureFlagsImpl;
+ import com.android.internal.telephony.imsphone.ImsPhone;
+ import com.android.internal.telephony.imsphone.ImsPhoneFactory;
++import com.android.internal.telephony.kompakt.MtkModem;
+ import com.android.internal.telephony.metrics.MetricsCollector;
+ import com.android.internal.telephony.subscription.SubscriptionManagerService;
+ import com.android.internal.telephony.uicc.UiccController;
+@@ -208,6 +209,7 @@
+ 
+                 for (int i = 0; i < numPhones; i++) {
+                     sPhones[i] = createPhone(context, i);
++                    MtkModem.make(sPhones[i]);
+                 }
+ 
+                 // Set the default phone in base class.
+@@ -301,6 +303,7 @@
+                 sCommandsInterfaces[i] = new RIL(context, RadioAccessFamily.getRafFromNetworkType(
+                         RILConstants.PREFERRED_NETWORK_MODE), i, sFeatureFlags);
+                 sPhones[i] = createPhone(context, i);
++                MtkModem.make(sPhones[i]);
+                 if (context.getPackageManager().hasSystemFeature(
+                         PackageManager.FEATURE_TELEPHONY_IMS)) {
+                     sPhones[i].createImsPhone();
+diff --git a/src/java/com/android/internal/telephony/ServiceStateTracker.java b/src/java/com/android/internal/telephony/ServiceStateTracker.java
+--- a/src/java/com/android/internal/telephony/ServiceStateTracker.java
++++ b/src/java/com/android/internal/telephony/ServiceStateTracker.java
+@@ -92,6 +92,7 @@
+ import com.android.internal.telephony.data.DataNetwork;
+ import com.android.internal.telephony.data.DataNetworkController.DataNetworkControllerCallback;
+ import com.android.internal.telephony.domainselection.DomainSelectionResolver;
++import com.android.internal.telephony.kompakt.MtkModem;
+ import com.android.internal.telephony.emergency.EmergencyStateTracker;
+ import com.android.internal.telephony.flags.FeatureFlags;
+ import com.android.internal.telephony.imsphone.ImsPhone;
+@@ -3256,6 +3257,9 @@
+         } else {
+             mReportedGprsNoReg = false;
+         }
++
++        // Kompakt: the MediaTek modem hears every service state poll, as on MuditaOS.
++        MtkModem.onServiceStateChanged(mPhone, mSS);
+     }
+ 
+     /**
+diff --git a/src/java/com/android/internal/telephony/data/DataNetworkController.java b/src/java/com/android/internal/telephony/data/DataNetworkController.java
+--- a/src/java/com/android/internal/telephony/data/DataNetworkController.java
++++ b/src/java/com/android/internal/telephony/data/DataNetworkController.java
+@@ -113,6 +113,7 @@
+ import com.android.internal.telephony.flags.FeatureFlags;
+ import com.android.internal.telephony.ims.ImsResolver;
+ import com.android.internal.telephony.satellite.SatelliteController;
++import com.android.internal.telephony.kompakt.MtkModem;
+ import com.android.internal.telephony.subscription.SubscriptionInfoInternal;
+ import com.android.internal.telephony.subscription.SubscriptionManagerService;
+ import com.android.internal.telephony.util.TelephonyUtils;
+@@ -3016,6 +3017,12 @@
+         logl("Creating data network on "
+                 + AccessNetworkConstants.transportTypeToString(transport) + " with " + dataProfile
+                 + ", and attaching " + networkRequestList.size() + " network requests to it.");
++
++        // Kompakt: a new attempt, not a retry, restarts the modem's own retry count for the APN.
++        if (dataSetupRetryEntry == null
++                && transport == AccessNetworkConstants.TRANSPORT_TYPE_WWAN) {
++            MtkModem.onSetupData(mPhone, dataProfile);
++        }
+ 
+         mDataNetworkList.add(new DataNetwork(mPhone, mFeatureFlags, getLooper(),
+                 mDataServiceManagers, dataProfile, networkRequestList, transport, allowedReason,
+@@ -4167,6 +4174,13 @@
+         return mDataRetryManager;
+     }
+ 
++    /** Kompakt: the MediaTek modem reset its own data retry count, so bring data up again. */
++    public void onModemDataRetryCountReset() {
++        mDataRetryManager.onModemDataRetryCountReset();
++        sendMessage(obtainMessage(EVENT_REEVALUATE_UNSATISFIED_NETWORK_REQUESTS,
++                DataEvaluationReason.DATA_RETRY));
++    }
++
+     /**
+      * @return The list of SubscriptionPlans
+      */
+diff --git a/src/java/com/android/internal/telephony/data/DataProfileManager.java b/src/java/com/android/internal/telephony/data/DataProfileManager.java
+--- a/src/java/com/android/internal/telephony/data/DataProfileManager.java
++++ b/src/java/com/android/internal/telephony/data/DataProfileManager.java
+@@ -609,6 +609,11 @@
+         }
+     }
+ 
++    /** Kompakt: the MediaTek modem asks for the attach APN again. */
++    public void resendInitialAttachApn() {
++        post(() -> updateInitialAttachDataProfileAtModem(true));
++    }
++
+     /**
+      * Update the data profiles at modem.
+      */
+diff --git a/src/java/com/android/internal/telephony/data/DataRetryManager.java b/src/java/com/android/internal/telephony/data/DataRetryManager.java
+--- a/src/java/com/android/internal/telephony/data/DataRetryManager.java
++++ b/src/java/com/android/internal/telephony/data/DataRetryManager.java
+@@ -115,6 +115,7 @@
+                     RESET_REASON_DATA_SERVICE_BOUND,
+                     RESET_REASON_DATA_CONFIG_CHANGED,
+                     RESET_REASON_TAC_CHANGED,
++                    RESET_REASON_MODEM_RETRY_COUNT,
+             })
+     public @interface RetryResetReason {}
+ 
+@@ -139,6 +140,9 @@
+     /** Reset due to tracking area code changed. */
+     private static final int RESET_REASON_TAC_CHANGED = 6;
+ 
++    /** Kompakt: the MediaTek modem reset its own data retry count. */
++    private static final int RESET_REASON_MODEM_RETRY_COUNT = 7;
++
+     /** The phone instance. */
+     @NonNull
+     private final Phone mPhone;
+@@ -1388,6 +1392,11 @@
+             }
+         }
+         return false;
++    }
++
++    /** Kompakt: MtkDcTracker clears permanent failures and throttling when the modem does. */
++    public void onModemDataRetryCountReset() {
++        post(() -> onReset(RESET_REASON_MODEM_RETRY_COUNT));
+     }
+ 
+     /** Cancel all retries and throttling entries. */
+@@ -1891,6 +1900,7 @@
+             case RESET_REASON_DATA_SERVICE_BOUND -> "DATA_SERVICE_BOUND";
+             case RESET_REASON_DATA_CONFIG_CHANGED -> "DATA_CONFIG_CHANGED";
+             case RESET_REASON_TAC_CHANGED -> "TAC_CHANGED";
++            case RESET_REASON_MODEM_RETRY_COUNT -> "MODEM_RETRY_COUNT";
+             default -> "UNKNOWN(" + reason + ")";
+         };
+     }
+diff --git a/src/java/com/android/internal/telephony/kompakt/MtkModem.java b/src/java/com/android/internal/telephony/kompakt/MtkModem.java
+new file mode 100644
+--- /dev/null
++++ b/src/java/com/android/internal/telephony/kompakt/MtkModem.java
+@@ -0,0 +1,265 @@
++package com.android.internal.telephony.kompakt;
++
++import android.annotation.NonNull;
++import android.hardware.radio.V1_0.RadioResponseInfo;
++import android.os.Handler;
++import android.os.HandlerThread;
++import android.os.IHwBinder;
++import android.os.RemoteException;
++import android.provider.Settings;
++import android.telephony.AccessNetworkConstants;
++import android.telephony.NetworkRegistrationInfo;
++import android.telephony.ServiceState;
++import android.telephony.SubscriptionManager;
++import android.telephony.TelephonyManager;
++import android.telephony.data.ApnSetting;
++import android.telephony.data.DataProfile;
++
++import com.android.internal.telephony.Phone;
++import com.android.internal.telephony.data.DataSettingsManager;
++import com.android.internal.telephony.data.DataSettingsManager.DataSettingsManagerCallback;
++import com.android.internal.telephony.kompakt.mtkradioex.V3_0.IAssistRadioResponse;
++import com.android.internal.telephony.kompakt.mtkradioex.V3_0.IMtkRadioEx;
++import com.android.telephony.Rlog;
++
++import java.util.ArrayList;
++import java.util.Arrays;
++import java.util.NoSuchElementException;
++
++/**
++ * Kompakt: what MuditaOS's MediaTek telephony framework tells the modem, and the two modem
++ * requests it answers. A GSI has none of it. One instance per phone, on one shared thread.
++ */
++public final class MtkModem implements IHwBinder.DeathRecipient {
++    private static final String TAG = "KompaktMtkModem";
++    /** A data setting the modem should leave as it is. */
++    private static final int KEEP = -2;
++    private static final int EVENT_RADIO_ON = 1;
++    private static final long RECONNECT_MS = 2000;
++    private static final long COOKIE_RADIO = 0;
++    private static final long COOKIE_ASSIST = 1;
++
++    private static final Object sLock = new Object();
++    private static MtkModem[] sModems = new MtkModem[0];
++    private static Handler sHandler;
++
++    private final Phone mPhone;
++    private final int mSlot;
++    private final Handler mHandler;
++    /** mtkSlotN: requests, and the modem's indications. */
++    private IMtkRadioEx mRadio;
++    /** mtkAssistN: the data settings, through the instance MtkTelephonyAssist uses. */
++    private IMtkRadioEx mAssist;
++    private final Runnable mConnect = this::connect;
++    private boolean mUnavailable;
++    private int mSerial;
++
++    /** Called for each phone PhoneFactory makes. */
++    public static void make(@NonNull Phone phone) {
++        synchronized (sLock) {
++            if (sHandler == null) {
++                HandlerThread thread = new HandlerThread(TAG);
++                thread.start();
++                sHandler = new Handler(thread.getLooper());
++            }
++            int id = phone.getPhoneId();
++            if (id < 0) return;
++            if (id >= sModems.length) sModems = Arrays.copyOf(sModems, id + 1);
++            if (sModems[id] != null) return;
++            sModems[id] = new MtkModem(phone, sHandler);
++            sModems[id].start();
++        }
++    }
++
++    private static MtkModem get(int phoneId) {
++        synchronized (sLock) {
++            return phoneId >= 0 && phoneId < sModems.length ? sModems[phoneId] : null;
++        }
++    }
++
++    /** MtkRetryManager.configureRetry: a new attempt on an APN restarts the modem's retry count. */
++    public static void onSetupData(@NonNull Phone phone, @NonNull DataProfile profile) {
++        MtkModem modem = get(phone.getPhoneId());
++        ApnSetting apn = profile.getApnSetting();
++        if (modem == null || apn == null) return;
++        String name = apn.getApnName();
++        modem.mHandler.post(() -> modem.resetMdDataRetryCount(name));
++    }
++
++    /** MtkServiceStateTracker.pollStateDone: the modem hears every service state poll. */
++    public static void onServiceStateChanged(@NonNull Phone phone, @NonNull ServiceState ss) {
++        MtkModem modem = get(phone.getPhoneId());
++        if (modem == null) return;
++        ServiceState copy = new ServiceState(ss);
++        modem.mHandler.post(() -> modem.sendServiceState(copy));
++    }
++
++    private MtkModem(Phone phone, Handler handler) {
++        mPhone = phone;
++        mSlot = phone.getPhoneId();
++        mHandler = handler;
++    }
++
++    private void start() {
++        Handler events = new Handler(mHandler.getLooper(), msg -> {
++            // MtkTelephonyAssist resends the data settings each time the radio comes on.
++            if (msg.what == EVENT_RADIO_ON) syncData();
++            return true;
++        });
++        mPhone.mCi.registerForOn(events, EVENT_RADIO_ON, null);
++        DataSettingsManager settings = mPhone.getDataSettingsManager();
++        if (settings != null) {
++            settings.registerCallback(new DataSettingsManagerCallback(mHandler::post) {
++                @Override
++                public void onDataEnabledChanged(boolean enabled, int reason,
++                        @NonNull String callingPackage) {
++                    syncData();
++                }
++
++                @Override
++                public void onDataRoamingEnabledChanged(boolean enabled) {
++                    syncData();
++                }
++            });
++        }
++        SubscriptionManager subs = mPhone.getContext().getSystemService(SubscriptionManager.class);
++        if (subs != null) {
++            subs.addOnSubscriptionsChangedListener(mHandler::post,
++                    new SubscriptionManager.OnSubscriptionsChangedListener() {
++                        @Override
++                        public void onSubscriptionsChanged() {
++                            syncData();
++                        }
++                    });
++        }
++        mHandler.post(mConnect);
++    }
++
++    private void connect() {
++        if (mUnavailable) return;
++        try {
++            if (mRadio == null) {
++                IMtkRadioEx radio = IMtkRadioEx.getService("mtkSlot" + (mSlot + 1), true);
++                radio.linkToDeath(this, COOKIE_RADIO);
++                radio.setResponseFunctionsMtk(new MtkModemResponse(), new MtkModemIndication(this));
++                mRadio = radio;
++            }
++            if (mAssist == null) {
++                IMtkRadioEx assist = IMtkRadioEx.getService("mtkAssist" + (mSlot + 1), true);
++                assist.linkToDeath(this, COOKIE_ASSIST);
++                assist.setResponseFunctionsAssist(new AssistResponse());
++                mAssist = assist;
++            }
++        } catch (NoSuchElementException e) {
++            Rlog.w(TAG, "slot " + mSlot + ": no MediaTek radio HAL, staying off");
++            mUnavailable = true;
++            return;
++        } catch (RemoteException | RuntimeException e) {
++            Rlog.e(TAG, "slot " + mSlot + ": MediaTek radio HAL not reachable, retrying: " + e);
++            mHandler.postDelayed(mConnect, RECONNECT_MS);
++            return;
++        }
++        Rlog.i(TAG, "slot " + mSlot + ": connected");
++        syncData();
++        sendServiceState(new ServiceState(mPhone.getServiceState()));
++    }
++
++    @Override
++    public void serviceDied(long cookie) {
++        Rlog.w(TAG, "slot " + mSlot + ": MediaTek radio HAL died");
++        mHandler.post(() -> {
++            if (cookie == COOKIE_RADIO) mRadio = null;
++            else mAssist = null;
++            mHandler.removeCallbacks(mConnect);
++            mHandler.postDelayed(mConnect, RECONNECT_MS);
++        });
++    }
++
++    /** MtkDcTracker EVENT_RESET_ATTACH_APN: the modem asks for the attach APN again. */
++    void onResetAttachApn() {
++        Rlog.i(TAG, "slot " + mSlot + ": modem asks for the attach APN again");
++        mPhone.getDataNetworkController().getDataProfileManager().resendInitialAttachApn();
++    }
++
++    /** MtkDcTracker EVENT_MD_DATA_RETRY_COUNT_RESET: retry every APN the framework gave up on. */
++    void onMdDataRetryCountReset() {
++        Rlog.i(TAG, "slot " + mSlot + ": modem reset its data retry count");
++        mPhone.getDataNetworkController().onModemDataRetryCountReset();
++    }
++
++    private void resetMdDataRetryCount(String apn) {
++        if (mRadio == null) return;
++        try {
++            mRadio.resetMdDataRetryCount(++mSerial, apn);
++            Rlog.d(TAG, "slot " + mSlot + ": resetMdDataRetryCount " + apn);
++        } catch (RemoteException | RuntimeException e) {
++            Rlog.e(TAG, "slot " + mSlot + ": resetMdDataRetryCount failed: " + e);
++        }
++    }
++
++    /** The voice roaming type goes twice, as MtkServiceStateTracker sends it. */
++    private void sendServiceState(ServiceState ss) {
++        if (mRadio == null) return;
++        NetworkRegistrationInfo cs = ss.getNetworkRegistrationInfo(
++                NetworkRegistrationInfo.DOMAIN_CS, AccessNetworkConstants.TRANSPORT_TYPE_WWAN);
++        NetworkRegistrationInfo ps = ss.getNetworkRegistrationInfo(
++                NetworkRegistrationInfo.DOMAIN_PS, AccessNetworkConstants.TRANSPORT_TYPE_WWAN);
++        int rilVoice = cs != null ? cs.getRegistrationState()
++                : NetworkRegistrationInfo.REGISTRATION_STATE_UNKNOWN;
++        int rilData = ps != null ? ps.getRegistrationState()
++                : NetworkRegistrationInfo.REGISTRATION_STATE_UNKNOWN;
++        try {
++            mRadio.setServiceStateToModem(++mSerial, ss.getState(), ss.getDataRegistrationState(),
++                    ss.getVoiceRoamingType(), ss.getVoiceRoamingType(), rilVoice, rilData);
++        } catch (RemoteException | RuntimeException e) {
++            Rlog.e(TAG, "slot " + mSlot + ": setServiceStateToModem failed: " + e);
++        }
++    }
++
++    /** MtkTelephonyAssist's DataStateController: this SIM's data settings, then the data SIM. */
++    private void syncData() {
++        int sub = mPhone.getSubId();
++        DataSettingsManager settings = mPhone.getDataSettingsManager();
++        if (SubscriptionManager.isValidSubscriptionId(sub) && settings != null) {
++            int data = settings.isDataEnabledForReason(TelephonyManager.DATA_ENABLED_REASON_USER)
++                    ? 1 : 0;
++            int roaming = settings.isDataRoamingEnabled() ? 1 : 0;
++            sendDataSettings(this, data, roaming, KEEP, mtkSetting("domestic_data_roaming", sub),
++                    mtkSetting("international_data_roaming", sub));
++        }
++        // Stock sends the data SIM once, through the first slot.
++        if (mSlot == 0) {
++            sendDataSettings(this, KEEP, KEEP,
++                    SubscriptionManager.getSlotIndex(
++                            SubscriptionManager.getDefaultDataSubscriptionId()), KEEP, KEEP);
++        }
++    }
++
++    /** MediaTek's own roaming switches; nothing sets them here, so they read 0 as on stock. */
++    private int mtkSetting(String name, int sub) {
++        return Settings.Global.getInt(mPhone.getContext().getContentResolver(), name + sub, 0) != 0
++                ? 1 : 0;
++    }
++
++    private static void sendDataSettings(MtkModem modem, int... values) {
++        if (modem.mAssist == null) return;
++        ArrayList<Integer> list = new ArrayList<>(values.length);
++        for (int value : values) list.add(value);
++        try {
++            modem.mAssist.syncDataSettingsToMd(++modem.mSerial, list);
++            Rlog.i(TAG, "slot " + modem.mSlot + ": syncDataSettingsToMd " + list);
++        } catch (RemoteException | RuntimeException e) {
++            Rlog.e(TAG, "slot " + modem.mSlot + ": syncDataSettingsToMd failed: " + e);
++        }
++    }
++
++    private static final class AssistResponse extends IAssistRadioResponse.Stub {
++        @Override
++        public void syncDataSettingsToMdResponse(RadioResponseInfo info) {
++            if (info.error != 0) Rlog.w(TAG, "syncDataSettingsToMd error " + info.error);
++        }
++
++        @Override
++        public void setFdModeResponse(RadioResponseInfo info) {}
++    }
++}
+diff --git a/src/java/com/android/internal/telephony/kompakt/MtkModemIndication.java b/src/java/com/android/internal/telephony/kompakt/MtkModemIndication.java
+new file mode 100644
+--- /dev/null
++++ b/src/java/com/android/internal/telephony/kompakt/MtkModemIndication.java
+@@ -0,0 +1,101 @@
++package com.android.internal.telephony.kompakt;
++
++import android.hardware.radio.V1_0.LastCallFailCause;
++import android.hardware.radio.V1_0.SuppSvcNotification;
++import android.hidl.base.V1_0.DebugInfo;
++import android.hidl.base.V1_0.IBase;
++import android.os.HidlSupport;
++import android.os.HwBinder;
++import android.os.HwBlob;
++import android.os.HwParcel;
++import android.os.IHwBinder;
++import android.os.IHwInterface;
++import android.os.NativeHandle;
++import android.os.RemoteException;
++import java.util.ArrayList;
++import java.util.Arrays;
++import java.util.Objects;
++import com.android.internal.telephony.kompakt.mtkradioex.V3_0.*;
++import com.android.internal.telephony.kompakt.mtkradioex.V3_0.IMtkRadioExIndication;
++
++/** Kompakt: the modem's MediaTek indications; all are ignored except the two MtkModem answers. */
++final class MtkModemIndication extends IMtkRadioExIndication.Stub {
++    private final MtkModem mModem;
++    MtkModemIndication(MtkModem modem) { mModem = modem; }
++
++    @Override public void bipProactiveCommand(int i, String str) { }
++    @Override public void callAdditionalInfoInd(int i, int i2, ArrayList<String> arrayList) { }
++    @Override public void cdmaCallAccepted(int i) { }
++    @Override public void cfuStatusNotify(int i, CfuStatusNotification cfuStatusNotification) { }
++    @Override public void cipherIndication(int i, CipherNotification cipherNotification) { }
++    @Override public void confSRVCC(int i, ArrayList<Integer> arrayList) { }
++    @Override public void crssIndication(int i, CrssNotification crssNotification) { }
++    @Override public void currentSignalStrengthWithWcdmaEcioInd(int i, SignalStrengthWithWcdmaEcio signalStrengthWithWcdmaEcio) { }
++    @Override public void dedicatedBearerActivationInd(int i, DedicateDataCall dedicateDataCall) { }
++    @Override public void dedicatedBearerDeactivationInd(int i, int i2) { }
++    @Override public void dedicatedBearerModificationInd(int i, DedicateDataCall dedicateDataCall) { }
++    @Override public void dsbpStateChanged(int i, int i2) { }
++    @Override public void eMBMSAtInfoIndication(int i, String str) { }
++    @Override public void eMBMSSessionStatusIndication(int i, int i2) { }
++    @Override public void eccNumIndication(int i, String str, String str2) { }
++    @Override public void esnMeidChangeInd(int i, String str) { }
++    @Override public void gmssRatChangedIndication(int i, ArrayList<Integer> arrayList) { }
++    @Override public void iccidChanged(int i, String str) { }
++    @Override public void incomingCallIndication(int i, IncomingCallNotification incomingCallNotification) { }
++    @Override public void iwlanRegistrationStateInd(int i, int i2) { }
++    @Override public void mdChangedApnInd(int i, int i2) { }
++    @Override public void meSmsStorageFullInd(int i) { }
++    @Override public void mobileDataUsageInd(int i, ArrayList<Integer> arrayList) { }
++    @Override public void networkBandInfoInd(int i, ArrayList<Integer> arrayList) { }
++    @Override public void networkInfoInd(int i, ArrayList<String> arrayList) { }
++    @Override public void networkRejectCauseInd(int i, ArrayList<Integer> arrayList) { }
++    @Override public void newEtwsInd(int i, EtwsNotification etwsNotification) { }
++    @Override public void nrCaBandChangeInd(int i, ArrayList<Integer> arrayList) { }
++    @Override public void nrSysInfoInd(int i, ArrayList<Integer> arrayList) { }
++    @Override public void oemHookRaw(int i, ArrayList<Byte> arrayList) { }
++    @Override public void on5GUWInfoInd(int i, ArrayList<Integer> arrayList) { }
++    @Override public void onCardDetectedInd(int i) { }
++    @Override public void onCellularQualityChangedInd(int i, ArrayList<Integer> arrayList) { }
++    @Override public void onDsdaChangedInd(int i, int i2) { }
++    @Override public void onImeiLock(int i) { }
++    @Override public void onImsiRefreshDone(int i) { }
++    @Override public void onMccMncChanged(int i, String str) { }
++    @Override public void onMdDataRetryCountReset(int i) { mModem.onMdDataRetryCountReset(); }
++    @Override public void onNwCfgInfoInd(int i, boolean z, boolean z2, boolean z3) { }
++    @Override public void onNwLimitInd(int i, ArrayList<Integer> arrayList) { }
++    @Override public void onNwRrcStateInd(int i, int i2, int i3) { }
++    @Override public void onPlmnDataInd(int i, PlmnMvnoInfo plmnMvnoInfo) { }
++    @Override public void onPseudoCellInfoInd(int i, ArrayList<Integer> arrayList) { }
++    @Override public void onRemoveRestrictEutran(int i) { }
++    @Override public void onRsuEvent(int i, int i2, String str) { }
++    @Override public void onRsuSimLockEvent(int i, int i2) { }
++    @Override public void onSimHotSwapInd(int i, int i2, String str) { }
++    @Override public void onSimMeLockEvent(int i) { }
++    @Override public void onSimPowerChangedInd(int i, ArrayList<Integer> arrayList) { }
++    @Override public void onStkMenuReset(int i) { }
++    @Override public void onTxPowerIndication(int i, ArrayList<Integer> arrayList) { }
++    @Override public void onTxPowerStatusIndication(int i, ArrayList<Integer> arrayList) { }
++    @Override public void onVirtualSimStatusChanged(int i, int i2) { }
++    @Override public void onVsimEventIndication(int i, VsimOperationEvent vsimOperationEvent) { }
++    @Override public void pcoDataAfterAttached(int i, PcoDataAttachedInfo pcoDataAttachedInfo) { }
++    @Override public void phbReadyNotification(int i, int i2) { }
++    @Override public void plmnChangedIndication(int i, ArrayList<String> arrayList) { }
++    @Override public void qualifiedNetworkTypesChangedInd(int type, ArrayList<Integer> data) { }
++    @Override public void registrationSuspendedIndication(int i, ArrayList<Integer> arrayList) { }
++    @Override public void resetAttachApnInd(int i) { mModem.onResetAttachApn(); }
++    @Override public void responseCsNetworkStateChangeInd(int i, ArrayList<String> arrayList) { }
++    @Override public void responseFemtocellInfo(int i, ArrayList<String> arrayList) { }
++    @Override public void responseInvalidSimInd(int i, ArrayList<String> arrayList) { }
++    @Override public void responseLteNetworkInfo(int i, int i2) { }
++    @Override public void responseModulationInfoInd(int i, ArrayList<Integer> arrayList) { }
++    @Override public void responseNetworkEventInd(int i, ArrayList<Integer> arrayList) { }
++    @Override public void responsePsNetworkStateChangeInd(int i, ArrayList<Integer> arrayList) { }
++    @Override public void sib16TimeInfoInd(int i, String str, long j) { }
++    @Override public void smlSlotLockInfoChangedInd(int i, ArrayList<Integer> arrayList) { }
++    @Override public void smsInfoExtInd(int i, String str) { }
++    @Override public void smsReadyInd(int i) { }
++    @Override public void suppSvcNotifyEx(int i, SuppSvcNotification suppSvcNotification) { }
++    @Override public void toeInfoInd(int i, String str, String str2, String str3) { }
++    @Override public void triggerOtaSP(int i) { }
++    @Override public void worldModeChangedIndication(int i, ArrayList<Integer> arrayList) { }
++}
+diff --git a/src/java/com/android/internal/telephony/kompakt/MtkModemResponse.java b/src/java/com/android/internal/telephony/kompakt/MtkModemResponse.java
+new file mode 100644
+--- /dev/null
++++ b/src/java/com/android/internal/telephony/kompakt/MtkModemResponse.java
+@@ -0,0 +1,186 @@
++package com.android.internal.telephony.kompakt;
++
++import android.hardware.radio.V1_0.LastCallFailCause;
++import android.hardware.radio.V1_0.RadioCdmaSmsConst;
++import android.hardware.radio.V1_0.RadioResponseInfo;
++import android.hardware.radio.V1_4.DataCallFailCause;
++import android.hardware.radio.V1_5.EutranBands;
++import android.hardware.radio.V1_5.NgranBands;
++import android.hardware.radio.V1_5.UtranBands;
++import android.hidl.base.V1_0.DebugInfo;
++import android.hidl.base.V1_0.IBase;
++import android.os.HidlSupport;
++import android.os.HwBinder;
++import android.os.HwBlob;
++import android.os.HwParcel;
++import android.os.IHwBinder;
++import android.os.IHwInterface;
++import android.os.NativeHandle;
++import android.os.RemoteException;
++import java.util.ArrayList;
++import java.util.Arrays;
++import java.util.Objects;
++import com.android.internal.telephony.kompakt.mtkradioex.V3_0.*;
++import com.android.internal.telephony.kompakt.mtkradioex.V3_0.IMtkRadioExResponse;
++
++/** Kompakt: MtkModem sends nothing it waits on, so every MediaTek response is ignored. */
++final class MtkModemResponse extends IMtkRadioExResponse.Stub {
++
++    @Override public void abortFemtocellListResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void activateUiccCardRsp(RadioResponseInfo radioResponseInfo, int i) { }
++    @Override public void cancelAvailableNetworksResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void cfgA2offsetResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void cfgB1offsetResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void clearLteAvailableFileResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void dataConnectionAttachResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void dataConnectionDetachResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void deactivateNrScgCommunicationResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void deactivateUiccCardRsp(RadioResponseInfo radioResponseInfo, int i) { }
++    @Override public void deleteUPBEntryResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void disableAllCALinksResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void editUPBEntryResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void enableCAPlusBandWidthFilterResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void enableDsdaIndicationResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void enableSCGfailureResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void get4x4MimoEnabledResponse(RadioResponseInfo radioResponseInfo, int i) { }
++    @Override public void getATRResponse(RadioResponseInfo radioResponseInfo, String str) { }
++    @Override public void getAllBandModeResponse(RadioResponseInfo radioResponseInfo, BandModeInfo bandModeInfo) { }
++    @Override public void getApcInfoResponse(RadioResponseInfo radioResponseInfo, ArrayList<Integer> arrayList) { }
++    @Override public void getAvailableNetworksWithActResponse(RadioResponseInfo radioResponseInfo, ArrayList<OperatorInfoWithAct> arrayList) { }
++    @Override public void getBandModeResponse(RadioResponseInfo radioResponseInfo, ArrayList<Integer> arrayList) { }
++    @Override public void getBandPriorityListResponse(RadioResponseInfo radioResponseInfo, ArrayList<Integer> arrayList) { }
++    @Override public void getCALinkCapabilityListResponse(RadioResponseInfo radioResponseInfo, ArrayList<String> arrayList) { }
++    @Override public void getCALinkEnableStatusResponse(RadioResponseInfo radioResponseInfo, boolean z) { }
++    @Override public void getCaBandModeResponse(RadioResponseInfo radioResponseInfo, ArrayList<Integer> arrayList) { }
++    @Override public void getCallSubAddressResponse(RadioResponseInfo radioResponseInfo, int i) { }
++    @Override public void getCampedFemtoCellInfoResponse(RadioResponseInfo radioResponseInfo, ArrayList<String> arrayList) { }
++    @Override public void getColpResponse(RadioResponseInfo radioResponseInfo, int i, int i2) { }
++    @Override public void getColrResponse(RadioResponseInfo radioResponseInfo, int i) { }
++    @Override public void getCurrentPOLListResponse(RadioResponseInfo radioResponseInfo, ArrayList<String> arrayList) { }
++    @Override public void getCurrentUiccCardProvisioningStatusRsp(RadioResponseInfo radioResponseInfo, int i) { }
++    @Override public void getDeactivateNrScgCommunicationResponse(RadioResponseInfo radioResponseInfo, int i, int i2) { }
++    @Override public void getDisable2GResponse(RadioResponseInfo radioResponseInfo, int i) { }
++    @Override public void getDsdaStatusResponse(RadioResponseInfo radioResponseInfo, int i) { }
++    @Override public void getEccNumResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void getEngineeringModeInfoResponse(RadioResponseInfo radioResponseInfo, ArrayList<String> arrayList) { }
++    @Override public void getFemtocellListResponse(RadioResponseInfo radioResponseInfo, ArrayList<String> arrayList) { }
++    @Override public void getGsmBroadcastActivationRsp(RadioResponseInfo radioResponseInfo, int i) { }
++    @Override public void getGsmBroadcastLangsResponse(RadioResponseInfo radioResponseInfo, String str) { }
++    @Override public void getIWlanRegistrationStateResponse(RadioResponseInfo radioResponseInfo, int i) { }
++    @Override public void getIccidResponse(RadioResponseInfo radioResponseInfo, String str) { }
++    @Override public void getLte1xRttCellListResponse(RadioResponseInfo radioResponseInfo, ArrayList<Lte1xRttCellInfo> arrayList) { }
++    @Override public void getLteBsrTimerResponse(RadioResponseInfo radioResponseInfo, int i) { }
++    @Override public void getLteDataResponse(RadioResponseInfo radioResponseInfo, LteData lteData) { }
++    @Override public void getLteRRCStateResponse(RadioResponseInfo radioResponseInfo, int i) { }
++    @Override public void getLteReleaseVersionResponse(RadioResponseInfo radioResponseInfo, int i) { }
++    @Override public void getLteScanDurationResponse(RadioResponseInfo radioResponseInfo, int i) { }
++    @Override public void getPOLCapabilityResponse(RadioResponseInfo radioResponseInfo, ArrayList<Integer> arrayList) { }
++    @Override public void getPhoneBookMemStorageResponse(RadioResponseInfo radioResponseInfo, PhbMemStorageResponse phbMemStorageResponse) { }
++    @Override public void getPhoneBookStringsLengthResponse(RadioResponseInfo radioResponseInfo, ArrayList<Integer> arrayList) { }
++    @Override public void getPlmnNameFromSE13TableResponse(RadioResponseInfo radioResponseInfo, String str) { }
++    @Override public void getQamEnabledResponse(RadioResponseInfo radioResponseInfo, boolean z, boolean z2) { }
++    @Override public void getRoamingEnableResponse(RadioResponseInfo radioResponseInfo, ArrayList<Integer> arrayList) { }
++    @Override public void getRxTestResultResponse(RadioResponseInfo radioResponseInfo, ArrayList<Integer> arrayList) { }
++    @Override public void getSignalStrengthWithWcdmaEcioResponse(RadioResponseInfo radioResponseInfo, SignalStrengthWithWcdmaEcio signalStrengthWithWcdmaEcio) { }
++    @Override public void getSmsMemStatusResponse(RadioResponseInfo radioResponseInfo, SmsMemStatus smsMemStatus) { }
++    @Override public void getSmsParametersResponse(RadioResponseInfo radioResponseInfo, SmsParams smsParams) { }
++    @Override public void getSmsRuimMemoryStatusResponse(RadioResponseInfo radioResponseInfo, SmsMemStatus smsMemStatus) { }
++    @Override public void getSuggestedPlmnListResponse(RadioResponseInfo radioResponseInfo, ArrayList<String> arrayList) { }
++    @Override public void getTOEInfoResponse(RadioResponseInfo radioResponseInfo, String str, String str2, String str3) { }
++    @Override public void getTm9EnabledResponse(RadioResponseInfo radioResponseInfo, boolean z, boolean z2) { }
++    @Override public void handleStkCallSetupRequestFromSimWithResCodeResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void hangupAllResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void hangupWithReasonResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void modifyModemTypeResponse(RadioResponseInfo radioResponseInfo, int i) { }
++    @Override public void queryCallForwardInTimeSlotStatusResponse(RadioResponseInfo radioResponseInfo, ArrayList<CallForwardInfoEx> arrayList) { }
++    @Override public void queryFemtoCellSystemSelectionModeResponse(RadioResponseInfo radioResponseInfo, int i) { }
++    @Override public void queryNetworkLockResponse(RadioResponseInfo radioResponseInfo, int i, int i2, int i3, int i4, int i5, int i6, int i7) { }
++    @Override public void queryPhbStorageInfoResponse(RadioResponseInfo radioResponseInfo, ArrayList<Integer> arrayList) { }
++    @Override public void queryUPBAvailableResponse(RadioResponseInfo radioResponseInfo, ArrayList<Integer> arrayList) { }
++    @Override public void queryUPBCapabilityResponse(RadioResponseInfo radioResponseInfo, ArrayList<Integer> arrayList) { }
++    @Override public void readPhbEntryResponse(RadioResponseInfo radioResponseInfo, ArrayList<PhbEntryStructure> arrayList) { }
++    @Override public void readPhoneBookEntryExtResponse(RadioResponseInfo radioResponseInfo, ArrayList<PhbEntryExt> arrayList) { }
++    @Override public void readUPBAasListResponse(RadioResponseInfo radioResponseInfo, ArrayList<String> arrayList) { }
++    @Override public void readUPBAnrEntryResponse(RadioResponseInfo radioResponseInfo, ArrayList<PhbEntryStructure> arrayList) { }
++    @Override public void readUPBEmailEntryResponse(RadioResponseInfo radioResponseInfo, String str) { }
++    @Override public void readUPBGasListResponse(RadioResponseInfo radioResponseInfo, ArrayList<String> arrayList) { }
++    @Override public void readUPBGrpEntryResponse(RadioResponseInfo radioResponseInfo, ArrayList<Integer> arrayList) { }
++    @Override public void readUPBSneEntryResponse(RadioResponseInfo radioResponseInfo, String str) { }
++    @Override public void registerCellQltyReportResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void removeCbMsgResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void resetAllConnectionsResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void resetMdDataRetryCountResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void restartRILDResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void runGbaAuthenticationResponse(RadioResponseInfo radioResponseInfo, ArrayList<String> arrayList) { }
++    @Override public void selectFemtocellResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void sendCnapResponse(RadioResponseInfo radioResponseInfo, int i, int i2) { }
++    @Override public void sendEmbmsAtCommandResponse(RadioResponseInfo radioResponseInfo, String str) { }
++    @Override public void sendRequestRawResponse(RadioResponseInfo radioResponseInfo, ArrayList<Byte> arrayList) { }
++    @Override public void sendRequestStringsResponse(RadioResponseInfo radioResponseInfo, ArrayList<String> arrayList) { }
++    @Override public void sendRsuRequestResponse(RadioResponseInfo radioResponseInfo, RsuResponseInfo rsuResponseInfo) { }
++    @Override public void sendSarIndicatorResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void sendWifiAssociatedResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void sendWifiEnabledResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void sendWifiIpAddressResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void set4x4MimoEnabledResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setApcModeResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setBandPriorityListResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setBgsrchDeltaSleepTimerResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setCALinkEnableStatusResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setCallForwardInTimeSlotResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setCallIndicationResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setCallSubAddressResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setCallValidTimerResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setClipResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setColpResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setColrResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setDisable2GResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setEccModeResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setEccNumResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setEtwsResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setFdModeResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setFemtoCellSystemSelectionModeResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setGsmBroadcastLangsResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setGwsdModeResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setIgnoreSameNumberIntervalResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setKeepAliveByIpDataResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setKeepAliveByPDCPCtrlPDUResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setLteBandEnableStatusResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setLteBsrTimerResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setLteReleaseVersionResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setLteScanDurationResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setMaxUlSpeedResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setModemPowerResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setNROptionResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setNetworkLockResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setNetworkSelectionModeManualWithActResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setNrBandModeResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setPOLEntryResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setPhoneBookMemStorageResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setPhonebookReadyResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setQamEnabledResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setRemoveRestrictEutranModeResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setResumeRegistrationResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setRoamingEnableResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setRxTestConfigResponse(RadioResponseInfo radioResponseInfo, ArrayList<Integer> arrayList) { }
++    @Override public void setSearchRatResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setSearchStoredFreqInfoResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setServiceStateToModemResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setSimPowerResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setSmsParametersResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setSuppServPropertyResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setTm9EnabledResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setTrmResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setTxPowerResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setTxPowerStatusResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void setVendorSettingResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void supplyDepersonalizationResponse(RadioResponseInfo radioResponseInfo, int i) { }
++    @Override public void supplyDeviceNetworkDepersonalizationResponse(RadioResponseInfo radioResponseInfo, int i) { }
++    @Override public void syncDataSettingsToMdResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void triggerModeSwitchByEccResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void vsimNotificationResponse(RadioResponseInfo radioResponseInfo, VsimEvent vsimEvent) { }
++    @Override public void vsimOperationResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void writePhbEntryResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void writePhoneBookEntryExtResponse(RadioResponseInfo radioResponseInfo) { }
++    @Override public void writeUPBGrpEntryResponse(RadioResponseInfo radioResponseInfo) { }
++}
+-- 
+2.43.0
+

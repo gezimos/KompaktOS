@@ -1,13 +1,18 @@
-From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From 51e2052dcf450f3ade042a2b0782c97833b92cac Mon Sep 17 00:00:00 2001
 From: Gezim <gezimos@users.noreply.github.com>
 Date: Thu, 1 Oct 2026 16:45:00 +0200
-Subject: [PATCH 1/1] Kompakt: SPA pages use a one row toolbar
+Subject: [PATCH 47/99] Kompakt: SPA pages use a one row toolbar
 
 ---
+ .../spa/widget/scaffold/SettingsScaffold.kt    |  3 ++-
+ .../spa/widget/scaffold/SettingsTopAppBar.kt   | 18 +++++++++++++++---
+ 2 files changed, 17 insertions(+), 4 deletions(-)
+
 diff --git a/packages/SettingsLib/Spa/spa/src/com/android/settingslib/spa/widget/scaffold/SettingsScaffold.kt b/packages/SettingsLib/Spa/spa/src/com/android/settingslib/spa/widget/scaffold/SettingsScaffold.kt
+index 2b24ee382dc1..f427921e4f81 100644
 --- a/packages/SettingsLib/Spa/spa/src/com/android/settingslib/spa/widget/scaffold/SettingsScaffold.kt
 +++ b/packages/SettingsLib/Spa/spa/src/com/android/settingslib/spa/widget/scaffold/SettingsScaffold.kt
-@@ -55,8 +55,9 @@
+@@ -55,8 +55,9 @@ fun SettingsScaffold(
      ActivityTitle(title)
      val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
  
@@ -19,9 +24,10 @@ diff --git a/packages/SettingsLib/Spa/spa/src/com/android/settingslib/spa/widget
          containerColor = MaterialTheme.colorScheme.settingsBackground,
          contentWindowInsets = WindowInsets.safeDrawing,
 diff --git a/packages/SettingsLib/Spa/spa/src/com/android/settingslib/spa/widget/scaffold/SettingsTopAppBar.kt b/packages/SettingsLib/Spa/spa/src/com/android/settingslib/spa/widget/scaffold/SettingsTopAppBar.kt
+index 9772dca08b76..0efd6fb1349f 100644
 --- a/packages/SettingsLib/Spa/spa/src/com/android/settingslib/spa/widget/scaffold/SettingsTopAppBar.kt
 +++ b/packages/SettingsLib/Spa/spa/src/com/android/settingslib/spa/widget/scaffold/SettingsTopAppBar.kt
-@@ -19,9 +19,14 @@
+@@ -19,9 +19,14 @@ package com.android.settingslib.spa.widget.scaffold
  import android.os.Build
  import androidx.compose.foundation.layout.RowScope
  import androidx.compose.material3.ExperimentalMaterial3Api
@@ -36,7 +42,7 @@ diff --git a/packages/SettingsLib/Spa/spa/src/com/android/settingslib/spa/widget
  import androidx.window.embedding.ActivityEmbeddingController
  import com.android.settingslib.spa.framework.compose.localActivity
  
-@@ -33,11 +38,18 @@
+@@ -33,11 +38,18 @@ internal fun SettingsTopAppBar(
      isFirstLayerPageWhenEmbedded: Boolean,
      actions: @Composable RowScope.() -> Unit,
  ) {

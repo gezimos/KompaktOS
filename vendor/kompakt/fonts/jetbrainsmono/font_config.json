@@ -1,0 +1,47 @@
+[
+    {
+        "name": "jetbrains-mono",
+        "fonts": [
+            {
+                "file": "JetBrainsMono-Regular.ttf",
+                "weight": "400",
+                "style": "normal"
+            },
+            {
+                "file": "JetBrainsMono-Italic.ttf",
+                "weight": "400",
+                "style": "italic"
+            },
+            {
+                "file": "JetBrainsMono-Medium.ttf",
+                "weight": "500",
+                "style": "normal"
+            },
+            {
+                "file": "JetBrainsMono-MediumItalic.ttf",
+                "weight": "500",
+                "style": "italic"
+            },
+            {
+                "file": "JetBrainsMono-SemiBold.ttf",
+                "weight": "600",
+                "style": "normal"
+            },
+            {
+                "file": "JetBrainsMono-SemiBoldItalic.ttf",
+                "weight": "600",
+                "style": "italic"
+            },
+            {
+                "file": "JetBrainsMono-Bold.ttf",
+                "weight": "700",
+                "style": "normal"
+            },
+            {
+                "file": "JetBrainsMono-BoldItalic.ttf",
+                "weight": "700",
+                "style": "italic"
+            }
+        ]
+    }
+]

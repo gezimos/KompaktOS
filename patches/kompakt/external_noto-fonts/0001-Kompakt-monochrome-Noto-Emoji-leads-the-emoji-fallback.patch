@@ -1,0 +1,31 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Wed, 7 Oct 2026 12:00:00 +0000
+Subject: [PATCH] Kompakt: monochrome Noto Emoji leads the emoji fallback
+
+---
+diff --git a/emoji-compat/font_config.json b/emoji-compat/font_config.json
+--- a/emoji-compat/font_config.json
++++ b/emoji-compat/font_config.json
+@@ -1,6 +1,18 @@
+ [
+     {
+         "lang": "und-Zsye",
++        // Kompakt: monochrome Noto Emoji first; SystemFonts drops it when the user picks colour
++        "priority": -10,
++        "fonts": [
++            {
++                "file": "NotoEmoji-Regular.ttf",
++                "weight": "400",
++                "style": "normal"
++            }
++        ]
++    },
++    {
++        "lang": "und-Zsye",
+         "priority": 0,
+         "fonts": [
+             {
+-- 
+2.43.0
+

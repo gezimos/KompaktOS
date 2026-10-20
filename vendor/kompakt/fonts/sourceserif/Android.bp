@@ -1,0 +1,60 @@
+// Kompakt: Source Serif 4 (SIL OFL 1.1, see OFL.txt) by Frank Grießhammer for Adobe, from
+// github.com/google/fonts/ofl/sourceserif4. Cut from the variable font with fontTools at
+// opsz 16 (its text size) in eight fixed weights, with Roboto's line metrics (0.928 and
+// -0.244 em, no gap) so it fits the 72 dp collapsed notification as JetBrains Mono does.
+// A system font choice in the Kompakt app (persist.sys.kompakt.font); see SystemFonts.
+
+prebuilt_font {
+    name: "KompaktSourceSerif-Regular.ttf",
+    src: "KompaktSourceSerif-Regular.ttf",
+}
+
+prebuilt_font {
+    name: "KompaktSourceSerif-Italic.ttf",
+    src: "KompaktSourceSerif-Italic.ttf",
+}
+
+prebuilt_font {
+    name: "KompaktSourceSerif-Medium.ttf",
+    src: "KompaktSourceSerif-Medium.ttf",
+}
+
+prebuilt_font {
+    name: "KompaktSourceSerif-MediumItalic.ttf",
+    src: "KompaktSourceSerif-MediumItalic.ttf",
+}
+
+prebuilt_font {
+    name: "KompaktSourceSerif-SemiBold.ttf",
+    src: "KompaktSourceSerif-SemiBold.ttf",
+}
+
+prebuilt_font {
+    name: "KompaktSourceSerif-SemiBoldItalic.ttf",
+    src: "KompaktSourceSerif-SemiBoldItalic.ttf",
+}
+
+prebuilt_font {
+    name: "KompaktSourceSerif-Bold.ttf",
+    src: "KompaktSourceSerif-Bold.ttf",
+}
+
+prebuilt_font {
+    name: "KompaktSourceSerif-BoldItalic.ttf",
+    src: "KompaktSourceSerif-BoldItalic.ttf",
+}
+
+filegroup {
+    name: "KompaktSourceSerif",
+    srcs: ["font_config.json"],
+    required: [
+        "KompaktSourceSerif-Regular.ttf",
+        "KompaktSourceSerif-Italic.ttf",
+        "KompaktSourceSerif-Medium.ttf",
+        "KompaktSourceSerif-MediumItalic.ttf",
+        "KompaktSourceSerif-SemiBold.ttf",
+        "KompaktSourceSerif-SemiBoldItalic.ttf",
+        "KompaktSourceSerif-Bold.ttf",
+        "KompaktSourceSerif-BoldItalic.ttf",
+    ],
+}

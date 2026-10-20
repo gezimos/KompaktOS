@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: the selected tab pill is the ink, as in the Phone and Clock apps. -->
+<resources>
+    <style name="KompaktBottomNavigation" parent="Widget.Material3.BottomNavigationView">
+        <item name="itemActiveIndicatorStyle">@style/KompaktTabIndicator</item>
+        <item name="itemIconTint">@color/kompakt_tab_icon_tint</item>
+        <item name="itemTextAppearanceActive">@style/KompaktNavText</item>
+        <item name="itemTextAppearanceInactive">@style/KompaktNavText</item>
+    </style>
+    <!-- Kompakt: the tab labels in the system font at 12sp, as the Clock app's navText; the Expressive label style set its own font. -->
+    <style name="KompaktNavText">
+        <item name="android:textSize">12sp</item>
+    </style>
+    <style name="KompaktTabIndicator" parent="Widget.Material3.BottomNavigationView.ActiveIndicator">
+        <item name="android:color">?attr/colorOnSurface</item>
+    </style>
+</resources>

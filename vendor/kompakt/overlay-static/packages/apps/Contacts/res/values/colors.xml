@@ -41,4 +41,6 @@
     <!-- Kompakt: what you write with, and what you write on. -->
     <color name="kompakt_ink">#FF000000</color>
     <color name="kompakt_ground">#FFFFFFFE</color>
+    <!-- Kompakt: no separator lines in the menu. -->
+    <color name="drawer_divider_color">#00000000</color>
 </resources>

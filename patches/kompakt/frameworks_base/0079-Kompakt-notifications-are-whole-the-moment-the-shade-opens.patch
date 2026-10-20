@@ -1,0 +1,33 @@
+From ac5237464d3ecd377cf88f619d5a9f5443103959 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Thu, 8 Oct 2026 21:20:25 +0200
+Subject: [PATCH 79/99] Kompakt: notifications are whole the moment the shade
+ opens
+
+During the notifications shade overlay transition the stack expand fraction
+followed the shade expansion, so on a slower swipe the rows were drawn
+squashed at the top and grew to full height over several frames, each one a
+panel repaint. The stack is now fully expanded as soon as the overlay shows.
+
+Change-Id: I34c66518698d191ebdcb317f7c69bf5284e10059
+---
+ .../stack/ui/viewmodel/NotificationScrollViewModel.kt          | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/ui/viewmodel/NotificationScrollViewModel.kt b/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/ui/viewmodel/NotificationScrollViewModel.kt
+index a0cf22bcd69b..c81ccbbe341f 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/ui/viewmodel/NotificationScrollViewModel.kt
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/ui/viewmodel/NotificationScrollViewModel.kt
+@@ -148,7 +148,8 @@ constructor(
+         return if (currentScene == Scenes.Lockscreen) {
+             1f
+         } else if (transition.isTransitioningFromOrTo(Overlays.NotificationsShade)) {
+-            shadeExpansion
++            // Kompakt: the stack is whole the moment the overlay shows; rows never grow with the swipe.
++            if (shadeExpansion > 0f) 1f else 0f
+         } else if (Overlays.NotificationsShade in currentOverlays) {
+             1f
+         } else {
+-- 
+2.43.0
+

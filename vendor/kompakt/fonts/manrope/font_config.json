@@ -1,0 +1,27 @@
+[
+    {
+        "name": "manrope",
+        "fonts": [
+            {
+                "file": "KompaktManrope-Regular.ttf",
+                "weight": "400",
+                "style": "normal"
+            },
+            {
+                "file": "KompaktManrope-Medium.ttf",
+                "weight": "500",
+                "style": "normal"
+            },
+            {
+                "file": "KompaktManrope-SemiBold.ttf",
+                "weight": "600",
+                "style": "normal"
+            },
+            {
+                "file": "KompaktManrope-Bold.ttf",
+                "weight": "700",
+                "style": "normal"
+            }
+        ]
+    }
+]

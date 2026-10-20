@@ -13,12 +13,15 @@ import android.view.WindowManager
 /** The ghosting flush: drive every pixel to one rail and back. */
 object Flash {
 
-    /** Long enough for the waveform to complete and short enough not to read as a glitch. */
-    private const val FLASH_MS = 180L
+    /** Two panel paints (each about 230 ms apart), so one always catches it; 180 ms fell between them. */
+    private const val FLASH_MS = 480L
 
     private val handler = Handler(Looper.getMainLooper())
 
     @Volatile private var showing: View? = null
+
+    /** While the overlay is up; the per-app watcher must not take it for an app switch. */
+    val active: Boolean get() = showing != null
 
     fun show(context: Context) {
         // Must run on a Looper thread: WindowManager.addView posts to the view root's handler and needs one on the.

@@ -1,0 +1,39 @@
+From 27419fe8f47ea5d9d9a4f5fce0da33c6ad4aee3b Mon Sep 17 00:00:00 2001
+From: Gezim <25499045+gezimos@users.noreply.github.com>
+Date: Sun, 18 Oct 2026 21:02:30 +0200
+Subject: [PATCH] Kompakt: the modem's fast dormancy follows MuditaOS
+
+isLowDataExpected() drives the modem's fast dormancy (the RIL sends AT+EFD). Android's rule switched it with every screen and charger change. MuditaOS's MtkDeviceStateMonitor keeps MediaTek's: on whatever the screen and charger do, off only while tethering, with persist.vendor.fd.on.charge (default 1) and persist.vendor.fd.screen.off.only (default 0) to change it.
+
+Change-Id: I165a795196d29a52134d6752f2e309d66952f433
+---
+ .../internal/telephony/DeviceStateMonitor.java        | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/java/com/android/internal/telephony/DeviceStateMonitor.java b/src/java/com/android/internal/telephony/DeviceStateMonitor.java
+index 677554704b..6b437ffb49 100644
+--- a/src/java/com/android/internal/telephony/DeviceStateMonitor.java
++++ b/src/java/com/android/internal/telephony/DeviceStateMonitor.java
+@@ -360,9 +360,18 @@ public class DeviceStateMonitor extends Handler {
+ 
+     /**
+      * @return True if low data is expected
++     *
++     * Kompakt: MediaTek's rule, as MuditaOS's MtkDeviceStateMonitor has it. The RIL turns this
++     * into the modem's fast dormancy mode (AT+EFD), and MuditaOS leaves it on whatever the screen
++     * and charger do, unless tethering; Android's rule switched it with every screen and charger
++     * change, which MuditaOS never does to this modem.
+      */
+     private boolean isLowDataExpected() {
+-        return (!mIsCharging && !mIsTetheringOn && !mIsScreenOn) || !mIsRadioOn;
++        boolean fdOnCharge = android.os.SystemProperties.getInt("persist.vendor.fd.on.charge", 1) == 1;
++        boolean fdScreenOffOnly =
++                android.os.SystemProperties.getInt("persist.vendor.fd.screen.off.only", 0) == 1;
++        return (!(fdScreenOffOnly && mIsScreenOn) && (!mIsCharging || fdOnCharge)
++                && !mIsTetheringOn) || !mIsRadioOn;
+     }
+ 
+     /**
+-- 
+2.43.0
+

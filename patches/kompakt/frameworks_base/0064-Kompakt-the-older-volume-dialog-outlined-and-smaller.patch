@@ -1,0 +1,151 @@
+From e0ec7d36f085bbbc3d56d42bfc91779c7740ccb8 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Tue, 6 Oct 2026 15:30:00 +0200
+Subject: [PATCH 64/99] Kompakt: the older volume dialog, outlined and smaller
+
+---
+ .../volume_dialog_kompakt_outline.xml         |  8 ++++++
+ .../res/drawable/volume_row_seekbar.xml       |  4 ++-
+ .../res/layout/volume_dialog_legacy.xml       |  1 +
+ packages/SystemUI/res/values/config.xml       |  2 +-
+ packages/SystemUI/res/values/dimens.xml       | 27 ++++++++++---------
+ .../systemui/volume/dagger/VolumeModule.java  |  3 ++-
+ 6 files changed, 29 insertions(+), 16 deletions(-)
+ create mode 100644 packages/SystemUI/res/drawable/volume_dialog_kompakt_outline.xml
+
+diff --git a/packages/SystemUI/res/drawable/volume_dialog_kompakt_outline.xml b/packages/SystemUI/res/drawable/volume_dialog_kompakt_outline.xml
+new file mode 100644
+index 000000000000..f8b67f4850dd
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/volume_dialog_kompakt_outline.xml
+@@ -0,0 +1,8 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Kompakt: one ink outline around the whole volume column, drawn over its pieces. -->
++<shape xmlns:android="http://schemas.android.com/apk/res/android">
++    <solid android:color="@android:color/transparent" />
++    <stroke android:width="@dimen/kompakt_dialog_outline_width"
++        android:color="?android:attr/textColorPrimary" />
++    <corners android:radius="@dimen/volume_dialog_panel_width_half" />
++</shape>
+diff --git a/packages/SystemUI/res/drawable/volume_row_seekbar.xml b/packages/SystemUI/res/drawable/volume_row_seekbar.xml
+index c47d7c0e8eb1..9e08a479994a 100644
+--- a/packages/SystemUI/res/drawable/volume_row_seekbar.xml
++++ b/packages/SystemUI/res/drawable/volume_row_seekbar.xml
+@@ -26,7 +26,9 @@
+         <shape>
+             <size android:height="@dimen/volume_dialog_track_width" />
+             <corners android:radius="@dimen/volume_dialog_panel_width_half" />
+-            <solid android:color="@androidprv:color/materialColorOutlineVariant" />
++            <solid android:color="?androidprv:attr/colorSurface" />
++            <stroke android:width="@dimen/kompakt_dialog_outline_width"
++                android:color="?android:attr/textColorPrimary" />
+         </shape>
+     </item>
+     <item android:id="@android:id/progress"
+diff --git a/packages/SystemUI/res/layout/volume_dialog_legacy.xml b/packages/SystemUI/res/layout/volume_dialog_legacy.xml
+index d44b6a8534f2..edf0ba3cf39f 100644
+--- a/packages/SystemUI/res/layout/volume_dialog_legacy.xml
++++ b/packages/SystemUI/res/layout/volume_dialog_legacy.xml
+@@ -33,6 +33,7 @@
+         android:gravity="right"
+         android:layout_gravity="right"
+         android:layout_marginRight="@dimen/volume_dialog_panel_transparent_padding_right"
++        android:foreground="@drawable/volume_dialog_kompakt_outline"
+         android:orientation="vertical"
+         android:clipToPadding="false"
+         android:clipChildren="false">
+diff --git a/packages/SystemUI/res/values/config.xml b/packages/SystemUI/res/values/config.xml
+index 7d0d9b5fce3f..83a2338d780d 100644
+--- a/packages/SystemUI/res/values/config.xml
++++ b/packages/SystemUI/res/values/config.xml
+@@ -659,7 +659,7 @@
+     <bool name="config_showLowMediaVolumeIcon">false</bool>
+ 
+     <!-- Change the volume row tint when it is inactive, i.e. when it is being dismissed -->
+-    <bool name="config_changeVolumeRowTintWhenInactive">true</bool>
++    <bool name="config_changeVolumeRowTintWhenInactive">false</bool>
+ 
+     <!-- The duraction of the show animation for the volume dialog in milliseconds -->
+     <integer name="config_dialogShowAnimationDurationMs">300</integer>
+diff --git a/packages/SystemUI/res/values/dimens.xml b/packages/SystemUI/res/values/dimens.xml
+index 8670c2840243..68ab8b51b3c2 100644
+--- a/packages/SystemUI/res/values/dimens.xml
++++ b/packages/SystemUI/res/values/dimens.xml
+@@ -655,34 +655,35 @@
+ 
+     <dimen name="volume_dialog_stream_padding">12dp</dimen>
+ 
+-    <dimen name="volume_dialog_panel_width">56dp</dimen>
++    <!-- Kompakt: the older volume dialog is a sixth smaller. -->
++    <dimen name="volume_dialog_panel_width">48dp</dimen>
+ 
+-    <dimen name="volume_dialog_panel_width_half">28dp</dimen>
++    <dimen name="volume_dialog_panel_width_half">24dp</dimen>
+ 
+-    <dimen name="volume_dialog_slider_width_legacy">42dp</dimen>
++    <dimen name="volume_dialog_slider_width_legacy">36dp</dimen>
+ 
+-    <dimen name="volume_dialog_slider_corner_radius">21dp</dimen>
++    <dimen name="volume_dialog_slider_corner_radius">18dp</dimen>
+ 
+     <!-- (volume_dialog_panel_width - rounded_slider_icon_size) / 2 -->
+-    <dimen name="volume_slider_icon_inset">11dp</dimen>
++    <dimen name="volume_slider_icon_inset">8dp</dimen>
+ 
+-    <dimen name="volume_dialog_track_width">40dp</dimen>
++    <dimen name="volume_dialog_track_width">34dp</dimen>
+ 
+     <dimen name="volume_dialog_track_corner_radius">2dp</dimen>
+ 
+-    <dimen name="volume_dialog_ringer_size">42dp</dimen>
++    <dimen name="volume_dialog_ringer_size">36dp</dimen>
+ 
+     <dimen name="volume_dialog_ringer_icon_padding">20dp</dimen>
+ 
+-    <dimen name="volume_dialog_caption_size">56dp</dimen>
++    <dimen name="volume_dialog_caption_size">48dp</dimen>
+ 
+-    <dimen name="volume_dialog_tap_target_size">42dp</dimen>
++    <dimen name="volume_dialog_tap_target_size">36dp</dimen>
+ 
+     <dimen name="volume_dialog_spacer">4dp</dimen>
+ 
+     <dimen name="volume_dialog_row_margin_bottom">8dp</dimen>
+ 
+-    <dimen name="volume_dialog_elevation">9dp</dimen>
++    <dimen name="volume_dialog_elevation">0dp</dimen>
+ 
+     <dimen name="volume_dialog_background_blur_radius">0dp</dimen>
+ 
+@@ -693,11 +694,11 @@
+     <dimen name="bottom_sheet_corner_radius">28dp</dimen>
+ 
+     <!-- Size of each item in the ringer selector drawer. -->
+-    <dimen name="volume_ringer_drawer_item_size">42dp</dimen>
+-    <dimen name="volume_ringer_drawer_item_size_half">21dp</dimen>
++    <dimen name="volume_ringer_drawer_item_size">36dp</dimen>
++    <dimen name="volume_ringer_drawer_item_size_half">18dp</dimen>
+ 
+     <!-- Size of the icon inside each item in the ringer selector drawer. -->
+-    <dimen name="volume_ringer_drawer_icon_size">24dp</dimen>
++    <dimen name="volume_ringer_drawer_icon_size">20dp</dimen>
+ 
+     <!-- The maximum width of the navigation bar ripples. -->
+     <dimen name="key_button_ripple_max_width">95dp</dimen>
+diff --git a/packages/SystemUI/src/com/android/systemui/volume/dagger/VolumeModule.java b/packages/SystemUI/src/com/android/systemui/volume/dagger/VolumeModule.java
+index 94964bbafbd6..5534c0b12b95 100644
+--- a/packages/SystemUI/src/com/android/systemui/volume/dagger/VolumeModule.java
++++ b/packages/SystemUI/src/com/android/systemui/volume/dagger/VolumeModule.java
+@@ -130,7 +130,8 @@ public interface VolumeModule {
+             MSDLPlayer msdlPlayer,
+             SystemClock systemClock,
+             VolumeDialogInteractor interactor) {
+-        if (Flags.volumeRedesign()) {
++        // Kompakt: the older dialog, one pill with a pill slider.
++        if (false && Flags.volumeRedesign()) {
+             return volumeDialogProvider.get();
+         } else {
+             VolumeDialogImpl impl = new VolumeDialogImpl(
+-- 
+2.43.0
+

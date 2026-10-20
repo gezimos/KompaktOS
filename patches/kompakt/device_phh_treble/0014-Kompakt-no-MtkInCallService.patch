@@ -1,0 +1,33 @@
+From 4c794a86c58424c2291276efae36dca3fbab18d1 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Mon, 12 Oct 2026 22:21:51 +0200
+Subject: [PATCH 14/14] Kompakt: no MtkInCallService
+
+MtkInCallService sets the call volume through AudioSystem parameters as a
+0 to 15 index (log scaled from vc_call_vol_steps, 7 when unset). This HAL
+has seven speech levels and clamps anything above 7, so the lowest Android
+step became level 5 and every other step the loudest, and it raced the HAL's
+own setVoiceVolume, which already follows Android's call volume. Without it
+the call volume has one path.
+---
+ base.mk | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/base.mk b/base.mk
+index 5071165..df283e4 100644
+--- a/base.mk
++++ b/base.mk
+@@ -245,8 +245,8 @@ PRODUCT_PACKAGES += \
+ PRODUCT_PACKAGES += \
+     slsi-booted \
+     Iwlan \
+-    QualifiedNetworksService \
+-    MtkInCallService \
++    QualifiedNetworksService
++# Kompakt: no MtkInCallService; it pushed call volume as a 15-level index this HAL clamps to 7, overriding the real volume.
+ 
+ # Two-pane layout in Settings
+ $(call inherit-product, $(SRC_TARGET_DIR)/product/window_extensions.mk)
+-- 
+2.43.0
+

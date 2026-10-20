@@ -1,0 +1,119 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Mon, 5 Oct 2026 17:40:00 +0200
+Subject: [PATCH 1/1] Kompakt: the alarm sound picker and settings bars in two inks
+
+---
+diff --git a/res/layout/toolbar_base_layout.xml b/res/layout/toolbar_base_layout.xml
+--- a/res/layout/toolbar_base_layout.xml
++++ b/res/layout/toolbar_base_layout.xml
+@@ -25,7 +25,9 @@
+         android:id="@+id/app_bar"
+         android:layout_width="match_parent"
+         android:layout_height="wrap_content"
+-        android:background="?colorPrimary"
++        android:background="@color/kompakt_page"
++        app:liftOnScroll="false"
++        app:liftOnScrollColor="@color/kompakt_page"
+         android:fitsSystemWindows="true"
+         android:outlineAmbientShadowColor="@android:color/transparent"
+         android:outlineSpotShadowColor="@android:color/transparent"
+@@ -36,6 +38,7 @@
+             android:layout_width="match_parent"
+             android:layout_height="?attr/actionBarSize"
+             android:theme="?android:attr/actionBarTheme"
++            android:titleTextColor="@color/kompakt_alarm_ink"
+             android:transitionName="shared_element_view" />
+ 
+     </com.google.android.material.appbar.AppBarLayout>
+diff --git a/src/com/android/deskclock/widget/ToolbarBaseActivity.java b/src/com/android/deskclock/widget/ToolbarBaseActivity.java
+--- a/src/com/android/deskclock/widget/ToolbarBaseActivity.java
++++ b/src/com/android/deskclock/widget/ToolbarBaseActivity.java
+@@ -50,12 +50,10 @@
+             actionBar.setDisplayHomeAsUpEnabled(true);
+             actionBar.setHomeButtonEnabled(true);
+             actionBar.setDisplayShowTitleEnabled(true);
+-            // We need this to have an always light back arrow
++            // Kompakt: the back arrow in the ink, on the page coloured bar. The bar's theme
++            // is always dark, which made it a black bar with a white arrow in light mode.
+             BlendModeColorFilter filter = new BlendModeColorFilter(
+-                    ThemeUtils.resolveColor(
+-                            this,
+-                            R.attr.colorOnSurface
+-                    ),
++                    getColor(R.color.kompakt_alarm_ink),
+                     BlendMode.SRC_ATOP
+             );
+             toolbar.getNavigationIcon().setColorFilter(filter);
+diff --git a/res/layout/ringtone_item_sound.xml b/res/layout/ringtone_item_sound.xml
+--- a/res/layout/ringtone_item_sound.xml
++++ b/res/layout/ringtone_item_sound.xml
+@@ -45,6 +45,7 @@
+         android:layout_height="48dp"
+         android:importantForAccessibility="no"
+         android:scaleType="centerInside"
++        android:tint="@color/kompakt_alarm_ink"
+         app:layout_constraintBottom_toBottomOf="parent"
+         app:layout_constraintStart_toEndOf="@id/start_guide"
+         app:layout_constraintTop_toTopOf="parent"
+diff --git a/src/com/android/deskclock/ringtone/RingtoneViewHolder.java b/src/com/android/deskclock/ringtone/RingtoneViewHolder.java
+--- a/src/com/android/deskclock/ringtone/RingtoneViewHolder.java
++++ b/src/com/android/deskclock/ringtone/RingtoneViewHolder.java
+@@ -63,9 +63,9 @@
+     @Override
+     protected void onBindItemView(RingtoneHolder itemHolder) {
+         mNameView.setText(itemHolder.getName());
+-        final boolean opaque = itemHolder.isSelected() || !itemHolder.hasPermissions();
+-        mNameView.setAlpha(opaque ? 1f : .63f);
+-        mImageView.setAlpha(opaque ? 1f : .63f);
++        // Kompakt: every row opaque. Unselected rows were 63% ink, a dithered grey.
++        mNameView.setAlpha(1f);
++        mImageView.setAlpha(1f);
+         mImageView.clearColorFilter();
+ 
+         final int itemViewType = getItemViewType();
+@@ -84,8 +84,9 @@
+ 
+         mSelectedView.setVisibility(itemHolder.isSelected() ? VISIBLE : GONE);
+ 
+-        final int bgColorId = itemHolder.isSelected() ? R.color.white_08p : R.color.transparent;
+-        itemView.setBackgroundColor(ContextCompat.getColor(itemView.getContext(), bgColorId));
++        // Kompakt: no grey wash behind the chosen sound; its check mark shows it.
++        itemView.setBackgroundColor(
++                ContextCompat.getColor(itemView.getContext(), R.color.transparent));
+ 
+         if (itemViewType == VIEW_TYPE_CUSTOM_SOUND) {
+             mMenuView.setVisibility(VISIBLE);
+diff --git a/src/com/android/deskclock/ringtone/AddCustomRingtoneViewHolder.java b/src/com/android/deskclock/ringtone/AddCustomRingtoneViewHolder.java
+--- a/src/com/android/deskclock/ringtone/AddCustomRingtoneViewHolder.java
++++ b/src/com/android/deskclock/ringtone/AddCustomRingtoneViewHolder.java
+@@ -43,19 +43,16 @@
+ 
+         final TextView nameView = itemView.findViewById(R.id.ringtone_name);
+         nameView.setText(itemView.getContext().getString(R.string.add_new_sound));
+-        nameView.setAlpha(0.63f);
++        nameView.setAlpha(1f);
+ 
+         final ImageView imageView = itemView.findViewById(R.id.ringtone_image);
+         imageView.setImageResource(R.drawable.ic_add_24dp);
+-        imageView.setBackgroundResource(R.drawable.bg_circle_white);
+-        imageView.setBackgroundTintList(
+-                ColorStateList.valueOf(
+-                        ThemeUtils.resolveColor(
+-                                imageView.getContext(),
+-                                R.attr.colorPrimary
+-                        )
+-                )
+-        );
++        // Kompakt: an ink ring with an ink plus. The black plus sat on a disc of the
++        // primary colour, which is black here too.
++        imageView.setBackgroundResource(R.drawable.kompakt_fab_outline);
++        imageView.setBackgroundTintList(null);
++        imageView.setImageTintList(ColorStateList.valueOf(
++                imageView.getContext().getColor(R.color.kompakt_alarm_ink)));
+     }
+ 
+     @Override
+-- 
+2.43.0
+

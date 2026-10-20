@@ -1,0 +1,79 @@
+From d38ee4fbf144fe87cfb1c43cf453910ac88edd9f Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Fri, 16 Oct 2026 09:00:00 +0200
+Subject: [PATCH] Kompakt: holding Recents again closes quick settings
+
+With Hold Recents for quick settings on, the long press now toggles: it
+closes the shade when the shade is open. The expanded shade takes window
+focus (it handles Back), so a focused notification shade window is the
+open state; the keyguard case never gets here.
+
+Change-Id: I5b2f0c7e9a1d4e6b8c3f2a1d0e9b8c7a6f5e4d3c
+---
+ .../server/policy/PhoneWindowManager.java     | 20 +++++++++++++++----
+ 1 file changed, 16 insertions(+), 4 deletions(-)
+
+diff --git a/services/core/java/com/android/server/policy/PhoneWindowManager.java b/services/core/java/com/android/server/policy/PhoneWindowManager.java
+index f5ddaed00c44..ea3bbd903ad6 100644
+--- a/services/core/java/com/android/server/policy/PhoneWindowManager.java
++++ b/services/core/java/com/android/server/policy/PhoneWindowManager.java
+@@ -706,6 +706,8 @@ public class PhoneWindowManager implements WindowManagerPolicy {
+     private Action mAppSwitchLongPressAction;
+     // Kompakt: holding Recents opens quick settings (Kompakt app, Settings).
+     private boolean mKompaktRecentsLongPressQs;
++    // Kompakt: the notification shade has focus on the default display, so it is open.
++    private volatile boolean mKompaktShadeFocused;
+     private Action mEdgeLongSwipeAction;
+ 
+     // support for activating the lock screen while the screen is on
+@@ -1762,7 +1764,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
+             if (!keyguardOn()) {
+                 cancelPreloadRecentApps();
+                 performHapticFeedback(HapticFeedbackConstants.LONG_PRESS, "Recents - Long Press");
+-                kompaktExpandQuickSettings();
++                kompaktToggleQuickSettings();
+             }
+             return;
+         }
+@@ -2248,18 +2250,27 @@ public class PhoneWindowManager implements WindowManagerPolicy {
+         dismissKeyboardShortcutsMenu();
+     }
+ 
+-    /** Kompakt: the quick settings panel, as the status bar opens it. */
+-    private void kompaktExpandQuickSettings() {
++    /** Kompakt: open quick settings, or close the shade when it is already open. */
++    private void kompaktToggleQuickSettings() {
+         IStatusBarService statusBarService = getStatusBarService();
+         if (isUserSetupComplete() && statusBarService != null) {
+             try {
+-                statusBarService.expandSettingsPanel(null);
++                if (kompaktShadeFocused()) {
++                    statusBarService.collapsePanels();
++                } else {
++                    statusBarService.expandSettingsPanel(null);
++                }
+             } catch (RemoteException e) {
+                 // do nothing.
+             }
+         }
+     }
+ 
++    /** Kompakt: an expanded shade takes focus (it handles Back), a collapsed one never does. */
++    private boolean kompaktShadeFocused() {
++        return mKompaktShadeFocused;
++    }
++
+     private void toggleNotificationPanel() {
+         IStatusBarService statusBarService = getStatusBarService();
+         if (isUserSetupComplete() && statusBarService != null) {
+@@ -4558,6 +4569,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
+ 
+     @Override
+     public void onDefaultDisplayFocusChangedLw(WindowState newFocus) {
++        mKompaktShadeFocused = newFocus != null && newFocus.getBaseType() == TYPE_NOTIFICATION_SHADE;
+         if (mDisplayFoldController != null) {
+             mDisplayFoldController.onDefaultDisplayFocusChanged(
+                     newFocus != null ? newFocus.getOwningPackage() : null);
+-- 
+2.43.0
+

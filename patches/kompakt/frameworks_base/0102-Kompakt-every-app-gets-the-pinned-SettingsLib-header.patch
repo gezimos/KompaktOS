@@ -1,0 +1,109 @@
+From 2985b49ca86f04b9ad611763e6fad75b908bb547 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Mon, 12 Oct 2026 17:51:18 +0200
+Subject: [PATCH 102/103] Kompakt: every app gets the pinned SettingsLib header
+
+Change-Id: I39645f481c5dfed4b9c12cc17f803d88c0707f5b
+---
+ .../res/layout-v31/collapsing_toolbar_content_layout.xml   | 6 ++++--
+ ...ngslib_expressive_collapsing_toolbar_content_layout.xml | 7 +++++--
+ .../settingslib_expressive_support_toolbar_layout.xml      | 7 +++++--
+ 3 files changed, 14 insertions(+), 6 deletions(-)
+
+diff --git a/packages/SettingsLib/CollapsingToolbarBaseActivity/res/layout-v31/collapsing_toolbar_content_layout.xml b/packages/SettingsLib/CollapsingToolbarBaseActivity/res/layout-v31/collapsing_toolbar_content_layout.xml
+index 5ba5c23176e9..abc918a8a362 100644
+--- a/packages/SettingsLib/CollapsingToolbarBaseActivity/res/layout-v31/collapsing_toolbar_content_layout.xml
++++ b/packages/SettingsLib/CollapsingToolbarBaseActivity/res/layout-v31/collapsing_toolbar_content_layout.xml
+@@ -14,6 +14,7 @@
+   See the License for the specific language governing permissions and
+   limitations under the License.
+ -->
++<!-- Kompakt: every app gets a pinned, opaque one-row header; a collapsing one moves the rows and fades its title. -->
+ <merge
+     xmlns:android="http://schemas.android.com/apk/res/android"
+     xmlns:app="http://schemas.android.com/apk/res-auto">
+@@ -25,14 +26,15 @@
+         android:fitsSystemWindows="true"
+         android:outlineAmbientShadowColor="@android:color/transparent"
+         android:outlineSpotShadowColor="@android:color/transparent"
+-        android:background="@android:color/transparent"
++        android:background="?android:attr/colorBackground"
++        android:translationZ="1dp"
+         android:theme="@style/Theme.CollapsingToolbar.Settings">
+ 
+         <com.google.android.material.appbar.CollapsingToolbarLayout
+             android:id="@+id/collapsing_toolbar"
+             android:layout_width="match_parent"
+             android:layout_height="@dimen/settingslib_toolbar_layout_height"
+-            app:layout_scrollFlags="scroll|exitUntilCollapsed|snap"
++            app:layout_scrollFlags="noScroll"
+             app:toolbarId="@id/action_bar"
+             app:titleEnabled="false"
+             style="@style/CollapsingToolbarLayoutStyle.SettingsLib">
+diff --git a/packages/SettingsLib/CollapsingToolbarBaseActivity/res/layout-v36/settingslib_expressive_collapsing_toolbar_content_layout.xml b/packages/SettingsLib/CollapsingToolbarBaseActivity/res/layout-v36/settingslib_expressive_collapsing_toolbar_content_layout.xml
+index 092f76b7d61a..3bd1c6c2cbe0 100644
+--- a/packages/SettingsLib/CollapsingToolbarBaseActivity/res/layout-v36/settingslib_expressive_collapsing_toolbar_content_layout.xml
++++ b/packages/SettingsLib/CollapsingToolbarBaseActivity/res/layout-v36/settingslib_expressive_collapsing_toolbar_content_layout.xml
+@@ -14,6 +14,7 @@
+   See the License for the specific language governing permissions and
+   limitations under the License.
+ -->
++<!-- Kompakt: every app gets a pinned, opaque one-row header; a collapsing one moves the rows and fades its title. -->
+ <merge
+     xmlns:android="http://schemas.android.com/apk/res/android"
+     xmlns:app="http://schemas.android.com/apk/res-auto">
+@@ -25,7 +26,8 @@
+         android:fitsSystemWindows="true"
+         android:outlineAmbientShadowColor="@android:color/transparent"
+         android:outlineSpotShadowColor="@android:color/transparent"
+-        android:background="@android:color/transparent"
++        android:background="?android:attr/colorBackground"
++        android:translationZ="1dp"
+         android:touchscreenBlocksFocus="false"
+         app:expanded="false"
+         android:theme="@style/SettingsLibTheme.CollapsingToolbar.Expressive">
+@@ -34,7 +36,8 @@
+             android:id="@+id/collapsing_toolbar"
+             android:layout_width="match_parent"
+             android:layout_height="@dimen/settingslib_toolbar_layout_height"
+-            app:layout_scrollFlags="scroll|exitUntilCollapsed|snap"
++            app:layout_scrollFlags="noScroll"
++            app:titleEnabled="false"
+             app:toolbarId="@id/action_bar"
+             app:maxLines="2"
+             style="@style/SettingsLibCollapsingToolbarLayoutStyle.Expressive">
+diff --git a/packages/SettingsLib/CollapsingToolbarBaseActivity/res/layout-v36/settingslib_expressive_support_toolbar_layout.xml b/packages/SettingsLib/CollapsingToolbarBaseActivity/res/layout-v36/settingslib_expressive_support_toolbar_layout.xml
+index 4ed8dbf149ca..384d6bc8684a 100644
+--- a/packages/SettingsLib/CollapsingToolbarBaseActivity/res/layout-v36/settingslib_expressive_support_toolbar_layout.xml
++++ b/packages/SettingsLib/CollapsingToolbarBaseActivity/res/layout-v36/settingslib_expressive_support_toolbar_layout.xml
+@@ -14,6 +14,7 @@
+   See the License for the specific language governing permissions and
+   limitations under the License.
+ -->
++<!-- Kompakt: every app gets a pinned, opaque one-row header; a collapsing one moves the rows and fades its title. -->
+ <merge
+     xmlns:android="http://schemas.android.com/apk/res/android"
+     xmlns:app="http://schemas.android.com/apk/res-auto">
+@@ -25,7 +26,8 @@
+         android:fitsSystemWindows="true"
+         android:outlineAmbientShadowColor="@android:color/transparent"
+         android:outlineSpotShadowColor="@android:color/transparent"
+-        android:background="@android:color/transparent"
++        android:background="?android:attr/colorBackground"
++        android:translationZ="1dp"
+         android:touchscreenBlocksFocus="false"
+         app:expanded="false"
+         android:theme="@style/SettingsLibTheme.CollapsingToolbar.Expressive">
+@@ -34,7 +36,8 @@
+             android:id="@+id/collapsing_toolbar"
+             android:layout_width="match_parent"
+             android:layout_height="@dimen/settingslib_toolbar_layout_height"
+-            app:layout_scrollFlags="scroll|exitUntilCollapsed|snap"
++            app:layout_scrollFlags="noScroll"
++            app:titleEnabled="false"
+             app:toolbarId="@id/action_bar"
+             app:maxLines="2"
+             style="@style/SettingsLibCollapsingToolbarLayoutStyle.Expressive">
+-- 
+2.43.0
+

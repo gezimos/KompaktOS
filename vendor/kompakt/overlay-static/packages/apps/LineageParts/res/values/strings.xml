@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: the dotted circle slot (3) draws MuditaOS's bars battery, frameworks_base 0088. Untranslated, so every language reads Bars. -->
+<resources>
+    <string name="kompakt_battery_style_bars">Bars</string>
+</resources>

@@ -1,0 +1,40 @@
+From 6f61b953086c1bdc908fecb9861086979b6e8694 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Mon, 12 Oct 2026 20:28:34 +0200
+Subject: [PATCH] Kompakt: the volume dialog shows one slider
+
+shouldBeVisibleH() added the default (media) row beside the active one
+whenever the active stream was the voice call, ring, alarm, accessibility or
+a remote stream. In a call that put a media slider next to the call slider,
+and our outline (0067) wraps every visible row while the white column only
+backs the last one, so the second slider sat in a see-through gap. The media
+row no longer joins another row: the dialog shows the slider the keys
+change, inside one white, outlined column.
+
+Change-Id: I2534af05a4c25805cb37dbb8858a43e5a2829aab
+---
+ .../src/com/android/systemui/volume/VolumeDialogImpl.java  | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/volume/VolumeDialogImpl.java b/packages/SystemUI/src/com/android/systemui/volume/VolumeDialogImpl.java
+index 76eea0ee6645..bd926ea447a5 100644
+--- a/packages/SystemUI/src/com/android/systemui/volume/VolumeDialogImpl.java
++++ b/packages/SystemUI/src/com/android/systemui/volume/VolumeDialogImpl.java
+@@ -1694,12 +1694,9 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
+                 return true;
+             }
+ 
++            // Kompakt: media never joins another slider; the white column backs one slider only.
+             if (row.defaultStream) {
+-                return activeRow.stream == STREAM_RING
+-                        || activeRow.stream == STREAM_ALARM
+-                        || activeRow.stream == STREAM_VOICE_CALL
+-                        || activeRow.stream == STREAM_ACCESSIBILITY
+-                        || mDynamic.get(activeRow.stream);
++                return false;
+             }
+ 
+             // Continue to display row if it is visible to user.
+-- 
+2.43.0
+

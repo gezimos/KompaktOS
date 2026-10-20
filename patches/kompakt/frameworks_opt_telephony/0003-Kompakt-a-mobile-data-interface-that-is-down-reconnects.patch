@@ -1,0 +1,215 @@
+From 3d744b75119a6ba2cdfad8ab1c7d9bec4b4f7fbb Mon Sep 17 00:00:00 2001
+From: Gezim <25499045+gezimos@users.noreply.github.com>
+Date: Sun, 18 Oct 2026 12:33:34 +0200
+Subject: [PATCH] Kompakt: a mobile data interface that is down reconnects
+
+A cellular data network can lose its kernel interface while the modem and the framework still report it connected. When it then becomes the default, every connection fails at once with ENETUNREACH and no stall is detected. Check the interface when the network becomes the default or fails validation, and reconnect it if it is down. While the network is the default, check it again every 30 s: the link can also die in use, and a network that already passed validation is not tested again.
+
+Change-Id: Ida2c0dd52c4237323c2e4a225226ff0658ac1365
+---
+ .../internal/telephony/data/DataNetwork.java  | 133 ++++++++++++++++++
+ 1 file changed, 133 insertions(+)
+
+diff --git a/src/java/com/android/internal/telephony/data/DataNetwork.java b/src/java/com/android/internal/telephony/data/DataNetwork.java
+index 4fe1011d9c..0092be7875 100644
+--- a/src/java/com/android/internal/telephony/data/DataNetwork.java
++++ b/src/java/com/android/internal/telephony/data/DataNetwork.java
+@@ -275,6 +275,21 @@ public class DataNetwork extends StateMachine {
+     /** Event for preferred data subscription changed. */
+     private static final int EVENT_PREFERRED_DATA_SUBSCRIPTION_CHANGED = 30;
+ 
++    /** Kompakt: check that the kernel interface of a connected internet network is up. */
++    private static final int EVENT_KOMPAKT_CHECK_INTERFACE = 31;
++
++    /** Kompakt: wait before the check, so a switch in progress settles first. */
++    private static final long KOMPAKT_INTERFACE_CHECK_DELAY_MS = 3000;
++
++    /** Kompakt: while the default network, the interface is checked again this often. */
++    private static final long KOMPAKT_INTERFACE_RECHECK_MS = 30000;
++
++    /** Kompakt: at most one reconnect for a dead interface in this time, across networks. */
++    private static final long KOMPAKT_INTERFACE_RECONNECT_GAP_MS = 120000;
++
++    /** Kompakt: when the last reconnect for a dead interface happened. */
++    private static long sKompaktLastInterfaceReconnectMs = -KOMPAKT_INTERFACE_RECONNECT_GAP_MS;
++
+     /** Invalid context id. */
+     private static final int INVALID_CID = -1;
+ 
+@@ -638,6 +653,13 @@ public class DataNetwork extends StateMachine {
+     @Nullable
+     private VcnNetworkPolicyChangeListener mVcnPolicyChangeListener;
+ 
++    /** Kompakt: tells this network when it becomes the default, to check its interface. */
++    @Nullable
++    private ConnectivityManager.NetworkCallback mKompaktDefaultNetworkCallback;
++
++    /** Kompakt: whether this network is the default, so its interface is rechecked. */
++    private boolean mKompaktIsDefault;
++
+     /** The network agent associated with this data network. */
+     @NonNull
+     private TelephonyNetworkAgent mNetworkAgent;
+@@ -1219,6 +1241,11 @@ public class DataNetwork extends StateMachine {
+                     @Override
+                     public void onValidationStatus(@ValidationStatus int status,
+                             @Nullable Uri redirectUri) {
++                        // Kompakt: a network that fails validation may have lost its interface.
++                        if (status == NetworkAgent.VALIDATION_STATUS_NOT_VALID) {
++                            sendMessageDelayed(EVENT_KOMPAKT_CHECK_INTERFACE,
++                                    KOMPAKT_INTERFACE_CHECK_DELAY_MS);
++                        }
+                         mDataNetworkCallback.invokeFromExecutor(
+                                 () -> mDataNetworkCallback.onValidationStatusChanged(
+                                         DataNetwork.this, status, redirectUri));
+@@ -1512,6 +1539,9 @@ public class DataNetwork extends StateMachine {
+                             + ", mOnPreferredDataPhone=" + mOnPreferredDataPhone);
+                     updateNetworkScore();
+                     break;
++                case EVENT_KOMPAKT_CHECK_INTERFACE:
++                    // Only checked while connected.
++                    break;
+                 default:
+                     loge("Unhandled event " + eventToString(msg.what));
+                     break;
+@@ -1753,6 +1783,7 @@ public class DataNetwork extends StateMachine {
+                         getHandler().getLooper(), DataNetwork.this, mNetworkAgent);
+                 if (mTransport == AccessNetworkConstants.TRANSPORT_TYPE_WWAN) {
+                     registerForWwanEvents();
++                    registerKompaktInterfaceCheck();
+                 }
+ 
+                 // Create the VCN policy changed listener. When the policy changed, we might need
+@@ -1849,6 +1880,9 @@ public class DataNetwork extends StateMachine {
+                     // Network validation request can be accepted if the data is in connected state
+                     handleDataNetworkValidationRequest((Consumer<Integer>) msg.obj);
+                     break;
++                case EVENT_KOMPAKT_CHECK_INTERFACE:
++                    checkKompaktInterfaceUp();
++                    break;
+                 case EVENT_CANCEL_HANDOVER_NO_RESPONSE:
+                     reportAnomaly("Cancel handover no response within "
+                             + TimeUnit.MILLISECONDS.toSeconds(
+@@ -2091,6 +2125,8 @@ public class DataNetwork extends StateMachine {
+             if (mVcnManager != null && mVcnPolicyChangeListener != null) {
+                 mVcnManager.removeVcnNetworkPolicyChangeListener(mVcnPolicyChangeListener);
+             }
++
++            unregisterKompaktInterfaceCheck();
+         }
+ 
+         @Override
+@@ -3096,6 +3132,102 @@ public class DataNetwork extends StateMachine {
+      *
+      * @param reason The reason of tearing down the network.
+      */
++    /**
++     * Kompakt: a cellular data interface can go down in the kernel while the modem and this
++     * network still report it connected (seen after hours in the background on Wi-Fi). Every
++     * connection then fails at once with ENETUNREACH, which the stall detector does not count,
++     * so the network stays dead until mobile data is turned off and on. Check the interface when
++     * this network becomes the default, and when it fails validation.
++     */
++    private void registerKompaktInterfaceCheck() {
++        ConnectivityManager cm = mPhone.getContext().getSystemService(ConnectivityManager.class);
++        if (cm == null || mKompaktDefaultNetworkCallback != null) return;
++        mKompaktDefaultNetworkCallback = new ConnectivityManager.NetworkCallback() {
++            @Override
++            public void onAvailable(@NonNull android.net.Network network) {
++                mKompaktIsDefault = mNetworkAgent != null
++                        && network.equals(mNetworkAgent.getNetwork());
++                removeMessages(EVENT_KOMPAKT_CHECK_INTERFACE);
++                if (mKompaktIsDefault) {
++                    sendMessageDelayed(EVENT_KOMPAKT_CHECK_INTERFACE,
++                            KOMPAKT_INTERFACE_CHECK_DELAY_MS);
++                }
++            }
++
++            @Override
++            public void onLost(@NonNull android.net.Network network) {
++                mKompaktIsDefault = false;
++            }
++        };
++        try {
++            cm.registerDefaultNetworkCallback(mKompaktDefaultNetworkCallback, getHandler());
++        } catch (RuntimeException e) {
++            loge("Kompakt: default network callback not registered, " + e);
++            mKompaktDefaultNetworkCallback = null;
++        }
++    }
++
++    /** Kompakt: stop watching the default network. */
++    private void unregisterKompaktInterfaceCheck() {
++        if (mKompaktDefaultNetworkCallback == null) return;
++        ConnectivityManager cm = mPhone.getContext().getSystemService(ConnectivityManager.class);
++        try {
++            if (cm != null) cm.unregisterNetworkCallback(mKompaktDefaultNetworkCallback);
++        } catch (RuntimeException e) {
++            loge("Kompakt: default network callback not unregistered, " + e);
++        }
++        mKompaktDefaultNetworkCallback = null;
++        mKompaktIsDefault = false;
++        removeMessages(EVENT_KOMPAKT_CHECK_INTERFACE);
++    }
++
++    /**
++     * Kompakt: reconnect an internet network whose interface is down in the kernel. While it is
++     * the default, check again every 30 s: the link can also die in use, with nothing to report
++     * it, since a network that already passed validation is not tested again.
++     */
++    private void checkKompaktInterfaceUp() {
++        if (mKompaktIsDefault) {
++            removeMessages(EVENT_KOMPAKT_CHECK_INTERFACE);
++            sendMessageDelayed(EVENT_KOMPAKT_CHECK_INTERFACE, KOMPAKT_INTERFACE_RECHECK_MS);
++        }
++        if (!isInternetSupported()) return;
++        String iface = mLinkProperties.getInterfaceName();
++        if (iface == null) return;
++        Boolean up = isKompaktInterfaceUp(iface);
++        if (up == null) {
++            log("Kompakt: interface " + iface + " state unknown, not checked.");
++            return;
++        }
++        if (up) return;
++        long now = SystemClock.elapsedRealtime();
++        if (now - sKompaktLastInterfaceReconnectMs < KOMPAKT_INTERFACE_RECONNECT_GAP_MS) {
++            logl("Kompakt: interface " + iface + " is down, reconnected recently, waiting.");
++            return;
++        }
++        sKompaktLastInterfaceReconnectMs = now;
++        logl("Kompakt: interface " + iface + " is down while connected, reconnecting.");
++        tearDown(TEAR_DOWN_REASON_DATA_STALL);
++    }
++
++    /**
++     * Kompakt: whether the interface is up, or null if the interfaces cannot be read, so that a
++     * read that is refused never tears a working network down.
++     */
++    @Nullable
++    private static Boolean isKompaktInterfaceUp(@NonNull String iface) {
++        try {
++            java.net.NetworkInterface ni = java.net.NetworkInterface.getByName(iface);
++            if (ni != null) return ni.isUp();
++            // Missing: down only if the other interfaces can be read at all.
++            java.util.Enumeration<java.net.NetworkInterface> all =
++                    java.net.NetworkInterface.getNetworkInterfaces();
++            return all != null && all.hasMoreElements() ? Boolean.FALSE : null;
++        } catch (Exception e) {
++            return null;
++        }
++    }
++
+     public void tearDown(@TearDownReason int reason) {
+         if (getCurrentState() == null || isDisconnected()) {
+             return;
+@@ -4157,6 +4289,7 @@ public class DataNetwork extends StateMachine {
+             case EVENT_DATA_NETWORK_VALIDATION_REQUESTED ->
+                     "EVENT_DATA_NETWORK_VALIDATION_REQUESTED";
+             case EVENT_DATA_NETWORK_VALIDATION_RESPONSE -> "EVENT_DATA_NETWORK_VALIDATION_RESPONSE";
++            case EVENT_KOMPAKT_CHECK_INTERFACE -> "EVENT_KOMPAKT_CHECK_INTERFACE";
+             default -> "Unknown(" + event + ")";
+         };
+     }
+-- 
+2.43.0
+

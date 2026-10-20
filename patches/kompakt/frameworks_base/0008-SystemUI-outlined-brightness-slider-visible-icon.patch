@@ -1,7 +1,7 @@
-From 2faf0219f7da248142e6f9ba5c968f193f91eeed Mon Sep 17 00:00:00 2001
+From 06fafccca2a64a9c36224d6fdc30ec8c36c9accc Mon Sep 17 00:00:00 2001
 From: gezimos <>
 Date: Tue, 8 Sep 2026 15:09:39 +0200
-Subject: [PATCH 08/38] SystemUI: outlined brightness slider, visible icon
+Subject: [PATCH 08/99] SystemUI: outlined brightness slider, visible icon
 
 ---
  .../drawable/brightness_progress_drawable.xml   | 17 +++++++----------
@@ -50,3 +50,6 @@ index a9e7adf668a9..34d6e46de27e 100644
      </item>
  </layer-list>
 \ No newline at end of file
+-- 
+2.43.0
+

@@ -1,0 +1,180 @@
+From 1b0dd56c8968bbc024ac36b4387155a66a378773 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sun, 11 Oct 2026 19:07:43 +0200
+Subject: [PATCH 099/101] Kompakt: SPA pages turn a page per swipe
+
+The Compose pages of Settings (All apps and the other SPA lists, and every
+RegularScaffold page) scrolled with the finger while the rest of Settings
+turns pages. kompaktPaged() takes the drag instead: every 56 dp of travel
+turns a page. A LazyColumn (AppList, LazyCategory) goes forward to the first
+row the bottom edge cuts and back a viewport with the top row whole; a
+scrolling Column (RegularScaffold) moves a viewport. Their own scrolling is
+off (userScrollEnabled = false, verticalScroll enabled = false).
+
+Change-Id: Ia42eefce67f638173437c429df5ea745733e08f9
+---
+ .../spa/framework/compose/KompaktPaging.kt    | 75 +++++++++++++++++++
+ .../spa/widget/scaffold/RegularScaffold.kt    |  5 +-
+ .../settingslib/spa/widget/ui/LazyCategory.kt |  5 +-
+ .../spaprivileged/template/app/AppList.kt     |  8 +-
+ 4 files changed, 89 insertions(+), 4 deletions(-)
+ create mode 100644 packages/SettingsLib/Spa/spa/src/com/android/settingslib/spa/framework/compose/KompaktPaging.kt
+
+diff --git a/packages/SettingsLib/Spa/spa/src/com/android/settingslib/spa/framework/compose/KompaktPaging.kt b/packages/SettingsLib/Spa/spa/src/com/android/settingslib/spa/framework/compose/KompaktPaging.kt
+new file mode 100644
+index 000000000000..8a49182f211a
+--- /dev/null
++++ b/packages/SettingsLib/Spa/spa/src/com/android/settingslib/spa/framework/compose/KompaktPaging.kt
+@@ -0,0 +1,75 @@
++/*
++ * Kompakt: SPA pages and lists turn a page per swipe, as the rest of Settings does on e-ink.
++ */
++
++package com.android.settingslib.spa.framework.compose
++
++import androidx.compose.foundation.ScrollState
++import androidx.compose.foundation.gestures.detectVerticalDragGestures
++import androidx.compose.foundation.gestures.scrollBy
++import androidx.compose.foundation.lazy.LazyListState
++import androidx.compose.runtime.Composable
++import androidx.compose.runtime.rememberCoroutineScope
++import androidx.compose.ui.Modifier
++import androidx.compose.ui.input.pointer.pointerInput
++import androidx.compose.ui.platform.LocalDensity
++import androidx.compose.ui.unit.dp
++import kotlin.math.abs
++import kotlinx.coroutines.launch
++
++/** Drag distance that turns a page, as the PageGestureListener in Settings. */
++private val KompaktPageDrag = 56.dp
++
++/** A drag turns pages; the list itself takes no drag (pair with userScrollEnabled = false). */
++@Composable
++fun Modifier.kompaktPaged(state: LazyListState): Modifier {
++    val scope = rememberCoroutineScope()
++    val threshold = with(LocalDensity.current) { KompaktPageDrag.toPx() }
++    return kompaktPageGesture(threshold) { forward -> scope.launch { state.kompaktPage(forward) } }
++}
++
++/** A drag turns pages of a scrolling column (pair with verticalScroll(state, enabled = false)). */
++@Composable
++fun Modifier.kompaktPaged(state: ScrollState): Modifier {
++    val scope = rememberCoroutineScope()
++    val threshold = with(LocalDensity.current) { KompaktPageDrag.toPx() }
++    return kompaktPageGesture(threshold) { forward ->
++        scope.launch {
++            val step = if (forward) state.viewportSize else -state.viewportSize
++            state.scrollTo((state.value + step).coerceIn(0, state.maxValue))
++        }
++    }
++}
++
++private fun Modifier.kompaktPageGesture(threshold: Float, page: (Boolean) -> Unit): Modifier =
++    pointerInput(threshold) {
++        var travelled = 0f
++        detectVerticalDragGestures(
++            onDragStart = { travelled = 0f },
++            onVerticalDrag = { change, dy ->
++                change.consume()
++                travelled += dy
++                // Each threshold of travel turns one page, as inkOS and Settings do.
++                if (abs(travelled) > threshold) {
++                    page(travelled < 0)
++                    travelled = 0f
++                }
++            },
++        )
++    }
++
++/** Forward: to the first row the bottom edge cuts. Back: a viewport up, the top row whole. */
++private suspend fun LazyListState.kompaktPage(forward: Boolean) {
++    val info = layoutInfo
++    val visible = info.visibleItemsInfo
++    if (visible.isEmpty()) return
++    val viewport = (info.viewportEndOffset - info.viewportStartOffset).toFloat()
++    if (forward) {
++        val end = info.viewportEndOffset - info.afterContentPadding
++        val cut = visible.firstOrNull { it.offset + it.size > end && it.index > firstVisibleItemIndex }
++        if (cut != null) scrollToItem(cut.index) else scrollBy(viewport)
++    } else {
++        scrollBy(-viewport)
++        if (firstVisibleItemScrollOffset > 0) scrollToItem(firstVisibleItemIndex)
++    }
++}
+diff --git a/packages/SettingsLib/Spa/spa/src/com/android/settingslib/spa/widget/scaffold/RegularScaffold.kt b/packages/SettingsLib/Spa/spa/src/com/android/settingslib/spa/widget/scaffold/RegularScaffold.kt
+index f189148919ec..0276097df7e7 100644
+--- a/packages/SettingsLib/Spa/spa/src/com/android/settingslib/spa/widget/scaffold/RegularScaffold.kt
++++ b/packages/SettingsLib/Spa/spa/src/com/android/settingslib/spa/widget/scaffold/RegularScaffold.kt
+@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.Spacer
+ import androidx.compose.foundation.layout.height
+ import androidx.compose.foundation.rememberScrollState
+ import androidx.compose.foundation.verticalScroll
++import com.android.settingslib.spa.framework.compose.kompaktPaged
+ import androidx.compose.material3.Scaffold
+ import androidx.compose.runtime.Composable
+ import androidx.compose.ui.Modifier
+@@ -44,7 +45,9 @@ fun RegularScaffold(
+     content: @Composable () -> Unit,
+ ) {
+     SettingsScaffold(title, isFirstLayerPageWhenEmbedded, actions) { paddingValues ->
+-        Column(Modifier.verticalScroll(rememberScrollState())) {
++        // Kompakt: turns a page per swipe.
++        val scrollState = rememberScrollState()
++        Column(Modifier.kompaktPaged(scrollState).verticalScroll(scrollState, enabled = false)) {
+             Spacer(Modifier.height(paddingValues.calculateTopPadding()))
+             content()
+             Spacer(Modifier.height(paddingValues.calculateBottomPadding()))
+diff --git a/packages/SettingsLib/Spa/spa/src/com/android/settingslib/spa/widget/ui/LazyCategory.kt b/packages/SettingsLib/Spa/spa/src/com/android/settingslib/spa/widget/ui/LazyCategory.kt
+index 3ce0468af158..f28c8c60fbba 100644
+--- a/packages/SettingsLib/Spa/spa/src/com/android/settingslib/spa/widget/ui/LazyCategory.kt
++++ b/packages/SettingsLib/Spa/spa/src/com/android/settingslib/spa/widget/ui/LazyCategory.kt
+@@ -16,6 +16,7 @@
+ 
+ package com.android.settingslib.spa.widget.ui
+ 
++import com.android.settingslib.spa.framework.compose.kompaktPaged
+ import androidx.compose.foundation.layout.Arrangement
+ import androidx.compose.foundation.layout.Box
+ import androidx.compose.foundation.layout.PaddingValues
+@@ -63,8 +64,10 @@ fun LazyCategory(
+     groupTitle: ((index: Int) -> String?)? = null,
+     content: @Composable (index: Int) -> Unit,
+ ) {
++    // Kompakt: turns a page per swipe.
+     LazyColumn(
+-        modifier = Modifier.fillMaxSize(),
++        modifier = Modifier.fillMaxSize().kompaktPaged(state),
++        userScrollEnabled = false,
+         contentPadding =
+             PaddingValues(
+                 start = SettingsSpace.small1,
+diff --git a/packages/SettingsLib/SpaPrivileged/src/com/android/settingslib/spaprivileged/template/app/AppList.kt b/packages/SettingsLib/SpaPrivileged/src/com/android/settingslib/spaprivileged/template/app/AppList.kt
+index b3efc0572c9d..ee828880b06b 100644
+--- a/packages/SettingsLib/SpaPrivileged/src/com/android/settingslib/spaprivileged/template/app/AppList.kt
++++ b/packages/SettingsLib/SpaPrivileged/src/com/android/settingslib/spaprivileged/template/app/AppList.kt
+@@ -44,6 +44,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
+ import com.android.settingslib.spa.framework.compose.LifecycleEffect
+ import com.android.settingslib.spa.framework.compose.LogCompositions
+ import com.android.settingslib.spa.framework.compose.TimeMeasurer.Companion.rememberTimeMeasurer
++import com.android.settingslib.spa.framework.compose.kompaktPaged
+ import com.android.settingslib.spa.framework.compose.rememberLazyListStateAndHideKeyboardWhenStartScroll
+ import com.android.settingslib.spa.framework.theme.isSpaExpressiveEnabled
+ import com.android.settingslib.spa.widget.preference.ZeroStatePreference
+@@ -183,9 +184,12 @@ private fun <T : AppRecord> AppListModel<T>.AppListWidget(
+                     .AppItem()
+             }
+         } else {
++            // Kompakt: turns a page per swipe.
++            val listState = rememberLazyListStateAndHideKeyboardWhenStartScroll()
+             LazyColumn(
+-                modifier = Modifier.fillMaxSize(),
+-                state = rememberLazyListStateAndHideKeyboardWhenStartScroll(),
++                modifier = Modifier.fillMaxSize().kompaktPaged(listState),
++                state = listState,
++                userScrollEnabled = false,
+                 contentPadding = PaddingValues(bottom = bottomPadding),
+             ) {
+                 item(contentType = CONTENT_TYPE_HEADER) { header() }
+-- 
+2.43.0
+

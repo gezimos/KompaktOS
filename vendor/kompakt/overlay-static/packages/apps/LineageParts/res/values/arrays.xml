@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: the third entry is Bars in every language; LineageParts' own string is translated as Dotted circle. -->
+<resources>
+    <string-array name="status_bar_battery_style_entries" translatable="false">
+        <item>@string/status_bar_battery_style_icon_landscape</item>
+        <item>@string/status_bar_battery_style_circle</item>
+        <item>@string/kompakt_battery_style_bars</item>
+        <item>@string/status_bar_battery_style_text</item>
+    </string-array>
+</resources>

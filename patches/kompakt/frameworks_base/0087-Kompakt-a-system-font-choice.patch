@@ -1,0 +1,243 @@
+From 851bdb858698e310c7ecc7b598753d21e0ead274 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Fri, 9 Oct 2026 20:55:06 +0200
+Subject: [PATCH 087/101] Kompakt: a system font choice
+
+Change-Id: I4c53412d1f26075b4e070665f771b9dd2e261a3d
+---
+ data/fonts/Android.bp                         |   5 +
+ .../android/graphics/fonts/SystemFonts.java   | 182 +++++++++++++++++-
+ packages/overlays/Android.bp                  |   1 -
+ 3 files changed, 185 insertions(+), 3 deletions(-)
+
+diff --git a/data/fonts/Android.bp b/data/fonts/Android.bp
+index 0380beb6e87e..27c8035f7401 100644
+--- a/data/fonts/Android.bp
++++ b/data/fonts/Android.bp
+@@ -92,6 +92,11 @@ genrule {
+         ":Roboto",
+         ":RobotoFlex",
+         ":SourceSansPro",
++        ":JetBrainsMono",
++        ":Lato",
++        ":KompaktNotoSerif",
++        ":KompaktSourceSerif",
++        ":KompaktManrope",
+         ":noto-fonts",
+     ] + select(release_flag("RELEASE_USE_ROBOTO_MONO_FONT"), {
+         true: [
+diff --git a/graphics/java/android/graphics/fonts/SystemFonts.java b/graphics/java/android/graphics/fonts/SystemFonts.java
+index c012ebbde801..62b5cbfdd1ba 100644
+--- a/graphics/java/android/graphics/fonts/SystemFonts.java
++++ b/graphics/java/android/graphics/fonts/SystemFonts.java
+@@ -401,8 +401,9 @@ public final class SystemFonts {
+     ) {
+         try {
+             Log.i(TAG, "Loading font config from " + fontsXml);
+-            return kompaktEmojiChoice(FontListParser.parse(fontsXml, systemFontDir, oemXml,
+-                    productFontDir, updatableFontMap, lastModifiedDate, configVersion));
++            return kompaktFontChoice(kompaktEmojiChoice(FontListParser.parse(fontsXml,
++                    systemFontDir, oemXml, productFontDir, updatableFontMap, lastModifiedDate,
++                    configVersion)));
+         } catch (IOException e) {
+             Log.e(TAG, "Failed to open/read system font configurations.", e);
+             return new FontConfig(Collections.emptyList(), Collections.emptyList(),
+@@ -429,6 +430,183 @@ public final class SystemFonts {
+                 config.getConfigVersion());
+     }
+ 
++    /** Kompakt: the families that stand in for the default font, picked in the Kompakt app. */
++    private static final List<String> KOMPAKT_FONTS = List.of("google-sans", "roboto", "manrope", "serif", "source-serif", "lato", "jetbrains-mono");
++
++    /**
++     * Kompakt: one font throughout. A picked family replaces the default, Google Sans and the
++     * Material roles. Nothing picked is Google Sans in Latin languages and Roboto in the rest;
++     * outside Latin, Greek and Cyrillic the pick is ignored. Roboto (sans-serif) takes the Google
++     * Sans families and the roles, so either way there is no mix of the two as in LineageOS.
++     */
++    private static @NonNull FontConfig kompaktFontChoice(@NonNull FontConfig config) {
++        String pick = SystemProperties.get("persist.sys.kompakt.font");
++        final String script = kompaktScript();
++        // The picks cover Latin, Greek and Cyrillic; elsewhere the Kompakt app offers none.
++        if (!KOMPAKT_FONTS.contains(pick) || !KOMPAKT_SCRIPTS.contains(script)) pick = "google-sans";
++        // Google Sans Flex has Latin only.
++        if ("google-sans".equals(pick) && !"Latn".equals(script)) pick = "roboto";
++        final boolean roboto = "roboto".equals(pick);
++        if (roboto) pick = "sans-serif";
++        // The system's Noto Serif has only Regular and Bold; vendor/kompakt/fonts adds the rest.
++        if ("serif".equals(pick)) pick = "kompakt-serif";
++        // Roboto keeps its own weights; a picked font runs one weight heavier.
++        final int shift = roboto ? 0 : KOMPAKT_WEIGHT_SHIFT;
++        FontConfig.NamedFamilyList target = null;
++        for (FontConfig.NamedFamilyList named : config.getNamedFamilyLists()) {
++            if (pick.equals(named.getName())) target = named;
++        }
++        if (target == null) return config;
++        List<FontConfig.NamedFamilyList> named = new ArrayList<>();
++        for (FontConfig.NamedFamilyList list : config.getNamedFamilyLists()) {
++            if (!kompaktFollowsPick(list.getName(), roboto) || pick.equals(list.getName())
++                    || list.getFamilies().isEmpty()
++                    || list.getFamilies().get(0).getFontList().isEmpty()) {
++                named.add(list);
++                continue;
++            }
++            FontConfig.Font first = kompaktRoleFont(list.getFamilies().get(0));
++            FontStyle style = new FontStyle(kompaktWeight(first), first.getStyle().getSlant());
++            // Headings and titles run heavier; body text keeps its weight, so they read apart.
++            final int roleShift = style.getWeight() >= FontStyle.FONT_WEIGHT_MEDIUM ? shift : 0;
++            List<FontConfig.FontFamily> families = new ArrayList<>();
++            for (FontConfig.FontFamily family : target.getFamilies()) {
++                families.add(kompaktShifted(family, style, roleShift));
++            }
++            // The family it replaces stays behind it for letters the picked font lacks.
++            families.addAll(list.getFamilies());
++            named.add(new FontConfig.NamedFamilyList(families, list.getName(),
++                    list.getFallback()));
++        }
++        return new FontConfig(config.getFontFamilies(), config.getAliases(), named,
++                config.getLocaleFallbackCustomizations(), config.getLastModifiedTimeMillis(),
++                config.getConfigVersion());
++    }
++
++    /** Kompakt: the scripts the picks cover. */
++    private static final List<String> KOMPAKT_SCRIPTS = List.of("Latn", "Grek", "Cyrl");
++
++    /** Kompakt: the script of the phone's language, read at boot as the fonts are; Latin if unknown. */
++    private static String kompaktScript() {
++        try {
++            String tag = SystemProperties.get("persist.sys.locale");
++            if (tag.isEmpty()) tag = SystemProperties.get("ro.product.locale");
++            final String script = android.icu.util.ULocale.addLikelySubtags(
++                    android.icu.util.ULocale.forLanguageTag(tag)).getScript();
++            return script.isEmpty() ? "Latn" : script;
++        } catch (Throwable t) {
++            return "Latn";
++        }
++    }
++
++    /** Kompakt: the GApps Google Sans families and the Material 3 type roles, and Roboto too. */
++    private static boolean kompaktFollowsPick(String name, boolean roboto) {
++        if (name.startsWith("google-sans") || name.startsWith("variable-")) return true;
++        return !roboto && ("sans-serif".equals(name) || "sans-serif-condensed".equals(name));
++    }
++
++    /**
++     * Kompakt: the font a normal request gets from a family, which is its role. A family that
++     * lists every weight (Google Sans Flex, 100 to 900) is a normal family, not a thin one.
++     */
++    private static FontConfig.Font kompaktRoleFont(FontConfig.FontFamily family) {
++        FontConfig.Font best = null;
++        for (FontConfig.Font font : family.getFontList()) {
++            if (font.getStyle().getSlant() != FontStyle.FONT_SLANT_UPRIGHT) continue;
++            if (best == null || Math.abs(font.getStyle().getWeight() - FontStyle.FONT_WEIGHT_NORMAL)
++                    < Math.abs(best.getStyle().getWeight() - FontStyle.FONT_WEIGHT_NORMAL)) {
++                best = font;
++            }
++        }
++        return best != null ? best : family.getFontList().get(0);
++    }
++
++    /** Kompakt: a font's weight, from its wght axis when it sets one, as the Material roles do. */
++    private static int kompaktWeight(FontConfig.Font font) {
++        FontVariationAxis[] axes = null;
++        try {
++            axes = FontVariationAxis.fromFontVariationSettings(font.getFontVariationSettings());
++        } catch (IllegalArgumentException e) {
++            Log.w(TAG, "Kompakt: unreadable variation settings " + font.getFontVariationSettings());
++        }
++        if (axes != null) {
++            for (FontVariationAxis axis : axes) {
++                if ("wght".equals(axis.getTag())) return Math.round(axis.getStyleValue());
++            }
++        }
++        return font.getStyle().getWeight();
++    }
++
++    /** Kompakt: thin text reads badly on the panel, so a picked font runs one weight heavier. */
++    private static final int KOMPAKT_WEIGHT_SHIFT = 0;
++
++    /**
++     * Kompakt: the picked family relabelled for the replaced family's role. A text view asks a
++     * family for a weight relative to 400 (normal), so a font of real weight w is declared at
++     * w - (role + shift - 400): a normal request then lands on the font one weight above the
++     * role, bold requests above that. Order alone would not do it, since a family is matched
++     * by nearest weight, not by position.
++     */
++    private static FontConfig.FontFamily kompaktShifted(FontConfig.FontFamily family,
++            FontStyle role, int shift) {
++        final int offset = role.getWeight() + shift - FontStyle.FONT_WEIGHT_NORMAL;
++        List<FontConfig.Font> fonts = new ArrayList<>();
++        for (FontConfig.Font font : family.getFontList()) {
++            if ((font.getVarTypeAxes() & FontConfig.Font.VAR_TYPE_AXES_WGHT) != 0) {
++                // A variable font (Roboto) would answer any request with that weight exactly,
++                // ignoring the relabel, so it is listed as fixed instances instead.
++                for (int w = 100; w <= 900; w += 100) {
++                    fonts.add(kompaktInstance(font, w, w - offset));
++                }
++                continue;
++            }
++            fonts.add(kompaktInstance(font, 0, font.getStyle().getWeight() - offset));
++        }
++        // A family may hold one font per style, or FontFamily.Builder throws and the font
++        // service never starts (a boot loop in 322): drop weights the relabel pushed
++        // out of range, and keep the first font of each style.
++        List<FontConfig.Font> unique = new ArrayList<>();
++        java.util.Set<Integer> seen = new java.util.HashSet<>();
++        for (FontConfig.Font font : fonts) {
++            int w = font.getStyle().getWeight();
++            if (w <= FontStyle.FONT_WEIGHT_MIN || w >= FontStyle.FONT_WEIGHT_MAX) continue;
++            if (seen.add(w * 2 + font.getStyle().getSlant())) unique.add(font);
++        }
++        if (unique.isEmpty()) return family;
++        // Heavier first, so a request halfway between two weights takes the heavier one.
++        unique.sort((a, b) -> b.getStyle().getWeight() - a.getStyle().getWeight());
++        return new FontConfig.FontFamily(unique, family.getLocaleList(), family.getVariant());
++    }
++
++    /** Kompakt: a copy of the font declared at a weight; wght > 0 also pins its wght axis. */
++    private static FontConfig.Font kompaktInstance(FontConfig.Font font, int wght, int declared) {
++        String settings = font.getFontVariationSettings();
++        int axes = font.getVarTypeAxes();
++        if (wght > 0) {
++            StringBuilder kept = new StringBuilder();
++            try {
++                FontVariationAxis[] parsed = FontVariationAxis.fromFontVariationSettings(settings);
++                if (parsed != null) {
++                    for (FontVariationAxis axis : parsed) {
++                        if ("wght".equals(axis.getTag())) continue;
++                        kept.append(kept.length() == 0 ? "" : ", ")
++                                .append('\'').append(axis.getTag()).append("' ")
++                                .append(axis.getStyleValue());
++                    }
++                }
++            } catch (IllegalArgumentException e) {
++                Log.w(TAG, "Kompakt: unreadable variation settings " + settings);
++            }
++            settings = (kept.length() == 0 ? "" : kept + ", ") + "'wght' " + wght;
++            axes &= ~FontConfig.Font.VAR_TYPE_AXES_WGHT;
++        }
++        int weight = Math.max(FontStyle.FONT_WEIGHT_MIN,
++                Math.min(FontStyle.FONT_WEIGHT_MAX, declared));
++        return new FontConfig.Font(font.getFile(), font.getOriginalFile(),
++                font.getPostScriptName(), new FontStyle(weight, font.getStyle().getSlant()),
++                font.getTtcIndex(), settings, font.getFontFamilyName(), axes);
++    }
++
+     /**
+      * Build the system fallback from FontConfig.
+      * @hide
+diff --git a/packages/overlays/Android.bp b/packages/overlays/Android.bp
+index 44abb9ffb34f..60edccb6c925 100644
+--- a/packages/overlays/Android.bp
++++ b/packages/overlays/Android.bp
+@@ -28,7 +28,6 @@ phony {
+         "DisplayCutoutEmulationHoleOverlay",
+         "DisplayCutoutEmulationTallOverlay",
+         "DisplayCutoutEmulationWaterfallOverlay",
+-        "FontNotoSerifSourceOverlay",
+         "NavigationBarMode3ButtonOverlay",
+         "NavigationBarModeGesturalOverlay",
+         "TransparentNavigationBarOverlay",
+-- 
+2.43.0
+

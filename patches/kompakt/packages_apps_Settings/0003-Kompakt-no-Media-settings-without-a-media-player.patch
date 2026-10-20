@@ -1,0 +1,40 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Thu, 08 Oct 2026 21:33:40 +0300
+Subject: [PATCH] Kompakt: no Media settings without a media player
+
+---
+diff --git a/src/com/android/settings/sound/MediaControlsLockScreenPreferenceController.java b/src/com/android/settings/sound/MediaControlsLockScreenPreferenceController.java
+index bd41cbf671a..93e4039160c 100644
+--- a/src/com/android/settings/sound/MediaControlsLockScreenPreferenceController.java
++++ b/src/com/android/settings/sound/MediaControlsLockScreenPreferenceController.java
+@@ -49,7 +49,10 @@ public class MediaControlsLockScreenPreferenceController extends TogglePreferenc
+ 
+     @Override
+     public int getAvailabilityStatus() {
+-        return AVAILABLE;
++        // Kompakt: no media player (config_quickSettingsShowMediaPlayer), so nothing to configure.
++        return mContext.getResources().getBoolean(
++                com.android.internal.R.bool.config_quickSettingsShowMediaPlayer)
++                ? AVAILABLE : UNSUPPORTED_ON_DEVICE;
+     }
+ 
+     @Override
+diff --git a/src/com/android/settings/sound/MediaControlsParentPreferenceController.java b/src/com/android/settings/sound/MediaControlsParentPreferenceController.java
+index acdfb56f74e..62c218c2c2a 100644
+--- a/src/com/android/settings/sound/MediaControlsParentPreferenceController.java
++++ b/src/com/android/settings/sound/MediaControlsParentPreferenceController.java
+@@ -35,7 +35,10 @@ public class MediaControlsParentPreferenceController extends BasePreferenceContr
+ 
+     @Override
+     public int getAvailabilityStatus() {
+-        return AVAILABLE;
++        // Kompakt: no media player (config_quickSettingsShowMediaPlayer), so nothing to configure.
++        return mContext.getResources().getBoolean(
++                com.android.internal.R.bool.config_quickSettingsShowMediaPlayer)
++                ? AVAILABLE : UNSUPPORTED_ON_DEVICE;
+     }
+ 
+     @Override
+-- 
+2.43.0

@@ -1,0 +1,51 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Fri, 16 Oct 2026 10:00:00 +0200
+Subject: [PATCH] Kompakt: the SIMs row opens the SIMs page with no SIM
+
+With no SIM inserted, Android sends the SIMs row straight into the eSIM
+download, or greys it out when no eUICC answers. On the Kompakt the eUICC
+sits behind slot 2's mux, and the switch that selects it is on the SIMs
+page, so a phone with no physical SIM could never reach the eSIM. The row
+now always opens the page and reads No SIM when nothing is inserted; the
+page already shows Add eSIM and the slot 2 switch with an empty list.
+
+---
+diff --git a/src/com/android/settings/network/MobileNetworkListScreen.kt b/src/com/android/settings/network/MobileNetworkListScreen.kt
+--- a/src/com/android/settings/network/MobileNetworkListScreen.kt
++++ b/src/com/android/settings/network/MobileNetworkListScreen.kt
+@@ -33,7 +33,6 @@
+ import com.android.settings.network.telephony.MobileNetworkScreen
+ import com.android.settings.network.telephony.SimRepository
+ import com.android.settings.network.telephony.SubscriptionRepository
+-import com.android.settings.network.telephony.euicc.EuiccRepository
+ import com.android.settings.restriction.PreferenceRestrictionMixin
+ import com.android.settings.spa.network.getAddSimIntent
+ import com.android.settings.spa.network.startAddSimFlow
+@@ -89,9 +88,8 @@
+                     .map { getUniqueSubscriptionDisplayName(it, context).toString() }
+                     .distinct()
+                     .joinToString(", ")
+-            EuiccRepository(context).showEuiccSettings() ->
+-                context.getString(R.string.mobile_network_summary_add_a_network)
+-            else -> null
++            // Kompakt: no shortcut into the eSIM download; the page holds Add eSIM and the slot 2 switch.
++            else -> context.getString(R.string.calls_sms_no_sim)
+         }
+     }
+ 
+@@ -101,10 +99,9 @@
+     override fun isAvailable(context: Context) =
+         SimRepository(context).showMobileNetworkPageEntrance()
+ 
++    // Kompakt: always open, the slot 2 switch is the way to an eSIM when no SIM is in.
+     override fun isEnabled(context: Context) =
+-        super<PreferenceRestrictionMixin>.isEnabled(context) &&
+-            (getSelectableSubscriptionInfoList(context).isNotEmpty() ||
+-                EuiccRepository(context).showEuiccSettings())
++        super<PreferenceRestrictionMixin>.isEnabled(context)
+ 
+     private fun getSelectableSubscriptionInfoList(context: Context): List<SubscriptionInfo> =
+         subscriptionInfoList
+-- 
+2.43.0

@@ -1,0 +1,74 @@
+From f2b8091f153c37b31a215771dc47d6e33f25ff57 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Wed, 7 Oct 2026 12:00:00 +0000
+Subject: [PATCH 74/99] Kompakt: emoji are monochrome unless the user picks
+ colour
+
+---
+ data/fonts/fonts.xml                          |  4 ++++
+ .../android/graphics/fonts/SystemFonts.java   | 20 +++++++++++++++++--
+ 2 files changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/data/fonts/fonts.xml b/data/fonts/fonts.xml
+index 8cbc3000c250..d98f42a77fa7 100644
+--- a/data/fonts/fonts.xml
++++ b/data/fonts/fonts.xml
+@@ -1585,6 +1585,10 @@
+     <family lang="und-Zsye" ignore="true">
+         <font weight="400" style="normal">NotoColorEmojiLegacy.ttf</font>
+     </family>
++    <!-- Kompakt: monochrome Noto Emoji first, for apps that read this file directly -->
++    <family lang="und-Zsye">
++        <font weight="400" style="normal">NotoEmoji-Regular.ttf</font>
++    </family>
+     <family lang="und-Zsye">
+         <font weight="400" style="normal">NotoColorEmoji.ttf</font>
+     </family>
+diff --git a/graphics/java/android/graphics/fonts/SystemFonts.java b/graphics/java/android/graphics/fonts/SystemFonts.java
+index 399345abd8ab..c012ebbde801 100644
+--- a/graphics/java/android/graphics/fonts/SystemFonts.java
++++ b/graphics/java/android/graphics/fonts/SystemFonts.java
+@@ -25,6 +25,7 @@ import android.annotation.Nullable;
+ import android.graphics.FontListParser;
+ import android.graphics.Typeface;
+ import android.os.LocaleList;
++import android.os.SystemProperties;
+ import android.ravenwood.annotation.RavenwoodReplace;
+ import android.text.FontConfig;
+ import android.util.ArrayMap;
+@@ -400,8 +401,8 @@ public final class SystemFonts {
+     ) {
+         try {
+             Log.i(TAG, "Loading font config from " + fontsXml);
+-            return FontListParser.parse(fontsXml, systemFontDir, oemXml, productFontDir,
+-                                                updatableFontMap, lastModifiedDate, configVersion);
++            return kompaktEmojiChoice(FontListParser.parse(fontsXml, systemFontDir, oemXml,
++                    productFontDir, updatableFontMap, lastModifiedDate, configVersion));
+         } catch (IOException e) {
+             Log.e(TAG, "Failed to open/read system font configurations.", e);
+             return new FontConfig(Collections.emptyList(), Collections.emptyList(),
+@@ -413,6 +414,21 @@ public final class SystemFonts {
+         }
+     }
+ 
++    /** Kompakt: the monochrome emoji font, which leads the emoji fallback by default. */
++    private static final String KOMPAKT_MONO_EMOJI = "NotoEmoji-Regular.ttf";
++
++    /** Kompakt: drops the monochrome emoji when the user picked colour in the Kompakt app. */
++    private static @NonNull FontConfig kompaktEmojiChoice(@NonNull FontConfig config) {
++        if (!"color".equals(SystemProperties.get("persist.sys.kompakt.emoji"))) return config;
++        List<FontConfig.FontFamily> families = new ArrayList<>(config.getFontFamilies());
++        boolean removed = families.removeIf(family -> family.getFontList().stream().anyMatch(
++                font -> KOMPAKT_MONO_EMOJI.equals(font.getFile().getName())));
++        if (!removed) return config;
++        return new FontConfig(families, config.getAliases(), config.getNamedFamilyLists(),
++                config.getLocaleFallbackCustomizations(), config.getLastModifiedTimeMillis(),
++                config.getConfigVersion());
++    }
++
+     /**
+      * Build the system fallback from FontConfig.
+      * @hide
+-- 
+2.43.0
+

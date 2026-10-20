@@ -1,0 +1,46 @@
+From 0e4fc09537522556c3e6133fa87ac5998cbdaf7d Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Wed, 14 Oct 2026 23:25:20 +0200
+Subject: [PATCH] Kompakt: the tile editor header is one compact row
+
+The Material3 TopAppBar sat at its 64dp default with 8dp of padding above
+and below, and the hint was centred in a 48dp box, so the title and the hint
+each had air on both sides. The bar is 48dp with no padding, as the Settings
+header, and the hint box is 32dp.
+
+Change-Id: Ie4728dfa17c53b9fc3cc4a794772f3707954d0e8
+---
+ .../systemui/qs/panels/ui/compose/infinitegrid/EditTile.kt | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/EditTile.kt b/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/EditTile.kt
+index 6813f34d0e18..414cd2d5d8e2 100644
+--- a/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/EditTile.kt
++++ b/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/EditTile.kt
+@@ -263,7 +263,9 @@ private fun EditModeTopBar(
+             }
+         },
+         actions = actions,
+-        modifier = modifier.padding(vertical = 8.dp),
++        // Kompakt: one compact row, as the Settings header; the 64dp bar left air above and below the title.
++        expandedHeight = 48.dp,
++        modifier = modifier,
+         windowInsets = WindowInsets(0.dp),
+     )
+ }
+@@ -469,10 +471,11 @@ fun DefaultEditTileGrid(
+                 scrollState = scrollState,
+                 onEditAction = onEditAction,
+             ) {
++                // Kompakt: the hint sits close under the title, not centred in 48dp of air.
+                 CurrentTilesGridHeader(
+                     listState,
+                     selectionState,
+-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
++                    modifier = Modifier.fillMaxWidth().heightIn(min = 32.dp),
+                 )
+ 
+                 CurrentTilesGrid(
+-- 
+2.43.0
+

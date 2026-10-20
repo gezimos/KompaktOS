@@ -1,0 +1,114 @@
+From e11b816fba8e3703030a42cc8ce9e1b00b734dd0 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Tue, 6 Oct 2026 16:40:00 +0200
+Subject: [PATCH 67/99] Kompakt: the volume outline follows the white column
+
+---
+ .../widget/NotificationExpandButton.java      |  4 +--
+ .../res/layout/volume_dialog_legacy.xml       |  1 -
+ packages/SystemUI/res/values/dimens.xml       |  3 +-
+ .../systemui/volume/VolumeDialogImpl.java     | 32 +++++++++++++++++++
+ 4 files changed, 36 insertions(+), 4 deletions(-)
+
+diff --git a/core/java/com/android/internal/widget/NotificationExpandButton.java b/core/java/com/android/internal/widget/NotificationExpandButton.java
+index c697c030b31d..206231f3e791 100644
+--- a/core/java/com/android/internal/widget/NotificationExpandButton.java
++++ b/core/java/com/android/internal/widget/NotificationExpandButton.java
+@@ -223,9 +223,9 @@ public class NotificationExpandButton extends FrameLayout {
+                 mNumberView.setTextColor(mDefaultTextColor);
+             }
+         }
+-        // Kompakt: a 2dp outline in the text colour, so the pill shows on its card.
++        // Kompakt: a 2px outline in the text colour, the weight of the card's own outline.
+         final int ink = shouldShowNumber() ? mHighlightTextColor : mDefaultTextColor;
+-        mPillOutline.setStroke(Math.round(2 * getResources().getDisplayMetrics().density), ink);
++        mPillOutline.setStroke(2, ink);
+     }
+ 
+     private boolean shouldShowNumber() {
+diff --git a/packages/SystemUI/res/layout/volume_dialog_legacy.xml b/packages/SystemUI/res/layout/volume_dialog_legacy.xml
+index edf0ba3cf39f..d44b6a8534f2 100644
+--- a/packages/SystemUI/res/layout/volume_dialog_legacy.xml
++++ b/packages/SystemUI/res/layout/volume_dialog_legacy.xml
+@@ -33,7 +33,6 @@
+         android:gravity="right"
+         android:layout_gravity="right"
+         android:layout_marginRight="@dimen/volume_dialog_panel_transparent_padding_right"
+-        android:foreground="@drawable/volume_dialog_kompakt_outline"
+         android:orientation="vertical"
+         android:clipToPadding="false"
+         android:clipChildren="false">
+diff --git a/packages/SystemUI/res/values/dimens.xml b/packages/SystemUI/res/values/dimens.xml
+index 68ab8b51b3c2..6d7c668d1e06 100644
+--- a/packages/SystemUI/res/values/dimens.xml
++++ b/packages/SystemUI/res/values/dimens.xml
+@@ -1090,7 +1090,8 @@
+     <!-- Minimum margin of the notification panel on the side, when being positioned dynamically -->
+     <dimen name="notification_panel_min_side_margin">48dp</dimen>
+ 
+-    <dimen name="volume_row_slider_height">192dp</dimen>
++    <!-- Kompakt: a longer volume slider. -->
++    <dimen name="volume_row_slider_height">224dp</dimen>
+ 
+     <!-- Thickness of the assist disclosure beams -->
+     <dimen name="assist_disclosure_thickness">2.5dp</dimen>
+diff --git a/packages/SystemUI/src/com/android/systemui/volume/VolumeDialogImpl.java b/packages/SystemUI/src/com/android/systemui/volume/VolumeDialogImpl.java
+index 8bc023e244a0..76eea0ee6645 100644
+--- a/packages/SystemUI/src/com/android/systemui/volume/VolumeDialogImpl.java
++++ b/packages/SystemUI/src/com/android/systemui/volume/VolumeDialogImpl.java
+@@ -225,6 +225,7 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
+ 
+     /** Container for the ringer icon, and for the (initially hidden) ringer drawer view. */
+     @Nullable private View mRingerAndDrawerContainer;
++    @Nullable private Drawable mKompaktOutline;
+ 
+     /**
+      * Background drawable for the ringer and drawer container. The background's top bound is
+@@ -547,6 +548,8 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
+         mWindow.setLayout(WRAP_CONTENT, WRAP_CONTENT);
+         mDialog.setContentView(R.layout.volume_dialog_legacy);
+         mDialogView = mDialog.findViewById(R.id.volume_dialog);
++        mDialogView.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) ->
++                updateKompaktOutline());
+         mDialogView.setAlpha(0);
+         mDialogTimeoutMillis = mSecureSettings.get().getInt(
+                 Settings.Secure.VOLUME_DIALOG_DISMISS_TIMEOUT, DIALOG_TIMEOUT_MILLIS);
+@@ -2334,6 +2337,35 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
+             bounds.left = (int) (mRingerDrawerClosedAmount * getRingerDrawerOpenExtraSize());
+         }
+         mRingerAndDrawerContainerBackground.setBounds(bounds);
++        updateKompaktOutline();
++    }
++
++    /** Kompakt: one ink outline around the white column, following the ringer drawer. */
++    private void updateKompaktOutline() {
++        if (mDialogView == null || mDialogRowsViewContainer == null) return;
++        if (mKompaktOutline == null) {
++            mKompaktOutline =
++                    mContext.getDrawable(R.drawable.volume_dialog_kompakt_outline).mutate();
++            mDialogView.getOverlay().add(mKompaktOutline);
++        }
++        final Rect column = new Rect(0, 0, mDialogRowsViewContainer.getWidth(),
++                mDialogRowsViewContainer.getHeight());
++        mDialogView.offsetDescendantRectToMyCoords(mDialogRowsViewContainer, column);
++        if (mSettingsView != null && mSettingsView.getVisibility() == VISIBLE) {
++            final Rect settings = new Rect(0, 0, mSettingsView.getWidth(),
++                    mSettingsView.getHeight());
++            mDialogView.offsetDescendantRectToMyCoords(mSettingsView, settings);
++            column.bottom = settings.bottom;
++        }
++        if (mRingerAndDrawerContainer != null
++                && mRingerAndDrawerContainer.getVisibility() == VISIBLE
++                && mRingerAndDrawerContainerBackground != null) {
++            final Rect ringer = new Rect(mRingerAndDrawerContainerBackground.getBounds());
++            mDialogView.offsetDescendantRectToMyCoords(mRingerAndDrawerContainer, ringer);
++            column.top = ringer.top;
++        }
++        mKompaktOutline.setBounds(column);
++        mKompaktOutline.invalidateSelf();
+     }
+ 
+     /*
+-- 
+2.43.0
+

@@ -1,14 +1,14 @@
-From 122fcfc3159897e4872a391fe9b3e3584e2882f1 Mon Sep 17 00:00:00 2001
+From 3bec83065aff831bd100b330bd8fdb05cec09fbe Mon Sep 17 00:00:00 2001
 From: gezimos <>
 Date: Wed, 9 Sep 2026 20:19:59 +0200
-Subject: [PATCH 15/38] SystemUI: the PIN dots stop animating
+Subject: [PATCH 15/99] SystemUI: the PIN dots stop animating
 
 ---
- .../android/keyguard/PasswordTextView.java    | 23 ++++++++++++++-----
- 1 file changed, 17 insertions(+), 6 deletions(-)
+ .../src/com/android/keyguard/PasswordTextView.java  | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)
 
 diff --git a/packages/SystemUI/src/com/android/keyguard/PasswordTextView.java b/packages/SystemUI/src/com/android/keyguard/PasswordTextView.java
-index 394773df28c5..73f59eb43905 100644
+index 394773df28c5..8a7cd2dd2fb4 100644
 --- a/packages/SystemUI/src/com/android/keyguard/PasswordTextView.java
 +++ b/packages/SystemUI/src/com/android/keyguard/PasswordTextView.java
 @@ -46,17 +46,18 @@ import java.util.ArrayList;
@@ -36,3 +36,6 @@ index 394773df28c5..73f59eb43905 100644
  
      /**
       * The duration the text needs to stay there at least before it can morph into a dot
+-- 
+2.43.0
+

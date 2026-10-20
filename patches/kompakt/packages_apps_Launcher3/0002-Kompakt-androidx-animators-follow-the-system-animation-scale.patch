@@ -1,0 +1,61 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Mon, 5 Oct 2026 11:20:00 +0200
+Subject: [PATCH 1/1] Kompakt: androidx animators follow the system animation scale
+
+---
+diff --git a/quickstep/src/androidx/core/animation/KompaktAnimatorScale.java b/quickstep/src/androidx/core/animation/KompaktAnimatorScale.java
+new file mode 100644
+--- /dev/null
++++ b/quickstep/src/androidx/core/animation/KompaktAnimatorScale.java
+@@ -0,0 +1,34 @@
++/*
++ * Copyright (C) 2026 The LineageOS Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package androidx.core.animation;
++
++/**
++ * Kompakt: androidx animators keep their own duration scale, which starts at 1 and is never
++ * told about the system's animator duration scale. Animations built on them ran at full
++ * length with animations off. This copies the system scale into them and follows changes.
++ * It lives in this package because the androidx setter is package private.
++ */
++public final class KompaktAnimatorScale {
++    private KompaktAnimatorScale() {}
++
++    /** Call once, on the main thread, when the process starts. */
++    public static void followSystemScale() {
++        ValueAnimator.setDurationScale(android.animation.ValueAnimator.getDurationScale());
++        android.animation.ValueAnimator.registerDurationScaleChangeListener(
++                ValueAnimator::setDurationScale);
++    }
++}
+diff --git a/quickstep/src/com/android/quickstep/QuickstepProcessInitializer.java b/quickstep/src/com/android/quickstep/QuickstepProcessInitializer.java
+--- a/quickstep/src/com/android/quickstep/QuickstepProcessInitializer.java
++++ b/quickstep/src/com/android/quickstep/QuickstepProcessInitializer.java
+@@ -64,6 +64,9 @@
+ 
+         super.init(context);
+ 
++        // Kompakt: androidx animators (Recents task views) follow the system animation scale.
++        androidx.core.animation.KompaktAnimatorScale.followSystemScale();
++
+         // Elevate GPU priority for Quickstep and Remote animations.
+         ThreadedRenderer.setContextPriority(
+                 ThreadedRenderer.EGL_CONTEXT_PRIORITY_HIGH_IMG);
+-- 
+2.43.0
+

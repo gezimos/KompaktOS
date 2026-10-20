@@ -1,0 +1,47 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: gezimos <>
+Date: Sun, 11 Oct 2026 22:00:00 +0200
+Subject: [PATCH] Kompakt: file, folder and chip edges are 2 px
+
+---
+ res/layout/item_dir_grid.xml    | 2 +-
+ res/layout/item_doc_grid.xml    | 2 +-
+ res/layout/search_chip_item.xml | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/res/layout/item_dir_grid.xml b/res/layout/item_dir_grid.xml
+--- a/res/layout/item_dir_grid.xml
++++ b/res/layout/item_dir_grid.xml
+@@ -39,7 +39,7 @@
+         android:elevation="0dp"
+         android:duplicateParentState="true"
+         app:cardElevation="0dp"
+-        app:strokeWidth="1dp"
++        app:strokeWidth="2px"
+         app:strokeColor="?android:strokeColor">
+ 
+         <!-- The height is 48px.
+diff --git a/res/layout/item_doc_grid.xml b/res/layout/item_doc_grid.xml
+--- a/res/layout/item_doc_grid.xml
++++ b/res/layout/item_doc_grid.xml
+@@ -38,7 +38,7 @@
+         android:elevation="0dp"
+         android:duplicateParentState="true"
+         app:cardElevation="0dp"
+-        app:strokeWidth="1dp"
++        app:strokeWidth="2px"
+         app:strokeColor="?android:strokeColor">
+ 
+         <RelativeLayout
+diff --git a/res/layout/search_chip_item.xml b/res/layout/search_chip_item.xml
+--- a/res/layout/search_chip_item.xml
++++ b/res/layout/search_chip_item.xml
+@@ -29,7 +29,7 @@
+     app:chipBackgroundColor="@color/search_chip_background_color"
+     app:chipCornerRadius="@dimen/search_chip_radius"
+     app:chipStrokeColor="@color/search_chip_stroke_color"
+-    app:chipStrokeWidth="1dp"
++    app:chipStrokeWidth="2px"
+     app:iconStartPadding="@dimen/search_chip_icon_padding"
+     app:rippleColor="@color/search_chip_ripple_color"
+     app:chipMinTouchTargetSize="@dimen/button_touch_size"

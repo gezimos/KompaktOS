@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: Now playing controls in the surface ink, so one file serves both modes. -->
+<resources>
+    <!-- Play and pause: an outlined circle, not a fill. -->
+    <style name="Theme.Twelve.Kompakt.PlayButton" parent="Theme.Twelve.Kompakt.IconButton">
+        <item name="android:layout_width">64dp</item>
+        <item name="android:layout_height">64dp</item>
+        <item name="android:padding">0dp</item>
+        <item name="android:insetLeft">0dp</item>
+        <item name="android:insetRight">0dp</item>
+        <item name="iconGravity">textStart</item>
+        <item name="iconPadding">0dp</item>
+        <item name="iconSize">32dp</item>
+        <item name="cornerRadius">32dp</item>
+        <item name="strokeColor">?attr/colorOnSurface</item>
+        <item name="strokeWidth">2px</item>
+    </style>
+
+    <!-- Previous and next: an icon beside the play button. -->
+    <style name="Theme.Twelve.Kompakt.SkipButton" parent="Theme.Twelve.Kompakt.IconButton">
+        <item name="android:layout_width">48dp</item>
+        <item name="android:layout_height">48dp</item>
+        <item name="android:padding">0dp</item>
+        <item name="android:insetLeft">0dp</item>
+        <item name="android:insetRight">0dp</item>
+        <item name="iconGravity">textStart</item>
+        <item name="iconPadding">0dp</item>
+    </style>
+
+    <!-- Album and playlist buttons: an icon in a 56dp square, as the Messaging and Calendar add buttons. -->
+    <style name="Theme.Twelve.Kompakt.SquareFab" parent="Widget.Material3.ExtendedFloatingActionButton.Icon.Primary">
+        <item name="android:layout_width">56dp</item>
+        <item name="android:layout_height">56dp</item>
+        <item name="android:minWidth">56dp</item>
+        <item name="android:minHeight">56dp</item>
+        <item name="android:paddingStart">16dp</item>
+        <item name="android:paddingEnd">16dp</item>
+        <item name="android:elevation">0dp</item>
+        <item name="android:stateListAnimator">@null</item>
+        <item name="elevation">0dp</item>
+        <item name="iconGravity">textStart</item>
+        <item name="iconPadding">0dp</item>
+        <item name="shapeAppearanceOverlay">@style/Theme.Twelve.Kompakt.SquareFab.Shape</item>
+        <item name="strokeColor">?attr/colorOnSurface</item>
+        <item name="strokeWidth">2px</item>
+    </style>
+
+    <style name="Theme.Twelve.Kompakt.SquareFab.Shape" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">16dp</item>
+    </style>
+
+    <!-- Cover pages: the toolbar's back and action buttons in outlined circles, readable on any cover. -->
+    <style name="ThemeOverlay.Twelve.Kompakt.CoverToolbar" parent="">
+        <item name="toolbarNavigationButtonStyle">@style/Theme.Twelve.Kompakt.CoverNavButton</item>
+        <item name="actionButtonStyle">@style/Theme.Twelve.Kompakt.CoverActionButton</item>
+    </style>
+
+    <style name="Theme.Twelve.Kompakt.CoverNavButton" parent="Widget.AppCompat.Toolbar.Button.Navigation">
+        <item name="android:background">@drawable/kompakt_cover_button</item>
+    </style>
+
+    <style name="Theme.Twelve.Kompakt.CoverActionButton" parent="Widget.AppCompat.ActionButton">
+        <item name="android:background">@drawable/kompakt_cover_button</item>
+    </style>
+</resources>

@@ -1,0 +1,29 @@
+From aa492db6516d9e28b5d06cbbceb84dde09f94c03 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Wed, 7 Oct 2026 12:00:00 +0000
+Subject: [PATCH 13/14] Kompakt: the status bar clock sits 16dp in
+
+---
+ .../base/packages/SystemUI/res/values/dimens.xml           | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/overlay/frameworks/base/packages/SystemUI/res/values/dimens.xml b/overlay/frameworks/base/packages/SystemUI/res/values/dimens.xml
+index 39c6e84..a769729 100644
+--- a/overlay/frameworks/base/packages/SystemUI/res/values/dimens.xml
++++ b/overlay/frameworks/base/packages/SystemUI/res/values/dimens.xml
+@@ -16,8 +16,9 @@
+ */
+ -->
+ <resources>
+-    <!-- Fix for the qs glitch on displays under sw372dp -->
+-    <dimen name="rounded_corner_content_padding">4dp</dimen>
++    <!-- Kompakt: a square screen, so no corner padding -->
++    <dimen name="rounded_corner_content_padding">0dp</dimen>
+ 
+-    <dimen name="status_bar_padding_start">18.0dip</dimen>
++    <!-- Kompakt: the clock sits 16dp in, as on the lockscreen -->
++    <dimen name="status_bar_padding_start">12dp</dimen>
+ </resources>
+-- 
+2.43.0
+

@@ -1,0 +1,67 @@
+From e9dadd76ffd7b1ba12537865d021d6c4c76b84c6 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Wed, 14 Oct 2026 20:55:46 +0300
+Subject: [PATCH] Kompakt: the tile editor groups the e-ink mode tiles
+
+The Kompakt app's tile for each e-ink mode sat among every other tile from
+system apps. A TileCategory EINK_MODES, shown right after Display, takes
+tiles whose TILE_CATEGORY meta-data is com.kompakt.service.CATEGORY_EINK_MODES.
+
+Change-Id: Id7b4d3c592f471549440c797a545575beb7161b2
+---
+ packages/SystemUI/res/values/strings.xml                 | 4 ++++
+ .../com/android/systemui/qs/shared/model/TileCategory.kt | 9 +++++++++
+ 2 files changed, 13 insertions(+)
+
+diff --git a/packages/SystemUI/res/values/strings.xml b/packages/SystemUI/res/values/strings.xml
+index 20075caa7c10..24cca0948d4a 100644
+--- a/packages/SystemUI/res/values/strings.xml
++++ b/packages/SystemUI/res/values/strings.xml
+@@ -4508,6 +4508,10 @@
+     <string name="qs_edit_mode_category_display">
+         Display
+     </string>
++    <!-- Kompakt: label for the QS Edit mode category of the e-ink mode tiles. [CHAR LIMIT=NONE] -->
++    <string name="qs_edit_mode_category_eink_modes">
++        E-ink modes
++    </string>
+     <!-- Label for category in QS Edit mode list of tiles, for tiles with an unknown category. [CHAR LIMIT=NONE] -->
+     <string name="qs_edit_mode_category_unknown">
+         Unknown
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/shared/model/TileCategory.kt b/packages/SystemUI/src/com/android/systemui/qs/shared/model/TileCategory.kt
+index 94f0125a5212..4901230a615b 100644
+--- a/packages/SystemUI/src/com/android/systemui/qs/shared/model/TileCategory.kt
++++ b/packages/SystemUI/src/com/android/systemui/qs/shared/model/TileCategory.kt
+@@ -39,6 +39,11 @@ enum class TileCategory(val label: Text, val iconId: Int) {
+         Text.Resource(R.string.qs_edit_mode_category_display),
+         R.drawable.ic_qs_category_display,
+     ),
++    // Kompakt: the Kompakt app's tile for each e-ink mode, apart from the rest.
++    EINK_MODES(
++        Text.Resource(R.string.qs_edit_mode_category_eink_modes),
++        R.drawable.ic_qs_category_display,
++    ),
+     PRIVACY(
+         Text.Resource(R.string.qs_edit_mode_category_privacy),
+         R.drawable.ic_qs_category_privacy,
+@@ -66,6 +71,9 @@ interface CategoryAndName {
+     val name: String
+ }
+ 
++/** Kompakt: the TILE_CATEGORY meta-data value the Kompakt app's e-ink mode tiles declare. */
++const val KOMPAKT_CATEGORY_EINK_MODES = "com.kompakt.service.CATEGORY_EINK_MODES"
++
+ /** Returns the [TileCategory] for the [Categories] received. */
+ fun tileCategoryFor(@Categories value: String): TileCategory? {
+     return when (value) {
+@@ -74,6 +82,7 @@ fun tileCategoryFor(@Categories value: String): TileCategory? {
+         CATEGORY_DISPLAY -> TileCategory.DISPLAY
+         CATEGORY_PRIVACY -> TileCategory.PRIVACY
+         CATEGORY_ACCESSIBILITY -> TileCategory.ACCESSIBILITY
++        KOMPAKT_CATEGORY_EINK_MODES -> TileCategory.EINK_MODES
+         else -> null
+     }
+ }
+-- 
+2.43.0
+

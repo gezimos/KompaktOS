@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: the privacy dot in ink, black in light mode, ringed in white so it shows on a black camera viewfinder too. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid
+        android:color="@android:color/black"/>
+    <stroke
+        android:width="1.5dp"
+        android:color="@android:color/white"/>
+    <size
+        android:width="@dimen/ongoing_appops_dot_diameter"
+        android:height="@dimen/ongoing_appops_dot_diameter"
+        />
+</shape>

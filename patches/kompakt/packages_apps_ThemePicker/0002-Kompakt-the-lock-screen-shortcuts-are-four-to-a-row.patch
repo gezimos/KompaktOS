@@ -1,0 +1,95 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sat, 17 Oct 2026 23:10:00 +0200
+Subject: [PATCH] Kompakt: the lock screen shortcuts are four to a row
+
+The shortcut choices were a two row grid that scrolled sideways. They are now
+a plain grid, four to a row, each item centred in its quarter of the row.
+
+---
+diff --git a/res/layout/floating_sheet_shortcut.xml b/res/layout/floating_sheet_shortcut.xml
+index 475da6a..705cf5a 100644
+--- a/res/layout/floating_sheet_shortcut.xml
++++ b/res/layout/floating_sheet_shortcut.xml
+@@ -46,7 +46,7 @@
+ 
+         <androidx.recyclerview.widget.RecyclerView
+             android:id="@+id/quick_affordance_horizontal_list"
+-            android:layout_width="wrap_content"
++            android:layout_width="match_parent"
+             android:layout_height="wrap_content"
+             android:layout_gravity="center_horizontal"
+             android:clipChildren="false"
+diff --git a/src/com/android/wallpaper/customization/ui/binder/ShortcutFloatingSheetBinder.kt b/src/com/android/wallpaper/customization/ui/binder/ShortcutFloatingSheetBinder.kt
+index f366850..0b420c9 100644
+--- a/src/com/android/wallpaper/customization/ui/binder/ShortcutFloatingSheetBinder.kt
++++ b/src/com/android/wallpaper/customization/ui/binder/ShortcutFloatingSheetBinder.kt
+@@ -18,6 +18,7 @@ package com.android.wallpaper.customization.ui.binder
+ 
+ import android.app.Dialog
+ import android.content.Context
++import android.graphics.Rect
+ import android.view.View
+ import android.view.ViewGroup
+ import android.widget.ImageView
+@@ -30,7 +31,6 @@ import androidx.lifecycle.repeatOnLifecycle
+ import androidx.recyclerview.widget.GridLayoutManager
+ import androidx.recyclerview.widget.LinearLayoutManager
+ import androidx.recyclerview.widget.RecyclerView
+-import com.android.customization.picker.common.ui.view.DoubleRowListItemSpacing
+ import com.android.themepicker.R
+ import com.android.wallpaper.customization.ui.util.ThemePickerCustomizationOptionUtil.ThemePickerLockCustomizationOption.SHORTCUTS
+ import com.android.wallpaper.customization.ui.viewmodel.ThemePickerCustomizationOptionsViewModel
+@@ -54,6 +54,8 @@ import kotlinx.coroutines.launch
+ @OptIn(ExperimentalCoroutinesApi::class)
+ object ShortcutFloatingSheetBinder {
+ 
++    private const val SHORTCUTS_PER_ROW = 4
++
+     fun bind(
+         view: View,
+         optionsViewModel: ThemePickerCustomizationOptionsViewModel,
+@@ -227,22 +229,26 @@ object ShortcutFloatingSheetBinder {
+     ) {
+         apply {
+             this.adapter = adapter
+-            layoutManager = GridLayoutManager(context, 2, GridLayoutManager.HORIZONTAL, false)
++            // Kompakt: four shortcuts a row, in a grid that does not scroll sideways.
++            layoutManager = GridLayoutManager(context, SHORTCUTS_PER_ROW)
++            val rowSpacePx =
++                context.resources.getDimensionPixelSize(R.dimen.floating_sheet_list_item_vertical_space)
+             addItemDecoration(
+-                DoubleRowListItemSpacing(
+-                    edgeItemSpacePx =
+-                        context.resources.getDimensionPixelSize(
+-                            R.dimen.floating_sheet_content_horizontal_padding
+-                        ),
+-                    itemHorizontalSpacePx =
+-                        context.resources.getDimensionPixelSize(
+-                            R.dimen.floating_sheet_shortcut_list_item_horizontal_space
+-                        ),
+-                    itemVerticalSpacePx =
+-                        context.resources.getDimensionPixelSize(
+-                            R.dimen.floating_sheet_list_item_vertical_space
+-                        ),
+-                )
++                object : RecyclerView.ItemDecoration() {
++                    override fun getItemOffsets(
++                        outRect: Rect,
++                        view: View,
++                        parent: RecyclerView,
++                        state: RecyclerView.State,
++                    ) {
++                        // Each item sits in the middle of its quarter of the row.
++                        val cell =
++                            (parent.width - parent.paddingLeft - parent.paddingRight) /
++                                SHORTCUTS_PER_ROW
++                        val side = ((cell - view.layoutParams.width) / 2).coerceAtLeast(0)
++                        outRect.set(side, rowSpacePx, side, rowSpacePx)
++                    }
++                }
+             )
+         }
+     }
+-- 
+2.43.0

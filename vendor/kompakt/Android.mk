@@ -10,8 +10,9 @@ LOCAL_SRC_FILES := prebuilt/Katapult.apk
 LOCAL_CERTIFICATE := PRESIGNED
 LOCAL_MODULE_SUFFIX := $(COMMON_ANDROID_PACKAGE_SUFFIX)
 LOCAL_PRIVILEGED_MODULE := false
-LOCAL_DEX_PREOPT := false
-LOCAL_ENFORCE_USES_LIBRARIES := false
+# Precompiled: Katapult declares no shared libraries, so the class loader context is known.
+LOCAL_DEX_PREOPT := true
+LOCAL_ENFORCE_USES_LIBRARIES := true
 include $(BUILD_PREBUILT)
 
 include $(CLEAR_VARS)

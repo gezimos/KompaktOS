@@ -1,0 +1,26 @@
+From 02707b397f9790bd513856bdd4e0db757962a6d7 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sat, 26 Sep 2026 02:52:46 +0200
+Subject: [PATCH 38/99] Kompakt: SystemUI: status bar, notifications and power
+ menu in two inks
+
+---
+ .../android/systemui/battery/unified/BatteryLayersDrawable.kt   | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/battery/unified/BatteryLayersDrawable.kt b/packages/SystemUI/src/com/android/systemui/battery/unified/BatteryLayersDrawable.kt
+index 3baaa3050c42..21a4c5ae6659 100644
+--- a/packages/SystemUI/src/com/android/systemui/battery/unified/BatteryLayersDrawable.kt
++++ b/packages/SystemUI/src/com/android/systemui/battery/unified/BatteryLayersDrawable.kt
+@@ -73,7 +73,7 @@ class BatteryLayersDrawable(
+ 
+     /** Punches the foreground shapes back out of the solid fill. See draw(). */
+     /**
+-     * Kompakt: the foreground is drawn inverted against whatever is under it.
++     * Kompakt: the foreground is the inverse of whatever is under it.
+      */
+     private val invertPaint = Paint().also { it.blendMode = BlendMode.DIFFERENCE }
+ 
+-- 
+2.43.0
+

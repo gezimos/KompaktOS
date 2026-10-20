@@ -1,0 +1,66 @@
+From be7e3a68190158652ea1efb26eff26d579af734e Mon Sep 17 00:00:00 2001
+From: Gezim <25499045+gezimos@users.noreply.github.com>
+Date: Mon, 19 Oct 2026 17:05:53 +0300
+Subject: [PATCH] Kompakt: data networks hear the modem's data call list from
+ the RIL
+
+When the network ends a data connection, the MediaTek modem reports it
+INACTIVE in UNSOL_DATA_CALL_LIST_CHANGED and the RIL receives it, but on
+this device the list never reached DataNetwork through CellularDataService
+and DataServiceManager: no onDataStateChanged in two bug reports (Orange
+FR cid 2501, T-Mobile cid 502). The data network stayed connected, and on
+Wi-Fi even validated, until mobile data was toggled; an MMS sent over it
+failed at once. MuditaOS's MtkDcController takes the list straight from
+the RIL (registerForDataCallListChanged on mCi) for the same reason.
+DataNetwork now also registers on the RIL for WWAN, so an inactive or
+missing cid disconnects it and DataNetworkController sets data up again.
+Both paths deliver the same list; the second copy changes nothing.
+DataServiceManager logs each WWAN list it receives, to show whether the
+data service delivers at all.
+---
+ .../com/android/internal/telephony/data/DataNetwork.java     | 5 +++++
+ .../android/internal/telephony/data/DataServiceManager.java  | 5 +++++
+ 2 files changed, 10 insertions(+)
+
+diff --git a/src/java/com/android/internal/telephony/data/DataNetwork.java b/src/java/com/android/internal/telephony/data/DataNetwork.java
+index 0092be7..72fc52d 100644
+--- a/src/java/com/android/internal/telephony/data/DataNetwork.java
++++ b/src/java/com/android/internal/telephony/data/DataNetwork.java
+@@ -1316,6 +1316,10 @@ public class DataNetwork extends StateMachine {
+                 mDataServiceManagers.get(transport)
+                         .registerForDataCallListChanged(getHandler(), EVENT_DATA_STATE_CHANGED);
+             }
++            // Kompakt: the modem's data call list straight from the RIL, as MediaTek's
++            // MtkDcController takes it; through the data service it never arrived.
++            mPhone.mCi.registerForDataCallListChanged(getHandler(), EVENT_DATA_STATE_CHANGED,
++                    AccessNetworkConstants.TRANSPORT_TYPE_WWAN);
+ 
+             mCarrierPrivilegesCallback =
+                     (Set<String> privilegedPackageNames, Set<Integer> privilegedUids) -> {
+@@ -1401,6 +1405,7 @@ public class DataNetwork extends StateMachine {
+                 mDataServiceManagers.get(transport)
+                         .unregisterForDataCallListChanged(getHandler());
+             }
++            mPhone.mCi.unregisterForDataCallListChanged(getHandler());
+             mPhone.getServiceStateTracker().unregisterForServiceStateChanged(getHandler());
+             mPhone.getDisplayInfoController().unregisterForTelephonyDisplayInfoChanged(
+                     getHandler());
+diff --git a/src/java/com/android/internal/telephony/data/DataServiceManager.java b/src/java/com/android/internal/telephony/data/DataServiceManager.java
+index 2629bd8..746e0bf 100644
+--- a/src/java/com/android/internal/telephony/data/DataServiceManager.java
++++ b/src/java/com/android/internal/telephony/data/DataServiceManager.java
+@@ -318,6 +318,11 @@ public class DataServiceManager extends Handler {
+ 
+         @Override
+         public void onDataCallListChanged(List<DataCallResponse> dataCallList) {
++            // Kompakt: shows whether the data service delivers the list at all.
++            if (mTransportType == AccessNetworkConstants.TRANSPORT_TYPE_WWAN) {
++                log("Kompakt: data call list from the data service: "
++                        + (dataCallList != null ? dataCallList.size() : 0));
++            }
+             mLastDataCallResponseList =
+                     dataCallList != null ? dataCallList : new ArrayList<>();
+             mDataCallListChangedRegistrants.notifyRegistrants(
+-- 
+2.56.0
+

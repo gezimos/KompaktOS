@@ -1,0 +1,45 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sun, 11 Oct 2026 19:45:00 +0200
+Subject: [PATCH 1/1] Kompakt: filter chips reorder without sliding
+
+Picking a filter moves the checked chip to the front and slides every chip
+to its new place with an ObjectAnimator on x, whose steps are relative to
+the chip's current left edge. With animations off the slide ends at once,
+before the reordered row is laid out again, so each chip kept an offset
+from its old place and the chips overlapped or left the row. With animators
+disabled the chips are not animated, the row lays them out in order, and
+the scroll to the first chip is immediate.
+
+---
+diff --git a/src/com/android/documentsui/queries/SearchChipViewManager.java b/src/com/android/documentsui/queries/SearchChipViewManager.java
+--- a/src/com/android/documentsui/queries/SearchChipViewManager.java
++++ b/src/com/android/documentsui/queries/SearchChipViewManager.java
+@@ -551,8 +551,11 @@ public class SearchChipViewManager {
+         }
+ 
+         if (hasAnim && mChipGroup.isAttachedToWindow()) {
++            // Kompakt: with animations off the slide ends before the reordered row is laid out,
++            // and the chips keep offsets from their old places; the row's own layout is enough.
++            final boolean kompaktSlide = android.animation.ValueAnimator.areAnimatorsEnabled();
+             // start animation
+-            for (Chip chip : chipList) {
++            for (Chip chip : kompaktSlide ? chipList : new ArrayList<Chip>()) {
+                 if (isRtl) {
+                     lastX -= chip.getMeasuredWidth();
+                 }
+@@ -572,7 +575,11 @@ public class SearchChipViewManager {
+             View parent = (View) mChipGroup.getParent().getParent();
+             if (parent instanceof HorizontalScrollView) {
+                 final int scrollToX = isRtl ? parent.getWidth() : 0;
+-                ((HorizontalScrollView) parent).smoothScrollTo(scrollToX, 0);
++                if (kompaktSlide) {
++                    ((HorizontalScrollView) parent).smoothScrollTo(scrollToX, 0);
++                } else {
++                    ((HorizontalScrollView) parent).scrollTo(scrollToX, 0);
++                }
+                 if (mChipGroup.getChildCount() > 0) {
+                     mChipGroup.getChildAt(0)
+                             .sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_FOCUSED);
+-- 
+2.43.0

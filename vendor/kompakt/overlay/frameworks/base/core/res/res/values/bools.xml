@@ -22,11 +22,8 @@
          false hides the feature rather than protecting it. -->
     <bool name="config_intrusiveNotificationLed">true</bool>
 
-    <!-- KompaktService owns /sys/class/leds; keeps the framework off the lights
-         HAL, which throws. Needs patch 0014; see the notification LED doc in KompaktService. -->
-    <bool name="config_notificationLedHandledExternally">true</bool>
-
-    <!-- No media player in quick settings. -->
+    <!-- No media player anywhere: media keeps its notification, with its controls.
+         Settings hides the Media switches with it. -->
     <bool name="config_quickSettingsShowMediaPlayer">false</bool>
 
     <!-- Do not wake the panel for a notification. -->
@@ -38,4 +35,14 @@
     <bool name="config_displayColorFadeDisabled">true</bool>
     <!-- The headset jack (accdet) reports through an input device, as on stock. -->
     <bool name="config_useDevInputEventForAudioJack">true</bool>
+
+    <!-- Kompakt: no Night Light and no Extra dim. Both are colour filters, and a grey
+         panel turns them into grey whites and dithering, not warmth or dimness. The
+         front light already does both, warm or cold, and down to its lowest level.
+         False hides them in Settings and quick settings. -->
+    <bool name="config_nightDisplayAvailable">false</bool>
+    <bool name="config_reduceBrightColorsAvailable">false</bool>
+
+    <!-- Battery saver leaves the theme alone instead of forcing dark. -->
+    <bool name="config_batterySaver_full_enableNightMode">false</bool>
 </resources>

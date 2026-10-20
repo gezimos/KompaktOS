@@ -1,7 +1,7 @@
-From 569b676b8a1bee4627b41c568cccdd2303dca180 Mon Sep 17 00:00:00 2001
+From dc969fff708191a14cc5642f365dcdb73af72863 Mon Sep 17 00:00:00 2001
 From: gezimos <>
 Date: Wed, 23 Sep 2026 10:25:00 +0200
-Subject: [PATCH 31/38] Kompakt: doze proximity never pauses AOD
+Subject: [PATCH 31/99] Kompakt: doze proximity never pauses AOD
 
 ---
  .../SystemUI/src/com/android/systemui/doze/DozeTriggers.java | 5 +----
@@ -33,3 +33,6 @@ index 58b2b23a39f5..35f0869b1d9b 100644
          }
      }
  
+-- 
+2.43.0
+

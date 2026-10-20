@@ -1,0 +1,37 @@
+From 6e93960fa6021ad2d37e54e274f5fb3596958ca2 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Tue, 13 Oct 2026 12:55:33 +0300
+Subject: [PATCH] Kompakt: the LED brightness preview shows the chosen
+ brightness
+
+The channel's light replaces a notification's own setLights since O, so
+the preview's colour and brightness never reached the LED: it showed the
+package's colour at the forced maximum. The preview now forces its colour,
+the slider's brightness and a steady light through LineageOS's extras, as
+the colour preview does.
+---
+ .../notificationlight/BrightnessPreference.java           | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/src/org/lineageos/lineageparts/notificationlight/BrightnessPreference.java b/src/org/lineageos/lineageparts/notificationlight/BrightnessPreference.java
+index 1841b0b..91ceae0 100644
+--- a/src/org/lineageos/lineageparts/notificationlight/BrightnessPreference.java
++++ b/src/org/lineageos/lineageparts/notificationlight/BrightnessPreference.java
+@@ -217,6 +217,14 @@ public class BrightnessPreference extends CustomDialogPreference<AlertDialog>
+         // Use a white light for a better preview of the brightness.
+         int notificationColor = mLedColor | (mSeekBarBrightness << 24);
+         mNotificationBuilder.setLights(notificationColor, 1, 0);
++        // Kompakt: the channel's light replaces setLights, so force the colour, this brightness and solid.
++        final Bundle extras = new Bundle();
++        extras.putBoolean(LineageNotification.EXTRA_FORCE_SHOW_LIGHTS, true);
++        extras.putInt(LineageNotification.EXTRA_FORCE_LIGHT_BRIGHTNESS, mSeekBarBrightness);
++        extras.putInt(LineageNotification.EXTRA_FORCE_COLOR, mLedColor);
++        extras.putInt(LineageNotification.EXTRA_FORCE_LIGHT_ON_MS, 1);
++        extras.putInt(LineageNotification.EXTRA_FORCE_LIGHT_OFF_MS, 0);
++        mNotificationBuilder.setExtras(extras);
+         mNotificationManager.notify(
+                 mContext.getString(R.string.channel_light_settings_id), 1,
+                 mNotificationBuilder.build());
+-- 
+2.50.1 (Apple Git-155)
+

@@ -1,0 +1,60 @@
+From f7a51248455f5bfb03c88e423eec010e564485ed Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Wed, 7 Oct 2026 12:00:00 +0000
+Subject: [PATCH 71/99] Kompakt: the shade header is there in the first frame
+
+---
+ .../transitions/ToNotificationsShadeTransition.kt          | 4 +---
+ .../transitions/ToQuickSettingsShadeTransition.kt          | 7 +------
+ 2 files changed, 2 insertions(+), 9 deletions(-)
+
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/ToNotificationsShadeTransition.kt b/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/ToNotificationsShadeTransition.kt
+index f1bac23f61e4..e7c584daf9ec 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/ToNotificationsShadeTransition.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/ToNotificationsShadeTransition.kt
+@@ -24,7 +24,6 @@ import com.android.mechanics.behavior.VerticalExpandContainerSpec
+ import com.android.systemui.notifications.ui.composable.NotificationsShade
+ import com.android.systemui.plugins.keyguard.ui.composable.elements.LockscreenElementKeys
+ import com.android.systemui.scene.shared.model.Overlays
+-import com.android.systemui.shade.ui.composable.OverlayShade
+ import kotlin.time.Duration.Companion.milliseconds
+ 
+ fun TransitionBuilder.toNotificationsShadeTransition(
+@@ -46,8 +45,7 @@ fun TransitionBuilder.toNotificationsShadeTransition(
+     )
+     distance = KompaktInstantDistance
+ 
+-    fractionRange(end = .5f) { fade(OverlayShade.Elements.Scrim) }
+-    fractionRange(start = .5f) { fade(NotificationsShade.Elements.StatusBar) }
++    // Kompakt: no fades; a fade at 0 ms still drew one frame with a clear header and scrim.
+ }
+ 
+ // Kompakt: the shade is there when you pull it, not after an expansion.
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/ToQuickSettingsShadeTransition.kt b/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/ToQuickSettingsShadeTransition.kt
+index 8dfbefc9036e..8a2bf30b4c3c 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/ToQuickSettingsShadeTransition.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/scene/ui/composable/transitions/ToQuickSettingsShadeTransition.kt
+@@ -22,7 +22,6 @@ import com.android.compose.animation.scene.reveal.ContainerRevealHaptics
+ import com.android.compose.animation.scene.reveal.verticalContainerReveal
+ import com.android.mechanics.behavior.VerticalExpandContainerSpec
+ import com.android.systemui.qs.ui.composable.QuickSettingsShade
+-import com.android.systemui.shade.ui.composable.OverlayShade
+ import kotlin.time.Duration.Companion.milliseconds
+ 
+ fun TransitionBuilder.toQuickSettingsShadeTransition(
+@@ -41,11 +40,7 @@ fun TransitionBuilder.toQuickSettingsShadeTransition(
+     )
+     distance = KompaktInstantDistance
+ 
+-    fractionRange(end = .5f) { fade(OverlayShade.Elements.Scrim) }
+-    fractionRange(start = .5f) {
+-        fade(QuickSettingsShade.Elements.StatusBar)
+-        fade(QuickSettingsShade.Elements.Header)
+-    }
++    // Kompakt: no fades; a fade at 0 ms still drew one frame with a clear header and scrim.
+ }
+ 
+ // Kompakt: the shade is there when you pull it, not after an expansion.
+-- 
+2.43.0
+

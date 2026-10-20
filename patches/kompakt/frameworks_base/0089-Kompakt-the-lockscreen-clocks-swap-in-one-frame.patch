@@ -1,0 +1,44 @@
+From e4f11722314a19af195b265d5f182da9efb1095b Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Fri, 9 Oct 2026 23:45:33 +0200
+Subject: [PATCH 089/101] Kompakt: the lockscreen clocks swap in one frame
+
+Change-Id: I3388cd4a70a56d3e6668192ab6bfb6cab6210c21
+---
+ .../LockscreenUpperRegionElementProvider.kt         | 13 +++----------
+ 1 file changed, 3 insertions(+), 10 deletions(-)
+
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/LockscreenUpperRegionElementProvider.kt b/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/LockscreenUpperRegionElementProvider.kt
+index 508f27439cbb..fc6ea08e9db4 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/LockscreenUpperRegionElementProvider.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/LockscreenUpperRegionElementProvider.kt
+@@ -18,6 +18,7 @@ package com.android.systemui.keyguard.ui.composable.elements
+ 
+ import android.content.Context
+ import androidx.compose.animation.AnimatedVisibility
++import androidx.compose.animation.core.snap
+ import androidx.compose.animation.core.tween
+ import androidx.compose.foundation.layout.Box
+ import androidx.compose.foundation.layout.BoxScope
+@@ -122,16 +123,8 @@ constructor(
+             enter: PropertyTransformationBuilder.() -> Unit,
+             exit: PropertyTransformationBuilder.() -> Unit,
+         ) {
+-            spec = tween(300, easing = Easings.Emphasized)
+-
+-            // Since Smartspace cards are guaranteed to be shared between the small and large clock
+-            // regions, it's convenient to anchor the movement of the small clock elements to it.
+-            anchoredTranslate(Clock.Small, anchor = Smartspace.Cards)
+-            anchoredTranslate(Smartspace.DWA.SmallClock.Row, anchor = Smartspace.Cards)
+-            anchoredTranslate(Smartspace.DWA.SmallClock.Column, anchor = Smartspace.Cards)
+-
+-            timestampRange(endMillis = 133) { exit() }
+-            timestampRange(startMillis = 133, endMillis = 300) { enter() }
++            // Kompakt: the clocks swap in one frame; the fades and the slide dither on the panel.
++            spec = snap()
+         }
+ 
+         protected fun PropertyTransformationBuilder.fadeLargeClock() {
+-- 
+2.43.0
+

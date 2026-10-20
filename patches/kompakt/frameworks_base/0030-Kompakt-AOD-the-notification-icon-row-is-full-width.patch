@@ -1,7 +1,7 @@
-From 5c52d85f90280bd3671bcf80bb12ea567e179ad3 Mon Sep 17 00:00:00 2001
+From 534ac1b3c207c357fa4dde326859b2889a6faa08 Mon Sep 17 00:00:00 2001
 From: gezimos <>
 Date: Thu, 24 Sep 2026 01:00:00 +0200
-Subject: [PATCH 30/38] Kompakt: AOD the notification icon row is full width
+Subject: [PATCH 30/99] Kompakt: AOD the notification icon row is full width
 
 ---
  .../composable/elements/AodNotificationIconsElementProvider.kt | 3 +++
@@ -35,3 +35,6 @@ index afc590eb3d88..ff4f7d2bb985 100644
                  factory = { context ->
                      NotificationIconContainer(context, null).also { nic ->
                          scope.launch {
+-- 
+2.43.0
+

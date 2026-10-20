@@ -1,0 +1,35 @@
+From f7ca12e1f9d35140c95073674e09bde4f7331159 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Tue, 6 Oct 2026 14:30:00 +0200
+Subject: [PATCH 60/99] Kompakt: notifications expand when asked, so their
+ buttons show
+
+---
+ .../statusbar/notification/row/ExpandableNotificationRow.java | 4 ----
+ 1 file changed, 4 deletions(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/notification/row/ExpandableNotificationRow.java b/packages/SystemUI/src/com/android/systemui/statusbar/notification/row/ExpandableNotificationRow.java
+index 896d5f3bd8c1..8a539747fa47 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/notification/row/ExpandableNotificationRow.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/notification/row/ExpandableNotificationRow.java
+@@ -3107,8 +3107,6 @@ public class ExpandableNotificationRow extends ActivatableNotificationView
+     }
+ 
+     public boolean isExpandable() {
+-        // e-ink: notifications never expand.
+-        if (true) return false;
+         if (mIsSummaryWithChildren && !shouldShowPublic()) {
+             return !mChildrenExpanded;
+         }
+@@ -3806,8 +3804,6 @@ public class ExpandableNotificationRow extends ActivatableNotificationView
+ 
+     @Override
+     public boolean isContentExpandable() {
+-        // e-ink: notifications never expand.
+-        if (true) return false;
+         if (mIsSummaryWithChildren && !shouldShowPublic()) {
+             return true;
+         }
+-- 
+2.43.0
+

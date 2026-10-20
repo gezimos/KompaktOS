@@ -1,0 +1,50 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sun, 11 Oct 2026 19:30:00 +0200
+Subject: [PATCH 1/1] Kompakt: Start chat is an outlined plus button
+
+The Start chat button was a solid black pill with a shadow, then an
+outlined pill with its label. It is now Calendar's add button: 56dp with
+16dp corners, the page colour, a 2dp ink edge as on the Contacts button
+and an ink plus, with no label (the screen is the messages list) and no
+shadow.
+
+---
+diff --git a/res/layout/conversation_list_fragment.xml b/res/layout/conversation_list_fragment.xml
+--- a/res/layout/conversation_list_fragment.xml
++++ b/res/layout/conversation_list_fragment.xml
+@@ -40,16 +40,25 @@
+     <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
+         app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlay"
+         android:id="@+id/start_new_conversation_button"
+-        android:layout_width="wrap_content"
+-        android:layout_height="wrap_content"
++        android:layout_width="56dp"
++        android:layout_height="56dp"
+         android:layout_gravity="bottom|end"
+         android:layout_margin="16dp"
+-        android:text="@string/start_chat"
++        android:contentDescription="@string/start_chat"
++        android:minWidth="56dp"
++        android:paddingStart="16dp"
++        android:paddingEnd="16dp"
+         android:forceDarkAllowed="false"
+-        android:textColor="@color/fab_fg_color"
+-        app:backgroundTint="@color/fab_color"
+-        app:icon="@drawable/ic_message"
+-        app:iconTint="@color/fab_fg_color"
++        android:textColor="@color/lineage_accent"
++        android:elevation="0dp"
++        android:stateListAnimator="@null"
++        app:backgroundTint="@color/window_background"
++        app:strokeColor="@color/lineage_accent"
++        app:strokeWidth="2dp"
++        app:icon="@drawable/ic_add_white"
++        app:iconGravity="textStart"
++        app:iconPadding="0dp"
++        app:iconTint="@color/lineage_accent"
+         app:layout_behavior="com.google.android.material.behavior.HideBottomViewOnScrollBehavior" />
+ 
+ </FrameLayout>
+-- 
+2.43.0

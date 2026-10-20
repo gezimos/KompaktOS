@@ -1,0 +1,58 @@
+From 9ab6dc709c1f7085f1130a5249358017e6758919 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Wed, 7 Oct 2026 22:20:56 +0200
+Subject: [PATCH 76/99] Kompakt: the last notification on the lockscreen has
+ round bottom corners
+
+0054 hides the shelf on the lockscreen and any notification that does not fit
+whole. The section still counted the hidden rows, so the last one shown was not
+last in its section and kept square bottom corners. It is now rounded from its
+own source; elsewhere the request is withdrawn.
+
+Change-Id: I0a09642a4f704eafe4c8469ce6d80196162b9fdb
+---
+ .../stack/StackScrollAlgorithm.java           | 21 +++++++++++++++++++
+ 1 file changed, 21 insertions(+)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/StackScrollAlgorithm.java b/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/StackScrollAlgorithm.java
+index a881f0589ca5..11d427042421 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/StackScrollAlgorithm.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/notification/stack/StackScrollAlgorithm.java
+@@ -59,6 +59,7 @@ public class StackScrollAlgorithm {
+ 
+     private static final String TAG = "StackScrollAlgorithm";
+     private static final SourceType STACK_SCROLL_ALGO = SourceType.from("StackScrollAlgorithm");
++    private static final SourceType KOMPAKT_LAST_SHOWN = SourceType.from("KompaktLastShown");
+     private final ViewGroup mHostView;
+     @Nullable
+     private final HeadsUpAnimator mHeadsUpAnimator;
+@@ -152,6 +153,26 @@ public class StackScrollAlgorithm {
+         updateShelfState(algorithmState, ambientState);
+         updateAlphaState(algorithmState, ambientState);
+         getNotificationChildrenStates(algorithmState);
++        roundLastShownOnKeyguard(algorithmState, ambientState);
++    }
++
++    /** Kompakt: no shelf on the lockscreen, so the last notification shown closes the stack. */
++    private void roundLastShownOnKeyguard(StackScrollAlgorithmState algorithmState,
++            AmbientState ambientState) {
++        ExpandableNotificationRow last = null;
++        if (ambientState.isOnKeyguard()) {
++            for (ExpandableView v : algorithmState.visibleChildren) {
++                if (v instanceof ExpandableNotificationRow && !v.getViewState().hidden) {
++                    last = (ExpandableNotificationRow) v;
++                }
++            }
++        }
++        for (ExpandableView v : algorithmState.visibleChildren) {
++            if (v instanceof ExpandableNotificationRow) {
++                ((ExpandableNotificationRow) v).requestBottomRoundness(
++                        v == last ? 1f : 0f, KOMPAKT_LAST_SHOWN);
++            }
++        }
+     }
+ 
+     private static boolean isEmptyShadeView(ExpandableView v) {
+-- 
+2.43.0
+

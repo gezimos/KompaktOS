@@ -31,9 +31,19 @@ object Prefs {
     fun setWidth(c: Context, v: String) =
         c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("width", v).apply()
 
-    /** Temperature offset for testing how far each mode can be pushed. */
+    /** Temperature offset; 11 is meink's own (CONFIG_MUDITA_EINK_TCORR), what stock runs. */
     fun temperature(c: Context): Int =
-        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt("temp_offset", 0)
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt("temp_offset", Eink.STOCK_TEMP)
+
+    /** Once: a saved 0 is the old default, not a choice, so it becomes the driver's +11. */
+    fun migrateTemperature(c: Context) {
+        val p = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (p.getBoolean("temp_offset_stock", false)) return
+        p.edit().apply {
+            if (p.getInt("temp_offset", Eink.STOCK_TEMP) == 0) putInt("temp_offset", Eink.STOCK_TEMP)
+            putBoolean("temp_offset_stock", true)
+        }.apply()
+    }
 
     fun setTemperature(c: Context, v: Int) =
         c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putInt("temp_offset", v).apply()
@@ -47,6 +57,11 @@ object Prefs {
         return if (explicit != null && Eink.MODES.containsKey(explicit)) explicit
                else mode(c)
     }
+
+    /** Whether the package has a mode of its own, rather than following the master. */
+    fun appModeIsOwn(c: Context, pkg: String): Boolean =
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(appKey(pkg), null)
+            ?.let { Eink.MODES.containsKey(it) } ?: false
 
     fun setAppMode(c: Context, pkg: String, v: String?) =
         c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().apply {
@@ -107,6 +122,45 @@ class EinkTileService : TileService() {
     }
 }
 
+/** One tile per e-ink mode: a tap switches straight to it, and the current mode's tile is on. */
+abstract class EinkModeTileService : TileService() {
+    abstract val mode: String
+
+    override fun onStartListening() = render()
+
+    override fun onClick() {
+        if (!Eink.available() || !Eink.usable(mode)) return
+        if (Prefs.mode(this) != mode) {
+            Prefs.setMode(this, mode)
+            Eink.setMode(mode)
+        }
+        render()
+        // As the E-ink tile: clear what the previous mode ghosted in.
+        collapseShade()
+        Flash.show(applicationContext)
+    }
+
+    private fun render() {
+        val tile = qsTile ?: return
+        tile.label = Eink.label(mode)
+        tile.subtitle = getString(R.string.tile_eink)
+        tile.icon = Icon.createWithResource(this, Eink.icon(mode))
+        tile.state = when {
+            !Eink.available() || !Eink.usable(mode) -> Tile.STATE_UNAVAILABLE
+            Prefs.mode(this) == mode -> Tile.STATE_ACTIVE
+            else -> Tile.STATE_INACTIVE
+        }
+        tile.updateTile()
+    }
+}
+
+class EinkFastTileService : EinkModeTileService() { override val mode = "fast" }
+class EinkSoftTileService : EinkModeTileService() { override val mode = "soft" }
+class EinkDitherTileService : EinkModeTileService() { override val mode = "fastdither" }
+class EinkTextTileService : EinkModeTileService() { override val mode = "text" }
+class EinkQualityTileService : EinkModeTileService() { override val mode = "quality" }
+class EinkAutoTileService : EinkModeTileService() { override val mode = "auto" }
+
 /** One tile per flash LED. */
 abstract class TorchTileService : TileService() {
     abstract val node: String
@@ -115,7 +169,7 @@ abstract class TorchTileService : TileService() {
     override fun onStartListening() = render()
 
     override fun onClick() {
-        Torch.set(node, !Torch.isOn(node))
+        Torch.set(applicationContext, node, !Torch.isOn(node))
         // The write is queued, so read back rather than assuming it landed.
         Sysfs.onIo { render() }
     }

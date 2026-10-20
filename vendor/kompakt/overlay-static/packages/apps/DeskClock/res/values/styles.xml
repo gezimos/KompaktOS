@@ -8,4 +8,8 @@
         <item name="layout_constraintTop_toTopOf">@id/timer_setup_time_top</item>
         <item name="android:letterSpacing">0.08</item>
     </style>
+    <!-- Kompakt: the selected tab pill is the ink, as in the Phone app. -->
+    <style name="KompaktTabIndicator" parent="Widget.Material3.BottomNavigationView.ActiveIndicator">
+        <item name="android:color">@color/kompakt_alarm_ink</item>
+    </style>
 </resources>

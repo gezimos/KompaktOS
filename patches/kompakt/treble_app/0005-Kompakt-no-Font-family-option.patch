@@ -1,0 +1,78 @@
+From 099d50fc7817fb16a859903d526bdea88ba19afd Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Fri, 9 Oct 2026 20:55:07 +0200
+Subject: [PATCH] Kompakt: no Font family option
+
+---
+ app/src/main/java/me/phh/treble/app/Custom.kt         | 10 ----------
+ app/src/main/java/me/phh/treble/app/CustomSettings.kt |  9 ---------
+ app/src/main/res/xml/pref_custom.xml                  |  6 ------
+ 3 files changed, 25 deletions(-)
+
+diff --git a/app/src/main/java/me/phh/treble/app/Custom.kt b/app/src/main/java/me/phh/treble/app/Custom.kt
+index 3a1c5e1..ebf0ae8 100644
+--- a/app/src/main/java/me/phh/treble/app/Custom.kt
++++ b/app/src/main/java/me/phh/treble/app/Custom.kt
+@@ -51,16 +51,6 @@ object Custom: EntryStartup {
+                     OverlayPicker.setOverlayEnabled(value, true)
+                 }
+             }
+-            CustomSettings.fontFamily -> {
+-                val value = sp.getString(key, "")
+-                val fontFamilyOverlays = OverlayPicker.getThemeOverlays(OverlayPicker.ThemeOverlay.FontFamily)
+-                fontFamilyOverlays
+-                        .filter { it.packageName != value }
+-                        .forEach { OverlayPicker.setOverlayEnabled(it.packageName, false) }
+-                if (!value.isNullOrEmpty()) {
+-                    OverlayPicker.setOverlayEnabled(value, true)
+-                }
+-            }
+             CustomSettings.iconPack -> {
+                 val value = sp.getString(key, "")
+                 val iconPackOverlays = OverlayPicker.getThemeOverlays(OverlayPicker.ThemeOverlay.IconPack)                    
+diff --git a/app/src/main/java/me/phh/treble/app/CustomSettings.kt b/app/src/main/java/me/phh/treble/app/CustomSettings.kt
+index 870fee1..9aa493c 100644
+--- a/app/src/main/java/me/phh/treble/app/CustomSettings.kt
++++ b/app/src/main/java/me/phh/treble/app/CustomSettings.kt
+@@ -7,7 +7,6 @@ import androidx.preference.ListPreference
+ object CustomSettings : Settings {
+     val accentColor = "key_custom_accent_color"
+     val iconShape = "key_custom_icon_shape"
+-    val fontFamily = "key_custom_font_family"
+     val iconPack = "key_custom_icon_pack"
+     val pointerType = "key_custom_pointer_type"
+ 
+@@ -39,14 +38,6 @@ class CustomSettingsFragment : SettingsFragment() {
+         iconShapePref.setEntries(iconShapeEntries.toTypedArray())
+         iconShapePref.setEntryValues(iconShapeValues.toTypedArray())
+ 
+-        val fontFamilyPref = findPreference<ListPreference>(CustomSettings.fontFamily)!!
+-        val fontFamilyOverlays = OverlayPicker.getThemeOverlays(OverlayPicker.ThemeOverlay.FontFamily)
+-        val fontFamilyEntries = listOf("Default") + fontFamilyOverlays.map { getTargetName(it.packageName) }
+-        val fontFamilyValues = listOf("") + fontFamilyOverlays.map { it.packageName }
+-
+-        fontFamilyPref.setEntries(fontFamilyEntries.toTypedArray())
+-        fontFamilyPref.setEntryValues(fontFamilyValues.toTypedArray())
+-
+         val iconPackPref = findPreference<ListPreference>(CustomSettings.iconPack)!!
+         val iconPackOverlays = OverlayPicker.getThemeOverlays(OverlayPicker.ThemeOverlay.IconPack)
+         var iconPackMap = hashMapOf<String, String>()
+diff --git a/app/src/main/res/xml/pref_custom.xml b/app/src/main/res/xml/pref_custom.xml
+index b39d167..e84e061 100644
+--- a/app/src/main/res/xml/pref_custom.xml
++++ b/app/src/main/res/xml/pref_custom.xml
+@@ -35,11 +35,5 @@
+             android:entryValues="@array/pref_custom_icon_pack_values"
+             android:key="key_custom_icon_pack"
+ 		android:title="Icon pack" />
+-	<ListPreference
+-		android:defaultValue=""
+-            android:entries="@array/pref_custom_font_family"
+-            android:entryValues="@array/pref_custom_font_family_values"
+-            android:key="key_custom_font_family"
+-		android:title="Font family" />
+     </PreferenceCategory>
+ </PreferenceScreen>
+-- 
+2.43.0
+

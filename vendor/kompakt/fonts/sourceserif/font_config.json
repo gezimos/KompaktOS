@@ -1,0 +1,47 @@
+[
+    {
+        "name": "source-serif",
+        "fonts": [
+            {
+                "file": "KompaktSourceSerif-Regular.ttf",
+                "weight": "400",
+                "style": "normal"
+            },
+            {
+                "file": "KompaktSourceSerif-Italic.ttf",
+                "weight": "400",
+                "style": "italic"
+            },
+            {
+                "file": "KompaktSourceSerif-Medium.ttf",
+                "weight": "500",
+                "style": "normal"
+            },
+            {
+                "file": "KompaktSourceSerif-MediumItalic.ttf",
+                "weight": "500",
+                "style": "italic"
+            },
+            {
+                "file": "KompaktSourceSerif-SemiBold.ttf",
+                "weight": "600",
+                "style": "normal"
+            },
+            {
+                "file": "KompaktSourceSerif-SemiBoldItalic.ttf",
+                "weight": "600",
+                "style": "italic"
+            },
+            {
+                "file": "KompaktSourceSerif-Bold.ttf",
+                "weight": "700",
+                "style": "normal"
+            },
+            {
+                "file": "KompaktSourceSerif-BoldItalic.ttf",
+                "weight": "700",
+                "style": "italic"
+            }
+        ]
+    }
+]

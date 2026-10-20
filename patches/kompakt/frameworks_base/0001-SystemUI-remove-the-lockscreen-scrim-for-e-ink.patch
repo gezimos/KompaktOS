@@ -1,7 +1,7 @@
-From 08305470cf284cb96271756e56ef3f028c5bc6e9 Mon Sep 17 00:00:00 2001
+From 9733cbac675d845fc892d7d71fe2744b58bd8368 Mon Sep 17 00:00:00 2001
 From: gezimos <>
 Date: Tue, 8 Sep 2026 14:18:04 +0200
-Subject: [PATCH 01/38] SystemUI: remove the lockscreen scrim for e-ink
+Subject: [PATCH 01/99] SystemUI: remove the lockscreen scrim for e-ink
 
 ---
  .../android/systemui/statusbar/phone/ScrimController.java   | 6 +++---
@@ -38,3 +38,6 @@ index 0d953a3f5cac..0c36fc0044aa 100644
          if (!mKeyguardUnlockAnimationController.isPlayingCannedUnlockAnimation()) {
              mAnimatingPanelExpansionOnUnlock = false;
          }
+-- 
+2.43.0
+

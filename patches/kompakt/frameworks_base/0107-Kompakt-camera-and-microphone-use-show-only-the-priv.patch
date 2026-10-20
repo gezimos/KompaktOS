@@ -1,0 +1,52 @@
+From 6b74ccee9d8cf9da3eb5488d98c0809a8b6b2e7f Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Tue, 13 Oct 2026 17:49:23 +0300
+Subject: [PATCH] Kompakt: camera and microphone use show only the privacy dot
+
+The privacy event slid a chip with the camera or microphone icon into the
+status bar before it settled to the corner dot, every time an app opened
+the camera or microphone. The event carries no animation, so the scheduler
+shows the persistent privacy dot at once and keeps it while the app holds
+the camera or microphone.
+
+The top right dot container is 2dp wider than the status bar's end gap,
+so the dot sits 2dp further from the right edge, which it touched; the
+battery keeps its place.
+---
+ .../systemui/statusbar/events/PrivacyDotViewController.kt     | 4 +++-
+ .../systemui/statusbar/events/SystemEventCoordinator.kt       | 4 ++--
+ 2 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/events/PrivacyDotViewController.kt b/packages/SystemUI/src/com/android/systemui/statusbar/events/PrivacyDotViewController.kt
+index 7f0e165..6e3ec65 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/events/PrivacyDotViewController.kt
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/events/PrivacyDotViewController.kt
+@@ -365,7 +365,9 @@ constructor(
+             if (rtl) {
+                 width = contentInsets.left
+             } else {
+-                width = displayWidth - contentInsets.right
++                // Kompakt: 2dp wider, so the dot sits off the right edge; the status bar keeps its end gap.
++                width = displayWidth - contentInsets.right +
++                    Math.round(2 * tr.resources.displayMetrics.density)
+             }
+         }
+ 
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/events/SystemEventCoordinator.kt b/packages/SystemUI/src/com/android/systemui/statusbar/events/SystemEventCoordinator.kt
+index d4262fd..1dcc39d 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/events/SystemEventCoordinator.kt
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/events/SystemEventCoordinator.kt
+@@ -96,8 +96,8 @@ constructor(
+     fun notifyPrivacyItemsChanged(showAnimation: Boolean = true) {
+         // Disabling animation in case that the privacy indicator is implemented as a status bar
+         // chip
+-        val shouldShowAnimation = showAnimation && !avControlsChipInteractor.isEnabled.value
+-        val event = PrivacyEvent(shouldShowAnimation)
++        // Kompakt: no camera or microphone chip; the event goes straight to the privacy dot.
++        val event = PrivacyEvent(showAnimation = false)
+         event.privacyItems = privacyStateListener.currentPrivacyItems
+         event.contentDescription = run {
+             val items = PrivacyChipBuilder(context, event.privacyItems).joinTypes()
+-- 
+2.50.1 (Apple Git-155)
+

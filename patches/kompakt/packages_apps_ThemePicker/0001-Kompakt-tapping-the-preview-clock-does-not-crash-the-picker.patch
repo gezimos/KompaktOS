@@ -1,0 +1,30 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Fri, 17 Oct 2026 19:00:00 +0200
+Subject: [PATCH] Kompakt: tapping the preview clock does not crash the picker
+
+Tapping the preview clock toggled the round and sharp presets, which
+frameworks_base 0091 pins to sharp, and announced it with a snackbar
+whose text appearance failed to resolve android:textColorLink in this
+theme stack, crashing the picker. The tap is no longer offered. The
+width slider stays; frameworks_base 0111 makes it work with every font.
+
+---
+diff --git a/src/com/android/wallpaper/customization/ui/binder/ThemePickerCustomizationOptionBinder.kt b/src/com/android/wallpaper/customization/ui/binder/ThemePickerCustomizationOptionBinder.kt
+--- a/src/com/android/wallpaper/customization/ui/binder/ThemePickerCustomizationOptionBinder.kt
++++ b/src/com/android/wallpaper/customization/ui/binder/ThemePickerCustomizationOptionBinder.kt
+@@ -780,8 +780,11 @@
+                             ::Pair,
+                         )
+                         .collect { (selectedOption, onClockFaceClicked) ->
++                            // Kompakt: no tap on the preview clock; its round or sharp toggle is
++                            // pinned to sharp, and its snackbar crashed the picker.
+                             if (
+-                                selectedOption == ThemePickerLockCustomizationOption.CLOCK &&
++                                false &&
++                                    selectedOption == ThemePickerLockCustomizationOption.CLOCK &&
+                                     onClockFaceClicked != null
+                             ) {
+                                 clockFaceClickDelegateView.isVisible = true
+-- 
+2.43.0

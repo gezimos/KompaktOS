@@ -1,0 +1,133 @@
+From 70b7465d84d1963926030dca7ea5a828f214723f Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sun, 11 Oct 2026 17:18:06 +0200
+Subject: [PATCH 097/101] Kompakt: quick settings borders are 2 px
+
+Notification outlines are 2 px; the quick settings tiles, the brightness
+slider and the footer buttons were 2 dp, which is 2.66 px at 213 dpi and
+drew as two black pixels and a grey one (measured on 328). They are 2 px
+now, converted through the current density, so the edge is crisp and the
+same weight as the notifications at any display width.
+
+Change-Id: Idbb071cde16b10f7bf2ad1c6d60d20602b97bd8e
+---
+ .../systemui/qs/footer/ui/compose/FooterActions.kt       | 8 ++++----
+ .../systemui/brightness/ui/compose/BrightnessSlider.kt   | 9 +++++----
+ .../systemui/qs/panels/ui/compose/infinitegrid/Tile.kt   | 7 ++++---
+ 3 files changed, 13 insertions(+), 11 deletions(-)
+
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/qs/footer/ui/compose/FooterActions.kt b/packages/SystemUI/compose/features/src/com/android/systemui/qs/footer/ui/compose/FooterActions.kt
+index e13fb2c6c15a..1ee21edddbac 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/qs/footer/ui/compose/FooterActions.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/qs/footer/ui/compose/FooterActions.kt
+@@ -393,7 +393,7 @@ private fun IconButton(
+     CircleExpandable(
+         color = face,
+         contentColor = ink,
+-        borderStroke = BorderStroke(2.dp, ink),
++        borderStroke = BorderStroke(with(androidx.compose.ui.platform.LocalDensity.current) { 2.toDp() }, ink),
+         onClick = model.onClick,
+         modifier = modifier,
+         useModifierBasedImplementation = useModifierBasedExpandable,
+@@ -712,7 +712,7 @@ private object FooterActionsDefaults {
+             content = MaterialTheme.colorScheme.onSurface,
+             background = LocalAndroidColorScheme.current.surfaceEffect1,
+             // Kompakt: a border, so the footer buttons show in the split shade.
+-            border = BorderStroke(2.dp, MaterialTheme.colorScheme.onSurface),
++            border = BorderStroke(with(androidx.compose.ui.platform.LocalDensity.current) { 2.toDp() }, MaterialTheme.colorScheme.onSurface),
+         )
+ 
+     @Composable
+@@ -721,7 +721,7 @@ private object FooterActionsDefaults {
+         TextButtonColors(
+             content = colorAttr(R.attr.onShadeInactiveVariant),
+             background = colorAttr(R.attr.underSurface),
+-            border = BorderStroke(2.dp, colorAttr(R.attr.shadeInactive)),
++            border = BorderStroke(with(androidx.compose.ui.platform.LocalDensity.current) { 2.toDp() }, colorAttr(R.attr.shadeInactive)),
+         )
+ 
+     @Composable
+@@ -730,6 +730,6 @@ private object FooterActionsDefaults {
+         TextButtonColors(
+             content = colorAttr(R.attr.onShadeInactiveVariant),
+             background = colorAttr(R.attr.shadeInactive),
+-            border = BorderStroke(2.dp, colorAttr(R.attr.onShadeInactiveVariant)),
++            border = BorderStroke(with(androidx.compose.ui.platform.LocalDensity.current) { 2.toDp() }, colorAttr(R.attr.onShadeInactiveVariant)),
+         )
+ }
+diff --git a/packages/SystemUI/src/com/android/systemui/brightness/ui/compose/BrightnessSlider.kt b/packages/SystemUI/src/com/android/systemui/brightness/ui/compose/BrightnessSlider.kt
+index f8871bbd5001..68b77bb4edf2 100644
+--- a/packages/SystemUI/src/com/android/systemui/brightness/ui/compose/BrightnessSlider.kt
++++ b/packages/SystemUI/src/com/android/systemui/brightness/ui/compose/BrightnessSlider.kt
+@@ -120,7 +120,7 @@ import com.android.systemui.brightness.ui.compose.Dimensions.KompaktSliderVertic
+ import com.android.systemui.brightness.ui.compose.Dimensions.SliderBackgroundRoundedCorner
+ import com.android.systemui.brightness.ui.compose.Dimensions.ThumbHeight
+ import com.android.systemui.brightness.ui.compose.Dimensions.KompaktDotRadius
+-import com.android.systemui.brightness.ui.compose.Dimensions.KompaktTrackStroke
++import com.android.systemui.brightness.ui.compose.Dimensions.KompaktTrackStrokePx
+ import com.android.systemui.brightness.ui.compose.Dimensions.KompaktDotSpacing
+ import com.android.systemui.brightness.ui.compose.Dimensions.SliderTrackRoundedCorner
+ import com.android.systemui.brightness.ui.compose.Dimensions.ThumbTrackGapSize
+@@ -394,7 +394,7 @@ fun BrightnessSlider(
+                                     }
+ 
+                                     // Kompakt: outline the pill.
+-                                    val strokePx = KompaktTrackStroke.toPx()
++                                    val strokePx = KompaktTrackStrokePx
+                                     val halfStroke = strokePx / 2f
+                                     drawRoundRect(
+                                         color = activeTrackColor,
+@@ -542,7 +542,7 @@ private fun drawAutoBrightnessButton(
+             .clip(RoundedCornerShape(animatedCornerRadius))
+             .background(backgroundColor)
+             .border(
+-                width = 2.dp,
++                width = with(androidx.compose.ui.platform.LocalDensity.current) { 2.toDp() },
+                 color = kompaktBorder,
+                 shape = RoundedCornerShape(animatedCornerRadius),
+             )
+@@ -679,7 +679,8 @@ private object Dimensions {
+     val SliderTrackRoundedCorner = 20.dp
+ 
+     // Halftone under the level.
+-    val KompaktTrackStroke = 2.dp // Kompakt: one border weight across QS.
++    // Kompakt: one border weight across QS, 2 px as the notifications.
++    const val KompaktTrackStrokePx = 2f
+     // Kompakt: air above and below the brightness row.
+     val KompaktSliderVerticalPadding = 2.dp
+     val KompaktDotSpacing = 8.dp
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/Tile.kt b/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/Tile.kt
+index 9d6b96536ae8..f3afb413fea5 100644
+--- a/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/Tile.kt
++++ b/packages/SystemUI/src/com/android/systemui/qs/panels/ui/compose/infinitegrid/Tile.kt
+@@ -118,8 +118,8 @@ import com.android.systemui.qs.ui.compose.borderOnFocus
+ import com.android.systemui.res.R
+ import kotlinx.coroutines.CoroutineScope
+ 
+-/** Outline width for QS tiles. */
+-private val QsTileOutlineWidth = 2.dp
++/** Outline width for QS tiles, in pixels: 2 dp is 2.66 px here and leaves a grey edge. */
++private const val QsTileOutlinePx = 2
+ 
+ @Composable
+ fun TileLazyGrid(
+@@ -212,6 +212,7 @@ fun ContentScope.Tile(
+         val tileShape by TileDefaults.animateTileShapeAsState(uiState.state)
+         val animatedColor by animateColorAsState(colors.background, label = "QSTileBackgroundColor")
+         val isDualTarget = uiState.handlesSecondaryClick
++        val qsTileOutlineWidth = with(LocalDensity.current) { QsTileOutlinePx.toDp() }
+ 
+         val surfaceRevealModifier: Modifier
+         val contentRevealModifier: Modifier
+@@ -239,7 +240,7 @@ fun ContentScope.Tile(
+                     .fillMaxWidth()
+                     // Kompakt: a tile that is not filled needs an edge.
+                     .thenIf(uiState.state != STATE_ACTIVE) {
+-                        Modifier.border(QsTileOutlineWidth, colors.icon, tileShape)
++                        Modifier.border(qsTileOutlineWidth, colors.icon, tileShape)
+                     }
+                     .thenIf(currentBounceableInfo != null) {
+                         Modifier.bounceable(
+-- 
+2.43.0
+

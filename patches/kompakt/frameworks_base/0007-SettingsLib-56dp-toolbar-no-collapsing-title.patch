@@ -1,7 +1,7 @@
-From 65feb7e81c4e4ec5810d532851003b3a5d2f8b15 Mon Sep 17 00:00:00 2001
+From 0ef14fa025527ea3aa1bf4a201421b3ad2631d7e Mon Sep 17 00:00:00 2001
 From: gezimos <>
 Date: Tue, 8 Sep 2026 15:04:58 +0200
-Subject: [PATCH 07/38] SettingsLib: 56dp toolbar, no collapsing title
+Subject: [PATCH 07/99] SettingsLib: 56dp toolbar, no collapsing title
 
 ---
  .../res/layout-v31/collapsing_toolbar_content_layout.xml        | 1 +
@@ -33,3 +33,6 @@ index 40b9fcd79d49..3308399af5f4 100644
      <dimen name="settingslib_scrim_visible_height_trigger">137dp</dimen>
      <dimen name="expanded_title_margin_start">24dp</dimen>
      <dimen name="expanded_title_margin_end">24dp</dimen>
+-- 
+2.43.0
+
