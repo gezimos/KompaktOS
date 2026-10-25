@@ -177,6 +177,9 @@
     <string name="unlock_short_aod">AOD</string>
     <string name="unlock_short_sleep">Sleep</string>
     <string name="unlock_short_lockscreen">Lock screen</string>
+    <string name="frame_rate_row">Frame rate</string>
+    <string name="frame_rate_fps">%1$d fps</string>
+    <string name="frame_rate_note">Caps how often apps draw. E Ink settles slowly, so most frames beyond that are processor and graphics work for a picture nobody sees. The phone restarts to apply a change.</string>
     <string name="finger_note">Swipe along the sensor, double or triple tap it, or rest a finger on it for a second, and choose what each one does. Switch mode goes through the swipe modes that are on, in their order; the phone wakes in the first. With a triple tap set, a double tap waits half a second for the third. In Keymapper mode a swipe up presses F13 and a swipe down F14, once per swipe; record them as a trigger in Keymapper. It only works while the phone is unlocked; on the lock screen the sensor unlocks as usual.</string>
     <string name="sleep_section">Sleep screen</string>
     <string name="sleep_row">Sleep screen picture</string>

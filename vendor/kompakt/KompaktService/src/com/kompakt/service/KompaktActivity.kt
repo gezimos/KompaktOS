@@ -39,6 +39,8 @@ private const val POWER_TORCH = "kompakt_power_torch"
 private const val EMOJI_PROP = "persist.sys.kompakt.emoji"
 // Read by SystemFonts at boot: the picked family replaces Roboto and Google Sans everywhere.
 private const val FONT_PROP = "persist.sys.kompakt.font"
+// Read by Choreographer in every app as it starts: a divisor of the panel's frame rate.
+private const val FPS_PROP = "persist.sys.kompakt.fps_divisor"
 // Google Sans is the default, so nothing picked reads as it (SystemFonts does the same).
 private val FONTS = listOf("google-sans", "roboto", "manrope", "serif", "source-serif", "lato", "jetbrains-mono")
 // The scripts the fonts cover; Google Sans has Latin only (SystemFonts makes the same choice).
@@ -272,6 +274,10 @@ class KompaktActivity : Activity() {
                          else blockedRow(getString(R.string.sleep_row), Needs.BOTH) {
                              sleepNeeds()
                          })
+                page.add(valueRow(getString(R.string.frame_rate_row),
+                    getString(R.string.frame_rate_fps, frameRateNow())) {
+                    frameRateSheet()
+                })
             }
             PAGE_SLEEP -> sleepPage().forEach { page.add(it) }
             TAB_LOOK -> {
@@ -960,6 +966,35 @@ class KompaktActivity : Activity() {
                 }, emptyList(), framed = false))
         }
         dialog.setOnDismissListener { if (current == TAB_DISPLAY) select(TAB_DISPLAY) }
+    }
+
+    /** What the stored divisor works out to in frames a second. */
+    private fun frameRateNow(): Int {
+        val divisor = android.os.SystemProperties.getInt(FPS_PROP, 1).coerceAtLeast(1)
+        return Math.round((display?.refreshRate ?: 60f) / divisor)
+    }
+
+    private fun frameRateSheet() {
+        val now = frameRateNow()
+        sheet(getString(R.string.frame_rate_row), getString(R.string.frame_rate_note),
+            // TODO(jacksongoode): each e-ink mode has its own maximum; these are one list until measured.
+            listOf(60, 30, 15, 10).map { fps ->
+                SheetItem(getString(R.string.frame_rate_fps, fps), "", fps == now) {
+                    setFrameRate(fps)
+                }
+            })
+    }
+
+    /** Every app reads the divisor as it starts, SystemUI included, so a change restarts the phone. */
+    private fun setFrameRate(fps: Int) {
+        val divisor = Math.round((display?.refreshRate ?: 60f) / fps).coerceAtLeast(1)
+        try {
+            android.os.SystemProperties.set(FPS_PROP, divisor.toString())
+        } catch (t: Throwable) {
+            Log.w(Sysfs.TAG, "frame rate: cannot set $FPS_PROP (${t.javaClass.simpleName})")
+            return
+        }
+        getSystemService(android.os.PowerManager::class.java)?.reboot(null)
     }
 
     private fun emojiColour() = android.os.SystemProperties.get(EMOJI_PROP, "") == "color"
