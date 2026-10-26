@@ -1,0 +1,38 @@
+From 4f1c1b7d2f9a4e0c8b3d5a6f7e8d9c0b1a2b3c4d Mon Sep 17 00:00:00 2001
+From: jacksongoode <jacksongoode@users.noreply.github.com>
+Date: Mon, 26 Oct 2026 12:00:00 +0200
+Subject: [PATCH] Kompakt: frame rate divisor from
+ persist.sys.kompakt.fps_divisor
+
+Choreographer can already skip frames -- setFPSDivisor, which AOSP uses for its
+own low FPS experiments -- but only debug.hwui.fps_divisor reaches it, and no
+setting can write that.
+
+The divisor now also comes from persist.sys.kompakt.fps_divisor, which the
+Kompakt app can set. Unset, it falls back to the debug property, so a build
+without the app behaves as stock.
+
+Input is not affected: ViewRootImpl runs a touch on the UI thread as it arrives,
+not through the Choreographer, so the cap only holds back the draw. The
+batched-motion path does divide, which samples a drag at the capped rate.
+---
+ core/java/android/view/Choreographer.java | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/core/java/android/view/Choreographer.java b/core/java/android/view/Choreographer.java
+index 3a2ec91..9cd5931 100644
+--- a/core/java/android/view/Choreographer.java
++++ b/core/java/android/view/Choreographer.java
+@@ -350,7 +350,9 @@ public final class Choreographer {
+             mCallbackQueues[i] = new CallbackQueue();
+         }
+         // b/68769804: For low FPS experiments.
+-        setFPSDivisor(SystemProperties.getInt(ThreadedRenderer.DEBUG_FPS_DIVISOR, 1));
++        // Kompakt: the Display tab's frame rate cap is this same divisor.
++        setFPSDivisor(SystemProperties.getInt("persist.sys.kompakt.fps_divisor",
++                SystemProperties.getInt(ThreadedRenderer.DEBUG_FPS_DIVISOR, 1)));
+     }
+ 
+     private static float getRefreshRate() {
+-- 
+2.56.0
