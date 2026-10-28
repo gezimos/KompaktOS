@@ -1,5 +1,5 @@
 From 892b40b720ce323ff15bef2aff6b952bebc984da Mon Sep 17 00:00:00 2001
-From: gezimos <>
+From: Gezim <gezimos@users.noreply.github.com>
 Date: Sat, 26 Sep 2026 12:01:59 +0200
 Subject: [PATCH 39/99] Kompakt: keyguard: hold the lockscreen frame until home
  is drawn

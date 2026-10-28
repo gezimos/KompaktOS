@@ -1,13 +1,18 @@
-From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From 7ceb84c82a9a29b30c9861c0db6e5b1bdea338c1 Mon Sep 17 00:00:00 2001
 From: Gezim <gezimos@users.noreply.github.com>
 Date: Thu, 1 Oct 2026 20:50:00 +0200
-Subject: [PATCH 1/1] Kompakt: the update list drops builds the server no longer offers
+Subject: [PATCH 3/3] Kompakt: the update list drops builds the server no
+ longer offers
 
 ---
+ .../main/java/org/lineageos/updater/data/UpdatesRepository.kt | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
 diff --git a/app/src/main/java/org/lineageos/updater/data/UpdatesRepository.kt b/app/src/main/java/org/lineageos/updater/data/UpdatesRepository.kt
+index c9e2350..9f9053e 100644
 --- a/app/src/main/java/org/lineageos/updater/data/UpdatesRepository.kt
 +++ b/app/src/main/java/org/lineageos/updater/data/UpdatesRepository.kt
-@@ -44,8 +44,8 @@
+@@ -57,8 +57,8 @@ class UpdatesRepository(
              networkDataSource.fetchUpdates().map { it.toUpdate() }.filter { filterUpdates(it) }
          }
  
@@ -17,7 +22,7 @@ diff --git a/app/src/main/java/org/lineageos/updater/data/UpdatesRepository.kt b
 +        // no longer offers, such as an installed or abandoned build, are removed
          val networkIds = networkUpdates.map { it.downloadId }.toSet()
  
-         val localUpdates = withContext(Dispatchers.IO) {
+         if (localUpdates.isNotEmpty() && networkUpdates.any { it.downloadId !in localUpdates }) {
 -- 
 2.43.0
 

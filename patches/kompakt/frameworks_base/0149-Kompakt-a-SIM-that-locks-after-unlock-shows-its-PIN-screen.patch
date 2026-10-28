@@ -1,0 +1,30 @@
+From b82ed5cba35b7cbe0e7dea8a58e64739f666d21c Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Wed, 28 Oct 2026 19:36:23 +0100
+Subject: [PATCH] Kompakt: a SIM that locks after unlock shows its PIN screen
+
+---
+ .../scene/domain/startable/SceneContainerStartable.kt      | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/scene/domain/startable/SceneContainerStartable.kt b/packages/SystemUI/src/com/android/systemui/scene/domain/startable/SceneContainerStartable.kt
+index f1f0d3c93957..ccd0302f7ddc 100644
+--- a/packages/SystemUI/src/com/android/systemui/scene/domain/startable/SceneContainerStartable.kt
++++ b/packages/SystemUI/src/com/android/systemui/scene/domain/startable/SceneContainerStartable.kt
+@@ -406,6 +406,13 @@ constructor(
+                 .collect { (isAnySimLocked, unlockStatus) ->
+                     when {
+                         isAnySimLocked -> {
++                            // Kompakt: a SIM that locks after unlock (telephony up late) goes back to the lockscreen, as the old keyguard did.
++                            if (sceneInteractor.currentScene.value == Scenes.Gone) {
++                                sceneInteractor.snapToScene(
++                                    toScene = Scenes.Lockscreen,
++                                    loggingReason = "Locked SIM card after the device was unlocked.",
++                                )
++                            }
+                             sceneInteractor.showOverlay(
+                                 overlay = Overlays.Bouncer,
+                                 loggingReason = "Need to authenticate locked SIM card.",
+-- 
+2.43.0
+

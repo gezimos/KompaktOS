@@ -1,0 +1,110 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sat, 24 Oct 2026 12:00:00 +0300
+Subject: [PATCH] Kompakt: a page back on SettingsLib pages returns to the page it came from
+
+A page forward moved the row cut by the bottom edge to the top, less
+than a screen; a page back moved a full screen and then pulled the row
+under the top edge down until it was whole. The back page therefore
+started above the page forward came from, and every back and forth
+moved the list one row.
+
+Each forward turn is remembered with the distance it moved and where it
+landed, and back reverses the last one while the list is still there.
+When it is not (the list changed or scrolled otherwise), back moves a
+screen and pushes a row cut by the top edge off, so that page ends at
+the old top. The same fix as Settings 0007.
+---
+diff --git a/packages/SettingsLib/CollapsingToolbarBaseActivity/src/com/android/settingslib/collapsingtoolbar/KompaktPaging.java b/packages/SettingsLib/CollapsingToolbarBaseActivity/src/com/android/settingslib/collapsingtoolbar/KompaktPaging.java
+--- a/packages/SettingsLib/CollapsingToolbarBaseActivity/src/com/android/settingslib/collapsingtoolbar/KompaktPaging.java
++++ b/packages/SettingsLib/CollapsingToolbarBaseActivity/src/com/android/settingslib/collapsingtoolbar/KompaktPaging.java
+@@ -21,6 +21,8 @@
+ import androidx.recyclerview.widget.LinearLayoutManager;
+ import androidx.recyclerview.widget.RecyclerView;
+ 
++import java.util.ArrayDeque;
++
+ /**
+  * Kompakt: every vertical list on a SettingsLib page turns a page per swipe, as Settings'
+  * own pages do (Settings' com.kompakt.eink.PagedScroll and PageGestureListener, copied).
+@@ -96,10 +98,11 @@
+             final long before = mark(lm);
+             for (int i = Math.abs(delta); i > 0; i--) {
+                 if (delta > 0) {
+-                    forward(rv, lm, viewport);
++                    final int moved = forward(rv, lm, viewport);
++                    // Remembered, so back returns to exactly this page.
++                    if (moved > 0) lm.pages.push(new long[] {moved, mark(lm)});
+                 } else {
+-                    rv.scrollBy(0, -viewport);
+-                    snapTopRowWhole(rv, lm);
++                    back(rv, lm, viewport);
+                 }
+             }
+             // At either end nothing moves.
+@@ -110,32 +113,47 @@
+     }
+ 
+     /** Forward one page: to the top of the first row the bottom edge cuts. */
+-    private static void forward(RecyclerView rv, PagedLayoutManager lm, int viewport) {
++    private static int forward(RecyclerView rv, PagedLayoutManager lm, int viewport) {
+         final int topEdge = rv.getPaddingTop();
+         final int bottomEdge = rv.getHeight() - rv.getPaddingBottom();
+         int next = Integer.MAX_VALUE;
++        View anchor = null;
+         for (int i = 0, n = lm.getChildCount(); i < n; i++) {
+             final View row = lm.getChildAt(i);
+             if (row == null) continue;
+             if (lm.getDecoratedBottom(row) > bottomEdge && lm.getDecoratedTop(row) < next) {
+                 next = lm.getDecoratedTop(row);
++                anchor = row;
+             }
+         }
+         int dy = (next == Integer.MAX_VALUE) ? viewport : next - topEdge;
+         // A row taller than the whole page would stand still forever.
+         if (dy <= 0) dy = viewport;
++        final int anchorPos = anchor == null ? RecyclerView.NO_POSITION : lm.getPosition(anchor);
+         rv.scrollBy(0, dy);
++        // What the list really moved: less than dy at its end.
++        final View after = anchorPos == RecyclerView.NO_POSITION ? null
++                : lm.findViewByPosition(anchorPos);
++        return after == null ? dy : next - lm.getDecoratedTop(after);
+     }
+ 
+-    /** Pull the row under the top edge down until it is whole. */
+-    private static void snapTopRowWhole(RecyclerView rv, PagedLayoutManager lm) {
++    /** Back one page: to where the last page turn came from, if the list has not moved since. */
++    private static void back(RecyclerView rv, PagedLayoutManager lm, int viewport) {
++        final long[] last = lm.pages.peek();
++        if (last != null && last[1] == mark(lm)) {
++            lm.pages.pop();
++            rv.scrollBy(0, (int) -last[0]);
++            return;
++        }
++        lm.pages.clear();
++        rv.scrollBy(0, -viewport);
++        // Otherwise the page whose bottom is the old top: a row cut at the top goes up.
+         final int topEdge = rv.getPaddingTop();
+         for (int i = 0, n = lm.getChildCount(); i < n; i++) {
+             final View row = lm.getChildAt(i);
+             if (row == null) continue;
+-            if (lm.getDecoratedTop(row) <= topEdge && lm.getDecoratedBottom(row) > topEdge) {
+-                final int dy = lm.getDecoratedTop(row) - topEdge;
+-                if (dy < 0) rv.scrollBy(0, dy);
++            if (lm.getDecoratedTop(row) < topEdge && lm.getDecoratedBottom(row) > topEdge) {
++                rv.scrollBy(0, lm.getDecoratedBottom(row) - topEdge);
+                 return;
+             }
+         }
+@@ -153,6 +171,8 @@
+     /** Reports "cannot scroll vertically" to touch handling, so a finger never drags the list. */
+     static final class PagedLayoutManager extends LinearLayoutManager {
+         boolean allowProgrammaticScroll = false;
++        // Each forward page turn, {distance, where it landed}.
++        final ArrayDeque<long[]> pages = new ArrayDeque<>();
+ 
+         PagedLayoutManager(Context context) {
+             super(context);
+-- 
+2.43.0
+

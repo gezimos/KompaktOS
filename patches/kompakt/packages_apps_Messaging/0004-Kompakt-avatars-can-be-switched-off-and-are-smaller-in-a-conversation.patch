@@ -1,0 +1,141 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Tue, 3 Nov 2026 18:30:00 +0200
+Subject: [PATCH 1/1] Kompakt: avatars can be switched off and are smaller in a conversation
+
+Settings has a Show avatars switch, on by default. Off, the conversation list
+and the messages draw no avatar, and a message keeps no room for one. In a
+conversation the avatar is 36dp instead of 48dp. It has its own dimen,
+because the compose bar's send button shares the 48dp one.
+
+---
+diff --git a/res/layout/conversation_message_view.xml b/res/layout/conversation_message_view.xml
+--- a/res/layout/conversation_message_view.xml
++++ b/res/layout/conversation_message_view.xml
+@@ -23,8 +23,8 @@
+ 
+     <com.android.messaging.ui.ContactIconView
+         android:id="@+id/conversation_icon"
+-        android:layout_width="@dimen/conversation_message_contact_icon_size"
+-        android:layout_height="@dimen/conversation_message_contact_icon_size"
++        android:layout_width="@dimen/conversation_message_avatar_size"
++        android:layout_height="@dimen/conversation_message_avatar_size"
+         app:contactIconSize="normal"
+         android:clickable="true"
+         android:layout_gravity="center_vertical"
+diff --git a/res/values/constants.xml b/res/values/constants.xml
+--- a/res/values/constants.xml
++++ b/res/values/constants.xml
+@@ -25,6 +25,8 @@
+     <string name="sms_enabled_pref_key" translatable="false">sms_enabled</string>
+     <string name="send_sound_pref_key" translatable="false">send_sound</string>
+     <bool name="send_sound_pref_default" translatable="false">true</bool>
++    <string name="show_avatars_pref_key" translatable="false">show_avatars</string>
++    <bool name="show_avatars_pref_default" translatable="false">true</bool>
+     <string name="advanced_pref_key" translatable="false">advanced_prefs</string>
+ 
+     <!-- Subscription-specific settings. The values of these pref keys must be prefixed with
+diff --git a/res/values/dimens.xml b/res/values/dimens.xml
+--- a/res/values/dimens.xml
++++ b/res/values/dimens.xml
+@@ -33,6 +33,7 @@
+     <dimen name="conversation_list_image_preview_size">56dp</dimen>
+     <dimen name="conversation_list_contact_icon_size">56dp</dimen>
+     <dimen name="conversation_message_contact_icon_size">48dp</dimen>
++    <dimen name="conversation_message_avatar_size">36dp</dimen>
+     <dimen name="conversation_message_photo_min_size">96dp</dimen>
+     <dimen name="conversation_list_empty_text_bottom_margin">30dp</dimen>
+     <dimen name="blocked_participant_list_item_view_padding">16dp</dimen>
+diff --git a/res/values/strings.xml b/res/values/strings.xml
+--- a/res/values/strings.xml
++++ b/res/values/strings.xml
+@@ -352,6 +352,9 @@
+     <!-- Title for the preference for playing a message send sound -->
+     <string name="send_sound_pref_title">Outgoing message sounds</string>
+ 
++    <!-- Title for the preference for showing contact photos and letters next to conversations and messages -->
++    <string name="show_avatars_pref_title">Show avatars</string>
++
+     <!-- Menu item to copy message text -->
+     <string name="message_context_menu_copy_text">Copy text</string>
+     <!-- Title of long press menu for details about an individual message. -->
+diff --git a/res/xml/preferences_application.xml b/res/xml/preferences_application.xml
+--- a/res/xml/preferences_application.xml
++++ b/res/xml/preferences_application.xml
+@@ -29,6 +29,12 @@
+         android:defaultValue="@bool/send_sound_pref_default"
+         android:persistent="true" />
+ 
++    <SwitchPreferenceCompat
++        android:key="@string/show_avatars_pref_key"
++        android:title="@string/show_avatars_pref_title"
++        android:defaultValue="@bool/show_avatars_pref_default"
++        android:persistent="true" />
++
+     <Preference
+         android:key="@string/notifications_pref_key"
+         android:title="@string/notifications_pref_title"
+diff --git a/src/com/android/messaging/ui/conversation/ConversationMessageView.java b/src/com/android/messaging/ui/conversation/ConversationMessageView.java
+--- a/src/com/android/messaging/ui/conversation/ConversationMessageView.java
++++ b/src/com/android/messaging/ui/conversation/ConversationMessageView.java
+@@ -73,6 +73,7 @@
+ import com.android.messaging.util.UiUtils;
+ import com.android.messaging.util.YouTubeUtil;
+ import com.google.common.base.Predicate;
++import org.lineageos.messaging.util.PrefsUtils;
+ 
+ import java.util.Comparator;
+ import java.util.List;
+@@ -160,8 +161,9 @@
+     @Override
+     protected void onMeasure(final int widthMeasureSpec, final int heightMeasureSpec) {
+         final int horizontalSpace = MeasureSpec.getSize(widthMeasureSpec);
+-        final int iconSize = getResources()
+-                .getDimensionPixelSize(R.dimen.conversation_message_contact_icon_size);
++        // Kompakt: no room is kept for the avatar when it is switched off.
++        final int iconSize = PrefsUtils.isShowAvatarsEnabled() ? getResources()
++                .getDimensionPixelSize(R.dimen.conversation_message_avatar_size) : 0;
+ 
+         final int unspecifiedMeasureSpec = MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED);
+         final int iconMeasureSpec = MeasureSpec.makeMeasureSpec(iconSize, MeasureSpec.EXACTLY);
+@@ -458,7 +460,7 @@
+         mMessageTextAndInfoView.setVisibility(
+                 messageTextAndOrInfoVisible ? View.VISIBLE : View.GONE);
+ 
+-        if (shouldShowSimplifiedVisualStyle()) {
++        if (shouldShowSimplifiedVisualStyle() || !PrefsUtils.isShowAvatarsEnabled()) {
+             mContactIconView.setVisibility(View.GONE);
+             mContactIconView.setImageResourceUri(null);
+         } else {
+diff --git a/src/com/android/messaging/ui/conversationlist/ConversationListItemView.java b/src/com/android/messaging/ui/conversationlist/ConversationListItemView.java
+--- a/src/com/android/messaging/ui/conversationlist/ConversationListItemView.java
++++ b/src/com/android/messaging/ui/conversationlist/ConversationListItemView.java
+@@ -444,7 +444,7 @@
+         if (isSelected) {
+             checkmarkVisiblity = VISIBLE;
+         } else {
+-            contactIconVisibility = VISIBLE;
++            contactIconVisibility = PrefsUtils.isShowAvatarsEnabled() ? VISIBLE : GONE;
+             // Only show the fail icon if it is not a group conversation.
+             // And also require that we be the default sms app.
+             if (mData.getIsFailedStatus() && !mData.getIsGroup() && isDefaultSmsApp) {
+diff --git a/src/org/lineageos/messaging/util/PrefsUtils.java b/src/org/lineageos/messaging/util/PrefsUtils.java
+--- a/src/org/lineageos/messaging/util/PrefsUtils.java
++++ b/src/org/lineageos/messaging/util/PrefsUtils.java
+@@ -39,4 +39,16 @@
+                 R.bool.swipe_right_deletes_conversation_default);
+         return prefs.getBoolean(prefKey, defaultValue);
+     }
++
++    /**
++     * Returns whether the avatar is drawn next to conversations and messages.
++     */
++    public static boolean isShowAvatarsEnabled() {
++        final BuglePrefs prefs = BuglePrefs.getApplicationPrefs();
++        final Context context = Factory.get().getApplicationContext();
++        final String prefKey = context.getString(R.string.show_avatars_pref_key);
++        final boolean defaultValue = context.getResources().getBoolean(
++                R.bool.show_avatars_pref_default);
++        return prefs.getBoolean(prefKey, defaultValue);
++    }
+ }

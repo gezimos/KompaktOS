@@ -30,6 +30,31 @@ comments in these files are short titles; the reasons behind them are here.
   smears into grey; ours is its frames redrawn black on white at 10 fps around the
   boot logo. Mudita's vendor sets `debug.sf.nobootanimation=1`; product
   properties load after the vendor's, so our `=0` turns it back on.
+- **Memory** (1.3): the framework overlay sets `config_extraFreeKbytesAbsolute`
+  to 131072. ActivityManager passes it as `sys.sysctl.extra_free_kbytes`, and
+  AOSP's `extra_free_kbytes.sh` writes it to this kernel's `extra_free_kbytes`,
+  which lifts the low and high watermarks to about 131 and 134 MB. The default
+  (4500, from the screen size) left them about 13 and 16 MB, so nearly every short
+  stall became a lowmemorykiller kill ("low watermark is breached") while zram
+  stayed almost empty: the 382 boot trace never had less than 800 MB available or
+  1.2 GB of free swap and still killed 42 apps. Set live on 383 the watermarks
+  moved at once, free memory rose from 17 to 237 MB and memory PSI "some" fell from
+  about 20 % to under 1 %. LineageOS's Moto G Pure tree (MT6762, 3 GB) gets a
+  similar reserve with `min_free_kbytes 90000` and `watermark_scale_factor 200`
+  from its vendor init, but on this vendor init may not write either
+  (`proc_min_free_kbytes` and `proc_watermark_scale_factor` have no init rule;
+  383 shipped that as `kompakt-memory.rc` and it silently did nothing).
+  `dalvik.vm.heapgrowthlimit=192m` is AOSP's 2 GB phone preset and the Moto G
+  Pure's; the vendor's 256m is a large-phone value, and product properties load
+  after the vendor's. `ro.lmk.lowmem_min_oom_score=1001` turns off lmkd's last
+  rule ("low watermark is breached"), which killed a cached app whenever free
+  memory was under the high watermark during a PSI event; with the raised
+  watermarks it fired more (35 such kills in the 384 boot trace). Kills remain
+  for thrashing, low swap and full stalls. Tested live through
+  `persist.device_config.lmkd_native.lowmem_min_oom_score`: a boot went from 45
+  kills to 7 (all "device is not responding"), Settings opened in 2.3 s seven
+  seconds after the PIN, and zram held about 425 MB. Back out: delete the overlay
+  integer and both properties.
 - **Calls over 4G**: the three `persist.dbg` properties are what PHH Settings'
   "Force the presence of 4G Calling setting" writes. They make the 4G Calling
   switch appear for carriers the carrier config does not list. The user still
@@ -72,9 +97,7 @@ comments in these files are short titles; the reasons behind them are here.
 
 ### E-ink (`Hardware.kt`, `EinkAppWatcher.kt`)
 
-- **Auto mode detection**: stock meink does not know the `KAUTO` waveform name
-  and ignores the write, so reading `waveform_mode` back tells the kernels apart
-  without a dedicated node. On failure the mode falls back to Quality.
+- **Per-app watcher**: `EinkAppWatcher` registers a `TaskStackListener` with `ActivityTaskManager` (`MANAGE_ACTIVITY_TASKS`, signature) from `OfflineWatcherService`, and reads the top task after every stack change, 40 ms later so a burst is one read. Recents is not an app. It replaced an accessibility service that depended on window events and missed switches.
 - **Gamma**: enum EInkGammaCorrectionLevel: -1 is 1.00, then 0 to 6 are 0.25,
   0.50, 0.75, 1.25, 1.50, 2.00, 2.20.
 - **Dithering**: EInkDitheringType comes from Mudita's `eink_types.h`; 0 turns

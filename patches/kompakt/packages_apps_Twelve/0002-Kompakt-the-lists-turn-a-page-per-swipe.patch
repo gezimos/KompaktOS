@@ -1,7 +1,7 @@
-From 59e06e1c3349a0846407bafd0188688719279db9 Mon Sep 17 00:00:00 2001
-From: Gezim <25499045+gezimos@users.noreply.github.com>
+From 6a6e21df50cb518faf24f4e4dca814ea27e02b1a Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
 Date: Sat, 10 Oct 2026 12:49:50 +0200
-Subject: [PATCH] Kompakt: the lists turn a page per swipe
+Subject: [PATCH 02/14] Kompakt: the lists turn a page per swipe
 
 Change-Id: Iae0c6e2b3ab160c31513a52ef8ef14a8ee0d78fb
 ---

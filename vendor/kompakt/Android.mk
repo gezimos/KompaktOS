@@ -23,8 +23,10 @@ LOCAL_SRC_FILES := prebuilt/inkOS.apk
 LOCAL_CERTIFICATE := PRESIGNED
 LOCAL_MODULE_SUFFIX := $(COMMON_ANDROID_PACKAGE_SUFFIX)
 LOCAL_PRIVILEGED_MODULE := false
-LOCAL_DEX_PREOPT := false
-LOCAL_ENFORCE_USES_LIBRARIES := false
+# Precompiled: its two optional libraries are declared, so the class loader context is known.
+LOCAL_DEX_PREOPT := true
+LOCAL_ENFORCE_USES_LIBRARIES := true
+LOCAL_OPTIONAL_USES_LIBRARIES := androidx.window.extensions androidx.window.sidecar
 include $(BUILD_PREBUILT)
 
 # The module-path scan stops descending as soon as it finds an Android.mk, so this file has to pull in the.

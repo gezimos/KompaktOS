@@ -1,0 +1,158 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Tue, 27 Oct 2026 17:30:00 +0200
+Subject: [PATCH] Kompakt: the notifications shade shows the media card
+
+---
+  .../ui/composable/elements/MediaElementProvider.kt  |  3 ++-
+  .../ui/composable/NotificationsShadeOverlay.kt      |  9 ++++-----
+  .../NotificationsShadeOverlayContentViewModel.kt    | 17 +++++++++++++++--
+  .../collection/coordinator/MediaCoordinator.java    | 21 +++++++++++++--------
+  4 files changed, 34 insertions(+), 16 deletions(-)
+
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/MediaElementProvider.kt b/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/MediaElementProvider.kt
+index de642c2..abcbe85 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/MediaElementProvider.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/MediaElementProvider.kt
+@@ -126,9 +126,10 @@ constructor(
+ /**
+  * Kompakt: the first session as a notification-sized card, after Katapult's music widget: the
+  * track on top; the cover, square, in the bottom corner beside previous, play/pause, next and stop.
++ * Also the notifications shade's media.
+  */
+ @Composable
+-private fun KompaktMediaCard(
++fun KompaktMediaCard(
+     viewModelFactory: MediaViewModel.Factory,
+     carouselVisibility: MediaCarouselVisibility,
+ ) {
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/notifications/ui/composable/NotificationsShadeOverlay.kt b/packages/SystemUI/compose/features/src/com/android/systemui/notifications/ui/composable/NotificationsShadeOverlay.kt
+index cf11afc..4b790ba 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/notifications/ui/composable/NotificationsShadeOverlay.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/notifications/ui/composable/NotificationsShadeOverlay.kt
+@@ -40,9 +40,9 @@ import com.android.compose.lifecycle.DisposableEffectWithLifecycle
+ import com.android.compose.lifecycle.LaunchedEffectWithLifecycle
+ import com.android.internal.jank.InteractionJankMonitor
+ import com.android.systemui.dagger.SysUISingleton
++import com.android.systemui.keyguard.ui.composable.elements.KompaktMediaCard
+ import com.android.systemui.lifecycle.rememberViewModel
+ import com.android.systemui.media.remedia.ui.compose.Media
+-import com.android.systemui.media.remedia.ui.compose.MediaPresentationStyle
+ import com.android.systemui.notifications.ui.viewmodel.NotificationsShadeOverlayActionsViewModel
+ import com.android.systemui.notifications.ui.viewmodel.NotificationsShadeOverlayContentViewModel
+ import com.android.systemui.res.R
+@@ -152,11 +152,10 @@ constructor(
+                                 end = notificationStackPadding,
+                             ),
+                     ) {
+-                        Media(
++                        // Kompakt: the lockscreen's card, not the carousel.
++                        KompaktMediaCard(
+                             viewModelFactory = viewModel.mediaViewModelFactory,
+-                            presentationStyle = MediaPresentationStyle.Default,
+-                            behavior = viewModel.mediaUiBehavior,
+-                            onDismissed = viewModel::onMediaSwipeToDismiss,
++                            carouselVisibility = viewModel.mediaUiBehavior.carouselVisibility,
+                         )
+                     }
+                 }
+diff --git a/packages/SystemUI/src/com/android/systemui/notifications/ui/viewmodel/NotificationsShadeOverlayContentViewModel.kt b/packages/SystemUI/src/com/android/systemui/notifications/ui/viewmodel/NotificationsShadeOverlayContentViewModel.kt
+index 175b7d7..78bd1cc 100644
+--- a/packages/SystemUI/src/com/android/systemui/notifications/ui/viewmodel/NotificationsShadeOverlayContentViewModel.kt
++++ b/packages/SystemUI/src/com/android/systemui/notifications/ui/viewmodel/NotificationsShadeOverlayContentViewModel.kt
+@@ -51,6 +51,7 @@ import kotlin.math.roundToInt
+ import kotlinx.coroutines.CoroutineDispatcher
+ import kotlinx.coroutines.awaitCancellation
+ import kotlinx.coroutines.coroutineScope
++import kotlinx.coroutines.flow.combine
+ import kotlinx.coroutines.flow.distinctUntilChanged
+ import kotlinx.coroutines.flow.filter
+ import kotlinx.coroutines.flow.flowOf
+@@ -98,8 +99,20 @@ constructor(
+             mutableStateOf(true)
+         }
+ 
+-    // Kompakt: media stays a notification in the shade; the player is on the lockscreen only.
+-    val showMedia: Boolean = false
++    // Kompakt: the media card; on the lockscreen only while Show media on lock screen is on.
++    val showMedia: Boolean by
++        hydrator.hydratedStateOf(
++            traceName = "showMedia",
++            initialValue = false,
++            source =
++                combine(
++                    mediaCarouselInteractor.hasActiveMedia,
++                    mediaCarouselInteractor.allowMediaOnLockscreen,
++                    mediaCarouselInteractor.isOnLockscreen,
++                ) { active, allowed, onLockscreen ->
++                    active && (allowed || !onLockscreen)
++                },
++        )
+ 
+     /**
+      * Whether the shade container transparency effect should be enabled (`true`), or whether to
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/notification/collection/coordinator/MediaCoordinator.java b/packages/SystemUI/src/com/android/systemui/statusbar/notification/collection/coordinator/MediaCoordinator.java
+index 068283b..5d4f975 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/notification/collection/coordinator/MediaCoordinator.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/notification/collection/coordinator/MediaCoordinator.java
+@@ -30,6 +30,7 @@ import androidx.annotation.NonNull;
+ import com.android.internal.statusbar.IStatusBarService;
+ import com.android.systemui.media.controls.util.MediaFeatureFlag;
+ import com.android.systemui.plugins.statusbar.StatusBarStateController;
++import com.android.systemui.shade.domain.interactor.ShadeModeInteractor;
+ import com.android.systemui.statusbar.StatusBarState;
+ import com.android.systemui.statusbar.notification.InflationException;
+ import com.android.systemui.statusbar.notification.collection.NotifPipeline;
+@@ -53,6 +54,7 @@ public class MediaCoordinator implements Coordinator {
+     private final IconManager mIconManager;
+     private final StatusBarStateController mStatusBarStateController;
+     private final Context mContext;
++    private final ShadeModeInteractor mShadeModeInteractor;
+ 
+     private static final int STATE_ICONS_UNINFLATED = 0;
+     private static final int STATE_ICONS_INFLATED = 1;
+@@ -66,8 +68,8 @@ public class MediaCoordinator implements Coordinator {
+             if (!mIsMediaFeatureEnabled || !isMediaNotification(entry.getSbn())) {
+                 return false;
+             }
+-            // Kompakt: the player is on the lockscreen only; the shade keeps the notification.
+-            if (!isLockscreenPlayerShown()) {
++            // Kompakt: hidden only where the media card shows it instead.
++            if (!isMediaCardShown()) {
+                 return false;
+             }
+ 
+@@ -140,22 +142,25 @@ public class MediaCoordinator implements Coordinator {
+         }
+     }
+ 
+-    private boolean isLockscreenPlayerShown() {
+-        return mStatusBarStateController.getState() == StatusBarState.KEYGUARD
+-                && Settings.Secure.getIntForUser(mContext.getContentResolver(),
+-                        Settings.Secure.MEDIA_CONTROLS_LOCK_SCREEN, 1,
+-                        UserHandle.USER_CURRENT) != 0;
++    private boolean isMediaCardShown() {
++        if (mStatusBarStateController.getState() != StatusBarState.KEYGUARD) {
++            // Kompakt: unlocked, the card is in the Dual notifications shade only.
++            return mShadeModeInteractor.isDualShade();
++        }
++        return Settings.Secure.getIntForUser(mContext.getContentResolver(),
++                Settings.Secure.MEDIA_CONTROLS_LOCK_SCREEN, 1, UserHandle.USER_CURRENT) != 0;
+     }
+ 
+     @Inject
+     public MediaCoordinator(MediaFeatureFlag featureFlag, IStatusBarService statusBarService,
+             IconManager iconManager, StatusBarStateController statusBarStateController,
+-            Context context) {
++            Context context, ShadeModeInteractor shadeModeInteractor) {
+         mIsMediaFeatureEnabled = featureFlag.getEnabled();
+         mStatusBarService = statusBarService;
+         mIconManager = iconManager;
+         mStatusBarStateController = statusBarStateController;
+         mContext = context;
++        mShadeModeInteractor = shadeModeInteractor;
+     }
+ 
+     @Override
+-- 
+2.43.0

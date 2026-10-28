@@ -1,0 +1,63 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Mon, 26 Oct 2026 23:50:00 +0200
+Subject: [PATCH] Kompakt: no media player in quick settings
+
+---
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/qs/ui/composable/QuickSettingsContent.kt b/packages/SystemUI/compose/features/src/com/android/systemui/qs/ui/composable/QuickSettingsContent.kt
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/qs/ui/composable/QuickSettingsContent.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/qs/ui/composable/QuickSettingsContent.kt
+@@ -82,13 +82,16 @@
+             },
+         media =
+             @Composable {
+-                Element(key = Media.Elements.mediaCarousel, modifier = Modifier) {
+-                    Media(
+-                        viewModelFactory = viewModel.mediaViewModelFactory,
+-                        presentationStyle = MediaPresentationStyle.Default,
+-                        behavior = QuickSettingsContainerViewModel.mediaUiBehavior,
+-                        onDismissed = viewModel::onMediaSwipeToDismiss,
+-                    )
++                // Kompakt: the player is on the lockscreen only (showMedia is false).
++                if (viewModel.showMedia) {
++                    Element(key = Media.Elements.mediaCarousel, modifier = Modifier) {
++                        Media(
++                            viewModelFactory = viewModel.mediaViewModelFactory,
++                            presentationStyle = MediaPresentationStyle.Default,
++                            behavior = QuickSettingsContainerViewModel.mediaUiBehavior,
++                            onDismissed = viewModel::onMediaSwipeToDismiss,
++                        )
++                    }
+                 }
+             },
+         mediaInRow = mediaInRow,
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/qs/ui/composable/QuickSettingsShadeOverlay.kt b/packages/SystemUI/compose/features/src/com/android/systemui/qs/ui/composable/QuickSettingsShadeOverlay.kt
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/qs/ui/composable/QuickSettingsShadeOverlay.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/qs/ui/composable/QuickSettingsShadeOverlay.kt
+@@ -360,15 +360,15 @@
+             modifier =
+                 Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState())
+         ) {
+-            Media(
+-                viewModelFactory = qsContainerViewModel.mediaViewModelFactory,
+-                presentationStyle = MediaPresentationStyle.Compact,
+-                behavior = QuickSettingsContainerViewModel.mediaUiBehavior,
+-                onDismissed = qsContainerViewModel::onMediaSwipeToDismiss,
+-                modifier = Modifier,
+-            )
+-
++            // Kompakt: the player is on the lockscreen only (showMedia is false).
+             if (qsContainerViewModel.showMedia) {
++                Media(
++                    viewModelFactory = qsContainerViewModel.mediaViewModelFactory,
++                    presentationStyle = MediaPresentationStyle.Compact,
++                    behavior = QuickSettingsContainerViewModel.mediaUiBehavior,
++                    onDismissed = qsContainerViewModel::onMediaSwipeToDismiss,
++                    modifier = Modifier,
++                )
+                 VerticalSeparator(QuickSettingsShade.Dimensions.Padding)
+             }
+ 
+-- 
+2.43.0
+

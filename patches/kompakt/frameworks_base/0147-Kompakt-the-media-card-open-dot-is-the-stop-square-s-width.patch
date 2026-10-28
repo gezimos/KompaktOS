@@ -1,0 +1,24 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Tue, 27 Oct 2026 21:30:00 +0200
+Subject: [PATCH] Kompakt: the media card open dot is the stop square's width
+
+---
+ .../keyguard/ui/composable/elements/MediaElementProvider.kt     | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/MediaElementProvider.kt b/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/MediaElementProvider.kt
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/MediaElementProvider.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/MediaElementProvider.kt
+@@ -217,7 +217,8 @@ fun KompaktMediaCard(
+                                     card.onClick(expandable)
+                                 },
+                         ) {
+-                            Box(Modifier.size(22.dp).background(ink, CircleShape))
++                            // Kompakt: as wide as the Stop glyph's square (12 of 24 units at 32dp).
++                            Box(Modifier.size(16.dp).background(ink, CircleShape))
+                         }
+                     }
+                 }
+-- 
+2.43.0

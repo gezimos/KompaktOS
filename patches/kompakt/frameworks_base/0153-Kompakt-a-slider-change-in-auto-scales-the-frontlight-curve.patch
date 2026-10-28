@@ -1,0 +1,61 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Thu, 29 Oct 2026 11:30:00 +0100
+Subject: [PATCH] Kompakt: a slider change in auto scales the frontlight curve
+
+A slider change while auto brightness is on adds a user point, and stock
+inserts it into the curve and smooths everything above it so the curve
+never falls. 0146's frontlight curve falls to off in bright light, so
+after one slider change the light stayed at the user's level up to
+sunlight (812 lux measured at a window, light held at 41%).
+
+SimpleMappingStrategy now scales the whole curve by the ratio of the
+user's brightness to the curve at the user's lux, so it passes through
+the user's point and keeps its shape, including off. Where the curve is
+below its lowest step at that lux the scale would be huge, and the stock
+adjustment is used.
+---
+diff --git a/services/core/java/com/android/server/display/BrightnessMappingStrategy.java b/services/core/java/com/android/server/display/BrightnessMappingStrategy.java
+--- a/services/core/java/com/android/server/display/BrightnessMappingStrategy.java
++++ b/services/core/java/com/android/server/display/BrightnessMappingStrategy.java
+@@ -821,11 +821,36 @@
+         }
+ 
+         private void computeSpline() {
+-            Pair<float[], float[]> curve = getAdjustedCurve(mLux, mBrightness, mUserLux,
+-                    mUserBrightness, mAutoBrightnessAdjustment, mMaxGamma);
++            Pair<float[], float[]> curve = kompaktScaleToUserPoint();
++            if (curve == null) {
++                curve = getAdjustedCurve(mLux, mBrightness, mUserLux,
++                        mUserBrightness, mAutoBrightnessAdjustment, mMaxGamma);
++            }
+             mSpline = Spline.createSpline(curve.first, curve.second);
+         }
+ 
++        // Kompakt: a user point scales the whole curve, so a frontlight curve still falls to off.
++        private Pair<float[], float[]> kompaktScaleToUserPoint() {
++            if (mUserLux == INVALID_LUX || !(mUserBrightness >= 0)) {
++                return null;
++            }
++            float lowest = Float.MAX_VALUE;
++            for (float b : mBrightness) {
++                if (b > 0) lowest = Math.min(lowest, b);
++            }
++            final float base = getUnadjustedBrightness(mUserLux);
++            // Where the curve is off or nearly so, a scale would be huge; stock handles it.
++            if (!(base >= lowest)) {
++                return null;
++            }
++            final float scale = mUserBrightness / base;
++            final float[] brightness = new float[mBrightness.length];
++            for (int i = 0; i < brightness.length; i++) {
++                brightness[i] = MathUtils.constrain(mBrightness[i] * scale, 0, 1);
++            }
++            return Pair.create(mLux, brightness);
++        }
++
+         private float getUnadjustedBrightness(float lux) {
+             Spline spline = Spline.createSpline(mLux, mBrightness);
+             return spline.interpolate(lux);
+-- 
+2.43.0

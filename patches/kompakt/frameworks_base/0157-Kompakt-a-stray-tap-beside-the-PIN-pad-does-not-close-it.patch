@@ -1,0 +1,26 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Tue, 3 Nov 2026 17:30:00 +0200
+Subject: [PATCH] Kompakt: a stray tap beside the PIN pad does not close it
+
+SceneContainerStartable answers every falsing detection by switching to the lockscreen, which hides the Bouncer overlay. A tap beside the PIN keys, or a run of fast taps, pushed the falsing belief past 0.9 and closed the pad. Falsing is now ignored while the Bouncer is showing; Back and the swipe down still close it.
+---
+ .../scene/domain/startable/SceneContainerStartable.kt  | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/scene/domain/startable/SceneContainerStartable.kt b/packages/SystemUI/src/com/android/systemui/scene/domain/startable/SceneContainerStartable.kt
+index ccd0302f7ddc..e6fa4d3ba384 100644
+--- a/packages/SystemUI/src/com/android/systemui/scene/domain/startable/SceneContainerStartable.kt
++++ b/packages/SystemUI/src/com/android/systemui/scene/domain/startable/SceneContainerStartable.kt
+@@ -918,6 +918,8 @@
+                     awaitClose { falsingManager.removeFalsingBeliefListener(listener) }
+                 }
+                 .collect {
++                    // Kompakt: a stray tap beside the PIN pad does not close it.
++                    if (Overlays.Bouncer in sceneInteractor.currentOverlays.value) return@collect
+                     val loggingReason = "Falsing detected."
+                     switchToScene(targetSceneKey = Scenes.Lockscreen, loggingReason = loggingReason)
+                 }
+--
+2.43.0
+

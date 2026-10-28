@@ -1,5 +1,5 @@
 From e4658130cd889d0f562ee84329a7a1f25dcd7ecd Mon Sep 17 00:00:00 2001
-From: gezimos <>
+From: Gezim <gezimos@users.noreply.github.com>
 Date: Fri, 18 Sep 2026 18:56:27 +0200
 Subject: [PATCH 21/99] Kompakt: wm: a property may hide the navigation bar,
  not conjure one

@@ -3,7 +3,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.kompakt.service"
     android:sharedUserId="android.uid.system"
-    android:versionCode="369"
+    android:versionCode="382"
     android:versionName="363">
 
     <!-- uid system is what makes the sysfs writes possible at all. -->
@@ -15,12 +15,16 @@
     <!-- To enable our own notification listener. -->
     <uses-permission android:name="android.permission.MANAGE_NOTIFICATION_LISTENERS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- The per-app e-ink watcher listens to the system task stack. -->
+    <uses-permission android:name="android.permission.MANAGE_ACTIVITY_TASKS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
     <uses-permission android:name="android.permission.STATUS_BAR" />
     <!-- Airplane mode is written directly rather than toggled, so the switch position and the radio state cannot. -->
     <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" />
+    <!-- The auto brightness curve is the framework's brightness configuration. See LightCurve. -->
+    <uses-permission android:name="android.permission.CONFIGURE_DISPLAY_BRIGHTNESS" />
 
     <!-- LedMigration writes the per app colours into the stock Lineage settings
          once. protectionLevel normal, so no privapp allowlist entry. -->
@@ -151,20 +155,6 @@
                 android:name="android.service.quicksettings.TILE_CATEGORY"
                 android:value="com.kompakt.service.CATEGORY_EINK_MODES" />
         </service>
-        <service
-            android:name=".EinkAutoTileService"
-            android:exported="true"
-            android:icon="@drawable/ic_mode_auto"
-            android:label="@string/tile_eink_auto"
-            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
-            <intent-filter>
-                <action android:name="android.service.quicksettings.action.QS_TILE" />
-            </intent-filter>
-            <!-- Kompakt: the tile editor groups these under E-ink modes (frameworks_base 0108). -->
-            <meta-data
-                android:name="android.service.quicksettings.TILE_CATEGORY"
-                android:value="com.kompakt.service.CATEGORY_EINK_MODES" />
-        </service>
 
         <!-- Kompakt: Only the warm LED gets a tile. -->
         <service
@@ -201,6 +191,7 @@
             android:permission="android.permission.STATUS_BAR_SERVICE">
             <intent-filter>
                 <action android:name="com.kompakt.service.action.TORCH_WARM" />
+                <action android:name="com.kompakt.service.action.TORCH_BOTH" />
             </intent-filter>
         </receiver>
 
@@ -260,6 +251,10 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- A long press on any of our tiles opens the app, not App info. -->
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE_PREFERENCES" />
+            </intent-filter>
         </activity>
 
         <!-- Watches the offline switch. -->
@@ -286,19 +281,6 @@
             <intent-filter>
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
-        </service>
-
-        <service
-            android:name=".EinkAppWatcher"
-            android:exported="true"
-            android:label="@string/eink_watcher_label"
-            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
-            <intent-filter>
-                <action android:name="android.accessibilityservice.AccessibilityService" />
-            </intent-filter>
-            <meta-data
-                android:name="android.accessibilityservice"
-                android:resource="@xml/eink_app_watcher" />
         </service>
 
         <receiver

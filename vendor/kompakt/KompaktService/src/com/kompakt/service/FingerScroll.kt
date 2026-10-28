@@ -47,7 +47,7 @@ object FingerScroll {
 
     /** What a double tap, a triple tap, or a finger held still, on the sensor does. */
     val ACTIONS = listOf("off", "mode", "enter", "recents", "refresh", "shade", "qs",
-        "light", "torch_warm", "torch_cold", "orient", "key")
+        "light", "torch_warm", "torch_cold", "torch_both", "orient", "key")
 
     private const val CLICK_MS = 50L
     private const val KEY_TAP = "finger_double_tap"
@@ -315,6 +315,7 @@ object FingerScroll {
             "light" -> FrontLight.toggle(ctx)
             "torch_warm" -> Torch.set(ctx, Torch.WARM, !Torch.isOn(Torch.WARM))
             "torch_cold" -> Torch.set(ctx, Torch.COLD, !Torch.isOn(Torch.COLD))
+            "torch_both" -> Torch.toggleBoth(ctx)
             // Switch the scrolling itself, from wherever the phone is.
             "orient" -> {
                 val sideways = !horizontal(ctx)
@@ -502,6 +503,9 @@ object FingerScroll {
         private var pending = 0
         private var crossing = 0f
         private var deepest = 0f
+        /** The last reading in the middle band, and the fastest up sweep that came back off the end. */
+        private var departed = 0
+        private var wobbled = 0f
         /** Readings that moved at least MOVE from the one before. */
         private var moves = 0
         private val times = ArrayList<Long>()
@@ -560,6 +564,8 @@ object FingerScroll {
                 touchStart = now
                 times.clear()
                 places.clear()
+                departed = 0
+                wobbled = 0f
                 ignored = powerHeld
                 followUp = lastDoubleEnd != 0L && now - lastDoubleEnd <= DOUBLE_TAP_MS
                 lastDoubleEnd = 0
@@ -592,6 +598,7 @@ object FingerScroll {
                 // past it, or gone (release), is.
                 val still = (dir < 0 && c <= END_LOW + CONFIRM) || (dir > 0 && c >= END_HIGH - CONFIRM)
                 if (!still) {
+                    if (dir > 0) wobbled = maxOf(wobbled, sweep(departed, dir))
                     pending = 0
                 } else {
                     if (dir > 0) deepest = maxOf(deepest, c)
@@ -609,7 +616,7 @@ object FingerScroll {
                 }
             }
             when {
-                c in MIDDLE_LOW..MIDDLE_HIGH -> armed = true
+                c in MIDDLE_LOW..MIDDLE_HIGH -> { armed = true; departed = places.size - 1 }
                 armed && navigating && (c <= END_LOW || c >= END_HIGH) -> {
                     armed = false
                     pending = if (c <= END_LOW) -1 else 1
@@ -637,13 +644,28 @@ object FingerScroll {
             onNextTouchDone()
         }
 
-        /** 0 to 1, a half between short and long: low-end by speed, high-end by depth. */
-        private fun strength(dir: Int): Float = if (dir < 0) {
-            if (crossing < LONG_SPEED) 0.5f * crossing / LONG_SPEED
-            else 0.5f + 0.5f * minOf(1f, (crossing - LONG_SPEED) / (FASTEST - LONG_SPEED))
-        } else {
-            if (deepest < DEEP_HIGH) 0.5f * maxOf(0f, deepest - END_HIGH) / (DEEP_HIGH - END_HIGH)
-            else 0.5f + 0.5f * minOf(1f, (deepest - DEEP_HIGH) / (DEEP_MAX - DEEP_HIGH))
+        /** 0 to 1, a half between short and long: low-end by speed, high-end by depth and sweep. */
+        private fun strength(dir: Int): Float {
+            if (dir < 0) {
+                return if (crossing < LONG_SPEED) 0.5f * crossing / LONG_SPEED
+                else 0.5f + 0.5f * minOf(1f, (crossing - LONG_SPEED) / (FASTEST - LONG_SPEED))
+            }
+            if (deepest < DEEP_HIGH) return 0.5f * maxOf(0f, deepest - END_HIGH) / (DEEP_HIGH - END_HIGH)
+            // Kompakt: a short up swipe can go as deep as a long one; a long one also sweeps fast.
+            val sw = maxOf(sweep(departed, dir), wobbled)
+            if (sw < UP_SWEEP) {
+                crossing = sw
+                return 0.5f * sw / UP_SWEEP
+            }
+            return 0.5f + 0.5f * minOf(1f, (deepest - DEEP_HIGH) / (DEEP_MAX - DEEP_HIGH))
+        }
+
+        /** Zones a second from reading from to the furthest one after it towards dir. */
+        private fun sweep(from: Int, dir: Int): Float {
+            var far = from
+            for (i in from + 1 until places.size) if ((places[i] - places[far]) * dir > 0) far = i
+            val dt = maxOf(1L, times[far] - times[from])
+            return Math.abs(places[far] - places[from]) * 1000f / dt
         }
 
         /** Zones a second over the last three readings: 4 to 55 for a short swipe, 87 to 126 for a long one. */
@@ -826,6 +848,8 @@ object FingerScroll {
             /** The fastest and deepest long swipes measured: full strength. */
             const val FASTEST = 130f
             const val DEEP_MAX = 9.6f
+            /** A deep up swipe is long only from this sweep: short ups reach 46, long ones 49 (swipes2, swipes3). */
+            const val UP_SWEEP = 47.5f
             /** A slow short swipe: this far from the middle, over at least this long. */
             const val SLIDE_MIN = 1.8f
             const val SLIDE_MS = 80L

@@ -1,0 +1,26 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Tue, 27 Oct 2026 15:00:00 +0100
+Subject: [PATCH] Kompakt: SurfaceFlinger does not compose in DOZE_SUSPEND
+
+---
+ services/surfaceflinger/DisplayDevice.cpp | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/services/surfaceflinger/DisplayDevice.cpp b/services/surfaceflinger/DisplayDevice.cpp
+index 236322cd14aa..236322cd14aa 100644
+--- a/services/surfaceflinger/DisplayDevice.cpp
++++ b/services/surfaceflinger/DisplayDevice.cpp
+@@ -177,7 +177,9 @@ void DisplayDevice::setPowerMode(hal::PowerMode mode) {
+
+     mPowerMode = mode;
+
+-    getCompositionDisplay()->setCompositionEnabled(isPoweredOn());
++    // Kompakt: not in DOZE_SUSPEND either; the HWC drops those frames and never releases their buffers.
++    getCompositionDisplay()->setCompositionEnabled(isPoweredOn() &&
++                                                   mode != hal::PowerMode::DOZE_SUSPEND);
+ }
+
+ void DisplayDevice::tracePowerMode() {
+--
+2.43.0

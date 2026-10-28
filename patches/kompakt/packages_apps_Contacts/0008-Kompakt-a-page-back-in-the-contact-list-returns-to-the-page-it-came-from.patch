@@ -1,0 +1,120 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sat, 24 Oct 2026 12:00:00 +0300
+Subject: [PATCH] Kompakt: a page back in the contact list returns to the page it came from
+
+A page forward moved the row cut by the bottom edge to the top, less
+than a screen; a page back moved a full screen and then pulled the row
+under the top edge down until it was whole. The back page therefore
+started above the page forward came from, and every back and forth
+moved the list one row.
+
+Each forward turn is remembered with the distance it moved and where it
+landed, and back reverses the last one while the list is still there.
+When it is not (the list changed or scrolled otherwise), back moves a
+screen and pushes a row cut by the top edge off, so that page ends at
+the old top. Forward now scrolls with scrollListBy instead of
+setSelectionFromTop, which only applies at the next layout, so what it
+moved is known at once. The same fix as Settings 0007.
+---
+diff --git a/src/com/kompakt/eink/PagedList.java b/src/com/kompakt/eink/PagedList.java
+--- a/src/com/kompakt/eink/PagedList.java
++++ b/src/com/kompakt/eink/PagedList.java
+@@ -7,6 +7,8 @@
+ import android.view.ViewConfiguration;
+ import android.widget.ListView;
+ 
++import java.util.ArrayDeque;
++
+ /** Paged scrolling for a ListView, as PagedScroll does it for a RecyclerView in Settings (Etar's copy). */
+ public final class PagedList {
+ 
+@@ -22,12 +24,14 @@
+         final int slop = ViewConfiguration.get(list.getContext()).getScaledTouchSlop();
+         final boolean[] cancelled = new boolean[1];
+         final float[] downY = new float[1];
++        // Each forward page turn, {distance, where it landed}.
++        final ArrayDeque<long[]> pages = new ArrayDeque<>();
+ 
+         final GestureDetector detector = new GestureDetector(list.getContext(),
+                 new PageGestureListener(list.getContext(), delta -> {
+                     // A swipe that turns a page is not a tap or a long press on a row.
+                     cancelRow(list, cancelled);
+-                    return page(list, delta);
++                    return page(list, pages, delta);
+                 }));
+ 
+         list.setOnTouchListener((View v, MotionEvent e) -> {
+@@ -60,8 +64,8 @@
+         cancel.recycle();
+     }
+ 
+-    /** One page: forward to the first row the bottom edge cuts, back by a screen. */
+-    private static boolean page(ListView list, int delta) {
++    /** One page: forward to the first row the bottom edge cuts, back to where that came from. */
++    private static boolean page(ListView list, ArrayDeque<long[]> pages, int delta) {
+         if (delta == 0 || list.getChildCount() == 0) return false;
+         if (!list.canScrollList(delta > 0 ? 1 : -1)) return false;
+         final int topEdge = list.getPaddingTop();
+@@ -69,21 +73,50 @@
+         final int viewport = bottomEdge - topEdge;
+         if (viewport <= 0) return false;
+         if (delta > 0) {
++            int anchor = -1;
++            int anchorTop = 0;
+             for (int c = 1, n = list.getChildCount(); c < n; c++) {
+                 if (list.getChildAt(c).getBottom() > bottomEdge) {
+-                    list.setSelectionFromTop(list.getFirstVisiblePosition() + c, topEdge);
+-                    return true;
++                    anchor = list.getFirstVisiblePosition() + c;
++                    anchorTop = list.getChildAt(c).getTop();
++                    break;
+                 }
+             }
+-            list.scrollListBy(viewport);
+-        } else {
+-            list.scrollListBy(-viewport);
+-            final View top = list.getChildAt(0);
+-            if (top != null && top.getTop() < topEdge) {
+-                list.setSelectionFromTop(list.getFirstVisiblePosition(), topEdge);
++            int dy = anchor < 0 ? viewport : anchorTop - topEdge;
++            if (dy <= 0) dy = viewport;
++            // Scrolled, not selected: it moves now, so what it moved can be measured.
++            list.scrollListBy(dy);
++            final View after = anchor < 0 ? null
++                    : list.getChildAt(anchor - list.getFirstVisiblePosition());
++            final int moved = after == null ? dy : anchorTop - after.getTop();
++            // Remembered, so back returns to exactly this page.
++            if (moved > 0) pages.push(new long[] {moved, mark(list)});
++            return true;
++        }
++        final long[] last = pages.peek();
++        if (last != null && last[1] == mark(list)) {
++            pages.pop();
++            list.scrollListBy((int) -last[0]);
++            return true;
++        }
++        pages.clear();
++        list.scrollListBy(-viewport);
++        // Otherwise the page whose bottom is the old top: a row cut at the top goes up.
++        for (int c = 0, n = list.getChildCount(); c < n; c++) {
++            final View row = list.getChildAt(c);
++            if (row.getTop() < topEdge && row.getBottom() > topEdge) {
++                list.scrollListBy(row.getBottom() - topEdge);
++                break;
+             }
+         }
+         return true;
+     }
+ 
++    /** Where the list is, exactly: which row is at the top and how far into it we are. */
++    private static long mark(ListView list) {
++        final View row = list.getChildAt(0);
++        final int top = (row == null) ? 0 : row.getTop();
++        return ((long) list.getFirstVisiblePosition() << 32) | (top & 0xffffffffL);
++    }
++
+ }
+-- 
+2.43.0
+

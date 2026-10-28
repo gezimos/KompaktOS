@@ -3,6 +3,7 @@
     <privapp-permissions package="com.kompakt.service">
         <permission name="android.permission.STATUS_BAR"/>
         <permission name="android.permission.WRITE_SECURE_SETTINGS"/>
+        <permission name="android.permission.CONFIGURE_DISPLAY_BRIGHTNESS"/>
         <permission name="android.permission.REBOOT"/>
         <permission name="android.permission.MODIFY_PHONE_STATE"/>
         <permission name="android.permission.READ_PRIVILEGED_PHONE_STATE"/>

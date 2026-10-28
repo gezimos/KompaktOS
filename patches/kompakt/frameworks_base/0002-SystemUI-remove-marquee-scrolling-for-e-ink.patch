@@ -1,5 +1,5 @@
 From 83f575f71b211a16b813c82cf76b60aed0d6929a Mon Sep 17 00:00:00 2001
-From: gezimos <>
+From: Gezim <gezimos@users.noreply.github.com>
 Date: Tue, 8 Sep 2026 14:18:24 +0200
 Subject: [PATCH 02/99] SystemUI: remove marquee scrolling for e-ink
 

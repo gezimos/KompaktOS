@@ -1,5 +1,5 @@
 From 9ff0974769f7af1cff4b6d22690e510d8079d147 Mon Sep 17 00:00:00 2001
-From: gezimos <>
+From: Gezim <gezimos@users.noreply.github.com>
 Date: Wed, 9 Sep 2026 17:44:34 +0200
 Subject: [PATCH 10/99] SystemUI: take the shade and PIN-pad animations to zero
 

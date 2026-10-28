@@ -1,11 +1,14 @@
-From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From 722f7a23013faeb279cf393246e1ce0bb653a54f Mon Sep 17 00:00:00 2001
 From: Gezim <gezimos@users.noreply.github.com>
 Date: Mon, 28 Sep 2026 21:00:00 +0200
-Subject: [PATCH 1/1] Kompakt: launcher widgets can control playback
+Subject: [PATCH 01/14] Kompakt: launcher widgets can control playback
 
 ---
+ app/src/main/AndroidManifest.xml | 3 +++
+ 1 file changed, 3 insertions(+)
+
 diff --git a/app/src/main/AndroidManifest.xml b/app/src/main/AndroidManifest.xml
-index 4c7e7c2..246214c 100644
+index 4c7e7c2..3b8b233 100644
 --- a/app/src/main/AndroidManifest.xml
 +++ b/app/src/main/AndroidManifest.xml
 @@ -20,6 +20,9 @@
@@ -18,3 +21,6 @@ index 4c7e7c2..246214c 100644
      <application
          android:name=".TwelveApplication"
          android:appCategory="audio"
+-- 
+2.43.0
+

@@ -48,6 +48,58 @@ object Prefs {
     fun setTemperature(c: Context, v: Int) =
         c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putInt("temp_offset", v).apply()
 
+    /** A2 steps for the fast modes, see Eink.SPEEDS. */
+    fun speed(c: Context): Int =
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt("fast_speed", Eink.STOCK_SPEED)
+            .takeIf { Eink.SPEEDS.containsKey(it) } ?: Eink.STOCK_SPEED
+
+    fun setSpeed(c: Context, v: Int) =
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putInt("fast_speed", v).apply()
+
+    /** Small updates between full refreshes, one of Eink.CLEAN_STEPS. */
+    fun cleanEvery(c: Context): Int =
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt("clean_every", Eink.CLEAN_STOCK)
+            .takeIf { Eink.CLEAN_STEPS.contains(it) } ?: Eink.CLEAN_STOCK
+
+    fun setCleanEvery(c: Context, v: Int) =
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putInt("clean_every", v).apply()
+
+    /** A full flash a moment after the app in front changes; off until chosen. */
+    fun refreshOnApp(c: Context): Boolean =
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("refresh_on_app", false)
+
+    fun setRefreshOnApp(c: Context, v: Boolean) =
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean("refresh_on_app", v).apply()
+
+    /** The dither pattern, see Eink.PATTERNS. */
+    fun pattern(c: Context): Int =
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt("dither_pattern", Eink.STOCK_PATTERN)
+            .takeIf { Eink.PATTERNS.containsKey(it) } ?: Eink.STOCK_PATTERN
+
+    fun setPattern(c: Context, v: Int) =
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putInt("dither_pattern", v).apply()
+
+    /** How far the dithers' greys are lifted, see Eink.LIGHTS. */
+    fun ditherLight(c: Context): Int =
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt("dither_light", Eink.STOCK_LIGHT)
+
+    fun setDitherLight(c: Context, v: Int) =
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putInt("dither_light", v).apply()
+
+    private fun patternKey(pkg: String) = "app_pattern_" + pkg
+
+    /** The package's own dither pattern, or null while it follows the master one. */
+    fun appPatternOwn(c: Context, pkg: String): Int? =
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt(patternKey(pkg), -1)
+            .takeIf { Eink.PATTERNS.containsKey(it) }
+
+    fun appPattern(c: Context, pkg: String): Int = appPatternOwn(c, pkg) ?: pattern(c)
+
+    fun setAppPattern(c: Context, pkg: String, v: Int?) =
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().apply {
+            if (v == null) remove(patternKey(pkg)) else putInt(patternKey(pkg), v)
+        }.apply()
+
     private fun appKey(pkg: String) = "app_mode_" + pkg
 
     /** The mode for one package: the user's explicit choice if there is one, otherwise the master. */
@@ -99,7 +151,7 @@ class EinkTileService : TileService() {
 
     override fun onClick() {
         val cur = Prefs.mode(this)
-        // Only the modes this phone can do: on Mudita's vendor, auto would just be quality again.
+        // Only the modes this phone can do.
         val modes = Eink.ORDER.filter { Eink.usable(it) }
         val idx = modes.indexOf(cur).coerceAtLeast(0)
         val next = modes[(idx + 1) % modes.size]
@@ -159,7 +211,6 @@ class EinkSoftTileService : EinkModeTileService() { override val mode = "soft" }
 class EinkDitherTileService : EinkModeTileService() { override val mode = "fastdither" }
 class EinkTextTileService : EinkModeTileService() { override val mode = "text" }
 class EinkQualityTileService : EinkModeTileService() { override val mode = "quality" }
-class EinkAutoTileService : EinkModeTileService() { override val mode = "auto" }
 
 /** One tile per flash LED. */
 abstract class TorchTileService : TileService() {

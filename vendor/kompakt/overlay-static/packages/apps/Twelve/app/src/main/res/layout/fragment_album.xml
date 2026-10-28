@@ -102,10 +102,11 @@
 
     <include
         layout="@layout/play_buttons"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
         app:layout_anchor="@+id/recyclerView"
-        app:layout_anchorGravity="bottom|end"
+        app:layout_anchorGravity="bottom|center_horizontal"
         app:layout_behavior="@string/hide_bottom_view_on_scroll_behavior" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

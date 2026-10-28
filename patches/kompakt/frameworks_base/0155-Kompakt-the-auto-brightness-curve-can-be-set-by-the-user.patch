@@ -1,0 +1,120 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Thu, 29 Oct 2026 18:00:00 +0100
+Subject: [PATCH] Kompakt: the auto brightness curve can be set by the user
+
+SimpleMappingStrategy ignored every brightness configuration, and
+BrightnessConfiguration.Builder refused a curve whose brightness ever
+falls, so the only way to change the frontlight curve (0146) was a new
+image.
+
+The strategy now takes a configuration as its curve. Its nits are the
+backlight steps of config_autoBrightnessLcdBacklightValues, 1 off, and
+null brings the overlay curve back. The Kompakt app saves the curve
+through DisplayManager.setBrightnessConfiguration, which the display
+manager keeps per user and applies again at boot.
+---
+diff --git a/core/java/android/hardware/display/BrightnessConfiguration.java b/core/java/android/hardware/display/BrightnessConfiguration.java
+--- a/core/java/android/hardware/display/BrightnessConfiguration.java
++++ b/core/java/android/hardware/display/BrightnessConfiguration.java
+@@ -540,7 +540,7 @@
+             Preconditions.checkArrayElementsInRange(lux, 0, Float.MAX_VALUE, "lux");
+             Preconditions.checkArrayElementsInRange(nits, 0, Float.MAX_VALUE, "nits");
+             checkMonotonic(lux, true /*strictly increasing*/, "lux");
+-            checkMonotonic(nits, false /*strictly increasing*/, "nits");
++            // Kompakt: a frontlight curve falls again in bright light (BrightnessMappingStrategy).
+             mCurveLux = lux;
+             mCurveNits = nits;
+             mCorrectionsByPackageName = new HashMap<>();
+diff --git a/services/core/java/com/android/server/display/BrightnessMappingStrategy.java b/services/core/java/com/android/server/display/BrightnessMappingStrategy.java
+--- a/services/core/java/com/android/server/display/BrightnessMappingStrategy.java
++++ b/services/core/java/com/android/server/display/BrightnessMappingStrategy.java
+@@ -39,6 +39,7 @@
+ import android.util.Spline;
+ 
+ import com.android.internal.annotations.VisibleForTesting;
++import com.android.internal.display.BrightnessSynchronizer;
+ import com.android.internal.display.BrightnessUtils;
+ import com.android.internal.util.Preconditions;
+ import com.android.server.display.utils.Plog;
+@@ -622,9 +623,13 @@
+      */
+     private static class SimpleMappingStrategy extends BrightnessMappingStrategy {
+         // Lux control points
+-        private final float[] mLux;
++        private float[] mLux;
+         // Brightness control points normalized to [0, 1]
+-        private final float[] mBrightness;
++        private float[] mBrightness;
++        // Kompakt: the overlay curve, and the configuration in its place, if any.
++        private final float[] mDefaultLux;
++        private final float[] mDefaultBrightness;
++        private BrightnessConfiguration mConfig;
+ 
+         @AutomaticBrightnessController.AutomaticBrightnessMode
+         private final int mMode;
+@@ -656,6 +661,8 @@
+                 mLux[i] = lux[i];
+                 mBrightness[i] = brightness[i];
+             }
++            mDefaultLux = mLux;
++            mDefaultBrightness = mBrightness;
+ 
+             mMaxGamma = maxGamma;
+             mAutoBrightnessAdjustment = 0;
+@@ -677,12 +684,34 @@
+ 
+         @Override
+         public boolean setBrightnessConfiguration(@Nullable BrightnessConfiguration config) {
+-            return false;
++            // Kompakt: the configuration's nits are backlight steps, as the overlay curve's.
++            if (Objects.equals(config, mConfig)) {
++                return false;
++            }
++            float[] lux = mDefaultLux;
++            float[] brightness = mDefaultBrightness;
++            if (config != null) {
++                final Pair<float[], float[]> curve = config.getCurve();
++                lux = curve.first;
++                brightness = new float[curve.second.length];
++                for (int i = 0; i < brightness.length; i++) {
++                    brightness[i] = BrightnessSynchronizer.brightnessIntToFloat(
++                            Math.round(curve.second[i]));
++                }
++                if (!isValidFrontlightCurve(lux, brightness)) {
++                    return false;
++                }
++            }
++            mConfig = config;
++            mLux = lux;
++            mBrightness = brightness;
++            computeSpline();
++            return true;
+         }
+ 
+         @Override
+         public BrightnessConfiguration getBrightnessConfiguration() {
+-            return null;
++            return mConfig;
+         }
+ 
+         @Override
+@@ -776,7 +805,7 @@
+ 
+         @Override
+         public boolean isDefaultConfig() {
+-            return true;
++            return mConfig == null;
+         }
+ 
+         @Override
+@@ -793,6 +822,7 @@
+         public void dump(PrintWriter pw, float hbmTransition) {
+             pw.println("SimpleMappingStrategy");
+             pw.println("  mSpline=" + mSpline);
++            pw.println("  mConfig=" + mConfig);
+             pw.println("  mMaxGamma=" + mMaxGamma);
+             pw.println("  mAutoBrightnessAdjustment=" + mAutoBrightnessAdjustment);
+             pw.println("  mUserLux=" + mUserLux);
+-- 
+2.43.0

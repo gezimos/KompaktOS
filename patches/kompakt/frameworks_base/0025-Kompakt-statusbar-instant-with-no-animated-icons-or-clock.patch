@@ -1,5 +1,5 @@
 From 6cb6048816d9c6635a11f76dbb56c53cd409b621 Mon Sep 17 00:00:00 2001
-From: gezimos <>
+From: Gezim <gezimos@users.noreply.github.com>
 Date: Fri, 18 Sep 2026 18:56:28 +0200
 Subject: [PATCH 25/99] Kompakt: statusbar: instant, with no animated icons or
  clock

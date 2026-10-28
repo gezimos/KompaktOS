@@ -1,5 +1,5 @@
 From 2bf59452ac790dd76bb5bb760f688fd49b682059 Mon Sep 17 00:00:00 2001
-From: gezimos <>
+From: Gezim <gezimos@users.noreply.github.com>
 Date: Tue, 8 Sep 2026 14:15:01 +0200
 Subject: [PATCH 02/12] sepolicy: bind battery cmd types to object_r for Mudita
  Kompakt

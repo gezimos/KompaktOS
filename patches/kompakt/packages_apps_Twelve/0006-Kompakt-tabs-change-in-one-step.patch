@@ -1,7 +1,7 @@
-From 227ef579103795bd11a75fb51d961d5d35a13df4 Mon Sep 17 00:00:00 2001
-From: Gezim <25499045+gezimos@users.noreply.github.com>
+From 8e2315da4fb55ce94ddcea1448055abc0dec59ec Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
 Date: Sun, 11 Oct 2026 14:41:42 +0200
-Subject: [PATCH] Kompakt: tabs change in one step
+Subject: [PATCH 06/14] Kompakt: tabs change in one step
 
 The Library tabs slid between pages, following the finger and animating a
 tab tap, and the bottom bar slid between Activity and Library. On e-ink each
@@ -15,8 +15,8 @@ Change-Id: I5f70f08b1df2e7d1b5cabc77dafc28c292a49b8d
 ---
  .../java/com/kompakt/eink/PagedScroll.java    | 31 +++++++++++++++++++
  .../twelve/fragments/LibraryFragment.kt       |  7 ++++-
- .../twelve/fragments/MainFragment.kt          |  5 +--
- 3 files changed, 40 insertions(+), 3 deletions(-)
+ .../twelve/fragments/MainFragment.kt          |  3 +-
+ 3 files changed, 39 insertions(+), 2 deletions(-)
 
 diff --git a/app/src/main/java/com/kompakt/eink/PagedScroll.java b/app/src/main/java/com/kompakt/eink/PagedScroll.java
 index 519a975..aff1b16 100644
@@ -114,28 +114,19 @@ index bda970e..8e4d481 100644
  
              tab.setText(menu.titleStringResId)
 diff --git a/app/src/main/java/org/lineageos/twelve/fragments/MainFragment.kt b/app/src/main/java/org/lineageos/twelve/fragments/MainFragment.kt
-index 23b4444..212d39c 100644
+index b84f5ef..ee15ba5 100644
 --- a/app/src/main/java/org/lineageos/twelve/fragments/MainFragment.kt
 +++ b/app/src/main/java/org/lineageos/twelve/fragments/MainFragment.kt
-@@ -363,7 +363,8 @@ class MainFragment : Fragment(R.layout.fragment_main) {
-         navigationBarView.setOnItemSelectedListener { item ->
-             when (item.itemId) {
-                 R.id.activityFragment -> {
--                    viewPager2.currentItem = 0
-+                    // Kompakt: no slide between Activity and Library.
-+                    viewPager2.setCurrentItem(0, false)
-                     true
-                 }
+@@ -347,7 +347,8 @@ class MainFragment : Fragment(R.layout.fragment_main) {
+             val index = Page.entries.indexOfFirst { it.menuItemId == item.itemId }
  
-@@ -373,7 +374,7 @@ class MainFragment : Fragment(R.layout.fragment_main) {
-                 }
- 
-                 R.id.libraryFragment -> {
--                    viewPager2.currentItem = 1
-+                    viewPager2.setCurrentItem(1, false)
-                     true
-                 }
- 
+             if (index >= 0) {
+-                viewPager2.currentItem = index
++                // Kompakt: no slide between the pages.
++                viewPager2.setCurrentItem(index, false)
+                 true
+             } else {
+                 false
 -- 
 2.43.0
 

@@ -10,4 +10,7 @@
 
     <!-- Kompakt: 32 cached apps (stock 1024, which assumes the freezer this kernel lacks). -->
     <integer name="config_customizedMaxCachedProcesses">32</integer>
+
+    <!-- Kompakt: kswapd reclaims and swaps from 128 MB free (stock 4500 KB from the screen size). -->
+    <integer name="config_extraFreeKbytesAbsolute">131072</integer>
 </resources>

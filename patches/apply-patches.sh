@@ -39,6 +39,7 @@ declare -A PROJECT=(
   [packages_apps_ThemePicker]=packages/apps/ThemePicker
   [packages_inputmethods_LatinIME]=packages/inputmethods/LatinIME
   [packages_modules_Connectivity]=packages/modules/Connectivity
+  [packages_providers_MediaProvider]=packages/providers/MediaProvider
   [system_sepolicy]=system/sepolicy
   [device_phh_treble]=device/phh/treble
   [build_release]=build/release

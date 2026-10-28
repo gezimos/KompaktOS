@@ -1,5 +1,5 @@
 From c3a5887bf7646e887e4da27167fb66094eb929da Mon Sep 17 00:00:00 2001
-From: gezimos <>
+From: Gezim <gezimos@users.noreply.github.com>
 Date: Sat, 26 Sep 2026 03:00:00 +0200
 Subject: [PATCH 07/14] Kompakt: rw-system.sh scans nvdata only on
  OPPO/realme/OnePlus

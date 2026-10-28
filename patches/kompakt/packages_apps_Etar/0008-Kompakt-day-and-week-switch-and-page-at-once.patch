@@ -1,13 +1,17 @@
-From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From 138600841874fe3480363fb2db34d2f2e16aa674 Mon Sep 17 00:00:00 2001
 From: Gezim <gezimos@users.noreply.github.com>
 Date: Tue, 6 Oct 2026 13:10:00 +0200
-Subject: [PATCH 1/1] Kompakt: day and week switch and page at once
+Subject: [PATCH 8/9] Kompakt: day and week switch and page at once
 
 ---
+ .../java/com/android/calendar/DayView.java    | 65 ++++++++++---------
+ 1 file changed, 35 insertions(+), 30 deletions(-)
+
 diff --git a/app/src/main/java/com/android/calendar/DayView.java b/app/src/main/java/com/android/calendar/DayView.java
+index 3f8f4079..ffa626a7 100644
 --- a/app/src/main/java/com/android/calendar/DayView.java
 +++ b/app/src/main/java/com/android/calendar/DayView.java
-@@ -1898,9 +1898,10 @@
+@@ -1909,9 +1909,10 @@ public class DayView extends View implements View.OnCreateContextMenuListener,
          inAnimation.setInterpolator(mHScrollInterpolator);
          outAnimation.setInterpolator(mHScrollInterpolator);
          outAnimation.setDuration(duration);
@@ -21,7 +25,7 @@ diff --git a/app/src/main/java/com/android/calendar/DayView.java b/app/src/main/
  
          DayView view = (DayView) mViewSwitcher.getCurrentView();
          view.cleanup();
-@@ -1911,6 +1912,7 @@
+@@ -1922,6 +1923,7 @@ public class DayView extends View implements View.OnCreateContextMenuListener,
          view.reloadEvents();
          view.updateTitle();
          view.restartCurrentTimeUpdates();
@@ -29,7 +33,7 @@ diff --git a/app/src/main/java/com/android/calendar/DayView.java b/app/src/main/
  
          return view;
      }
-@@ -2180,8 +2182,8 @@
+@@ -2191,8 +2193,8 @@ public class DayView extends View implements View.OnCreateContextMenuListener,
          canvas.save();
  
          float yTranslate = -mViewStartY + DAY_HEADER_HEIGHT + mAlldayHeight;
@@ -40,11 +44,10 @@ diff --git a/app/src/main/java/com/android/calendar/DayView.java b/app/src/main/
          // clip to everything below the allDay area
          Rect dest = mDestRect;
          dest.top = (int) (mFirstCell - yTranslate);
-@@ -2196,32 +2198,8 @@
-         canvas.restore();
+@@ -2208,31 +2210,7 @@ public class DayView extends View implements View.OnCreateContextMenuListener,
          // save again for doing drawHours() later
          canvas.save();
--
+ 
 -        if ((mTouchMode & TOUCH_MODE_HSCROLL) != 0) {
 -            float xTranslate;
 -            if (mViewStartX > 0) {
@@ -57,7 +60,7 @@ diff --git a/app/src/main/java/com/android/calendar/DayView.java b/app/src/main/
 -            // yTranslation which will be redone in the nextView's onDraw().
 -            canvas.translate(xTranslate, -yTranslate);
 -            DayView nextView = (DayView) mViewSwitcher.getNextView();
- 
+-
 -            // Prevent infinite recursive calls to onDraw().
 -            nextView.mTouchMode = TOUCH_MODE_INITIAL_STATE;
 -
@@ -74,7 +77,7 @@ diff --git a/app/src/main/java/com/android/calendar/DayView.java b/app/src/main/
  
          // Draw the fixed areas (that don't scroll) directly to the canvas.
          drawAfterScroll(canvas);
-@@ -4059,6 +4037,10 @@
+@@ -4114,6 +4092,10 @@ public class DayView extends View implements View.OnCreateContextMenuListener,
          }
  
          if ((mTouchMode & TOUCH_MODE_VSCROLL) != 0) {
@@ -85,13 +88,10 @@ diff --git a/app/src/main/java/com/android/calendar/DayView.java b/app/src/main/
              // Calculate the top of the visible region in the calendar grid.
              // Increasing/decrease this will scroll the calendar grid up/down.
              mViewStartY = (int) ((mGestureCenterHour * (mCellHeight + DAY_GAP))
-@@ -4099,6 +4081,18 @@
+@@ -4157,6 +4139,18 @@ public class DayView extends View implements View.OnCreateContextMenuListener,
+         invalidate();
+     }
  
-         mScrolling = true;
- 
-+        invalidate();
-+    }
-+
 +    private int mKompaktSwipeY;
 +
 +    /** Kompakt: move the hours by one visible page, within the day. */
@@ -101,10 +101,13 @@ diff --git a/app/src/main/java/com/android/calendar/DayView.java b/app/src/main/
 +        mKompaktSwipeY = 0;
 +        computeFirstHour();
 +        mRecalCenterHour = true;
-         invalidate();
-     }
- 
-@@ -4156,6 +4150,11 @@
++        invalidate();
++    }
++
+     private float getAverageY(MotionEvent me) {
+         int count = me.getPointerCount();
+         float focusY = 0;
+@@ -4211,6 +4205,11 @@ public class DayView extends View implements View.OnCreateContextMenuListener,
              Log.d(TAG, "doFling: mViewStartY" + mViewStartY + " velocityY " + velocityY);
          }
  
@@ -116,7 +119,7 @@ diff --git a/app/src/main/java/com/android/calendar/DayView.java b/app/src/main/
          // Continue scrolling vertically
          mScrolling = true;
          mScroller.fling(0 /* startX */, mViewStartY /* startY */, 0 /* velocityX */,
-@@ -4338,6 +4337,12 @@
+@@ -4393,6 +4392,12 @@ public class DayView extends View implements View.OnCreateContextMenuListener,
                      invalidate();
                  }
  

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Kompakt: a frontlight curve, not a backlight one. It peaks under a lamp, falls in a lit room
+         and is off from 100 lux, a bright room, where the reflective panel needs no light. -->
+    <integer-array name="config_autoBrightnessLevels">
+        <item>5</item>
+        <item>15</item>
+        <item>40</item>
+        <item>100</item>
+        <item>300</item>
+    </integer-array>
+
+    <!-- One more value than levels: dark, dim room, lamp light, lit room, bright room, daylight. The kernel
+         halves these before the PWM (CONFIG_LIGHTNESS_MAPPING_VALUE 127), so every other step is a repeat:
+         5, 9 and 11 are duties 2, 4 and 5, shown as 2, 3 and 4 percent, and 1 is off. -->
+    <integer-array name="config_autoBrightnessLcdBacklightValues">
+        <item>5</item>
+        <item>9</item>
+        <item>11</item>
+        <item>9</item>
+        <item>1</item>
+        <item>1</item>
+    </integer-array>
+
+    <!-- Kompakt: stock. The sensor reports only when the light changes, so a kept lux stays until it does. -->
+    <bool name="config_autoBrightnessResetAmbientLuxAfterWarmUp">true</bool>
+
+    <!-- Kompakt: the display manager rejects a user curve under this one as too dark; a frontlight curve ends at off. -->
+    <array name="config_minimumBrightnessCurveNits">
+        <item>0.0</item>
+        <item>0.0</item>
+        <item>0.0</item>
+    </array>
+</resources>

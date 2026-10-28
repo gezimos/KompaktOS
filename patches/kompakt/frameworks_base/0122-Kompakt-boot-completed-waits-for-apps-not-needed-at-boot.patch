@@ -1,0 +1,210 @@
+From c2d81ae631ec52eb37fc4f86be1f9b3a3c4bee21 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Fri, 23 Oct 2026 18:30:00 +0300
+Subject: [PATCH 122/144] Kompakt: boot completed waits for apps not needed at
+ boot
+
+BOOT_COMPLETED started every app with a receiver for it at once. On
+this 2.8 GB phone a trace of the first three minutes after boot showed
+88 process starts (48 for broadcasts), 40 lowmemorykiller kills and up
+to 75k workingset refaults per 10 s; Settings took 17 s to open.
+MuditaOS avoids this with MediaTek's DuraSpeed, which suppresses
+background starts; Android's own defer_boot_completed_broadcast is only
+a constant in Android 16, nothing reads it.
+
+BOOT_COMPLETED for the main user now goes at once to everyone except
+manifest receivers in packages that are neither core (app id below
+FIRST_APPLICATION_UID), persistent, nor on a short list (Play services
+and Services Framework, Clock, Calendar and its provider, cell
+broadcast, device config, LineageOS settings config). Those get it at
+their first start, as private space packages already do, or otherwise
+one every two seconds from two minutes after boot.
+---
+ .../server/am/ActivityManagerService.java     |  24 +++++
+ .../com/android/server/am/UserController.java | 100 ++++++++++++++++++
+ 2 files changed, 124 insertions(+)
+
+diff --git a/services/core/java/com/android/server/am/ActivityManagerService.java b/services/core/java/com/android/server/am/ActivityManagerService.java
+index 49b2efa137db..7da04fd0d60a 100644
+--- a/services/core/java/com/android/server/am/ActivityManagerService.java
++++ b/services/core/java/com/android/server/am/ActivityManagerService.java
+@@ -1609,6 +1609,9 @@ public class ActivityManagerService extends IActivityManager.Stub
+     // the private space profile has been started
+     @GuardedBy("this")
+     private final ArraySet<String> mPrivateSpaceBootCompletedPackages = new ArraySet<String>();
++    // Kompakt: packages whose BOOT_COMPLETED waits (UserController); first start sends it sooner.
++    @GuardedBy("this")
++    private final ArraySet<String> mKompaktBootCompletedPending = new ArraySet<String>();
+ 
+     /**
+      * Whether to force background check on all apps (for battery saver) or not.
+@@ -5184,6 +5187,14 @@ public class ActivityManagerService extends IActivityManager.Stub
+     private void maybeSendBootCompletedLocked(ProcessRecord app, boolean isRestrictedBackupMode) {
+         boolean sendBroadcast = false;
+ 
++        // Kompakt: a package whose BOOT_COMPLETED was held back gets it when it first starts.
++        if (app.userId == UserHandle.USER_SYSTEM && !isRestrictedBackupMode
++                && mKompaktBootCompletedPending.remove(app.info.packageName)
++                && StorageManager.isCeStorageUnlocked(app.userId)) {
++            sendBootBroadcastToAppLocked(app, new Intent(Intent.ACTION_BOOT_COMPLETED),
++                    REASON_BOOT_COMPLETED);
++        }
++
+         final UserManagerInternal umInternal =
+                 LocalServices.getService(UserManagerInternal.class);
+         UserInfo userInfo = umInternal.getUserInfo(app.userId);
+@@ -5246,6 +5257,19 @@ public class ActivityManagerService extends IActivityManager.Stub
+         // any re-use of the ProcessRecord.
+     }
+ 
++    void kompaktSetBootCompletedPending(java.util.Collection<String> packages) {
++        synchronized (this) {
++            mKompaktBootCompletedPending.clear();
++            mKompaktBootCompletedPending.addAll(packages);
++        }
++    }
++
++    boolean kompaktTakeBootCompletedPending(String packageName) {
++        synchronized (this) {
++            return mKompaktBootCompletedPending.remove(packageName);
++        }
++    }
++
+     /** Send a boot_completed broadcast to app */
+     private void sendBootBroadcastToAppLocked(ProcessRecord app, Intent intent,
+             @PowerExemptionManager.ReasonCode int reason) {
+diff --git a/services/core/java/com/android/server/am/UserController.java b/services/core/java/com/android/server/am/UserController.java
+index 811fa9ec7a7f..6d23aac310d9 100644
+--- a/services/core/java/com/android/server/am/UserController.java
++++ b/services/core/java/com/android/server/am/UserController.java
+@@ -86,9 +86,11 @@ import android.content.Context;
+ import android.content.IIntentReceiver;
+ import android.content.Intent;
+ import android.content.PermissionChecker;
++import android.content.pm.ApplicationInfo;
+ import android.content.pm.IPackageManager;
+ import android.content.pm.PackageManager;
+ import android.content.pm.PackagePartitions;
++import android.content.pm.ResolveInfo;
+ import android.content.pm.UserInfo;
+ import android.content.pm.UserProperties;
+ import android.media.AudioManagerInternal;
+@@ -1086,10 +1088,88 @@ class UserController implements Handler.Callback {
+             return;
+         }
+         FgThread.getHandler().post(() -> {
++            if (userId == UserHandle.USER_SYSTEM
++                    && kompaktBroadcastBootCompleted(bootIntent, userId, callingUid, callingPid)) {
++                return;
++            }
+             broadcastBootCompletedIntent(bootIntent, userId, callingUid, callingPid);
+         });
+     }
+ 
++    // Kompakt: BOOT_COMPLETED goes at once only to these and core apps; see patches/README.md.
++    private static final String[] KOMPAKT_BOOT_COMPLETED_NOW = {
++        "com.google.android.gms",
++        "com.google.android.gsf",
++        "com.android.deskclock",
++        "com.android.providers.calendar",
++        "org.lineageos.etar",
++        "com.android.cellbroadcastreceiver",
++        "com.android.cellbroadcastreceiver.module",
++        "com.google.android.cellbroadcastreceiver",
++        "org.protonaosp.deviceconfig",
++        "org.lineageos.settingsconfig",
++    };
++    private static final long KOMPAKT_BOOT_COMPLETED_DELAY_MS = 120_000;
++    private static final long KOMPAKT_BOOT_COMPLETED_STEP_MS = 2_000;
++
++    /**
++     * Kompakt: sends BOOT_COMPLETED now to everyone but the receivers held back, which get it at
++     * their first start or, failing that, one every two seconds after a delay.
++     */
++    private boolean kompaktBroadcastBootCompleted(Intent bootIntent, int userId,
++            int callingUid, int callingPid) {
++        final List<ResolveInfo> receivers;
++        try {
++            receivers = mInjector.getContext().getPackageManager().queryBroadcastReceiversAsUser(
++                    new Intent(Intent.ACTION_BOOT_COMPLETED), 0, UserHandle.of(userId));
++        } catch (RuntimeException e) {
++            Slogf.w(TAG, "Kompakt: no BOOT_COMPLETED receivers, sending to all", e);
++            return false;
++        }
++        if (receivers == null || receivers.isEmpty()) return false;
++        final ArraySet<String> now = new ArraySet<>();
++        final ArraySet<String> later = new ArraySet<>();
++        for (ResolveInfo ri : receivers) {
++            final ApplicationInfo ai = ri.activityInfo.applicationInfo;
++            if (UserHandle.getAppId(ai.uid) < Process.FIRST_APPLICATION_UID
++                    || (ai.flags & ApplicationInfo.FLAG_PERSISTENT) != 0
++                    || ArrayUtils.contains(KOMPAKT_BOOT_COMPLETED_NOW, ai.packageName)) {
++                now.add(ai.packageName);
++            } else {
++                later.add(ai.packageName);
++            }
++        }
++        later.removeAll(now);
++        if (later.isEmpty()) return false;
++        mInjector.kompaktSetBootCompletedPending(later);
++        Slogf.i(TAG, "Kompakt: BOOT_COMPLETED held back from " + later);
++        // Everyone else at once, runtime receivers included.
++        mInjector.kompaktBroadcastIntentExcluding(bootIntent,
++                new IIntentReceiver.Stub() {
++                    @Override
++                    public void performReceive(Intent intent, int resultCode, String data,
++                            Bundle extras, boolean ordered, boolean sticky, int sendingUser) {
++                        Slogf.i(UserController.TAG, "Finished processing BOOT_COMPLETED for u"
++                                + userId + " (Kompakt: held back " + later.size() + ")");
++                    }
++                },
++                new String[]{android.Manifest.permission.RECEIVE_BOOT_COMPLETED},
++                later.toArray(new String[0]),
++                getTemporaryAppAllowlistBroadcastOptions(REASON_BOOT_COMPLETED).toBundle(),
++                callingUid, callingPid, userId);
++        for (int i = 0; i < later.size(); i++) {
++            final String packageName = later.valueAt(i);
++            FgThread.getHandler().postDelayed(() -> {
++                // Gone already if the package started first and got it then.
++                if (!mInjector.kompaktTakeBootCompletedPending(packageName)) return;
++                final Intent intent = new Intent(bootIntent);
++                intent.setPackage(packageName);
++                broadcastBootCompletedIntent(intent, userId, callingUid, callingPid);
++            }, KOMPAKT_BOOT_COMPLETED_DELAY_MS + i * KOMPAKT_BOOT_COMPLETED_STEP_MS);
++        }
++        return true;
++    }
++
+     /**
+      * Only broadcast the BOOT_COMPLETED intent to allowlisted immediate receivers. Other packages
+      * will receive the intent after they are started.
+@@ -4478,6 +4558,26 @@ class UserController implements Handler.Callback {
+             mService = service;
+         }
+ 
++        // Kompakt: see kompaktBroadcastBootCompleted().
++        void kompaktBroadcastIntentExcluding(Intent intent, IIntentReceiver resultTo,
++                String[] requiredPermissions, String[] excludedPackages, Bundle bOptions,
++                int realCallingUid, int realCallingPid, @UserIdInt int userId) {
++            synchronized (mService) {
++                mService.broadcastIntentLocked(null, null, null, intent, null, resultTo, 0, null,
++                        null, requiredPermissions, null, excludedPackages, AppOpsManager.OP_NONE,
++                        bOptions, false, false, MY_PID, SYSTEM_UID, realCallingUid,
++                        realCallingPid, userId);
++            }
++        }
++
++        void kompaktSetBootCompletedPending(java.util.Collection<String> packages) {
++            mService.kompaktSetBootCompletedPending(packages);
++        }
++
++        boolean kompaktTakeBootCompletedPending(String packageName) {
++            return mService.kompaktTakeBootCompletedPending(packageName);
++        }
++
+         protected Handler getHandler(Handler.Callback callback) {
+             return mHandler = new Handler(mService.mHandlerThread.getLooper(), callback);
+         }
+-- 
+2.43.0
+

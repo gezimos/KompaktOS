@@ -1,7 +1,7 @@
-From 835054578d9902db4f5968b61a923bbf61a55a76 Mon Sep 17 00:00:00 2001
-From: Gezim <25499045+gezimos@users.noreply.github.com>
+From eea2a1141e745ff7615baef56bd1a6a1f27f2f25 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
 Date: Sun, 18 Oct 2026 08:58:47 +0200
-Subject: [PATCH] Kompakt: the library is the home screen
+Subject: [PATCH 12/14] Kompakt: the library is the home screen
 
 Albums, Artists, Genres and Playlists are the bottom tabs; search sits in the header beside settings; the provider and the Activity page open from Settings.
 
@@ -11,11 +11,10 @@ Navigation has no page animations: a zero length one still kept the outgoing pag
 
 Change-Id: Ibe1c0fcfb4ba9e35c896ea83777492e0a8b2e8d5
 ---
- app/src/main/AndroidManifest.xml              |   3 +
  .../kompakt/eink/PagedNestedScrollView.java   |  48 ++++
  .../java/com/kompakt/eink/PagedScroll.java    |   4 +
- .../java/org/lineageos/twelve/MainActivity.kt | 125 ++++++++---
- .../org/lineageos/twelve/SettingsActivity.kt  |  49 +++++
+ .../java/org/lineageos/twelve/MainActivity.kt | 125 +++++++---
+ .../org/lineageos/twelve/SettingsActivity.kt  |  49 ++++
  .../org/lineageos/twelve/TwelveApplication.kt |   2 +
  .../twelve/ext/LinearProgressIndicator.kt     |   4 +
  .../lineageos/twelve/ext/SharedPreferences.kt |   6 +
@@ -27,11 +26,11 @@ Change-Id: Ibe1c0fcfb4ba9e35c896ea83777492e0a8b2e8d5
  .../twelve/fragments/ArtistsFragment.kt       |   4 +-
  .../twelve/fragments/GenreFragment.kt         |  15 +-
  .../twelve/fragments/GenresFragment.kt        |   4 +-
- .../twelve/fragments/MainFragment.kt          | 207 +++++++++++++-----
+ .../twelve/fragments/MainFragment.kt          | 230 +++++++++++++-----
  .../twelve/fragments/PlaylistsFragment.kt     |   4 +-
  .../lineageos/twelve/ui/coil/KompaktDither.kt |  68 ++++++
  .../twelve/viewmodels/SettingsViewModel.kt    |   3 +
- .../navigation_bar_view_fragment_main.xml     |  25 ++-
+ .../navigation_bar_view_fragment_main.xml     |  25 +-
  .../fragment_add_or_remove_from_playlists.xml |   6 +-
  .../main/res/navigation/fragment_album.xml    |  12 +-
  .../main/res/navigation/fragment_artist.xml   |  12 +-
@@ -43,25 +42,11 @@ Change-Id: Ibe1c0fcfb4ba9e35c896ea83777492e0a8b2e8d5
  ...ovider_information_bottom_sheet_dialog.xml |   6 +-
  .../fragment_provider_selector_dialog.xml     |  12 +-
  app/src/main/res/values/kompakt_strings.xml   |   3 +
- app/src/main/res/xml/root_preferences.xml     |  27 +++
- 33 files changed, 540 insertions(+), 308 deletions(-)
+ app/src/main/res/xml/root_preferences.xml     |  27 ++
+ 32 files changed, 560 insertions(+), 308 deletions(-)
  create mode 100644 app/src/main/java/com/kompakt/eink/PagedNestedScrollView.java
  create mode 100644 app/src/main/java/org/lineageos/twelve/ui/coil/KompaktDither.kt
 
-diff --git a/app/src/main/AndroidManifest.xml b/app/src/main/AndroidManifest.xml
-index 4c7e7c2..3b8b233 100644
---- a/app/src/main/AndroidManifest.xml
-+++ b/app/src/main/AndroidManifest.xml
-@@ -20,6 +20,9 @@
-     <uses-permission android:name="android.permission.RECORD_AUDIO" />
-     <uses-permission android:name="android.permission.WAKE_LOCK" />
- 
-+    <!-- Kompakt: Media3 must see other packages, or launcher widgets cannot control playback. -->
-+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
-+
-     <application
-         android:name=".TwelveApplication"
-         android:appCategory="audio"
 diff --git a/app/src/main/java/com/kompakt/eink/PagedNestedScrollView.java b/app/src/main/java/com/kompakt/eink/PagedNestedScrollView.java
 new file mode 100644
 index 0000000..64440ae
@@ -544,10 +529,10 @@ index 726800b..2b45e90 100644
      // Views
      private val linearProgressIndicator by getViewProperty<LinearProgressIndicator>(R.id.linearProgressIndicator)
 diff --git a/app/src/main/java/org/lineageos/twelve/fragments/AlbumFragment.kt b/app/src/main/java/org/lineageos/twelve/fragments/AlbumFragment.kt
-index 1c6e443..a7950fa 100644
+index 3d6c384..f412e32 100644
 --- a/app/src/main/java/org/lineageos/twelve/fragments/AlbumFragment.kt
 +++ b/app/src/main/java/org/lineageos/twelve/fragments/AlbumFragment.kt
-@@ -129,8 +129,9 @@ class AlbumFragment : CollapsingToolbarLayoutFragment(R.layout.fragment_album) {
+@@ -128,8 +128,9 @@ class AlbumFragment : CollapsingToolbarLayoutFragment(R.layout.fragment_album) {
                          when {
                              item.isCurrent -> {
                                  view.setLeadingIconImage(R.drawable.ic_track_playing)
@@ -705,7 +690,7 @@ index f56693b..72bc5dc 100644
      // Views
      private val linearProgressIndicator by getViewProperty<LinearProgressIndicator>(R.id.linearProgressIndicator)
 diff --git a/app/src/main/java/org/lineageos/twelve/fragments/MainFragment.kt b/app/src/main/java/org/lineageos/twelve/fragments/MainFragment.kt
-index 0897622..3215f5c 100644
+index 79fe70a..dc0dff2 100644
 --- a/app/src/main/java/org/lineageos/twelve/fragments/MainFragment.kt
 +++ b/app/src/main/java/org/lineageos/twelve/fragments/MainFragment.kt
 @@ -9,15 +9,19 @@ import android.content.Intent
@@ -718,23 +703,24 @@ index 0897622..3215f5c 100644
  import android.widget.LinearLayout
  import androidx.activity.BackEventCompat
  import androidx.activity.OnBackPressedCallback
+-import androidx.annotation.IdRes
 +import androidx.activity.result.contract.ActivityResultContracts
  import androidx.core.graphics.Insets
  import androidx.core.view.ViewCompat
  import androidx.core.view.WindowInsetsCompat
- import androidx.core.view.get
++import androidx.core.view.get
  import androidx.core.view.isVisible
 +import androidx.core.view.updateLayoutParams
  import androidx.core.widget.addTextChangedListener
  import androidx.fragment.app.Fragment
  import androidx.fragment.app.activityViewModels
-@@ -33,12 +37,14 @@ import androidx.recyclerview.widget.RecyclerView
+@@ -33,11 +37,14 @@ import androidx.recyclerview.widget.RecyclerView
  import androidx.viewpager2.adapter.FragmentStateAdapter
  import androidx.viewpager2.widget.ViewPager2
  import com.google.android.material.appbar.MaterialToolbar
 +import com.google.android.material.bottomnavigation.BottomNavigationView
  import com.google.android.material.button.MaterialButton
- import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
++import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
  import com.google.android.material.navigation.NavigationBarView
  import com.google.android.material.progressindicator.LinearProgressIndicator
  import com.google.android.material.search.SearchView
@@ -743,11 +729,15 @@ index 0897622..3215f5c 100644
  import kotlinx.coroutines.flow.collectLatest
  import kotlinx.coroutines.launch
  import org.lineageos.twelve.R
-@@ -79,33 +85,87 @@ class MainFragment : Fragment(R.layout.fragment_main) {
-     private val playRandomSongsExtendedFloatingActionButton by getViewProperty<ExtendedFloatingActionButton>(
-         R.id.playRandomSongsExtendedFloatingActionButton
-     )
+@@ -75,20 +82,94 @@ class MainFragment : Fragment(R.layout.fragment_main) {
+ 
+     // Views
+     private val navigationBarView by getViewProperty<NavigationBarView>(R.id.navigationBarView)
+-    private val playRandomSongsButton by getViewProperty<MaterialButton>(R.id.playRandomSongsButton)
 -    private val providerMaterialButton by getViewProperty<MaterialButton>(R.id.providerMaterialButton)
++    private val playRandomSongsExtendedFloatingActionButton by getViewProperty<ExtendedFloatingActionButton>(
++        R.id.playRandomSongsExtendedFloatingActionButton
++    )
      private val searchLinearProgressIndicator by getViewProperty<LinearProgressIndicator>(R.id.searchLinearProgressIndicator)
      private val searchNoElementsLinearLayout by getViewProperty<LinearLayout>(R.id.searchNoElementsLinearLayout)
      private val searchRecyclerView by getViewProperty<RecyclerView>(R.id.searchRecyclerView)
@@ -812,34 +802,31 @@ index 0897622..3215f5c 100644
 +        }
 +    }
 +
-     // ViewPager2
-     private val onPageChangeCallback by lazy {
-         object : ViewPager2.OnPageChangeCallback() {
-             override fun onPageSelected(position: Int) {
-                 super.onPageSelected(position)
- 
--                var offset = 0
--
--                // Search button
--                if (position >= 1) {
--                    offset += 1
++    // ViewPager2
++    private val onPageChangeCallback by lazy {
++        object : ViewPager2.OnPageChangeCallback() {
++            override fun onPageSelected(position: Int) {
++                super.onPageSelected(position)
++
 +                kompaktPage = position
 +                val isActivity = position == ACTIVITY_PAGE
 +                if (!isActivity) {
 +                    lastTab = position
 +                    navigationBarView.menu[position].isChecked = true
-                 }
--
--                navigationBarView.menu[position + offset].isChecked = true
++                }
 +                leaveActivityPage.isEnabled = isActivity
 +                // Kompakt: the header names the page, not the app.
 +                toolbar.title = if (isActivity) {
 +                    getString(R.string.main_fragment_section_activity)
 +                } else navigationBarView.menu[position].title
-             }
-         }
-     }
-@@ -212,7 +272,11 @@ class MainFragment : Fragment(R.layout.fragment_main) {
++            }
++        }
++    }
++
+     // RecyclerView
+     private val searchAdapter by lazy {
+         object : SimpleListAdapter<MediaItem<*>, ListItem>(
+@@ -191,7 +272,11 @@ class MainFragment : Fragment(R.layout.fragment_main) {
          }
  
          ViewCompat.setOnApplyWindowInsetsListener(navigationBarView) { v, windowInsets ->
@@ -852,7 +839,7 @@ index 0897622..3215f5c 100644
                  WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
              )
  
-@@ -222,6 +286,7 @@ class MainFragment : Fragment(R.layout.fragment_main) {
+@@ -201,6 +286,7 @@ class MainFragment : Fragment(R.layout.fragment_main) {
                  top = resources.configuration.isLandscape,
                  bottom = true,
              )
@@ -860,7 +847,7 @@ index 0897622..3215f5c 100644
  
              windowInsets
          }
-@@ -324,24 +389,14 @@ class MainFragment : Fragment(R.layout.fragment_main) {
+@@ -303,27 +389,17 @@ class MainFragment : Fragment(R.layout.fragment_main) {
  
          toolbar.setupWithNavController(findNavController())
  
@@ -889,12 +876,18 @@ index 0897622..3215f5c 100644
 +            settingsLauncher.launch(Intent(context, SettingsActivity::class.java))
          }
  
-         playRandomSongsExtendedFloatingActionButton.setOnClickListener {
-@@ -358,33 +413,39 @@ class MainFragment : Fragment(R.layout.fragment_main) {
+-        playRandomSongsButton.setOnClickListener {
++        playRandomSongsExtendedFloatingActionButton.setOnClickListener {
+             viewLifecycleOwner.lifecycleScope.launch {
+                 viewModel.playAllAudios().onError {
+                     Snackbar.make(
+@@ -337,27 +413,39 @@ class MainFragment : Fragment(R.layout.fragment_main) {
  
          // View pager
          viewPager2.isUserInputEnabled = false
 -        viewPager2.adapter = object : FragmentStateAdapter(this) {
+-            override fun getItemCount() = Page.entries.size
+-            override fun createFragment(position: Int) = Page.entries[position].createFragment()
 +        // Kompakt: a sideways fling on a list changes the tab (PagedScroll).
 +        viewPager2.tag = PagedScroll.SWIPE_TAG
 +        // Kompakt: the pages belong to this view, as LibraryFragment's did; tied to the fragment,
@@ -902,11 +895,11 @@ index 0897622..3215f5c 100644
 +        viewPager2.adapter = object : FragmentStateAdapter(
 +            childFragmentManager, viewLifecycleOwner.lifecycle
 +        ) {
-             override fun getItemCount() = fragments.size
-             override fun createFragment(position: Int) = fragments[position]()
-         }
-         viewPager2.offscreenPageLimit = fragments.size
-         viewPager2.registerOnPageChangeCallback(onPageChangeCallback)
++            override fun getItemCount() = fragments.size
++            override fun createFragment(position: Int) = fragments[position]()
++        }
++        viewPager2.offscreenPageLimit = fragments.size
++        viewPager2.registerOnPageChangeCallback(onPageChangeCallback)
 +        // Kompakt: the pager does not restore its page itself; it is set here, with the tab and
 +        // title, from the page this fragment kept, so the three always agree.
 +        viewPager2.isSaveEnabled = false
@@ -916,28 +909,24 @@ index 0897622..3215f5c 100644
 +        (viewPager2.getChildAt(0) as? RecyclerView)?.let {
 +            it.isSaveEnabled = false
 +            it.itemAnimator = null
-+        }
+         }
+-        viewPager2.offscreenPageLimit = Page.entries.size
 +        kompaktShowPage()
  
          navigationBarView.setOnItemSelectedListener { item ->
--            when (item.itemId) {
--                R.id.activityFragment -> {
--                    // Kompakt: no slide between Activity and Library.
--                    viewPager2.setCurrentItem(0, false)
--                    true
--                }
+-            if (item.itemId == R.id.searchFragment) {
+-                searchView.show()
+-                return@setOnItemSelectedListener false
+-            }
 -
--                R.id.searchFragment -> {
--                    searchView.show()
--                    false
--                }
+-            val index = Page.entries.indexOfFirst { it.menuItemId == item.itemId }
 -
--                R.id.libraryFragment -> {
--                    viewPager2.setCurrentItem(1, false)
--                    true
--                }
--
--                else -> false
+-            if (index >= 0) {
+-                // Kompakt: no slide between the pages.
+-                viewPager2.setCurrentItem(index, false)
+-                true
+-            } else {
+-                false
 -            }
 +            // Kompakt: the tabs are the library sections, and change the page at once.
 +            val position = tabPosition(item.itemId) ?: return@setOnItemSelectedListener false
@@ -950,7 +939,7 @@ index 0897622..3215f5c 100644
          }
  
          // Search
-@@ -411,18 +472,8 @@ class MainFragment : Fragment(R.layout.fragment_main) {
+@@ -384,18 +472,8 @@ class MainFragment : Fragment(R.layout.fragment_main) {
                          navigationBarView.labelVisibilityMode = if (it == null)
                              NavigationBarView.LABEL_VISIBILITY_LABELED
                          else NavigationBarView.LABEL_VISIBILITY_UNLABELED
@@ -971,7 +960,7 @@ index 0897622..3215f5c 100644
                      }
                  }
  
-@@ -463,7 +514,34 @@ class MainFragment : Fragment(R.layout.fragment_main) {
+@@ -436,7 +514,34 @@ class MainFragment : Fragment(R.layout.fragment_main) {
          }
      }
  
@@ -1006,20 +995,29 @@ index 0897622..3215f5c 100644
          // View pager
          viewPager2.adapter = null
  
-@@ -476,11 +554,24 @@ class MainFragment : Fragment(R.layout.fragment_main) {
+@@ -446,17 +551,28 @@ class MainFragment : Fragment(R.layout.fragment_main) {
+         super.onDestroyView()
+     }
+ 
+-    private enum class Page(
+-        @param:IdRes val menuItemId: Int,
+-        val createFragment: () -> Fragment,
+-    ) {
+-        ACTIVITY(R.id.activityFragment, ::ActivityFragment),
+-        LIBRARY(R.id.libraryFragment, ::LibraryFragment),
+-    }
+-
      companion object {
          private val LOG_TAG = MainFragment::class.simpleName!!
  
--        // Keep in sync with the BottomNavigationView menu
 +        // Keep in sync with the BottomNavigationView menu; Activity comes last and has no tab.
-         private val fragments = arrayOf(
++        private val fragments = arrayOf(
 +            { AlbumsFragment() },
 +            { ArtistsFragment() },
 +            { GenresFragment() },
 +            { PlaylistsFragment() },
-             { ActivityFragment() },
--            { LibraryFragment() },
-         )
++            { ActivityFragment() },
++        )
 +        private const val ACTIVITY_PAGE = 4
 +        private const val COMPACT_TABS_DP = 56
 +
@@ -1030,9 +1028,10 @@ index 0897622..3215f5c 100644
 +            R.id.playlistsFragment -> 3
 +            else -> null
 +        }
- 
++
          private val searchDiffCallback = object : DiffUtil.ItemCallback<MediaItem<*>>() {
              override fun areItemsTheSame(
+                 oldItem: MediaItem<*>,
 diff --git a/app/src/main/java/org/lineageos/twelve/fragments/PlaylistsFragment.kt b/app/src/main/java/org/lineageos/twelve/fragments/PlaylistsFragment.kt
 index 24c450b..602dedf 100644
 --- a/app/src/main/java/org/lineageos/twelve/fragments/PlaylistsFragment.kt

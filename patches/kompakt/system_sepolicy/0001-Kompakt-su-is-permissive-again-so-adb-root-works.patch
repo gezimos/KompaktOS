@@ -1,5 +1,5 @@
 From 491fda604566ae6f14931404815e7fa54835f6ee Mon Sep 17 00:00:00 2001
-From: gezimos <>
+From: Gezim <gezimos@users.noreply.github.com>
 Date: Wed, 30 Sep 2026 00:45:26 +0200
 Subject: [PATCH] Kompakt: su is permissive again, so adb root works
 

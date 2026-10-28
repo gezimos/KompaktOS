@@ -1,5 +1,5 @@
 From cae4f3b6b9f66fd096ac52d90b80196e0d5160ca Mon Sep 17 00:00:00 2001
-From: gezimos <>
+From: Gezim <gezimos@users.noreply.github.com>
 Date: Tue, 8 Sep 2026 14:40:19 +0200
 Subject: [PATCH 04/12] lineage: inherit vendor/kompakt if present
 

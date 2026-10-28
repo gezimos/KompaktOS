@@ -1,0 +1,46 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Tue, 27 Oct 2026 20:45:00 +0200
+Subject: [PATCH] Kompakt: auto brightness accepts a frontlight curve
+
+---
+  .../server/display/BrightnessMappingStrategy.java       | 17 ++++++++++++++++-
+  1 file changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/services/core/java/com/android/server/display/BrightnessMappingStrategy.java b/services/core/java/com/android/server/display/BrightnessMappingStrategy.java
+index 2f74524..1eb3d15 100644
+--- a/services/core/java/com/android/server/display/BrightnessMappingStrategy.java
++++ b/services/core/java/com/android/server/display/BrightnessMappingStrategy.java
+@@ -142,7 +142,8 @@ public abstract class BrightnessMappingStrategy {
+             builder.setShortTermModelUpperLuxMultiplier(SHORT_TERM_MODEL_THRESHOLD_RATIO);
+             return new PhysicalMappingStrategy(builder.build(), nitsRange, brightnessRange,
+                     autoBrightnessAdjustmentMaxGamma, mode, preset, displayWhiteBalanceController);
+-        } else if (isValidMapping(luxLevels, brightnessLevels)) {
++        } else if (isValidFrontlightCurve(luxLevels, brightnessLevels)) {
++            // Kompakt: a frontlight curve may fall again in bright light.
+             return new SimpleMappingStrategy(luxLevels, brightnessLevels,
+                     autoBrightnessAdjustmentMaxGamma, shortTermModelTimeout, mode, preset);
+         } else {
+@@ -175,6 +176,20 @@ public abstract class BrightnessMappingStrategy {
+         return vals;
+     }
+ 
++    // Kompakt: as isValidMapping, but the brightness may go down as the lux goes up.
++    private static boolean isValidFrontlightCurve(float[] x, float[] y) {
++        if (x == null || y == null || x.length == 0 || x.length != y.length) {
++            return false;
++        }
++        for (int i = 0; i < x.length; i++) {
++            if (Float.isNaN(x[i]) || Float.isNaN(y[i]) || x[i] < 0 || y[i] < 0
++                    || (i > 0 && x[i - 1] >= x[i])) {
++                return false;
++            }
++        }
++        return true;
++    }
++
+     private static boolean isValidMapping(float[] x, float[] y) {
+         if (x == null || y == null || x.length == 0 || y.length == 0) {
+             return false;
+-- 
+2.43.0

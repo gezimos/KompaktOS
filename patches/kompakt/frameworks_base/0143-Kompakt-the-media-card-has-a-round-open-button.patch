@@ -1,0 +1,86 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Tue, 27 Oct 2026 19:15:00 +0200
+Subject: [PATCH] Kompakt: the media card has a round open button
+
+---
+  .../ui/composable/elements/MediaElementProvider.kt | 43 +++++++++++++++++++++-
+  1 file changed, 41 insertions(+), 2 deletions(-)
+
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/MediaElementProvider.kt b/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/MediaElementProvider.kt
+index abcbe85..65dde96 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/MediaElementProvider.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/MediaElementProvider.kt
+@@ -35,6 +35,7 @@ import androidx.compose.foundation.layout.height
+ import androidx.compose.foundation.layout.padding
+ import androidx.compose.foundation.layout.size
+ import androidx.compose.foundation.layout.width
++import androidx.compose.foundation.shape.CircleShape
+ import androidx.compose.foundation.shape.RoundedCornerShape
+ import androidx.compose.material.icons.Icons
+ import androidx.compose.material.icons.rounded.MusicNote
+@@ -61,6 +62,8 @@ import androidx.compose.ui.text.style.TextOverflow
+ import androidx.compose.ui.unit.Dp
+ import androidx.compose.ui.unit.dp
+ import androidx.compose.ui.unit.sp
++import com.android.compose.animation.Expandable
++import com.android.compose.animation.rememberExpandableController
+ import com.android.compose.animation.scene.ElementContentScope
+ import com.android.systemui.keyguard.ui.composable.elements.LockscreenUpperRegionElementProvider.Companion.LayoutType
+ import com.android.systemui.keyguard.ui.composable.elements.LockscreenUpperRegionElementProvider.Companion.getLayoutType
+@@ -125,8 +128,8 @@ constructor(
+ 
+ /**
+  * Kompakt: the first session as a notification-sized card, after Katapult's music widget: the
+- * track on top; the cover, square, in the bottom corner beside previous, play/pause, next and stop.
+- * Also the notifications shade's media.
++ * track on top; the cover, square, in the bottom corner beside open, previous, play/pause, next and
++ * stop. Also the notifications shade's media.
+  */
+ @Composable
+ fun KompaktMediaCard(
+@@ -196,6 +199,42 @@ fun KompaktMediaCard(
+                 verticalAlignment = Alignment.CenterVertically,
+                 modifier = Modifier.weight(1f).fillMaxHeight().padding(horizontal = 8.dp),
+             ) {
++                // Kompakt: inkOS's round open button, the cover as a record.
++                Expandable(
++                    controller =
++                        rememberExpandableController(color = Color.Transparent, shape = CircleShape),
++                    useModifierBasedImplementation = true,
++                ) { expandable ->
++                    Box(
++                        contentAlignment = Alignment.Center,
++                        modifier =
++                            Modifier.size(32.dp)
++                                .clip(CircleShape)
++                                .border(line, ink, CircleShape)
++                                .clickable(
++                                    interactionSource = remember { MutableInteractionSource() },
++                                    indication = null,
++                                ) {
++                                    card.onClick(expandable)
++                                },
++                    ) {
++                        if (cover != null) {
++                            Image(
++                                bitmap = cover,
++                                contentDescription = card.onClickLabel,
++                                contentScale = ContentScale.Crop,
++                                modifier = Modifier.fillMaxSize(),
++                            )
++                        } else {
++                            MaterialIcon(
++                                Icons.Rounded.MusicNote,
++                                card.onClickLabel,
++                                tint = ink,
++                                modifier = Modifier.size(20.dp),
++                            )
++                        }
++                    }
++                }
+                 KompaktMediaButton(Icons.Rounded.SkipPrevious, (card.previous as? MediaSecondaryActionViewModel.Action)?.onClick, ink, 32.dp)
+                 val play = card.playPauseAction
+                 KompaktMediaButton(
+-- 
+2.43.0

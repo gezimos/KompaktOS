@@ -1,7 +1,8 @@
-From 52d3b353ad834d5b6867eca912cc8bb7c673a9d2 Mon Sep 17 00:00:00 2001
+From f78310b546180e128897738d8c93fd6111aeb728 Mon Sep 17 00:00:00 2001
 From: Gezim <gezimos@users.noreply.github.com>
 Date: Wed, 14 Oct 2026 21:15:07 +0200
-Subject: [PATCH] Kompakt: the Activity rows and the settings page turn pages
+Subject: [PATCH 11/14] Kompakt: the Activity rows and the settings page turn
+ pages
 
 Change-Id: I878f05cad6802f80a26cca433c83e58b2139918c
 ---

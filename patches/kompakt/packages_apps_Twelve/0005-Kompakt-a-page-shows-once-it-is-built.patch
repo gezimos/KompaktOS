@@ -1,7 +1,7 @@
-From d480eb4686d4f4f5a505f7ba6b102497fb2802b4 Mon Sep 17 00:00:00 2001
-From: Gezim <25499045+gezimos@users.noreply.github.com>
+From 8883e0651069a5af2c3cd518a05977a602b86066 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
 Date: Sun, 11 Oct 2026 13:42:18 +0200
-Subject: [PATCH 5/5] Kompakt: a page shows once it is built
+Subject: [PATCH 05/14] Kompakt: a page shows once it is built
 
 Returning from an album rebuilt the main page in view: the grid at one size,
 then its real size 30 ms later, then the tabs moving down and the selected

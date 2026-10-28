@@ -1,0 +1,27 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Thu, 29 Oct 2026 13:00:00 +0100
+Subject: [PATCH] Kompakt: turning auto brightness off forgets the slider point
+
+A slider change while auto brightness is on is kept as a user point in
+the short term model, which stock only invalidates five minutes after
+the screen goes off. Turning auto off and on again therefore came back
+at the adjusted curve, not the configured one. The point is now reset
+when the setting goes to manual, so auto on starts from the curve.
+---
+diff --git a/services/core/java/com/android/server/display/DisplayPowerController.java b/services/core/java/com/android/server/display/DisplayPowerController.java
+--- a/services/core/java/com/android/server/display/DisplayPowerController.java
++++ b/services/core/java/com/android/server/display/DisplayPowerController.java
+@@ -2578,6 +2578,10 @@
+         if (screenBrightnessModeSetting == Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL) {
+             // In manual mode, all brightness changes should be saved immediately.
+             mDisplayBrightnessController.saveBrightnessIfNeeded();
++            // Kompakt: auto off forgets the slider point, so auto on starts from the curve.
++            if (mAutomaticBrightnessController != null) {
++                mAutomaticBrightnessController.resetShortTermModel();
++            }
+         }
+     }
+ 
+-- 
+2.43.0

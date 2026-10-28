@@ -1,0 +1,133 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Fri, 23 Oct 2026 12:50:00 +0300
+Subject: [PATCH] Kompakt: the unlock hold takes no screenshot
+
+KompaktUnlockHold (0039) kept the lockscreen or AOD frame on the panel by
+capturing it with the synchronous captureLayers while setKeyguardShown
+held the window manager's global lock. When SurfaceFlinger's main thread
+was stuck in a display power change (HWC setPowerMode waiting on the
+e-ink driver), the capture never returned: every thread needing the
+window manager blocked, the panel stayed white with only the fingerprint
+answering, and the watchdog restarted the system.
+
+The screenshot and its overlay layer are gone. The AOD case is held by
+the screen-on block instead (0121); the class only follows the unlock
+until home is drawn, for the Kompakt app's unlock broadcast (0043).
+---
+diff --git a/services/core/java/com/android/server/wm/KompaktUnlockHold.java b/services/core/java/com/android/server/wm/KompaktUnlockHold.java
+--- a/services/core/java/com/android/server/wm/KompaktUnlockHold.java
++++ b/services/core/java/com/android/server/wm/KompaktUnlockHold.java
+@@ -17,26 +17,18 @@
+ package com.android.server.wm;
+ 
+ import android.content.Intent;
+-import android.graphics.Rect;
+-import android.hardware.HardwareBuffer;
+-import android.os.SystemProperties;
+ import android.os.UserHandle;
+ import android.util.Slog;
+ import android.view.Display;
+-import android.view.SurfaceControl;
+-import android.window.ScreenCapture.ScreenCaptureParams;
+-import android.window.ScreenCaptureInternal;
+ 
+-import com.android.internal.policy.TransitionAnimation;
+-
+-/** Kompakt: keeps the last lockscreen or AOD frame on the panel while the
+- * keyguard goes away, until home has been drawn behind it. */
++/** Kompakt: follows an unlock from the keyguard going away until home is drawn, and then
++ * tells the Kompakt app. The panel itself is held by the screen-on block (DisplayPowerController). */
+ class KompaktUnlockHold {
+     private static final String TAG = "KompaktUnlockHold";
+     private static final long TIMEOUT_MS = 1500;
+ 
+     private final WindowManagerService mWmService;
+-    private SurfaceControl mLayer;
++    private boolean mHolding;
+     private String mHoldReason;
+ 
+     private final Runnable mTimeout = () -> {
+@@ -50,70 +42,31 @@
+     }
+ 
+     boolean isHolding() {
+-        return mLayer != null;
++        return mHolding;
+     }
+ 
+-    /** Freezes the panel on what it shows now. Called with the global lock held. */
++    /** An unlock has started. Called with the global lock held. */
+     void hold(DisplayContent dc, String reason) {
+-        if (mLayer != null || dc == null) return;
+-        if (!SystemProperties.getBoolean("persist.sys.kompakt.unlock_hold", true)) return;
+-        // A dark panel is held by the screen-on block instead, and has nothing to freeze.
++        if (mHolding || dc == null) return;
++        // A dark panel is followed by the screen-on block instead.
+         if (Display.isOffState(dc.getDisplayInfo().state)) return;
+-
+-        final Rect crop = new Rect(dc.getBounds());
+-        crop.offsetTo(0, 0);
+-        final ScreenCaptureInternal.LayerCaptureArgs args =
+-                new ScreenCaptureInternal.LayerCaptureArgs.Builder(dc.getSurfaceControl())
+-                        .setSourceCrop(crop)
+-                        .setSecureContentPolicy(ScreenCaptureParams.SECURE_CONTENT_POLICY_CAPTURE)
+-                        .setProtectedContentPolicy(
+-                                ScreenCaptureParams.PROTECTED_CONTENT_POLICY_CAPTURE)
+-                        .setPreserveDisplayColors(true)
+-                        .build();
+-        final ScreenCaptureInternal.ScreenshotHardwareBuffer shot =
+-                ScreenCaptureInternal.captureLayers(args);
+-        final HardwareBuffer buffer = shot == null ? null : shot.getHardwareBuffer();
+-        if (buffer == null || buffer.getWidth() <= 1 || buffer.getHeight() <= 1) {
+-            Slog.w(TAG, "no screenshot, not holding (" + reason + ")");
+-            return;
+-        }
+-
+-        final SurfaceControl layer = dc.makeOverlay()
+-                .setName("KompaktUnlockHold")
+-                .setOpaque(true)
+-                .setSecure(shot.containsSecureLayers())
+-                .setCallsite("KompaktUnlockHold")
+-                .setBLASTLayer()
+-                .build();
+-        final SurfaceControl.Transaction t = mWmService.mTransactionFactory.get();
+-        TransitionAnimation.configureScreenshotLayer(t, layer, shot);
+-        t.setLayer(layer, Integer.MAX_VALUE);
+-        t.show(layer);
+-        t.apply();
+-        t.close();
+-        buffer.close();
+-
+-        mLayer = layer;
++        mHolding = true;
+         mHoldReason = reason;
+         mWmService.mH.postDelayed(mTimeout, TIMEOUT_MS);
+         Slog.i(TAG, "hold: " + reason);
+     }
+ 
+-    /** Releases the hold after the next frame has placed every surface. */
++    /** Ends the unlock after the next frame has placed every surface. */
+     void releaseAfterNextFrame(String reason) {
+-        if (mLayer == null) return;
++        if (!mHolding) return;
+         mWmService.mAnimator.addAfterPrepareSurfacesRunnable(() -> release(reason));
+     }
+ 
+     /** Called with the global lock held. */
+     void release(String reason) {
+-        if (mLayer == null) return;
++        if (!mHolding) return;
+         mWmService.mH.removeCallbacks(mTimeout);
+-        final SurfaceControl.Transaction t = mWmService.mTransactionFactory.get();
+-        t.remove(mLayer);
+-        t.apply();
+-        t.close();
+-        mLayer = null;
++        mHolding = false;
+         Slog.i(TAG, "release: " + reason);
+         if (!"keyguard shown".equals(reason)) {
+             sendUnlocked("keyguard hidden".equals(mHoldReason) ? "aod" : "lockscreen");
+-- 
+2.43.0
+

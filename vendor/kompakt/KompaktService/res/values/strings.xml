@@ -7,7 +7,6 @@
     <string name="tile_eink_dither">E-ink: Fast + dither</string>
     <string name="tile_eink_text">E-ink: Text</string>
     <string name="tile_eink_quality">E-ink: Quality</string>
-    <string name="tile_eink_auto">E-ink: Auto</string>
     <string name="tile_refresh">Refresh</string>
     <string name="tile_esim">eSIM</string>
     <string name="sim_mode_title">Switch to eSIM mode</string>
@@ -44,8 +43,6 @@
     <string name="diag_google">Google</string>
     <string name="diag_reading">Reading\u2026</string>
     <string name="diag_read_only">%1$s  ·  read only</string>
-    <string name="eink_watcher_label">Per-app e-ink mode</string>
-    <string name="per_app_section">Per-app modes</string>
     <string name="temperature_section">Temperature offset</string>
     <string name="per_app_enable">Change mode per app</string>
     <string name="per_app_default">Follow master mode</string>
@@ -70,10 +67,12 @@
     <string name="eink_section_named">E-ink mode (%1$s)</string>
     <string name="app_invert_row">Invert colours</string>
     <string name="app_mode_inverted">%1$s · inverted</string>
+    <string name="app_pattern_default">Default</string>
     <string name="app_mode_title">%1$s (%2$s)</string>
     <string name="settings_section">System</string>
     <string name="advanced_section">Advanced</string>
     <string name="more_options">More options</string>
+    <string name="close">Close</string>
     <string name="look_note">Font is the typeface every app uses unless it brings its own. Emoji are black and white, crisp on E Ink, or in colour. Changing either restarts the phone.</string>
     <string name="settings_note">Fingerprint sensor: what swipes, taps and holds on the sensor do.\nVibrate the keys under the screen: a buzz when you press them.\nHold Recents for quick settings: a long press on the Recents key opens quick settings.\nPower button light: the cold or the warm flashlight for a long press of the power button.\nBattery: the charge limit and battery details.\nTemperature offset and Diagnostics are under Advanced, in the ⋮ menu.</string>
     <string name="eink_info">What each mode does</string>
@@ -81,6 +80,7 @@
     <string name="eink_note_fast">Fast, no blink. Very high contrast; crushes dark colours and shadows to black.</string>
     <string name="eink_note_soft">Fast, no blink. Less contrast, so darker colours keep some detail.</string>
     <string name="eink_note_dither">Fast, two inks, dots of grey. Less contrast, and the best way to keep detail at speed.</string>
+    <string name="eink_note_fastgrey">Fast with eight greys, finely mixed between them. A little slower than Fast. Experimental.</string>
     <string name="eink_note_text">Sharp greys for reading. Slower to redraw.</string>
     <string name="eink_note_quality">The cleanest picture. Slowest, and it blinks.</string>
     <string name="app_modes_note">Give an app its own e-ink mode. It is applied when the app opens, and the master mode returns when you leave it.</string>
@@ -107,6 +107,7 @@
     <string name="power_torch_row">Power button light</string>
     <string name="power_torch_cold">Cold</string>
     <string name="power_torch_warm">Warm</string>
+    <string name="power_torch_both">Both</string>
     <string name="power_torch_note">Which flashlight a long press of the power button turns on while the screen is off. Turn the long press on in Settings, System, Buttons, Power button, Long press for torch.</string>
     <string name="finger_section">Fingerprint sensor</string>
     <string name="finger_row">Use while unlocked</string>
@@ -141,6 +142,7 @@
     <string name="finger_act_light">Brightness on/off</string>
     <string name="finger_act_torch_warm">Warm flashlight</string>
     <string name="finger_act_torch_cold">Cold flashlight</string>
+    <string name="finger_act_torch_both">Both flashlights</string>
     <string name="finger_act_orient">Switch direction</string>
     <string name="finger_act_mode">Switch mode</string>
     <string name="finger_act_key_named">Keymapper: %1$s</string>
@@ -188,12 +190,27 @@
     <string name="sleep_fill">Fill</string>
     <string name="sleep_choose">Choose picture</string>
     <string name="sleep_reset">Default</string>
+    <string name="reset_default">Reset to default</string>
     <string name="sleep_done">Done. Lock the phone to see it.</string>
     <string name="sleep_failed">Could not set the picture.</string>
     <string name="sleep_reset_later">The default picture comes back after a restart.</string>
     <string name="sleep_no_picker">No app on the phone can pick a picture.</string>
-    <string name="eink_note_auto">Fast while the screen moves, the cleanest picture once it settles.</string>
+    <string name="aod_refresh_row">Always-on display refresh</string>
+    <string name="aod_refresh_auto">Auto</string>
+    <string name="aod_refresh_min">%1$d min</string>
+    <string name="aod_refresh_note">How often the always-on display refreshes. Every 5 min means 6:05, 6:10, and notifications wait for the next refresh too. Auto is as before: the clock every minute and notifications at once.</string>
     <string name="temperature_row">Temperature offset</string>
+    <string name="clean_section">Updates per full refresh</string>
+    <string name="clean_note">A full refresh redraws the whole page and clears ghosts. The screen does one after this many small updates. Fewer updates: ghosts clear sooner, with more redraws. 24 is the usual. This clears ghosts in Text and Quality; the Fast modes need the flash instead, from the Refresh tile.</string>
+    <string name="refresh_on_app">Refresh on app switch</string>
+    <string name="refresh_on_app_note">Flashes the screen once, about half a second after you open or switch to an app, or go back to Home, to clear what the last screen left behind.</string>
+    <string name="frame_rate_draw">Apps draw at</string>
+    <string name="speed_section">Fast speed</string>
+    <string name="speed_note">How many steps the fast modes take to change a pixel. Fewer steps follow your finger sooner, with more traces left behind and lighter blacks. 7 is Mudita\'s. 8 and 9 give deeper blacks and fewer traces, a little slower.</string>
+    <string name="pattern_section">Dither pattern</string>
+    <string name="light_section">Dither brightness</string>
+    <string name="light_note">Lightens the dark greys of Pattern, Hybrid and Noise, so photos keep their shadows. Text keeps its weight. 0 is the mode\'s own.</string>
+    <string name="pattern_note">How Fast + dither turns greys into dots. Normal is Mudita\'s, and its dots crawl when the picture moves. Pattern is a fine grid that stays still. Hybrid is dots guided by the grid, with more detail than Pattern. Noise is still like Pattern, without the grid.</string>
     <string name="temperature_note">Tells the panel it is warmer than it is, so it drives shorter waveforms: faster, but less clean.</string>
     <string name="battery_health_title">Health and capacity</string>
     <string name="battery_health_note">Worked out from the capacity the kernel reports. Mudita\'s kernel gives the design capacity as 294 mAh instead of about 3000, so neither can be shown on it.</string>
@@ -218,4 +235,19 @@
     <string name="diag_ours_build">KompaktOS %1$d</string>
     <string name="diag_ours_built">KompaktOS, built %1$s</string>
     <string name="diag_mudita">Mudita\'s</string>
+    <string name="sleep_light_section">Sleep screen &amp; frontlight</string>
+    <string name="light_curve_row">Auto brightness curve</string>
+    <string name="light_curve_note">The front light for each kind of light, as a percent of full light. The row in bold is the light you are in now, and its number is the light you get. Each tap is one step you can see; the values in between would look the same. Moving the brightness slider while auto is on scales all of them until auto is turned off.</string>
+    <string name="light_curve_now">Now: %1$d lux  ·  %2$s</string>
+    <string name="light_curve_lux">%1$d lux</string>
+    <string name="light_curve_off">Off</string>
+    <string name="light_curve_percent">%1$d%%</string>
+    <string-array name="light_curve_names">
+        <item>Dark</item>
+        <item>Dim room</item>
+        <item>Lamp light</item>
+        <item>Lit room</item>
+        <item>Bright room</item>
+        <item>Daylight</item>
+    </string-array>
 </resources>

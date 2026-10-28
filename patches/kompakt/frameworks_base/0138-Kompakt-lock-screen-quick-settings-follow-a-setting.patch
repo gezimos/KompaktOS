@@ -1,0 +1,101 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Tue, 27 Oct 2026 10:30:00 +0200
+Subject: [PATCH] Kompakt: lock screen quick settings follow a setting
+
+---
+diff --git a/packages/SystemUI/src/com/android/systemui/scene/domain/startable/StatusBarStartable.kt b/packages/SystemUI/src/com/android/systemui/scene/domain/startable/StatusBarStartable.kt
+--- a/packages/SystemUI/src/com/android/systemui/scene/domain/startable/StatusBarStartable.kt
++++ b/packages/SystemUI/src/com/android/systemui/scene/domain/startable/StatusBarStartable.kt
+@@ -46,11 +46,16 @@ import com.android.systemui.scene.domain.interactor.SceneInteractor
+ import com.android.systemui.scene.shared.flag.SceneContainerFlag
+ import com.android.systemui.scene.shared.model.Overlays
+ import com.android.systemui.user.domain.interactor.SelectedUserInteractor
++import com.android.systemui.util.kotlin.emitOnStart
++import com.android.systemui.util.settings.GlobalSettings
++import com.android.systemui.util.settings.SettingsProxyExt.observerFlow
+ import javax.inject.Inject
+ import kotlinx.coroutines.CoroutineDispatcher
+ import kotlinx.coroutines.CoroutineScope
+ import kotlinx.coroutines.flow.combine
+ import kotlinx.coroutines.flow.distinctUntilChanged
++import kotlinx.coroutines.flow.flowOn
++import kotlinx.coroutines.flow.map
+ import kotlinx.coroutines.withContext
+ 
+ @SysUISingleton
+@@ -70,6 +75,7 @@ constructor(
+     private val powerInteractor: PowerInteractor,
+     private val deviceEntryFaceAuthInteractor: DeviceEntryFaceAuthInteractor,
+     private val statusBarService: IStatusBarService,
++    private val globalSettings: GlobalSettings,
+ ) : CoreStartable {
+ 
+     private val disableToken: IBinder = Binder()
+@@ -93,6 +99,12 @@ constructor(
+                     authenticationInteractor.authenticationMethod,
+                     powerInteractor.detailedWakefulness,
+                     sceneInteractor.currentOverlays,
++                    // Kompakt: Settings > Lock screen > Quick settings on lock screen.
++                    globalSettings
++                        .observerFlow(LOCKSCREEN_QS)
++                        .emitOnStart()
++                        .map { globalSettings.getInt(LOCKSCREEN_QS, 1) != 0 }
++                        .flowOn(backgroundDispatcher),
+                 ) { values ->
+                     val selectedUserId = values[0] as Int
+                     val isDeviceEntered = values[1] as Boolean
+@@ -102,6 +114,7 @@ constructor(
+                     val authenticationMethod = values[5] as AuthenticationMethodModel
+                     val wakefulnessModel = values[6] as WakefulnessModel
+                     val overlays = values[7] as Set<OverlayKey>
++                    val isLockscreenQsAllowed = values[8] as Boolean
+ 
+                     val isForceHideHomeAndRecents = Overlays.Bouncer in overlays
+                     val isKeyguardShowing = !isDeviceEntered
+@@ -130,10 +143,17 @@ constructor(
+                         flags = flags or StatusBarManager.DISABLE_RECENT
+                     }
+ 
+-                    selectedUserId to flags
++                    val flags2 =
++                        if (isKeyguardShowing && !isOccluded && !isLockscreenQsAllowed) {
++                            StatusBarManager.DISABLE2_QUICK_SETTINGS
++                        } else {
++                            StatusBarManager.DISABLE2_NONE
++                        }
++
++                    Triple(selectedUserId, flags, flags2)
+                 }
+                 .distinctUntilChanged()
+-                .collect { (selectedUserId, flags) ->
++                .collect { (selectedUserId, flags, flags2) ->
+                     @SuppressLint("WrongConstant", "NonInjectedService")
+                     if (applicationContext.getSystemService(Context.STATUS_BAR_SERVICE) == null) {
+                         Log.w(TAG, "Could not get status bar manager")
+@@ -148,8 +168,14 @@ constructor(
+                                 applicationContext.packageName,
+                                 selectedUserId,
+                             )
++                            statusBarService.disable2ForUser(
++                                flags2,
++                                disableToken,
++                                applicationContext.packageName,
++                                selectedUserId,
++                            )
+                         } catch (e: RemoteException) {
+-                            Log.d(TAG, "Failed to set disable flags: $flags", e)
++                            Log.d(TAG, "Failed to set disable flags: $flags $flags2", e)
+                         }
+                     }
+                 }
+@@ -173,5 +199,6 @@ constructor(
+ 
+     companion object {
+         private const val TAG = "StatusBarStartable"
++        private const val LOCKSCREEN_QS = "kompakt_lockscreen_qs"
+     }
+ }
+-- 
+2.43.0
+

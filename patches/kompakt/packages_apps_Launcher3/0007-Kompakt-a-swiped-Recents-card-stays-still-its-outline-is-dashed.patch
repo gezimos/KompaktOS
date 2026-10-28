@@ -1,0 +1,189 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sun, 8 Nov 2026 14:00:00 +0100
+Subject: [PATCH] Kompakt: a swiped Recents card stays still, its outline is
+ dashed
+
+Swiping a task card up no longer moves it. The outline is dashed, from the
+bottom edge up, in eight steps as far as the swipe has gone; past the halfway
+point the card is dismissed and the others slide in. The dismissed card has no
+spring and no travel.
+---
+ .../TaskViewTouchControllerDeprecated.java    | 17 ++++++-
+ .../android/quickstep/views/RecentsView.java  | 31 +++----------
+ .../com/android/quickstep/views/TaskView.kt   | 44 ++++++++++++++++---
+ 3 files changed, 59 insertions(+), 33 deletions(-)
+
+diff --git a/quickstep/src/com/android/launcher3/uioverrides/touchcontrollers/TaskViewTouchControllerDeprecated.java b/quickstep/src/com/android/launcher3/uioverrides/touchcontrollers/TaskViewTouchControllerDeprecated.java
+index b57eba547f..60a17a6e00 100644
+--- a/quickstep/src/com/android/launcher3/uioverrides/touchcontrollers/TaskViewTouchControllerDeprecated.java
++++ b/quickstep/src/com/android/launcher3/uioverrides/touchcontrollers/TaskViewTouchControllerDeprecated.java
+@@ -228,6 +228,8 @@ public class TaskViewTouchControllerDeprecated<
+             mCurrentAnimation.getTarget().removeListener(this);
+             mCurrentAnimation.dispatchOnCancel();
+         }
++        // Kompakt: a new direction starts without the dismiss dashes.
++        mTaskBeingDragged.setKompaktDismissProgress(0f);
+ 
+         RecentsPagedOrientationHandler orientationHandler =
+                 mRecentsView.getPagedOrientationHandler();
+@@ -308,8 +310,16 @@ public class TaskViewTouchControllerDeprecated<
+             if (mCurrentAnimation.getProgressFraction() < ANIMATION_PROGRESS_FRACTION_MIDPOINT) {
+                 // Halve the value when dismissing, as we are animating the drag across the full
+                 // length for only the first half of the progress
+-                mCurrentAnimation.setPlayFraction(
+-                        Utilities.boundToRange(totalDisplacement * mProgressMultiplier / 2, 0, 1));
++                float fraction =
++                        Utilities.boundToRange(totalDisplacement * mProgressMultiplier / 2, 0, 1);
++                if (fraction < ANIMATION_PROGRESS_FRACTION_MIDPOINT) {
++                    // Kompakt: the card stays still; its outline is dashed as far as the swipe has gone.
++                    mTaskBeingDragged.setKompaktDismissProgress(
++                            fraction / ANIMATION_PROGRESS_FRACTION_MIDPOINT);
++                } else {
++                    mTaskBeingDragged.setKompaktDismissProgress(1f);
++                    mCurrentAnimation.setPlayFraction(fraction);
++                }
+             } else {
+                 // Set mOverrideVelocity to control task dismiss velocity in onDragEnd
+                 int velocityDimenId = R.dimen.default_task_dismiss_drag_velocity;
+@@ -390,6 +400,9 @@ public class TaskViewTouchControllerDeprecated<
+         mDetector.finishedScrolling();
+         mDetector.setDetectableScrollConditions(0, false);
+         mDraggingEnabled = true;
++        if (mTaskBeingDragged != null) {
++            mTaskBeingDragged.setKompaktDismissProgress(0f);
++        }
+         mTaskBeingDragged = null;
+         mCurrentAnimation = null;
+         mIsDismissHapticRunning = false;
+diff --git a/quickstep/src/com/android/quickstep/views/RecentsView.java b/quickstep/src/com/android/quickstep/views/RecentsView.java
+index 2854c9dfb0..1e048619d3 100644
+--- a/quickstep/src/com/android/quickstep/views/RecentsView.java
++++ b/quickstep/src/com/android/quickstep/views/RecentsView.java
+@@ -3706,32 +3706,11 @@ public abstract class RecentsView<
+ 
+     private void addDismissedTaskAnimations(TaskView taskView, long duration,
+             PendingAnimation anim) {
+-        // Use setFloat instead of setViewAlpha as we want to keep the view visible even when it's
+-        // alpha is set to 0 so that it can be recycled in the view pool properly
+-        anim.setFloat(taskView, VIEW_ALPHA, 0,
+-                clampToProgress(isOnGridBottomRow(taskView) ? ACCELERATE : FINAL_FRAME, 0, 0.5f));
+-        FloatProperty<TaskView> secondaryViewTranslate =
+-                taskView.getSecondaryDismissTranslationProperty();
+-        int secondaryTaskDimension = getPagedOrientationHandler().getSecondaryDimension(taskView);
+-        int verticalFactor = getPagedOrientationHandler().getSecondaryTranslationDirectionFactor();
+-
+-        ResourceProvider rp = DynamicResource.provider(mContainer);
+-        SpringProperty sp = new SpringProperty(SpringProperty.FLAG_CAN_SPRING_ON_START)
+-                .setDampingRatio(rp.getFloat(R.dimen.dismiss_task_trans_y_damping_ratio))
+-                .setStiffness(rp.getFloat(R.dimen.dismiss_task_trans_y_stiffness));
+-
+-        anim.add(ObjectAnimator.ofFloat(taskView, secondaryViewTranslate,
+-                verticalFactor * secondaryTaskDimension * 2).setDuration(duration), LINEAR, sp);
+-
+-        if (taskView.isRunningTask()) {
+-            anim.addOnFrameCallback(() -> {
+-                if (!mEnableDrawingLiveTile) return;
+-                runActionOnRemoteHandles(remoteTargetHandle ->
+-                        remoteTargetHandle.getTaskViewSimulator().taskSecondaryTranslation.value =
+-                                taskView.getSecondaryDismissTranslationProperty().get(taskView));
+-                redrawLiveTile();
+-            });
+-        }
++        // Kompakt: the dismissed card does not travel, spring or fade; it is gone at the halfway
++        // point, as the sliding of the others starts. Use setFloat instead of setViewAlpha as we
++        // want to keep the view visible even when it's alpha is set to 0 so that it can be
++        // recycled in the view pool properly
++        anim.setFloat(taskView, VIEW_ALPHA, 0, clampToProgress(FINAL_FRAME, 0, 0.5f));
+     }
+ 
+     /**
+diff --git a/quickstep/src/com/android/quickstep/views/TaskView.kt b/quickstep/src/com/android/quickstep/views/TaskView.kt
+index 7b6007507b..63c6c26156 100644
+--- a/quickstep/src/com/android/quickstep/views/TaskView.kt
++++ b/quickstep/src/com/android/quickstep/views/TaskView.kt
+@@ -27,6 +27,7 @@ import android.content.Context
+ import android.graphics.Canvas
+ import android.graphics.Paint
+ import android.graphics.Color
++import android.graphics.DashPathEffect
+ import android.graphics.PointF
+ import android.graphics.Rect
+ import android.graphics.drawable.Drawable
+@@ -294,6 +295,19 @@ constructor(
+         }
+     private val kompaktOutlineBounds = Rect()
+ 
++    // Kompakt: a card swiped up for dismissal stays put; its outline is dashed that far up from the bottom edge.
++    private var kompaktDismissStep = 0
++    private val kompaktDashPaint =
++        Paint(kompaktOutlinePaint).apply { pathEffect = DashPathEffect(floatArrayOf(10f, 8f), 0f) }
++
++    /** Kompakt: dismiss swipe progress, 0 to 1, shown in eight steps. */
++    fun setKompaktDismissProgress(progress: Float) {
++        val step = Math.round(progress.coerceIn(0f, 1f) * KOMPAKT_DISMISS_STEPS)
++        if (step == kompaktDismissStep) return
++        kompaktDismissStep = step
++        invalidate()
++    }
++
+     private val focusBorderAnimator: BorderAnimator? =
+         focusBorderAnimator
+             ?: createSimpleBorderAnimator(
+@@ -737,14 +751,30 @@ constructor(
+         if (kompaktOutlineBounds.isEmpty) return
+         val half = kompaktOutlinePaint.strokeWidth / 2f
+         val radius = (TaskCornerRadius.get(context) - half).coerceAtLeast(0f)
++        val b = kompaktOutlineBounds
++        // Dashed below this line, solid above it.
++        val edge = b.bottom - b.height() * kompaktDismissStep / KOMPAKT_DISMISS_STEPS
++        if (kompaktDismissStep > 0) {
++            canvas.save()
++            canvas.clipRect(b.left, edge, b.right, b.bottom)
++            kompaktStroke(canvas, b, half, radius, kompaktDashPaint)
++            canvas.restore()
++        }
++        canvas.save()
++        canvas.clipRect(b.left, b.top, b.right, edge)
++        kompaktStroke(canvas, b, half, radius, kompaktOutlinePaint)
++        canvas.restore()
++    }
++
++    private fun kompaktStroke(canvas: Canvas, b: Rect, half: Float, radius: Float, paint: Paint) {
+         canvas.drawRoundRect(
+-            kompaktOutlineBounds.left + half,
+-            kompaktOutlineBounds.top + half,
+-            kompaktOutlineBounds.right - half,
+-            kompaktOutlineBounds.bottom - half,
++            b.left + half,
++            b.top + half,
++            b.right - half,
++            b.bottom - half,
+             radius,
+             radius,
+-            kompaktOutlinePaint,
++            paint,
+         )
+     }
+ 
+@@ -2164,6 +2194,7 @@ constructor(
+             splitSelectTranslationY = 0f
+         }
+         dismissScale = 1f
++        setKompaktDismissProgress(0f)
+         translationZ = 0f
+         setIconVisibleForGesture(true)
+         settledProgressDismiss = 1f
+@@ -2192,6 +2223,9 @@ constructor(
+     companion object {
+         private const val TAG = "TaskView"
+ 
++        // Kompakt: the dismiss swipe shows in this many dashed steps.
++        private const val KOMPAKT_DISMISS_STEPS = 8
++
+         private enum class Alpha {
+             Stable,
+             Attach,
+-- 
+2.43.0
+

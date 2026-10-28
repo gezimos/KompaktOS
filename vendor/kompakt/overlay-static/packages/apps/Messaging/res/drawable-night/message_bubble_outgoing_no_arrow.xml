@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Kompakt night: black fill, white 1dp edge. Day copy is the inverse. -->
-<!-- A sent message. -->
+<!-- Kompakt night: black fill, white edge. A sent message: the outline is dashed, a received one is solid. -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
     <solid android:color="#ff000000" />
     <stroke
         android:width="2px"
-        android:color="#fffffffe" />
+        android:color="#fffffffe"
+        android:dashWidth="6dp"
+        android:dashGap="4dp" />
     <corners android:radius="14dp" />
 </shape>

@@ -1,6 +1,8 @@
 package com.kompakt.service
 
 import android.content.Context
+import android.hardware.camera2.CameraCharacteristics
+import android.hardware.camera2.CameraManager
 import android.provider.Settings
 import android.util.Log
 import java.io.File
@@ -115,19 +117,13 @@ object Eink {
         val ditherType: Int = DITHER_FS_OPT1,
         /** TCON timings, see TIMINGS. Defaults to clean: the register persists until rewritten. */
         val timings: String = "clean",
+        /** GL16 leaves unchanged pixels undriven (gu16). */
+        val faster: Boolean = false,
     )
 
     /** enum EInkDitheringType (Mudita's eink_types.h); 0 turns dithering off. */
     const val DITHER_OFF = 0
     const val DITHER_FS_OPT1 = 4
-
-    /** Auto. Stock meink ignores this name; autoWorks detects that by reading it back. */
-    const val AUTO_WAVEFORM = "KAUTO"
-
-    /** Null until auto has been tried once; false on a kernel without it. */
-    @Volatile
-    var autoWorks: Boolean? = null
-        private set
 
     /** Mudita's modes, in their order, less Auto. */
     val MODES: LinkedHashMap<String, Mode> = linkedMapOf(
@@ -137,11 +133,8 @@ object Eink {
         // 96 dither levels, not 160: chosen on the panel as the point where the
         // diffused dots stop crawling while scrolling.
         "fastdither" to Mode("A2", 1, 1, 1.0f, 1.2f, true, 96, DITHER_FS_OPT1),
-        "text" to Mode("GL16", 4, 1, 1.0f, 1.2f, false),
-        "quality" to Mode("GL16", 4, 2, 1.0f, 1.0f, false),
-        // Kompakt: kernel switches A2 and GL16 as the screen moves; the rest is quality's.
-        // Needs our e-ink modules: see autoWorks.
-        "auto" to Mode(AUTO_WAVEFORM, 4, 2, 1.0f, 1.0f, false),
+        "text" to Mode("GL16", 4, 1, 1.0f, 1.2f, false, faster = true),
+        "quality" to Mode("GL16", 4, 2, 1.0f, 1.0f, false, faster = true),
     )
 
     /** TCON timing sets; keys are the strings the driver's decoder accepts. */
@@ -165,7 +158,6 @@ object Eink {
         "fastdither" to "Fast + dither",
         "text" to "Text",
         "quality" to "Quality",
-        "auto" to "Auto",
     )
 
     /** One icon per mode, so the E-ink tile shows which one it is on. */
@@ -175,11 +167,10 @@ object Eink {
         "fastdither" to R.drawable.ic_mode_dither,
         "text" to R.drawable.ic_mode_text,
         "quality" to R.drawable.ic_mode_quality,
-        "auto" to R.drawable.ic_mode_auto,
     )
 
-    /** Modes that need our images: auto needs our e-ink modules. */
-    val NEEDS: Map<String, Needs> = mapOf("auto" to Needs.VENDOR)
+    /** Modes that need our images; none since Auto was dropped. */
+    val NEEDS: Map<String, Needs> = emptyMap()
 
     /** Whether a mode does what it says on this phone, rather than falling back. */
     fun usable(key: String): Boolean = NEEDS[key]?.let { !it.vendor || Ours.vendor() } ?: true
@@ -197,23 +188,8 @@ object Eink {
 
     /** Apply a preset. */
     fun setMode(key: String) = Sysfs.onIo {
-        var m = MODES[key] ?: MODES[DEFAULT] ?: return@onIo
+        val m = MODES[key] ?: MODES[DEFAULT] ?: return@onIo
         applied = key
-
-        // Auto only exists in our kernel: probe once per boot, else fall back to quality.
-        if (m.waveform == AUTO_WAVEFORM) {
-            if (autoWorks == null) {
-                write("waveform_mode", AUTO_WAVEFORM)
-                autoWorks = Sysfs.read("$E/waveform_mode")?.trim() == AUTO_WAVEFORM
-                if (autoWorks != true) {
-                    Log.w(Sysfs.TAG, "eink: kernel has no $AUTO_WAVEFORM; using quality")
-                }
-            }
-            if (autoWorks != true) {
-                m = MODES["quality"] ?: m
-                applied = "quality"
-            }
-        }
         write("waveform_mode", m.waveform)
         write("pixelbits", m.bpp.toString())
         write("gamma", m.gamma.toString())
@@ -230,8 +206,89 @@ object Eink {
             write("dither_param", colors.toString())
             write("dither_type", m.ditherType.toString())
         }
+        setFaster(m.faster)
     }
 
+    /** Our modules only; each gu16 write uploads the waveform again, so only on a change. */
+    private const val GU16 = "kompakt_wf_gu16"
+    private const val CLEAN_EVERY = "/sys/module/meink_hal/parameters/partial_full_every"
+    const val CLEAN_STOCK = 24
+
+    /** Small updates before meink redraws the whole frame; the slider's stops. */
+    val CLEAN_STEPS: List<Int> = listOf(6, 12, 24, 48)
+
+    /** A meink_hal module parameter, back to 24 at every boot, so BootReceiver calls this. */
+    fun setCleanEvery(n: Int) {
+        if (!Ours.vendor()) return
+        Sysfs.onIo { Sysfs.putBlocking(CLEAN_EVERY, "$n\n") }
+    }
+
+    @Volatile
+    private var faster: Boolean? = null
+
+    private fun setFaster(on: Boolean) {
+        if (faster == on || !Ours.vendor()) return
+        write(GU16, if (on) "1" else "0")
+        faster = on
+    }
+
+
+    /** A2 steps in the fast modes, as the slider shows them; 0 is the waveform's own, 7 at room temperature. 8 and 9 are Caster's. */
+    val SPEEDS: LinkedHashMap<Int, String> = linkedMapOf(9 to "9", 8 to "8", 0 to "7", 6 to "6", 5 to "5")
+    const val STOCK_SPEED = 0
+
+    fun setSpeed(steps: Int) = Sysfs.onIo {
+        write("kompakt_wf_a2frames", steps.toString())
+    }
+
+    /**
+     * For Flash, on the IO thread: in a Fast mode set below Mudita's 7 steps, A2 at 7 (true) or back to
+     * the user's speed (false), so the flush's black is real black. Returns whether it changed anything.
+     */
+    fun flushSpeed(c: Context, on: Boolean): Boolean {
+        val speed = Prefs.speed(c)
+        if (!Ours.vendor() || speed == STOCK_SPEED || speed >= 7) return false
+        // Boost only in a Fast mode; the way back always runs, the mode may have changed meanwhile.
+        if (on && MODES[applied ?: ""]?.waveform != "A2") return false
+        write("kompakt_wf_a2frames", (if (on) STOCK_SPEED else speed).toString())
+        return true
+    }
+
+    /** How dithering places its dots: 0 Mudita's diffusion, 1 an 8x8 grid, 3 diffusion along the grid, 4 blue noise. */
+    val PATTERNS: LinkedHashMap<Int, String> = linkedMapOf(0 to "Normal", 1 to "Pattern", 3 to "Hybrid", 4 to "Noise")
+    const val STOCK_PATTERN = 0
+
+    /** The last pattern written, so an app switch skips an unchanged one: each write repaints. */
+    @Volatile
+    var appliedPattern: Int? = null
+        private set
+
+    fun setPattern(p: Int) {
+        appliedPattern = p
+        Sysfs.onIo { write("kompakt_wf_dither", p.toString()) }
+    }
+
+    /** Dither brightness: 0 is the mode's own curve, 3 the lightest; Pattern, Hybrid and Noise only. */
+    val LIGHTS: List<Int> = listOf(0, 1, 2, 3)
+    const val STOCK_LIGHT = 0
+
+    fun setDitherLight(v: Int) = Sysfs.onIo {
+        if (Ours.vendor()) write("kompakt_wf_dither_light", v.toString())
+    }
+
+    /** Whether a mode shows a pattern: Fast + dither. */
+    fun dithers(key: String): Boolean {
+        val m = MODES[key] ?: return false
+        return m.ditherColors > 0 || (m.ditherColors < 0 && m.dither)
+    }
+
+    /** The pattern for the app in front, its own while its mode dithers; null is the lock screen. */
+    fun usePattern(c: Context, pkg: String?) {
+        if (!Ours.vendor()) return
+        val p = if (pkg != null && Prefs.perAppEnabled(c) && dithers(Prefs.appMode(c, pkg)))
+            Prefs.appPattern(c, pkg) else Prefs.pattern(c)
+        if (p != appliedPattern) setPattern(p)
+    }
 
     /** Offset in degrees on the panel's reported temperature. */
     val TEMPS: List<Int> = listOf(0, 5, 11, 20, 30, 40)
@@ -242,11 +299,7 @@ object Eink {
         write("eink_temperature", offset.toString())
         // meink reads the offset only when it loads a waveform, so load the current one again.
         val m = MODES[applied ?: return@onIo] ?: return@onIo
-        write("waveform_mode", if (m.waveform == AUTO_WAVEFORM && autoWorks != true) {
-            MODES["quality"]?.waveform ?: return@onIo
-        } else {
-            m.waveform
-        })
+        write("waveform_mode", m.waveform)
     }
 
     /** Full-panel flush. A2 is 1bpp and never fully settles, so ghosting accumulates. */
@@ -368,4 +421,29 @@ object Torch {
     fun isOn(node: String): Boolean = Sysfs.read(node) == "1"
 
     fun available(node: String): Boolean = Sysfs.writable(node)
+
+    const val ACTION_TOGGLE_BOTH = "com.kompakt.service.action.TORCH_BOTH"
+
+    /** Both LEDs as one: either on turns both off. Cold goes through the camera torch, so the system flashlight follows. */
+    fun toggleBoth(c: Context) = Sysfs.onIo {
+        val cr = c.applicationContext.contentResolver
+        val coldOn = Settings.Secure.getInt(cr, Settings.Secure.FLASHLIGHT_ENABLED, 0) == 1 || isOn(COLD)
+        val on = !(isOn(WARM) || coldOn)
+        Sysfs.putBlocking(WARM, if (on) "1" else "0")
+        publish(c)
+        try {
+            val cm = c.getSystemService(CameraManager::class.java) ?: error("no camera service")
+            val id = cm.cameraIdList.firstOrNull { id ->
+                val ch = cm.getCameraCharacteristics(id)
+                ch.get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true &&
+                    ch.get(CameraCharacteristics.LENS_FACING) == CameraCharacteristics.LENS_FACING_BACK
+            } ?: error("no rear torch")
+            cm.setTorchMode(id, on)
+        } catch (t: Throwable) {
+            Log.w("KompaktTorch", "camera torch failed (${t.message}), writing the LED")
+            Sysfs.putBlocking(COLD, if (on) "1" else "0")
+        }
+        // A cold light switched on through sysfs is unknown to the camera torch, so off writes the LED too.
+        if (!on) Sysfs.putBlocking(COLD, "0")
+    }
 }

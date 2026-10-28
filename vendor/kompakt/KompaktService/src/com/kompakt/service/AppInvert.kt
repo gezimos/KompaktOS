@@ -21,14 +21,14 @@ object AppInvert {
             if (on) putBoolean(key(pkg), true) else remove(key(pkg))
         }.apply()
 
-    /** Bring the inversion in line with the app now in front. Only ever undoes an inversion we made. */
-    fun apply(context: Context, pkg: String) {
+    /** Bring the inversion in line with the app now in front; null while locked. Only ever undoes an inversion we made. */
+    fun apply(context: Context, pkg: String?) {
         val c = context.applicationContext
         val cr = c.contentResolver
         val on = Settings.Secure.getInt(cr, SETTING, 0) == 1
         val ours = prefs(c).getBoolean(OURS, false)
         try {
-            if (wanted(c, pkg)) {
+            if (pkg != null && wanted(c, pkg)) {
                 if (!on) {
                     Settings.Secure.putInt(cr, SETTING, 1)
                     prefs(c).edit().putBoolean(OURS, true).apply()
@@ -37,7 +37,7 @@ object AppInvert {
             } else if (ours) {
                 if (on) Settings.Secure.putInt(cr, SETTING, 0)
                 prefs(c).edit().putBoolean(OURS, false).apply()
-                Log.i(Sysfs.TAG, "invert: off for $pkg")
+                Log.i(Sysfs.TAG, "invert: off for ${pkg ?: "lock screen"}")
             }
         } catch (t: Throwable) {
             Log.w(Sysfs.TAG, "invert: cannot switch (${t.javaClass.simpleName})")

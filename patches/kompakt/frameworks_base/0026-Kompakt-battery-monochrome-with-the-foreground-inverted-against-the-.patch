@@ -1,5 +1,5 @@
 From 8dd1b060b2b0b96d0436a3cc7614dddfc5ad068f Mon Sep 17 00:00:00 2001
-From: gezimos <>
+From: Gezim <gezimos@users.noreply.github.com>
 Date: Fri, 18 Sep 2026 18:56:28 +0200
 Subject: [PATCH 26/99] Kompakt: battery: monochrome, with the foreground
  inverted against the fill

@@ -1,0 +1,69 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sat, 24 Oct 2026 22:30:00 +0300
+Subject: [PATCH] Kompakt: a car AUX input no longer holds the headset button
+
+A car AUX input reads as a four pole headset whose mic line sits near
+0 V, so the jack driver reports play/pause as pressed the moment it is
+plugged in and keeps it held. The long press opened the voice
+assistant and the repeats reached media apps as presses, which skipped
+or rewound what was playing.
+
+A play/pause or hook press that starts within two seconds of a mic
+jack being plugged in is dropped. Switch and key events come from the
+same input device in order, so the plug-in time is always recorded
+before the press. Later presses of a real headset button pass as before.
+
+---
+diff --git a/services/core/java/com/android/server/input/InputManagerService.java b/services/core/java/com/android/server/input/InputManagerService.java
+--- a/services/core/java/com/android/server/input/InputManagerService.java
++++ b/services/core/java/com/android/server/input/InputManagerService.java
+@@ -462,6 +462,9 @@
+     public static final int SW_CAMERA_LENS_COVER_BIT = 1 << SW_CAMERA_LENS_COVER;
+     public static final int SW_MUTE_DEVICE_BIT = 1 << SW_MUTE_DEVICE;
+     public static final int SW_MACHINE_COVER_BIT = 1 << SW_MACHINE_COVER;
++
++    /** Kompakt: when a jack with a mic was last plugged in, in uptime milliseconds. */
++    public static volatile long sKompaktMicPlugMs = Long.MIN_VALUE;
+     private int mSwForLid = SW_LID;
+ 
+     // The following are layer numbers used for z-ordering the input overlay layers on the display.
+@@ -2554,6 +2557,9 @@
+         }
+ 
+         if (mUseDevInputEventForAudioJack && (switchMask & SW_JACK_BITS) != 0) {
++            if ((switchMask & switchValues & SW_MICROPHONE_INSERT_BIT) != 0) {
++                sKompaktMicPlugMs = whenNanos / 1_000_000;
++            }
+             mWiredAccessoryCallbacks.notifyWiredAccessoryChanged(whenNanos, switchValues,
+                     switchMask);
+         }
+diff --git a/services/core/java/com/android/server/policy/PhoneWindowManager.java b/services/core/java/com/android/server/policy/PhoneWindowManager.java
+--- a/services/core/java/com/android/server/policy/PhoneWindowManager.java
++++ b/services/core/java/com/android/server/policy/PhoneWindowManager.java
+@@ -262,6 +262,7 @@
+ import com.android.server.SystemServiceManager;
+ import com.android.server.UiThread;
+ import com.android.server.input.InputManagerInternal;
++import com.android.server.input.InputManagerService;
+ import com.android.server.inputmethod.InputMethodManagerInternal;
+ import com.android.server.pm.UserManagerInternal;
+ import com.android.server.policy.keyguard.KeyguardServiceDelegate;
+@@ -5598,6 +5599,14 @@
+             case KeyEvent.KEYCODE_MEDIA_RECORD:
+             case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD:
+             case KeyEvent.KEYCODE_MEDIA_AUDIO_TRACK: {
++                // Kompakt: a press that starts with the plug-in is a car AUX input, not a button.
++                final long sincePlug = event.getDownTime() - InputManagerService.sKompaktMicPlugMs;
++                if ((keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE
++                        || keyCode == KeyEvent.KEYCODE_HEADSETHOOK)
++                        && sincePlug >= 0 && sincePlug < 2000) {
++                    result &= ~ACTION_PASS_TO_USER;
++                    break;
++                }
+                 notifyKeyGestureCompletedOnActionUp(event,
+                         KeyGestureEvent.KEY_GESTURE_TYPE_MEDIA_KEY);
+                 if (MediaSessionLegacyHelper.getHelper(mContext).isGlobalPriorityActive()) {
+-- 
+2.43.0
+

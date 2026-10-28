@@ -1,0 +1,559 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sat, 24 Oct 2026 20:00:00 +0300
+Subject: [PATCH] Kompakt: the LED colour is picked on one bar of named colours
+
+The light dialog's square and vertical hue strip were hard to use on
+the e-ink panel, and users picked dark colours there that the LED
+showed as something else.
+
+The hue is now picked on one horizontal bar that snaps to 36 hues at
+full strength, and a second bar of the same height below it, drawn as a
+white to black dither, lightens the colour toward white.
+Dimming stays with the brightness setting. The picked colour's name sits
+above them. The old picker stays hidden as the colour's holder, so
+saving, the LED preview and restore are unchanged; the hex field goes
+with it.
+---
+diff --git a/res/layout/dialog_light_settings.xml b/res/layout/dialog_light_settings.xml
+--- a/res/layout/dialog_light_settings.xml
++++ b/res/layout/dialog_light_settings.xml
+@@ -19,24 +19,56 @@
+         android:layout_width="match_parent"
+         android:layout_height="match_parent" >
+ 
++        <!-- Kompakt: the colour model only; the bar below picks the colour. -->
+         <org.lineageos.lineageparts.notificationlight.ColorPickerView
+             android:id="@+id/color_picker_view"
+             android:layout_width="match_parent"
+             android:layout_height="wrap_content"
+             android:layout_centerHorizontal="true"
+             android:layout_marginStart="10dp"
+-            android:layout_marginEnd="10dp" />
++            android:layout_marginEnd="10dp"
++            android:visibility="gone" />
+ 
+         <LinearLayout
++            android:id="@+id/kompakt_led_picker"
++            android:layout_width="match_parent"
++            android:layout_height="wrap_content"
++            android:layout_alignParentTop="true"
++            android:layout_marginStart="10dp"
++            android:layout_marginEnd="10dp"
++            android:layout_marginTop="4dp"
++            android:orientation="vertical" >
++
++            <TextView
++                android:id="@+id/kompakt_led_color_name"
++                android:layout_width="match_parent"
++                android:layout_height="wrap_content"
++                android:layout_marginBottom="8dp"
++                android:textAppearance="?android:attr/textAppearanceMedium" />
++
++            <org.lineageos.lineageparts.notificationlight.KompaktHueBar
++                android:id="@+id/kompakt_hue_bar"
++                android:layout_width="match_parent"
++                android:layout_height="wrap_content" />
++
++            <org.lineageos.lineageparts.notificationlight.KompaktShadeBar
++                android:id="@+id/kompakt_shade_bar"
++                android:layout_width="match_parent"
++                android:layout_height="wrap_content"
++                android:layout_marginTop="12dp" />
++        </LinearLayout>
++
++        <LinearLayout
+             android:id="@+id/color_panel_view"
+             android:layout_width="match_parent"
+             android:layout_height="40dp"
+             android:layout_alignStart="@id/color_picker_view"
+             android:layout_alignEnd="@id/color_picker_view"
+-            android:layout_below="@id/color_picker_view"
++            android:layout_below="@id/kompakt_led_picker"
+             android:layout_marginBottom="4dp"
+             android:layout_marginTop="4dp"
+-            android:orientation="horizontal" >
++            android:orientation="horizontal"
++            android:visibility="gone" >
+ 
+             <EditText
+                 android:id="@+id/hex_color_input"
+@@ -58,10 +90,10 @@
+             android:id="@+id/speed_title_view"
+             android:layout_width="match_parent"
+             android:layout_height="wrap_content"
+-            android:layout_below="@id/color_panel_view"
++            android:layout_below="@id/kompakt_led_picker"
+             android:layout_marginStart="10dp"
+             android:layout_marginEnd="10dp"
+-            android:layout_marginTop="4dp"
++            android:layout_marginTop="12dp"
+             android:orientation="vertical" >
+ 
+             <View
+diff --git a/res/values/kompakt_led_strings.xml b/res/values/kompakt_led_strings.xml
+new file mode 100644
+--- /dev/null
++++ b/res/values/kompakt_led_strings.xml
+@@ -0,0 +1,46 @@
++<?xml version="1.0" encoding="utf-8"?>
++<resources>
++    <!-- Kompakt: the picked colour lightened, and white at the light end. -->
++    <string name="kompakt_led_light">Light %1$s</string>
++    <string name="kompakt_led_white">White</string>
++
++    <!-- Kompakt: the colour name shown above the bar, one per 10 degrees of hue from red. -->
++    <string-array name="kompakt_led_hue_names" translatable="false">
++        <item>Red</item>
++        <item>Red</item>
++        <item>Red-orange</item>
++        <item>Orange</item>
++        <item>Orange</item>
++        <item>Amber</item>
++        <item>Yellow</item>
++        <item>Yellow</item>
++        <item>Lime</item>
++        <item>Lime</item>
++        <item>Yellow-green</item>
++        <item>Green</item>
++        <item>Green</item>
++        <item>Green</item>
++        <item>Green</item>
++        <item>Spring green</item>
++        <item>Teal</item>
++        <item>Teal</item>
++        <item>Cyan</item>
++        <item>Cyan</item>
++        <item>Sky blue</item>
++        <item>Sky blue</item>
++        <item>Azure</item>
++        <item>Blue</item>
++        <item>Blue</item>
++        <item>Blue</item>
++        <item>Violet</item>
++        <item>Purple</item>
++        <item>Purple</item>
++        <item>Purple</item>
++        <item>Magenta</item>
++        <item>Magenta</item>
++        <item>Pink</item>
++        <item>Pink</item>
++        <item>Rose</item>
++        <item>Red</item>
++    </string-array>
++</resources>
+diff --git a/src/org/lineageos/lineageparts/notificationlight/KompaktHueBar.java b/src/org/lineageos/lineageparts/notificationlight/KompaktHueBar.java
+new file mode 100644
+--- /dev/null
++++ b/src/org/lineageos/lineageparts/notificationlight/KompaktHueBar.java
+@@ -0,0 +1,152 @@
++/*
++ * SPDX-FileCopyrightText: 2026 The KompaktOS Project
++ * SPDX-License-Identifier: Apache-2.0
++ */
++
++package org.lineageos.lineageparts.notificationlight;
++
++import android.content.Context;
++import android.graphics.Canvas;
++import android.graphics.Color;
++import android.graphics.LinearGradient;
++import android.graphics.Paint;
++import android.graphics.Shader;
++import android.util.AttributeSet;
++import android.util.TypedValue;
++import android.view.MotionEvent;
++import android.view.View;
++
++import org.lineageos.lineageparts.R;
++
++/**
++ * Kompakt: the LED hue as one horizontal bar of 36 hues at full strength; the dialog names the
++ * picked colour above it, and KompaktShadeBar lightens it toward white.
++ */
++public class KompaktHueBar extends View {
++
++    public interface OnColorPickedListener {
++        void onColorPicked(int color);
++    }
++
++    private static final int HUE_STEPS = 36;
++    private static final int STEPS = HUE_STEPS;
++
++    private final Paint mInk = new Paint();
++    private final Paint mPaper = new Paint();
++    private final Paint mHue = new Paint();
++    private final float mBarHeight;
++    private final float mThumbWidth;
++    private final float mStroke;
++
++    private int mStep;
++    private OnColorPickedListener mListener;
++
++    public KompaktHueBar(Context context, AttributeSet attrs) {
++        super(context, attrs);
++        mBarHeight = dp(48);
++        mThumbWidth = dp(14);
++        mStroke = dp(2);
++        mInk.setColor(Color.BLACK);
++        mPaper.setColor(Color.WHITE);
++    }
++
++    public void setOnColorPickedListener(OnColorPickedListener listener) {
++        mListener = listener;
++    }
++
++    /** Shows the hue nearest to {@code color} without reporting a change; grey keeps the hue. */
++    public void setColor(int color) {
++        final float[] hsv = new float[3];
++        Color.colorToHSV(color, hsv);
++        if (hsv[1] > 0f) mStep = Math.round(hsv[0] / (360f / HUE_STEPS)) % HUE_STEPS;
++        invalidate();
++    }
++
++    public int getColor() {
++        return colorOf(mStep);
++    }
++
++    public String getColorName() {
++        final String[] names = getResources().getStringArray(R.array.kompakt_led_hue_names);
++        return names[mStep];
++    }
++
++    private static int colorOf(int step) {
++        return Color.HSVToColor(new float[] { step * (360f / HUE_STEPS), 1f, 1f });
++    }
++
++    private float barLeft() {
++        return getPaddingLeft() + mThumbWidth / 2;
++    }
++
++    private float barRight() {
++        return getWidth() - getPaddingRight() - mThumbWidth / 2;
++    }
++
++    private float cellWidth() {
++        return (barRight() - barLeft()) / STEPS;
++    }
++
++    @Override
++    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
++        final int height = (int) Math.ceil(getPaddingTop() + mBarHeight + mStroke * 2
++                + getPaddingBottom());
++        setMeasuredDimension(MeasureSpec.getSize(widthMeasureSpec),
++                resolveSize(height, heightMeasureSpec));
++    }
++
++    @Override
++    protected void onDraw(Canvas canvas) {
++        final float left = barLeft();
++        final float cell = cellWidth();
++        final float top = getPaddingTop() + mStroke;
++        final float bottom = top + mBarHeight;
++
++        final int[] hues = new int[HUE_STEPS + 1];
++        for (int i = 0; i <= HUE_STEPS; i++) hues[i] = colorOf(i % HUE_STEPS);
++        mHue.setShader(new LinearGradient(left, 0, barRight(), 0, hues, null,
++                Shader.TileMode.CLAMP));
++        canvas.drawRect(left, top, barRight(), bottom, mHue);
++        mInk.setStyle(Paint.Style.STROKE);
++        mInk.setStrokeWidth(mStroke);
++        canvas.drawRect(left, top, barRight(), bottom, mInk);
++
++        // Thumb: a white bar with a black outline, taller than the bar.
++        final float cx = left + (mStep + 0.5f) * cell;
++        final float half = mThumbWidth / 2;
++        mPaper.setStyle(Paint.Style.FILL);
++        canvas.drawRect(cx - half, top - mStroke, cx + half, bottom + mStroke, mPaper);
++        canvas.drawRect(cx - half, top - mStroke, cx + half, bottom + mStroke, mInk);
++        canvas.drawRect(cx - mStroke / 2, top + mStroke * 3, cx + mStroke / 2,
++                bottom - mStroke * 3, mInk);
++        mInk.setStyle(Paint.Style.FILL);
++    }
++
++    @Override
++    public boolean onTouchEvent(MotionEvent event) {
++        switch (event.getActionMasked()) {
++            case MotionEvent.ACTION_DOWN:
++                getParent().requestDisallowInterceptTouchEvent(true);
++                // fall through
++            case MotionEvent.ACTION_MOVE:
++                final int step = Math.max(0, Math.min(STEPS - 1,
++                        (int) ((event.getX() - barLeft()) / cellWidth())));
++                if (step != mStep) {
++                    mStep = step;
++                    invalidate();
++                    if (mListener != null) mListener.onColorPicked(colorOf(step));
++                }
++                return true;
++            case MotionEvent.ACTION_UP:
++            case MotionEvent.ACTION_CANCEL:
++                getParent().requestDisallowInterceptTouchEvent(false);
++                return true;
++        }
++        return super.onTouchEvent(event);
++    }
++
++    private float dp(float v) {
++        return TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v,
++                getResources().getDisplayMetrics());
++    }
++}
+diff --git a/src/org/lineageos/lineageparts/notificationlight/KompaktShadeBar.java b/src/org/lineageos/lineageparts/notificationlight/KompaktShadeBar.java
+new file mode 100644
+--- /dev/null
++++ b/src/org/lineageos/lineageparts/notificationlight/KompaktShadeBar.java
+@@ -0,0 +1,174 @@
++/*
++ * SPDX-FileCopyrightText: 2026 The KompaktOS Project
++ * SPDX-License-Identifier: Apache-2.0
++ */
++
++package org.lineageos.lineageparts.notificationlight;
++
++import android.content.Context;
++import android.graphics.Bitmap;
++import android.graphics.Canvas;
++import android.graphics.Color;
++import android.graphics.Paint;
++import android.util.AttributeSet;
++import android.util.TypedValue;
++import android.view.MotionEvent;
++import android.view.View;
++
++/**
++ * Kompakt: lightens the LED colour toward white. Dimming is the brightness setting's job, so
++ * there is no darker side. Drawn as an ordered dither from white to black.
++ */
++public class KompaktShadeBar extends View {
++
++    public interface OnShadeChangedListener {
++        void onShadeChanged(int shade);
++    }
++
++    /** Steps lighter than the pure colour; the lightest is white. */
++    public static final int LIGHT_STEPS = 6;
++    private static final int STEPS = LIGHT_STEPS + 1;
++    private static final int[] BAYER = { 0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5 };
++
++    private final Paint mInk = new Paint();
++    private final Paint mPaper = new Paint();
++    private final float mBarHeight;
++    private final float mThumbWidth;
++    private final float mStroke;
++    private final float mDot;
++    private Bitmap mDither;
++
++    private int mShade;
++    private OnShadeChangedListener mListener;
++
++    public KompaktShadeBar(Context context, AttributeSet attrs) {
++        super(context, attrs);
++        mBarHeight = dp(48);  // as KompaktHueBar
++        mThumbWidth = dp(14);
++        mStroke = dp(2);
++        mDot = dp(3);
++        mInk.setColor(Color.BLACK);
++        mPaper.setColor(Color.WHITE);
++    }
++
++    public void setOnShadeChangedListener(OnShadeChangedListener listener) {
++        mListener = listener;
++    }
++
++    /** -LIGHT_STEPS (white) to 0, the pure colour. */
++    public int getShade() {
++        return mShade;
++    }
++
++    public void setShade(int shade) {
++        mShade = Math.max(-LIGHT_STEPS, Math.min(0, shade));
++        invalidate();
++    }
++
++    /** {@code color} lightened toward white by {@code shade}. */
++    public static int apply(int color, int shade) {
++        int r = Color.red(color), g = Color.green(color), b = Color.blue(color);
++        if (shade < 0) {
++            final int t = -shade;
++            r += (255 - r) * t / LIGHT_STEPS;
++            g += (255 - g) * t / LIGHT_STEPS;
++            b += (255 - b) * t / LIGHT_STEPS;
++        }
++        return Color.rgb(r, g, b);
++    }
++
++    /** The shade step nearest to {@code color}'s saturation. */
++    public static int shadeOf(int color) {
++        final float[] hsv = new float[3];
++        Color.colorToHSV(color, hsv);
++        return -Math.round((1f - hsv[1]) * LIGHT_STEPS);
++    }
++
++    private float barLeft() {
++        return getPaddingLeft() + mThumbWidth / 2;
++    }
++
++    private float barRight() {
++        return getWidth() - getPaddingRight() - mThumbWidth / 2;
++    }
++
++    private float cellWidth() {
++        return (barRight() - barLeft()) / STEPS;
++    }
++
++    @Override
++    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
++        final int height = (int) Math.ceil(getPaddingTop() + mBarHeight + mStroke * 2
++                + getPaddingBottom());
++        setMeasuredDimension(MeasureSpec.getSize(widthMeasureSpec),
++                resolveSize(height, heightMeasureSpec));
++    }
++
++    @Override
++    protected void onSizeChanged(int w, int h, int oldw, int oldh) {
++        final int bw = Math.max(1, (int) (barRight() - barLeft()));
++        final int bh = Math.max(1, (int) mBarHeight);
++        final int dot = Math.max(1, (int) mDot);
++        mDither = Bitmap.createBitmap(bw, bh, Bitmap.Config.ARGB_8888);
++        // Ordered dither of a white to black ramp (white to full colour), in mDot pixel dots.
++        for (int y = 0; y < bh; y++) {
++            for (int x = 0; x < bw; x++) {
++                final float grey = (float) x / bw;
++                final int cx = (x / dot) % 4, cy = (y / dot) % 4;
++                final boolean ink = grey * 16f > BAYER[cy * 4 + cx] + 0.5f;
++                mDither.setPixel(x, y, ink ? Color.BLACK : Color.WHITE);
++            }
++        }
++    }
++
++    @Override
++    protected void onDraw(Canvas canvas) {
++        final float left = barLeft();
++        final float cell = cellWidth();
++        final float top = getPaddingTop() + mStroke;
++        final float bottom = top + mBarHeight;
++
++        if (mDither != null) canvas.drawBitmap(mDither, left, top, null);
++        mInk.setStyle(Paint.Style.STROKE);
++        mInk.setStrokeWidth(mStroke);
++        canvas.drawRect(left, top, barRight(), bottom, mInk);
++
++        final float cx = left + (mShade + LIGHT_STEPS + 0.5f) * cell;
++        final float half = mThumbWidth / 2;
++        mPaper.setStyle(Paint.Style.FILL);
++        canvas.drawRect(cx - half, top - mStroke, cx + half, bottom + mStroke, mPaper);
++        canvas.drawRect(cx - half, top - mStroke, cx + half, bottom + mStroke, mInk);
++        canvas.drawRect(cx - mStroke / 2, top + mStroke * 3, cx + mStroke / 2,
++                bottom - mStroke * 3, mInk);
++        mInk.setStyle(Paint.Style.FILL);
++    }
++
++    @Override
++    public boolean onTouchEvent(MotionEvent event) {
++        switch (event.getActionMasked()) {
++            case MotionEvent.ACTION_DOWN:
++                getParent().requestDisallowInterceptTouchEvent(true);
++                // fall through
++            case MotionEvent.ACTION_MOVE:
++                final int step = Math.max(0, Math.min(STEPS - 1,
++                        (int) ((event.getX() - barLeft()) / cellWidth())));
++                final int shade = step - LIGHT_STEPS;
++                if (shade != mShade) {
++                    mShade = shade;
++                    invalidate();
++                    if (mListener != null) mListener.onShadeChanged(shade);
++                }
++                return true;
++            case MotionEvent.ACTION_UP:
++            case MotionEvent.ACTION_CANCEL:
++                getParent().requestDisallowInterceptTouchEvent(false);
++                return true;
++        }
++        return super.onTouchEvent(event);
++    }
++
++    private float dp(float v) {
++        return TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v,
++                getResources().getDisplayMetrics());
++    }
++}
+diff --git a/src/org/lineageos/lineageparts/notificationlight/LightSettingsDialog.java b/src/org/lineageos/lineageparts/notificationlight/LightSettingsDialog.java
+--- a/src/org/lineageos/lineageparts/notificationlight/LightSettingsDialog.java
++++ b/src/org/lineageos/lineageparts/notificationlight/LightSettingsDialog.java
+@@ -55,6 +55,9 @@
+ 
+     private EditText mHexColorInput;
+     private ColorPanelView mNewColor;
++    private KompaktHueBar mHueBar;
++    private KompaktShadeBar mShadeBar;
++    private TextView mColorName;
+     private PulseSpeedAdapter mPulseSpeedAdapterOn;
+     private PulseSpeedAdapter mPulseSpeedAdapterOff;
+     private Spinner mPulseSpeedOn;
+@@ -126,6 +129,14 @@
+         mColorPicker.setOnColorChangedListener(this);
+         mColorPicker.setColor(color, true);
+ 
++        // Kompakt: the hue and shade bars pick the colour; the hidden picker still holds it.
++        mHueBar = layout.findViewById(R.id.kompakt_hue_bar);
++        mShadeBar = layout.findViewById(R.id.kompakt_shade_bar);
++        mColorName = layout.findViewById(R.id.kompakt_led_color_name);
++        kompaktShowColor(color);
++        mHueBar.setOnColorPickedListener(picked -> kompaktPick());
++        mShadeBar.setOnShadeChangedListener(shade -> kompaktPick());
++
+         mHexColorInput.setOnFocusChangeListener(this);
+ 
+         if (onOffType == OnOffType.TOGGLE) {
+@@ -175,6 +186,7 @@
+         if (!LightsCapabilities.supports(
+                 mContext, LightsCapabilities.LIGHTS_RGB_NOTIFICATION_LED)) {
+             mColorPicker.setVisibility(View.GONE);
++            layout.findViewById(R.id.kompakt_led_picker).setVisibility(View.GONE);
+             LinearLayout colorPanel = layout.findViewById(R.id.color_panel_view);
+             colorPanel.setVisibility(View.GONE);
+             View lightsDialogDivider = layout.findViewById(R.id.lights_dialog_divider);
+@@ -214,6 +226,31 @@
+     public void onRestoreInstanceState(Bundle state) {
+         super.onRestoreInstanceState(state);
+         mColorPicker.setColor(state.getInt(STATE_KEY_COLOR), true);
++        kompaktShowColor(state.getInt(STATE_KEY_COLOR));
++    }
++
++    private void kompaktShowColor(int color) {
++        mHueBar.setColor(color);
++        mShadeBar.setShade(KompaktShadeBar.shadeOf(color));
++        kompaktShowName();
++    }
++
++    private void kompaktPick() {
++        mColorPicker.setColor(KompaktShadeBar.apply(mHueBar.getColor(), mShadeBar.getShade()),
++                true);
++        kompaktShowName();
++    }
++
++    private void kompaktShowName() {
++        final int shade = mShadeBar.getShade();
++        final String hue = mHueBar.getColorName().toLowerCase(Locale.getDefault());
++        if (shade == -KompaktShadeBar.LIGHT_STEPS) {
++            mColorName.setText(R.string.kompakt_led_white);
++        } else if (shade < 0) {
++            mColorName.setText(mContext.getString(R.string.kompakt_led_light, hue));
++        } else {
++            mColorName.setText(mHueBar.getColorName());
++        }
+     }
+ 
+     public void onPause() {
+@@ -248,6 +285,7 @@
+ 
+     public void setColor(int color) {
+         mColorPicker.setColor(color, true);
++        kompaktShowColor(color);
+     }
+ 
+     @SuppressWarnings("unchecked")
+-- 
+2.43.0
+

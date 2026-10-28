@@ -1,0 +1,40 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sat, 24 Oct 2026 09:30:00 +0300
+Subject: [PATCH] Kompakt: no volume scan in the first five minutes after boot
+
+Every boot rescans each mounted volume. On a 119 GB SD card with about
+5,500 files the scan took 38 s of work, 25 s of CPU, while the apps
+opened after the PIN were starting. The existing boot delay only
+applied to work queued in the first 30 s, which this phone's boot
+never reaches. Volume scans queued in the first five minutes now wait
+until then; files already in the database stay visible.
+---
+diff --git a/src/com/android/providers/media/MediaServiceV2.java b/src/com/android/providers/media/MediaServiceV2.java
+--- a/src/com/android/providers/media/MediaServiceV2.java
++++ b/src/com/android/providers/media/MediaServiceV2.java
+@@ -59,6 +59,7 @@
+     private static final String SCAN_VOLUME_WORK_CHAIN = "scan_volume_work_chain";
+     private static final String MEDIA_BROADCAST_WORK_CHAIN = "media_broadcast_work_chain";
+     private static final long INITIAL_DELAY_MS = 30_000;
++    private static final long KOMPAKT_BOOT_SCAN_DELAY_MS = 5 * 60_000;
+     private static final String TAG = MediaServiceV2.class.getSimpleName();
+     private final Context mContext;
+     private static final boolean ENABLE_MEDIA_SERVICE_V2 = true;
+@@ -180,7 +181,12 @@
+     }
+ 
+     private static void delayWorkIfRequired(OneTimeWorkRequest.Builder workRequestBuilder) {
+-        if (!MediaReceiver.isBootCompleted() && SystemClock.elapsedRealtime() < INITIAL_DELAY_MS) {
++        // Kompakt: no volume scan in the first five minutes after boot.
++        final long uptime = SystemClock.elapsedRealtime();
++        if (uptime < KOMPAKT_BOOT_SCAN_DELAY_MS) {
++            workRequestBuilder.setInitialDelay(KOMPAKT_BOOT_SCAN_DELAY_MS - uptime,
++                    TimeUnit.MILLISECONDS);
++        } else if (!MediaReceiver.isBootCompleted() && uptime < INITIAL_DELAY_MS) {
+             workRequestBuilder.setInitialDelay(INITIAL_DELAY_MS, TimeUnit.MILLISECONDS);
+         } else {
+             workRequestBuilder.setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST);
+-- 
+2.43.0
+

@@ -1,5 +1,5 @@
 From 7a6cd7d6f236acb8ce622242f38a44643f2fb16b Mon Sep 17 00:00:00 2001
-From: gezimos <>
+From: Gezim <gezimos@users.noreply.github.com>
 Date: Wed, 9 Sep 2026 20:19:59 +0200
 Subject: [PATCH 016/107] Bind long press home to the e-ink refresh directly
 

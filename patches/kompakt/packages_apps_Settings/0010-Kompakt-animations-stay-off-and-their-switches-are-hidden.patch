@@ -1,0 +1,99 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Wed, 4 Nov 2026 20:00:00 +0200
+Subject: [PATCH] Kompakt: animations stay off and their switches are hidden
+
+---
+diff --git a/src/com/android/settings/development/WindowAnimationScalePreferenceController.java b/src/com/android/settings/development/WindowAnimationScalePreferenceController.java
+--- a/src/com/android/settings/development/WindowAnimationScalePreferenceController.java
++++ b/src/com/android/settings/development/WindowAnimationScalePreferenceController.java
+@@ -54,6 +54,12 @@ public class WindowAnimationScalePreferenceController extends
+                 com.android.settingslib.R.array.window_animation_scale_entries);
+     }
+ 
++    // Kompakt: animations stay off, so there is nothing to pick.
++    @Override
++    public boolean isAvailable() {
++        return false;
++    }
++
+     @Override
+     public String getPreferenceKey() {
+         return WINDOW_ANIMATION_SCALE_KEY;
+diff --git a/src/com/android/settings/development/TransitionAnimationScalePreferenceController.java b/src/com/android/settings/development/TransitionAnimationScalePreferenceController.java
+--- a/src/com/android/settings/development/TransitionAnimationScalePreferenceController.java
++++ b/src/com/android/settings/development/TransitionAnimationScalePreferenceController.java
+@@ -54,6 +54,12 @@ public class TransitionAnimationScalePreferenceController extends
+                 com.android.settingslib.R.array.transition_animation_scale_entries);
+     }
+ 
++    // Kompakt: animations stay off, so there is nothing to pick.
++    @Override
++    public boolean isAvailable() {
++        return false;
++    }
++
+     @Override
+     public String getPreferenceKey() {
+         return TRANSITION_ANIMATION_SCALE_KEY;
+diff --git a/src/com/android/settings/development/AnimatorDurationScalePreferenceController.java b/src/com/android/settings/development/AnimatorDurationScalePreferenceController.java
+--- a/src/com/android/settings/development/AnimatorDurationScalePreferenceController.java
++++ b/src/com/android/settings/development/AnimatorDurationScalePreferenceController.java
+@@ -53,6 +53,12 @@ public class AnimatorDurationScalePreferenceController extends DeveloperOptionsP
+                 com.android.settingslib.R.array.animator_duration_scale_entries);
+     }
+ 
++    // Kompakt: animations stay off, so there is nothing to pick.
++    @Override
++    public boolean isAvailable() {
++        return false;
++    }
++
+     @Override
+     public String getPreferenceKey() {
+         return ANIMATOR_DURATION_SCALE_KEY;
+diff --git a/src/com/android/settings/accessibility/DisableAnimationsPreferenceController.java b/src/com/android/settings/accessibility/DisableAnimationsPreferenceController.java
+--- a/src/com/android/settings/accessibility/DisableAnimationsPreferenceController.java
++++ b/src/com/android/settings/accessibility/DisableAnimationsPreferenceController.java
+@@ -97,7 +97,8 @@ public class DisableAnimationsPreferenceController extends TogglePreferenceContr
+ 
+     @Override
+     public int getAvailabilityStatus() {
+-        return AVAILABLE;
++        // Kompakt: animations stay off, so the switch is hidden.
++        return UNSUPPORTED_ON_DEVICE;
+     }
+ 
+     @Override
+diff --git a/src/com/android/settings/accessibility/RemoveAnimationsPreference.kt b/src/com/android/settings/accessibility/RemoveAnimationsPreference.kt
+--- a/src/com/android/settings/accessibility/RemoveAnimationsPreference.kt
++++ b/src/com/android/settings/accessibility/RemoveAnimationsPreference.kt
+@@ -28,6 +28,7 @@ import com.android.settingslib.datastore.KeyValueStore
+ import com.android.settingslib.datastore.KeyedObserver
+ import com.android.settingslib.datastore.NoOpKeyedObservable
+ import com.android.settingslib.datastore.SettingsGlobalStore
++import com.android.settingslib.metadata.PreferenceAvailabilityProvider
+ import com.android.settingslib.metadata.PreferenceLifecycleContext
+ import com.android.settingslib.metadata.PreferenceLifecycleProvider
+ import com.android.settingslib.metadata.ReadWritePermit
+@@ -41,6 +42,7 @@ class RemoveAnimationsPreference :
+         R.string.accessibility_disable_animations_summary,
+     ),
+     PreferenceActionMetricsProvider,
++    PreferenceAvailabilityProvider,
+     PreferenceLifecycleProvider {
+ 
+     private var mSettingsKeyedObserver: KeyedObserver<String>? = null
+@@ -53,6 +55,9 @@ class RemoveAnimationsPreference :
+ 
+     override fun tags(context: Context) = arrayOf(KEY_REMOVE_ANIMATION)
+ 
++    // Kompakt: animations stay off, so the switch is hidden.
++    override fun isAvailable(context: Context) = false
++
+     override fun onStart(context: PreferenceLifecycleContext) {
+         val observer = KeyedObserver<String> { _, _ -> context.notifyPreferenceChange(KEY) }
+         mSettingsKeyedObserver = observer
+-- 
+2.43.0
+

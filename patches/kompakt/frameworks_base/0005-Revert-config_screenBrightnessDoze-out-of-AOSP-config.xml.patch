@@ -1,5 +1,5 @@
 From b8a73b7d448af06a3b585903699dbf97de412f0e Mon Sep 17 00:00:00 2001
-From: gezimos <>
+From: Gezim <gezimos@users.noreply.github.com>
 Date: Tue, 8 Sep 2026 14:35:15 +0200
 Subject: [PATCH 05/99] Revert config_screenBrightnessDoze out of AOSP
  config.xml

@@ -1,0 +1,33 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Wed, 4 Nov 2026 19:00:00 +0200
+Subject: [PATCH] Kompakt: the always-on display stays on when an app is
+ inverted
+
+---
+diff --git a/core/java/android/hardware/display/AmbientDisplayConfiguration.java b/core/java/android/hardware/display/AmbientDisplayConfiguration.java
+--- a/core/java/android/hardware/display/AmbientDisplayConfiguration.java
++++ b/core/java/android/hardware/display/AmbientDisplayConfiguration.java
+@@ -263,8 +263,9 @@ public class AmbientDisplayConfiguration {
+      */
+     @TestApi
+     public boolean alwaysOnEnabled(int user) {
++        // Kompakt: inversion does not turn the always-on display off; the Kompakt app drops it at the lock.
+         return boolSetting(Settings.Secure.DOZE_ALWAYS_ON, user, mAlwaysOnByDefault ? 1 : 0)
+-                && alwaysOnAvailable() && !accessibilityInversionEnabled(user);
++                && alwaysOnAvailable();
+     }
+ 
+     /**
+@@ -285,7 +286,7 @@ public class AmbientDisplayConfiguration {
+      */
+     @TestApi
+     public boolean alwaysOnAvailableForUser(int user) {
+-        return alwaysOnAvailable() && !accessibilityInversionEnabled(user);
++        return alwaysOnAvailable();
+     }
+ 
+     /** @hide */
+-- 
+2.43.0
+
