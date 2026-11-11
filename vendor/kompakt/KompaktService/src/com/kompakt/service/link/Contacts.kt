@@ -1,6 +1,5 @@
 package com.kompakt.service.link
 
-import android.content.ContentUris
 import android.content.Context
 import android.provider.ContactsContract
 import android.util.Log
@@ -278,8 +277,4 @@ object Contacts {
         }
         return sb.toString().trim()
     }
-
-    @Suppress("unused")
-    private fun uriFor(id: Long) =
-        ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, id)
 }

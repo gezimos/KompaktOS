@@ -19,9 +19,6 @@
     <string name="sim_mode_unavailable">This device has no SIM switch.</string>
     <string name="sim_mode_failed">Could not switch the SIM slot.</string>
     <string name="tile_torch_warm">Warm light</string>
-    <string name="chan_offline">Offline switch</string>
-    <string name="offline_on">Offline</string>
-    <string name="offline_on_desc">Radios are off. Flip the switch to go back online.</string>
     <string name="eink_section">E-ink mode</string>
     <string name="diagnostics_section">Diagnostics</string>
     <string name="refresh_diagnostics">Re-read</string>
@@ -50,15 +47,17 @@
     <string name="tile_width">Width %1$s</string>
     <string name="tile_width_label">Smallest width</string>
     <string name="width_section">Display width</string>
+    <string name="width_note">The width the screen counts as, in dp. 360 is the phone\'s own. 400 and 440 fit more on the screen, in smaller text.</string>
+    <string name="width_default">Default</string>
+    <string name="width_reset">Reset to default</string>
     <string name="tab_display">Display</string>
     <string name="tab_offline">Offline</string>
-    <string name="offline_section">The offline switch turns off</string>
+    <string name="offline_section">Offline switch</string>
     <string name="offline_modem">Mobile network</string>
     <string name="offline_mic">Microphone</string>
     <string name="offline_wifi">Wi-Fi</string>
     <string name="offline_bt">Bluetooth</string>
     <string name="offline_camera">Camera access</string>
-    <string name="offline_always">Always</string>
     <string name="offline_info_title">Offline switch</string>
     <string name="offline_info_note">The switch cuts the mobile network and the microphone in hardware. Wi-Fi, Bluetooth and camera access were always software switches: you can still turn them on and off by hand. The offline switch only turns the ones you choose here off all at once.</string>
     <string name="tab_settings">Settings</string>
@@ -74,13 +73,11 @@
     <string name="more_options">More options</string>
     <string name="close">Close</string>
     <string name="look_note">Font is the typeface every app uses unless it brings its own. Emoji are black and white, crisp on E Ink, or in colour. Changing either restarts the phone.</string>
-    <string name="settings_note">Fingerprint sensor: what swipes, taps and holds on the sensor do.\nVibrate the keys under the screen: a buzz when you press them.\nHold Recents for quick settings: a long press on the Recents key opens quick settings.\nPower button light: the cold or the warm flashlight for a long press of the power button.\nBattery: the charge limit and battery details.\nTemperature offset and Diagnostics are under Advanced, in the ⋮ menu.</string>
     <string name="eink_info">What each mode does</string>
     <string name="eink_note">How the screen redraws. Faster modes leave more ghosting behind; slower ones are cleaner but blink more.</string>
     <string name="eink_note_fast">Fast, no blink. Very high contrast; crushes dark colours and shadows to black.</string>
     <string name="eink_note_soft">Fast, no blink. Less contrast, so darker colours keep some detail.</string>
     <string name="eink_note_dither">Fast, two inks, dots of grey. Less contrast, and the best way to keep detail at speed.</string>
-    <string name="eink_note_fastgrey">Fast with eight greys, finely mixed between them. A little slower than Fast. Experimental.</string>
     <string name="eink_note_text">Sharp greys for reading. Slower to redraw.</string>
     <string name="eink_note_quality">The cleanest picture. Slowest, and it blinks.</string>
     <string name="app_modes_note">Give an app its own e-ink mode. It is applied when the app opens, and the master mode returns when you leave it.</string>
@@ -102,7 +99,7 @@
     <string name="battery_now_unplugged">Not plugged in</string>
     <string name="battery_hysteresis">Resume a little lower</string>
     <string name="battery_limit_unavailable">The charge limit is not available on this build.</string>
-    <string name="key_vibration">Vibrate the keys under the screen</string>
+    <string name="key_vibration">Key vibration</string>
     <string name="recents_long_press_qs">Hold Recents for quick settings</string>
     <string name="power_torch_row">Power button light</string>
     <string name="power_torch_cold">Cold</string>
@@ -160,7 +157,7 @@
     <string name="unlock_refresh_row">Refresh on unlock</string>
     <string name="unlock_refresh_note">Refresh the screen right after unlocking, to clear ghosting.</string>
     <string name="emoji_row">Emoji</string>
-    <string name="emoji_mono">Black and white</string>
+    <string name="emoji_mono">B&amp;W</string>
     <string name="emoji_colour">Colour</string>
     <string name="emoji_note">Black and white emoji are crisp on E Ink and follow the text colour. The phone restarts to apply a change.</string>
     <string name="font_row">Font</string>
@@ -181,7 +178,7 @@
     <string name="unlock_short_lockscreen">Lock screen</string>
     <string name="frame_rate_row">Frame rate</string>
     <string name="frame_rate_fps">%1$d fps</string>
-    <string name="frame_rate_note">Caps how often apps draw. E Ink settles slowly, so most frames beyond that are processor and graphics work for a picture nobody sees. The phone restarts to apply a change.</string>
+    <string name="frame_rate_note">How often apps may draw. E Ink settles slowly, so frames beyond that are wasted work. Restarts the phone.</string>
     <string name="finger_note">Swipe along the sensor, double or triple tap it, or rest a finger on it for a second, and choose what each one does. Switch mode goes through the swipe modes that are on, in their order; the phone wakes in the first. With a triple tap set, a double tap waits half a second for the third. In Keymapper mode a swipe up presses F13 and a swipe down F14, once per swipe; record them as a trigger in Keymapper. It only works while the phone is unlocked; on the lock screen the sensor unlocks as usual.</string>
     <string name="sleep_section">Sleep screen</string>
     <string name="sleep_row">Sleep screen picture</string>
@@ -198,13 +195,50 @@
     <string name="aod_refresh_row">Always-on display refresh</string>
     <string name="aod_refresh_auto">Auto</string>
     <string name="aod_refresh_min">%1$d min</string>
-    <string name="aod_refresh_note">How often the always-on display refreshes. Every 5 min means 6:05, 6:10, and notifications wait for the next refresh too. Auto is as before: the clock every minute and notifications at once.</string>
-    <string name="temperature_row">Temperature offset</string>
+    <string name="aod_refresh_note">Fewer updates, more battery. At every 5 min the clock shows 6:05, then 6:10, and notifications wait for the next update. Auto updates the clock every minute and shows notifications at once.</string>
     <string name="clean_section">Updates per full refresh</string>
+    <string name="clean_short">Full refresh after this many updates</string>
     <string name="clean_note">A full refresh redraws the whole page and clears ghosts. The screen does one after this many small updates. Fewer updates: ghosts clear sooner, with more redraws. 24 is the usual. This clears ghosts in Text and Quality; the Fast modes need the flash instead, from the Refresh tile.</string>
-    <string name="refresh_on_app">Refresh on app switch</string>
-    <string name="refresh_on_app_note">Flashes the screen once, about half a second after you open or switch to an app, or go back to Home, to clear what the last screen left behind.</string>
-    <string name="frame_rate_draw">Apps draw at</string>
+    <string name="refresh_on_app">Auto refresh</string>
+    <string name="refresh_on_app_note">Flash when switching apps</string>
+    <string name="frame_rate_short">How often apps may draw</string>
+    <string name="offline_extra_note">Turned off by the switch</string>
+    <string name="advanced_short">E-ink tuning, frame rate, diagnostics</string>
+    <string name="offline_camera_note">Blocked by the switch</string>
+    <string name="width_short">How much fits on the screen</string>
+    <string name="recents_long_press_qs_note">Long press opens quick settings</string>
+    <string name="battery_cycles_short">Full charges so far</string>
+    <string name="battery_health_short">Capacity left, against new</string>
+    <string name="battery_capacity_short">Now, and when new</string>
+    <string name="battery_first_use_short">When the battery was first used</string>
+    <string name="battery_limit_short">Stop charging at this level</string>
+    <string name="battery_now_short">Charging state</string>
+    <string name="finger_tap_short">Action for a double tap</string>
+    <string name="finger_triple_short">Action for a triple tap</string>
+    <string name="finger_hold_short">Action for a one-second hold</string>
+    <string name="app_modes_short">A mode of its own for each app</string>
+    <string name="unlock_refresh_short">Clear ghosting after unlocking</string>
+    <string name="sleep_short">Image that appears when locked</string>
+    <string name="aod_refresh_short">How often the clock repaints</string>
+    <string name="light_curve_short">Learned from the brightness slider</string>
+    <string name="font_short">Choose font family</string>
+    <string name="emoji_short">B&amp;W or colour</string>
+    <string name="finger_short">Swipe, tap and hold gestures</string>
+    <string name="power_torch_short">Long press of the power button</string>
+    <string name="battery_short">Charge limit, health and cycles</string>
+    <string name="finger_cycle_short">Swipe modes, in order</string>
+    <string name="diagnostics_short">Images, panel, calls and light</string>
+    <string name="temperature_short">Faster, less clean</string>
+    <string name="speed_short">Fewer steps: quicker, more traces</string>
+    <string name="pattern_short">How greys become dots</string>
+    <string name="light_short">Lighter dark greys</string>
+    <string name="key_vibration_note">A short buzz on every key</string>
+    <string name="per_app_enable_note">Each app opens in its own mode</string>
+    <string name="offline_locked_note">Always cut by the switch itself</string>
+    <string name="battery_hysteresis_note">Starts again a little under the limit</string>
+    <string name="finger_row_note">Swipes, taps and holds on the sensor</string>
+    <string name="finger_natural_note">The page follows your finger</string>
+    <string name="finger_horizontal_note">Swipes turn pages</string>
     <string name="speed_section">Fast speed</string>
     <string name="speed_note">How many steps the fast modes take to change a pixel. Fewer steps follow your finger sooner, with more traces left behind and lighter blacks. 7 is Mudita\'s. 8 and 9 give deeper blacks and fewer traces, a little slower.</string>
     <string name="pattern_section">Dither pattern</string>
@@ -214,7 +248,6 @@
     <string name="temperature_note">Tells the panel it is warmer than it is, so it drives shorter waveforms: faster, but less clean.</string>
     <string name="battery_health_title">Health and capacity</string>
     <string name="battery_health_note">Worked out from the capacity the kernel reports. Mudita\'s kernel gives the design capacity as 294 mAh instead of about 3000, so neither can be shown on it.</string>
-    <string name="battery_limit_row">Charge limit</string>
     <string name="needs_vendor">KompaktOS vendor image</string>
     <string name="needs_boot">KompaktOS boot image</string>
     <string name="needs_installed">Installed</string>
@@ -237,17 +270,9 @@
     <string name="diag_mudita">Mudita\'s</string>
     <string name="sleep_light_section">Sleep screen &amp; frontlight</string>
     <string name="light_curve_row">Auto brightness curve</string>
-    <string name="light_curve_note">The front light for each kind of light, as a percent of full light. The row in bold is the light you are in now, and its number is the light you get. Each tap is one step you can see; the values in between would look the same. Moving the brightness slider while auto is on scales all of them until auto is turned off.</string>
-    <string name="light_curve_now">Now: %1$d lux  ·  %2$s</string>
-    <string name="light_curve_lux">%1$d lux</string>
+    <string name="light_curve_note">The front light learns from the brightness slider. With auto brightness on, move the slider to the light you want: from then on, in that much light, it comes up at that level by itself, and between the lights it has learned it slides from one to the next. The last choice for a light wins. Below is what it has learned, as lux and percent of full light. Reset forgets it all.</string>
     <string name="light_curve_off">Off</string>
     <string name="light_curve_percent">%1$d%%</string>
-    <string-array name="light_curve_names">
-        <item>Dark</item>
-        <item>Dim room</item>
-        <item>Lamp light</item>
-        <item>Lit room</item>
-        <item>Bright room</item>
-        <item>Daylight</item>
-    </string-array>
+    <string name="light_curve_now">Now: %1$d lux  ·  %2$s</string>
+    <string name="light_curve_lux">%1$d lux</string>
 </resources>

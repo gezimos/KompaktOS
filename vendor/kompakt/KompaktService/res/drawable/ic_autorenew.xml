@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Material "autorenew", in the 24dp viewBox. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24"
+    android:tint="?android:attr/colorControlNormal">
+    <path android:fillColor="@android:color/white"
+        android:pathData="M 12 6 v 3 l 4 -4 -4 -4 v 3 c -4.42 0 -8 3.58 -8 8 0 1.57 .46 3.03 1.24 4.26 L 6.7 14.8 A 5.87 5.87 0 0 1 6 12 c 0 -3.31 2.69 -6 6 -6 z m 6.76 1.74 L 17.3 9.2 c .44 .84 .7 1.79 .7 2.8 0 3.31 -2.69 6 -6 6 v -3 l -4 4 4 4 v -3 c 4.42 0 8 -3.58 8 -8 0 -1.57 -.46 -3.03 -1.24 -4.26 z"/>
+</vector>

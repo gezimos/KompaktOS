@@ -1,0 +1,67 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Wed, 11 Nov 2026 00:30:00 +0200
+Subject: [PATCH] Kompakt: the brightness slider teaches the auto brightness curve
+
+With auto brightness on, a slider release gives AutomaticBrightnessController
+a user point: the ambient lux and the brightness chosen. Stock keeps it
+only as a short-term adjustment, and the long-term learning Pixels do lives
+in a Google app; BrightnessTracker, its source, never starts on a display
+without a nits table, which this one has none of. The controller now sends
+the point to the Kompakt app, which writes it into the saved brightness
+configuration; saving resets the short-term point, and the curve then
+gives the same level at that light every time.
+---
+ .../com/android/server/display/AutomaticBrightnessController.java | 17 ++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)
+
+--- a/services/core/java/com/android/server/display/AutomaticBrightnessController.java
++++ b/services/core/java/com/android/server/display/AutomaticBrightnessController.java
+@@ -29,6 +29,7 @@
+ import android.app.IActivityTaskManager;
+ import android.app.TaskStackListener;
+ import android.content.Context;
++import android.content.Intent;
+ import android.content.pm.ApplicationInfo;
+ import android.content.pm.PackageManager;
+ import android.hardware.Sensor;
+@@ -44,6 +45,7 @@
+ import android.os.RemoteException;
+ import android.os.SystemClock;
+ import android.os.Trace;
++import android.os.UserHandle;
+ import android.util.EventLog;
+ import android.util.IndentingPrintWriter;
+ import android.util.MathUtils;
+@@ -471,7 +473,11 @@
+         if (userChangedBrightness && enable) {
+             // Update the brightness curve with the new user control point. It's critical this
+             // happens after we update the autobrightness adjustment since it may reset it.
+-            changed |= setScreenBrightnessByUser(brightness);
++            final boolean userPoint = setScreenBrightnessByUser(brightness);
++            changed |= userPoint;
++            if (userPoint) {
++                kompaktLearn(mAmbientLux, brightness);
++            }
+         }
+         final boolean userInitiatedChange =
+                 userChangedBrightness || userChangedAutoBrightnessAdjustment;
+@@ -581,6 +587,16 @@
+         mCurrentBrightnessMapper.addUserDataPoint(lux, brightness);
+         mShortTermModel.setUserBrightness(lux, brightness);
+         return true;
++    }
++
++    // Kompakt: a slider move with auto on is a point the Kompakt app writes into the saved curve.
++    private void kompaktLearn(float lux, float brightness) {
++        final Intent intent = new Intent("com.kompakt.service.action.BRIGHTNESS_LEARN")
++                .setPackage("com.kompakt.service")
++                .putExtra("lux", lux)
++                .putExtra("brightness", brightness)
++                .addFlags(Intent.FLAG_RECEIVER_FOREGROUND);
++        mHandler.post(() -> mContext.sendBroadcastAsUser(intent, UserHandle.CURRENT));
+     }
+ 
+     public void resetShortTermModel() {
+-- 
+2.43.0

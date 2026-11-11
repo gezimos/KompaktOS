@@ -84,6 +84,13 @@ comments in these files are short titles; the reasons behind them are here.
 - **BootReceiver**: installing a new APK kills the process and nothing else
   restarts it; the watcher is the only reader of the offline switch and the
   fingerprint sensor.
+- **Offline+ and the modem**: on every flip, and once at start, the watcher
+  writes `vendor.kompakt.modem` (0 engaged, 1 released) after the radio call.
+  Vendor init starts the modem daemon on 1, which is how a phone booted with the
+  switch on gets its modem the moment the switch is released; with it engaged
+  the modem fails its radio self-check as it boots and would reset without end
+  (KompaktDevice `vendor/scripts/apply-offline-modem-gate.sh`, telephony patch
+  0006 for the phone process).
 
 ### Detecting our images (`Hardware.kt`)
 
@@ -159,11 +166,36 @@ comments in these files are short titles; the reasons behind them are here.
   driver sees the frame, so it lives in the per-app sheet.
 - **Battery on Mudita's kernel**: health and capacity divide by its 294 mAh design
   figure and would read about 1000%, so they are hidden there.
-- **E-ink UI**: disabled is a dashed outline, since the panel cannot show grey;
-  sheets have no window animation and pages scroll with scrollTo, never
-  smoothScrollTo.
-- **inkOS parity**: headings, sheets, radio marks and the toggle follow inkOS so
-  both apps read as one system.
+- **One row** (`row()` in `KompaktActivity.kt`): every setting, on a page or in a
+  sheet, is a title (16 sp, medium), one line of note (13 sp, cut with an
+  ellipsis) and a control at the right (switch, bold 14 sp value, chevron, or
+  the info glyph for a setting whose chips sit below). Nothing is drawn around
+  a row. Outlines belong only to what is picked or pressed: the mode circles,
+  chips, buttons and the sleep picture frame. A mode this phone cannot do is a
+  dashed circle, since the panel cannot show grey.
+- **One icon slot**: rows on the four tabs and the Offline page lead with a
+  Material glyph (`res/drawable/ic_*.xml`, 24 dp, tinted ink) in a 32 dp slot;
+  the per-app list puts the app's own symbol there: its monochrome layer in ink
+  when it has one, drawn as a launcher draws it (`IconLayer`: grown by the
+  extra inset, cut to the icon mask), else its foreground layer pushed to two
+  inks by a colour matrix (`MONO`), the whole icon only for legacy icons. Inner
+  pages (battery, gestures, sleep picture, curve, diagnostics) have no icons,
+  as Settings' inner pages have none.
+- **One size of circle**: the mode circles are `CIRCLE` (48 dp) across, the
+  first and last on the gutters and the gap computed from the screen width; they
+  only shrink when a row cannot hold them. The title bar's ⋮ ends on the
+  gutter like the info glyphs: the row gives up the 8 dp its 40 dp button adds
+  around the 24 dp glyph.
+- **One gutter**: `GUTTER` (20 dp) is where every row, heading, chip and circle
+  starts and ends; rows are 8 dp top and bottom and at least `ROW_HEIGHT`
+  (48 dp); headings are small bold capitals, 16 dp above and below, with inkOS's
+  dashes (4 px on, 4 px off) running from the title to the right edge or to the
+  info glyph. Explanations longer than a line live behind the info glyph, in
+  the sheet; a short note never says "requires restart".
+- **E-ink UI**: sheets have no window animation and pages scroll with scrollTo,
+  never smoothScrollTo.
+- **inkOS parity**: sheets, radio marks and the toggle follow inkOS so both apps
+  read as one system.
 
 ### Other services
 

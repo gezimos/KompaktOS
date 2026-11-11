@@ -12,7 +12,6 @@ import android.service.quicksettings.TileService
 internal const val PREFS = "kompakt"
 private const val KEY_MODE = "eink_mode"
 private const val KEY_CARD = "sim_card"
-private const val KEY_PENDING_ESIM = "pending_esim"
 
 object Prefs {
     /** The master mode. */
@@ -135,13 +134,6 @@ object Prefs {
 
     fun setCard(c: Context, v: String) =
         c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY_CARD, v).apply()
-
-    /* Set when we write the mux to esim, cleared once the eSIM add flow has been opened after the reboot that. */
-    fun pendingEsim(c: Context): Boolean =
-        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_PENDING_ESIM, false)
-
-    fun setPendingEsim(c: Context, v: Boolean) =
-        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(KEY_PENDING_ESIM, v).apply()
 }
 
 /** Tap cycles Fast, Fast + dither, Text, Quality. The icon is the mode's own. */
@@ -322,6 +314,19 @@ object Width {
             Log.i(Sysfs.TAG, "width: $step dp (density $density)")
         } catch (t: Throwable) {
             Log.e(Sysfs.TAG, "width: cannot set density", t)
+        }
+    }
+
+    /** Drop the forced density altogether: the phone's own again, whoever set one. */
+    fun clear() {
+        try {
+            val wm = android.view.IWindowManager.Stub.asInterface(
+                android.os.ServiceManager.getService(Context.WINDOW_SERVICE))
+            wm.clearForcedDisplayDensityForUser(
+                android.view.Display.DEFAULT_DISPLAY, android.os.UserHandle.myUserId())
+            Log.i(Sysfs.TAG, "width: forced density cleared")
+        } catch (t: Throwable) {
+            Log.e(Sysfs.TAG, "width: cannot clear density", t)
         }
     }
 }

@@ -1,7 +1,5 @@
 package com.kompakt.service
 
-import android.app.Notification
-import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.os.Looper
@@ -32,7 +30,6 @@ class OfflineWatcherService : Service() {
 
     private companion object {
         const val DEV = "/dev/input/event0"
-        const val CHANNEL = "offline_switch"
         const val NOTIF_ID = 4711
 
         // struct input_event on a 64-bit kernel: struct timeval (2 x 8 bytes), then __u16 type, __u16 code, __s32 value.
@@ -173,6 +170,12 @@ class OfflineWatcherService : Service() {
     private fun onFlipped(offline: Boolean) {
         val changed = last != offline
         last = offline
+        // Kompakt: init starts the modem on 1; booted with the switch on, it waits here (vendor kompakt-modem.rc).
+        try {
+            android.os.SystemProperties.set("vendor.kompakt.modem", if (offline) "0" else "1")
+        } catch (t: Throwable) {
+            Log.e(Sysfs.TAG, "offline: vendor.kompakt.modem write failed", t)
+        }
         setRadioPower(!offline)
         // Only buzz on a real change.
         if (changed) {
@@ -218,27 +221,6 @@ class OfflineWatcherService : Service() {
         }
         v.vibrate(effect)
     }
-
-    /** A persistent, silent notification while offline, removed when it clears. */
-    private fun showState(offline: Boolean) {
-        val nm = getSystemService(NotificationManager::class.java) ?: return
-        if (!offline) {
-            nm.cancel(NOTIF_ID)
-            return
-        }
-        nm.createNotificationChannel(
-            NotificationChannel(CHANNEL, getString(R.string.chan_offline), NotificationManager.IMPORTANCE_LOW)
-                .apply { setShowBadge(false); enableVibration(false); setSound(null, null) }
-        )
-        val n = Notification.Builder(this, CHANNEL)
-            .setSmallIcon(R.drawable.ic_offline)
-            .setContentTitle(getString(R.string.offline_on))
-            .setContentText(getString(R.string.offline_on_desc))
-            .setOngoing(true)
-            .setShowWhen(false)
-            .build()
-        nm.notify(NOTIF_ID, n)
-    }
 }
 
 /** Restarts the watcher after boot and after an APK update kills it. */
@@ -262,6 +244,8 @@ class BootReceiver : BroadcastReceiver() {
         ensureUncertifiedNoticeEnabled(context)
         grantLauncherDefaultsOnce(context)
         LedMigration.run(context)
+        // A curve saved in the steps of the old front light map would be near dark on kernel 0041's map.
+        LightCurve.migrate(context)
         context.startService(
             Intent(context, com.kompakt.service.link.LinkService::class.java))
         // The temperature offset lives in meink and is back to its +11 after a boot; set it before the mode loads.

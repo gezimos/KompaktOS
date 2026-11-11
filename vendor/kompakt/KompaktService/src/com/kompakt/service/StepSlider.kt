@@ -11,7 +11,7 @@ import kotlin.math.roundToInt
 
 /**
  * A slider that stops only at its labels. Ink on paper, the thumb an outlined
- * paper circle, so it never fills a shape. The pick lands when the finger lifts.
+ * paper circle, so it never fills a shape. A tap picks; a swipe across it belongs to the page.
  */
 @SuppressLint("ViewConstructor")
 class StepSlider(
@@ -78,22 +78,33 @@ class StepSlider(
         c.drawCircle(tx, y, thumb, line)
     }
 
+    private val slop = android.view.ViewConfiguration.get(context).scaledTouchSlop
+    private var downX = 0f
+    private var downY = 0f
+    private var swiped = false
+
+    /** Kompakt: a tap picks the stop under the finger; a swipe across the slider is the page's and picks nothing. */
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(e: MotionEvent): Boolean {
         when (e.actionMasked) {
-            MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
-                parent?.requestDisallowInterceptTouchEvent(true)
-                val i = nearest(e.x)
-                if (i != dragging) {
-                    dragging = i
+            MotionEvent.ACTION_DOWN -> {
+                downX = e.x
+                downY = e.y
+                swiped = false
+                dragging = nearest(e.x)
+                invalidate()
+            }
+            MotionEvent.ACTION_MOVE -> {
+                if (!swiped && (kotlin.math.abs(e.x - downX) > slop || kotlin.math.abs(e.y - downY) > slop)) {
+                    swiped = true
+                    dragging = -1
                     invalidate()
                 }
             }
             MotionEvent.ACTION_UP -> {
-                parent?.requestDisallowInterceptTouchEvent(false)
                 val i = nearest(e.x)
                 dragging = -1
-                if (i != chosen) {
+                if (!swiped && i != chosen) {
                     chosen = i
                     contentDescription = labels[i]
                     onPick(i)
@@ -101,7 +112,6 @@ class StepSlider(
                 invalidate()
             }
             MotionEvent.ACTION_CANCEL -> {
-                parent?.requestDisallowInterceptTouchEvent(false)
                 dragging = -1
                 invalidate()
             }

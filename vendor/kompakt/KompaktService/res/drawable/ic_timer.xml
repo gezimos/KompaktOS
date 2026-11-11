@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Material "timer", in the 24dp viewBox. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24"
+    android:tint="?android:attr/colorControlNormal">
+    <path android:fillColor="@android:color/white"
+        android:pathData="M 9 1 h 6 v 2 H 9 z m 10.03 6.39 1.42 -1.42 c -.43 -.51 -.9 -.99 -1.41 -1.41 l -1.42 1.42 A 8.962 8.962 0 0 0 12 4 a 9 9 0 0 0 -9 9 c 0 4.97 4.02 9 9 9 a 8.994 8.994 0 0 0 7.03 -14.61 z M 13 14 h -2 V 8 h 2 v 6 z"/>
+</vector>

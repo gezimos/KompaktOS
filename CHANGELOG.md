@@ -21,6 +21,29 @@ the boot and vendor images from
   `vendor/kompakt/KompaktService` (`OfflineWatcherService.kt`),
   `patches/kompakt/frameworks_base/0149`.
 
+### Offline+
+
+- **Started with Offline+ on, the phone no longer spends its battery on a
+  modem that cannot start.** With the switch engaged the modem fails its radio
+  self-check as it boots, MediaTek's init daemon restarted it every 14 seconds,
+  and the phone process waited for a radio that never came until Android killed
+  it at its start-up timeout, eight times a minute, for as long as the switch
+  stayed on. The phone process now starts without the radio and picks it up
+  when it appears; with vendor 323 the modem itself is only started once the
+  switch is off, and comes up within seconds of the flip. Flipping the switch
+  with the phone running was always fine: the radio goes off and comes back.
+  `patches/kompakt/frameworks_opt_telephony/0006`,
+  `vendor/kompakt/KompaktService` (`OfflineWatcherService.kt`).
+
+### Data usage
+
+- **Data usage is counted per app again.** Settings only ever listed "Hotspot
+  & tethering": Android 16's network daemon refuses to attach the per-app
+  accounting, and with it the per-app data restrictions, on any kernel older
+  than 5.4, and this phone's is 4.19. The 4.19 versions of those programs are
+  still built and loaded, so they are attached.
+  `patches/kompakt/packages_modules_Connectivity/0002`.
+
 ### Google
 
 - **Google accounts can be added again.** Play services updated from the Play
@@ -93,6 +116,17 @@ the boot and vendor images from
   boot test, apps closed in the first three minutes went from 33-45 to 7, and
   Settings opened in about 2 s instead of 6-15. Each app may also grow a little
   less. `vendor/kompakt/overlay` (`config_extraFreeKbytesAbsolute`), `kompakt.mk`.
+- **Apps you leave are frozen and their memory compressed.** A few seconds after
+  you leave an app it is frozen: it uses no processor until you come back, and
+  its memory is compressed into zram rather than kept whole until the app has
+  to be closed. Android has done this since 12, but the feature switched
+  itself off at every boot ("Freezer disabled"): this phone's kernel lacked
+  the binder half of it and Mudita's vendor pointed Android's freezer profile
+  at a file this phone does not have; the compression itself used a system
+  call this kernel does not have. Needs boot 279 and vendor 322 (the freezer)
+  and this system image (the compression).
+  `patches/kompakt/frameworks_base/0163`, KompaktDevice `kernel/patches/0040`
+  and `vendor/scripts/apply-freezer-profiles.sh`.
 - **The SD card is scanned five minutes after boot,** not while you open your
   first apps. Files already on the card show as before; new ones appear after
   the scan. `patches/kompakt/packages_providers_MediaProvider/0001`.
@@ -112,14 +146,41 @@ the boot and vendor images from
   room, and off from about 100 lux, a bright room, where the panel needs no light.
   `vendor/kompakt/overlay/frameworks/base/core/res/res/values/kompakt_brightness.xml`,
   `patches/kompakt/frameworks_base/0146`.
-- **The curve is yours to set.** Kompakt app, Display, Sleep screen &
-  frontlight, Auto brightness curve: the light, as a percent of full, for each
-  of six kinds of light, from dark to daylight, with what the light sensor sees
-  now. The row in bold is the light you are in, and its number is the light you
-  get; each tap is one step you can see. It is kept per user and survives a
-  restart.
-  `KompaktService` (`LightCurve.kt`),
-  `patches/kompakt/frameworks_base/0155`.
+- **The front light learns from you.** With auto brightness on, move the
+  brightness slider to the light you want: from then on, in that much light,
+  the front light comes up at that level by itself, and between the lights it
+  has learned it slides from one to the next. The last choice for a light
+  wins. Kompakt app, Display, Sleep screen & frontlight, Auto brightness
+  curve shows what it has learned and what the light sensor sees now; Reset
+  forgets it. It is kept per user and survives a restart.
+  `KompaktService` (`LightCurve.kt`, `LearnReceiver.kt`),
+  `patches/kompakt/frameworks_base/0155`, `0167`.
+- **A change of room fades, it does not jump.** The automatic brightness used
+  to cross the front light's whole range in a fifth of a second, and the
+  kernel had only five levels in the few percent the light runs at, so every
+  change of light was a step you saw. And the ramp itself never ran on this
+  phone, twice over: it is an animator, and the phone keeps animations off;
+  and the display code skips it while the screen's colour fade is not fully
+  in, which on a phone without a colour fade is always. The fade is not a
+  screen animation, it repaints nothing, so it now runs regardless: a change
+  of row takes about a quarter of a second, lamp light to off about three,
+  walking every number between the rows, and boot 280's kernel gives dim
+  light twenty levels where it had five, so the walk has steps too small to
+  see. The slider still answers at once. Needs boot
+  280; a curve saved before it is replaced once at boot, since the old numbers
+  would be near dark.
+  `patches/kompakt/frameworks_base/0164`, `0165`,
+  `vendor/kompakt/overlay/frameworks/base/core/res/res/values/kompakt_brightness.xml`,
+  `KompaktService` (`LightCurve.kt`).
+- **The light answers in about half a second.** The automatic brightness
+  believed a change of light only once its ten-second average of the sensor
+  had crossed, 3 to 4 seconds after the sensor itself had reported it. The
+  averages are now two seconds and half a second. And it ignored any new
+  level less than a tenth brighter or a fifth dimmer than the current one,
+  so the light stuck on a row's number between rows and many taps on the
+  curve page did nothing; every change now applies.
+  `patches/kompakt/frameworks_base/0166`,
+  `vendor/kompakt/overlay/frameworks/base/core/res/res/values/kompakt_brightness.xml`.
 - **The always-on display repaints as often as you choose.** Kompakt app,
   Display, Always-on display refresh: Auto, 1, 5, 10 or 60 minutes, on the
   clock (5 minutes repaints at 6:05, 6:10). Auto is as before: the clock every
@@ -128,8 +189,6 @@ the boot and vendor images from
   fewer repaints are less drain.
   `KompaktService` (`KompaktActivity.kt`),
   `patches/kompakt/frameworks_base/0156`.
-- **Rows in the Kompakt app are a little shorter**, so the Display tab has room
-  for the new row. `KompaktService` (`KompaktActivity.kt`).
 - **No Auto mode.** It ghosted badly after scrolling; a phone or app set to
   Auto starts on Fast + dither. Its tile is gone too. `KompaktService`
   (`Hardware.kt`, `Tiles.kt`).
@@ -186,14 +245,23 @@ the boot and vendor images from
   (235 against 317 mA) with the same 6 panel updates a second; 15 fps saved
   about a fifth.
   `patches/kompakt/frameworks_base/0130`, `0131`, `KompaktService`.
-- **Updates per full refresh and Refresh on app switch:** Kompakt app → ⋮ → Advanced →
+- **Updates per full refresh and Auto refresh:** Kompakt app → ⋮ → Advanced →
   Updates per full refresh sets how many small updates the screen takes before it
   redraws the whole page once: 6, 12, 24 or 48. 24 by default, for every mode (Text
   and Quality used to run at 48). It clears ghosts in Text and Quality; the Fast
-  modes need the flash. Below it, Refresh on app switch flashes the screen about
-  half a second after you open an app, switch to one or go back to Home. Off by default.
-  Each has an info icon, as does Frame rate.
+  modes need the flash. Below it, Auto refresh flashes the screen the moment you
+  open an app, switch to one or go back to Home, to clear what the last one left.
+  Off by default.
   `KompaktService`.
+- **One row for every setting in the Kompakt app.** Every setting is an icon,
+  its name in a heavier weight, one line under it saying what it does, and its
+  switch, value or arrow at the right, with nothing drawn around it. Only what
+  you pick or press keeps an outline: the mode circles, the chips, the buttons.
+  Headings are small bold capitals with inkOS's dashes running to the right edge, and the longer
+  explanations are behind the info icon. The per-app list shows each app's
+  monochrome icon, the symbol alone in ink, with its mode under the name. Display
+  width is a sheet with a Reset to default. Same text edge, same spacing, on
+  every page and in every sheet. `KompaktService` (`KompaktActivity.kt`).
 - **The notification expand arrow stands alone,** without its pill and padding,
   and the first line of a notification has more room. `patches/kompakt/frameworks_base/0129`.
 - **Holding a Kompakt tile opens the Kompakt app** instead of its App info.
@@ -244,7 +312,7 @@ the boot and vendor images from
 
 - **Katapult 1.7 update:** Google's At a Glance weather shows again.
   `vendor/kompakt/prebuilt/Katapult.apk`.
-- **inkOS 0.7 update.** `vendor/kompakt/prebuilt/inkOS.apk`.
+- **inkOS 0.7 update,** the 9 November build. `vendor/kompakt/prebuilt/inkOS.apk`.
 - **inkOS ships compiled,** as Katapult does. It ran from its APK, interpreted
   until Android compiled it overnight on the charger, so the home screen was slow
   after every update. Its two optional libraries are now declared, which lets the

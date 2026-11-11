@@ -24,14 +24,10 @@ object EinkAppWatcher {
     /** A burst of stack changes is one check. */
     private const val SETTLE_MS = 40L
 
-    /** The new app gets this long to draw before the flash. */
-    private const val REFRESH_DELAY_MS = 600L
-
     /** Two app-change flashes never come closer than this. */
     private const val REFRESH_GAP_MS = 2000L
 
     private var lastRefresh = 0L
-    private val refreshNow = Runnable { refreshAfterSwitch() }
 
     private var registered = false
     private var last: String? = null
@@ -72,12 +68,13 @@ object EinkAppWatcher {
         pending = false
         val pkg = top() ?: return
         if (pkg == last) return
+        val first = last == null
         last = pkg
         foreground = pkg
 
-        // A newer switch replaces a flash still waiting.
-        handler?.removeCallbacks(refreshNow)
-        if (Prefs.refreshOnApp(context)) handler?.postDelayed(refreshNow, REFRESH_DELAY_MS)
+        // At once, and before the mode writes below queue in front of it: Home and a running app
+        // are on screen within a frame or two, and a flash that waits shows them twice.
+        if (!first && Prefs.refreshOnApp(context)) refreshAfterSwitch()
 
         AppInvert.apply(context, pkg)
         // Before the mode: a mode change repaints the whole screen, in the new pattern.
@@ -94,13 +91,10 @@ object EinkAppWatcher {
         Eink.setMode(mode)
     }
 
-    /** The app-change flash: only if that screen is still in front and the screen is on and unlocked. */
+    /** The app-change flash: only while the screen is on and unlocked. */
     private fun refreshAfterSwitch() {
         val now = SystemClock.elapsedRealtime()
         if (Flash.active || now - lastRefresh < REFRESH_GAP_MS) return
-        val task = topTask() ?: return
-        if (task.activityType == WindowConfiguration.ACTIVITY_TYPE_RECENTS ||
-            task.topActivity?.packageName != last) return
         if (context.getSystemService(PowerManager::class.java)?.isInteractive != true) return
         if (context.getSystemService(KeyguardManager::class.java)?.isKeyguardLocked == true) return
         lastRefresh = now

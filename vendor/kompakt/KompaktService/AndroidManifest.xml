@@ -3,7 +3,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.kompakt.service"
     android:sharedUserId="android.uid.system"
-    android:versionCode="382"
+    android:versionCode="401"
     android:versionName="363">
 
     <!-- uid system is what makes the sysfs writes possible at all. -->
@@ -173,6 +173,16 @@
                 android:value="true" />
         </service>
 
+
+        <!-- The brightness slider teaches the auto brightness curve; only the framework sends it (frameworks_base 0167). -->
+        <receiver
+            android:name=".LearnReceiver"
+            android:exported="true"
+            android:permission="android.permission.CONTROL_DISPLAY_BRIGHTNESS">
+            <intent-filter>
+                <action android:name="com.kompakt.service.action.BRIGHTNESS_LEARN" />
+            </intent-filter>
+        </receiver>
 
         <!-- Ghosting refresh. -->
         <receiver
