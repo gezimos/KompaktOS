@@ -30,30 +30,37 @@ object Prefs {
     fun setWidth(c: Context, v: String) =
         c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("width", v).apply()
 
-    /** Temperature offset; 11 is meink's own (CONFIG_MUDITA_EINK_TCORR), what stock runs. */
-    fun temperature(c: Context): Int =
-        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt("temp_offset", Eink.STOCK_TEMP)
-
-    /** Once: a saved 0 is the old default, not a choice, so it becomes the driver's +11. */
-    fun migrateTemperature(c: Context) {
+    /** Once: the old Temperature offset and Fast speed rows become the two speed rows. */
+    fun migrateSpeeds(c: Context) {
         val p = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        if (p.getBoolean("temp_offset_stock", false)) return
-        p.edit().apply {
-            if (p.getInt("temp_offset", Eink.STOCK_TEMP) == 0) putInt("temp_offset", Eink.STOCK_TEMP)
-            putBoolean("temp_offset_stock", true)
-        }.apply()
+        if (p.contains("fast_steps")) return
+        val warm = p.getInt("temp_offset", 11) >= 20
+        val old = p.getInt("fast_speed", 0)
+        val fast = when {
+            old == 5 || old == 6 -> old
+            !warm -> Eink.STOCK_FAST            // at +11 the old 9, 8 and 7 all ran 11
+            old == 8 || old == 9 -> old
+            else -> 7
+        }
+        p.edit().putInt("fast_steps", fast)
+            .putInt("text_steps", if (warm) 28 else Eink.STOCK_TEXT).apply()
     }
 
-    fun setTemperature(c: Context, v: Int) =
-        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putInt("temp_offset", v).apply()
+    /** Pushes per change in the fast modes, one of Eink.FAST_STEPS. */
+    fun fastSteps(c: Context): Int =
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt("fast_steps", Eink.STOCK_FAST)
+            .takeIf { Eink.FAST_STEPS.contains(it) } ?: Eink.STOCK_FAST
 
-    /** A2 steps for the fast modes, see Eink.SPEEDS. */
-    fun speed(c: Context): Int =
-        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt("fast_speed", Eink.STOCK_SPEED)
-            .takeIf { Eink.SPEEDS.containsKey(it) } ?: Eink.STOCK_SPEED
+    fun setFastSteps(c: Context, v: Int) =
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putInt("fast_steps", v).apply()
 
-    fun setSpeed(c: Context, v: Int) =
-        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putInt("fast_speed", v).apply()
+    /** Pushes per change in Text and Quality, a key of Eink.TEXT_STEPS. */
+    fun textSteps(c: Context): Int =
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt("text_steps", Eink.STOCK_TEXT)
+            .takeIf { Eink.TEXT_STEPS.containsKey(it) } ?: Eink.STOCK_TEXT
+
+    fun setTextSteps(c: Context, v: Int) =
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putInt("text_steps", v).apply()
 
     /** Small updates between full refreshes, one of Eink.CLEAN_STEPS. */
     fun cleanEvery(c: Context): Int =
@@ -62,13 +69,6 @@ object Prefs {
 
     fun setCleanEvery(c: Context, v: Int) =
         c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putInt("clean_every", v).apply()
-
-    /** A full flash a moment after the app in front changes; off until chosen. */
-    fun refreshOnApp(c: Context): Boolean =
-        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("refresh_on_app", false)
-
-    fun setRefreshOnApp(c: Context, v: Boolean) =
-        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean("refresh_on_app", v).apply()
 
     /** The dither pattern, see Eink.PATTERNS. */
     fun pattern(c: Context): Int =
@@ -93,6 +93,7 @@ object Prefs {
             .takeIf { Eink.PATTERNS.containsKey(it) }
 
     fun appPattern(c: Context, pkg: String): Int = appPatternOwn(c, pkg) ?: pattern(c)
+
 
     fun setAppPattern(c: Context, pkg: String, v: Int?) =
         c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().apply {

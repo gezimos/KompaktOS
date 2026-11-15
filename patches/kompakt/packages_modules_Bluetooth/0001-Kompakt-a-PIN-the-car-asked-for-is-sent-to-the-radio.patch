@@ -1,0 +1,32 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Fri, 20 Nov 2026 17:00:00 +0100
+Subject: [PATCH] Kompakt: a PIN the car asked for is sent to the radio
+
+BTM_PINCodeReply treats a PIN given while the link has no handle yet as a
+PIN fetched early, before connecting: it keeps the PIN, turns authentication
+on and waits for a request that has not come yet. A car that starts pairing
+before Connection Complete has already made the controller ask for the PIN,
+so the reply was never sent and the controller gave up after 30 s with
+PIN_OR_KEY_MISSING.
+
+The early path now needs BTM_PAIR_FLAGS_PIN_REQD clear, which the stack sets
+when the controller's PIN request reaches the upper layer. A PIN the
+controller asked for is sent as the reply.
+---
+ system/stack/btm/btm_sec.cc | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/system/stack/btm/btm_sec.cc b/system/stack/btm/btm_sec.cc
+--- a/system/stack/btm/btm_sec.cc
++++ b/system/stack/btm/btm_sec.cc
+@@ -421,7 +421,9 @@
+     p_dev_rec->sec_rec.sec_flags |= BTM_SEC_16_DIGIT_PIN_AUTHED;
+   }
+ 
++  // Kompakt: not for a PIN the controller already asked for; a car can ask before Connection Complete.
+   if ((btm_sec_cb.pairing_flags & BTM_PAIR_FLAGS_WE_STARTED_DD) &&
++      !(btm_sec_cb.pairing_flags & BTM_PAIR_FLAGS_PIN_REQD) &&
+       (p_dev_rec->hci_handle == HCI_INVALID_HANDLE) && (!btm_sec_cb.security_mode_changed)) {
+     /* This is start of the dedicated bonding if local device is 2.0 */
+     btm_sec_cb.pin_code_len = pin_len;

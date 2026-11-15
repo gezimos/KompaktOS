@@ -5,7 +5,11 @@ Subject: [PATCH] Kompakt: a heads-up space that loses its pair in a lock
  transition no longer crashes SystemUI
 
 ---
+ .../com/android/compose/animation/scene/Element.kt  | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)
+
 diff --git a/packages/SystemUI/compose/scene/src/com/android/compose/animation/scene/Element.kt b/packages/SystemUI/compose/scene/src/com/android/compose/animation/scene/Element.kt
+index a9c03b94f881..5479160acaf8 100644
 --- a/packages/SystemUI/compose/scene/src/com/android/compose/animation/scene/Element.kt
 +++ b/packages/SystemUI/compose/scene/src/com/android/compose/animation/scene/Element.kt
 @@ -1541,12 +1541,13 @@ private fun getTransformationContentKey(

@@ -4,7 +4,11 @@ Date: Tue, 27 Oct 2026 10:30:00 +0200
 Subject: [PATCH] Kompakt: lock screen quick settings follow a setting
 
 ---
+ .../domain/startable/StatusBarStartable.kt    | 33 +++++++++++++++++--
+ 1 file changed, 30 insertions(+), 3 deletions(-)
+
 diff --git a/packages/SystemUI/src/com/android/systemui/scene/domain/startable/StatusBarStartable.kt b/packages/SystemUI/src/com/android/systemui/scene/domain/startable/StatusBarStartable.kt
+index ed765c9fda01..e26154370d2d 100644
 --- a/packages/SystemUI/src/com/android/systemui/scene/domain/startable/StatusBarStartable.kt
 +++ b/packages/SystemUI/src/com/android/systemui/scene/domain/startable/StatusBarStartable.kt
 @@ -46,11 +46,16 @@ import com.android.systemui.scene.domain.interactor.SceneInteractor

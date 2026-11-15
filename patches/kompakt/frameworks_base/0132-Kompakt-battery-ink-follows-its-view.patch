@@ -4,7 +4,11 @@ Date: Mon, 26 Oct 2026 17:00:00 +0200
 Subject: [PATCH] Kompakt: battery ink follows its view
 
 ---
+ .../battery/ui/composable/UnifiedBattery.kt   | 32 +++++++++++++++++--
+ 1 file changed, 29 insertions(+), 3 deletions(-)
+
 diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/pipeline/battery/ui/composable/UnifiedBattery.kt b/packages/SystemUI/src/com/android/systemui/statusbar/pipeline/battery/ui/composable/UnifiedBattery.kt
+index ef257e6b4ff6..74a0c3794d16 100644
 --- a/packages/SystemUI/src/com/android/systemui/statusbar/pipeline/battery/ui/composable/UnifiedBattery.kt
 +++ b/packages/SystemUI/src/com/android/systemui/statusbar/pipeline/battery/ui/composable/UnifiedBattery.kt
 @@ -17,10 +17,12 @@
@@ -20,7 +24,7 @@ diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/pipeline/batte
  import androidx.compose.runtime.getValue
  import androidx.compose.runtime.mutableFloatStateOf
  import androidx.compose.runtime.mutableStateOf
-@@ -50,11 +52,14 @@
+@@ -50,11 +52,14 @@ import androidx.compose.ui.layout.Placeable
  import androidx.compose.ui.layout.layoutId
  import androidx.compose.ui.layout.onLayoutRectChanged
  import androidx.compose.ui.platform.LocalLayoutDirection
@@ -35,7 +39,7 @@ diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/pipeline/batte
  import androidx.compose.ui.unit.LayoutDirection
  import androidx.compose.ui.unit.sp
  import androidx.compose.ui.util.fastFirstOrNull
-@@ -175,7 +180,29 @@
+@@ -175,7 +180,29 @@ fun UnifiedBattery(
      isDarkProvider: () -> IsAreaDark,
      modifier: Modifier,
  ) {
@@ -66,7 +70,7 @@ diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/pipeline/batte
  
      val colorProvider = {
          if (isDarkProvider().isDarkTheme(bounds)) {
-@@ -196,8 +223,7 @@
+@@ -196,8 +223,7 @@ fun UnifiedBattery(
          modifier =
              modifier.sysuiResTag(BatteryViewModel.TEST_TAG).onLayoutRectChanged {
                  relativeLayoutBounds ->

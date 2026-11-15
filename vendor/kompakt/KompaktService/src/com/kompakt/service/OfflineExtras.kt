@@ -5,6 +5,7 @@ import android.content.Context
 import android.hardware.SensorPrivacyManager
 import android.net.wifi.WifiManager
 import android.util.Log
+import java.util.concurrent.Executor
 
 /** What the offline switch turns off besides the modem. */
 object OfflineExtras {
@@ -14,6 +15,8 @@ object OfflineExtras {
         BLUETOOTH("bt", false, false),
         CAMERA("camera", false, false),
     }
+
+    private const val CAMERA_POWER = "/sys/bus/platform/drivers/pmic-codec-accdet/cameragpio_state"
 
     private fun prefs(c: Context) = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
@@ -33,6 +36,38 @@ object OfflineExtras {
         val c = context.applicationContext
         for (e in Extra.values()) {
             if (offline && enabled(c, e)) turnOff(c, e) else restore(c, e)
+        }
+        cameraPower(!(offline && enabled(c, Extra.CAMERA)))
+    }
+
+    /** The kernel's camera power flag: 0 cuts the camera, 1 allows it (kernel 0050). */
+    private fun cameraPower(on: Boolean) {
+        if (!Sysfs.putBlocking(CAMERA_POWER, if (on) "1" else "0"))
+            Log.w(Sysfs.TAG, "offline: camera power flag not written")
+        else Log.i(Sysfs.TAG, "offline: camera power ${if (on) "allowed" else "cut"}")
+    }
+
+    @Volatile private var guarded = false
+
+    /** A tap on Android's "unblock" prompt turns the camera back on; put the block back at once. */
+    fun guardCamera(context: Context) {
+        if (guarded) return
+        val c = context.applicationContext
+        val spm = c.getSystemService(SensorPrivacyManager::class.java) ?: return
+        val onIo = Executor { r -> Sysfs.onIo { r.run() } }
+        try {
+            spm.addSensorPrivacyListener(
+                SensorPrivacyManager.Sensors.CAMERA, onIo,
+                object : SensorPrivacyManager.OnSensorPrivacyChangedListener {
+                    override fun onSensorPrivacyChanged(sensor: Int, enabled: Boolean) {
+                        if (enabled || !OfflineSwitch.engaged() || !enabled(c, Extra.CAMERA)) return
+                        setPrivacy(c, SensorPrivacyManager.Sensors.CAMERA, true)
+                        Log.i(Sysfs.TAG, "offline: camera unblocked while blocked here, blocked again")
+                    }
+                })
+            guarded = true
+        } catch (t: Throwable) {
+            Log.w(Sysfs.TAG, "offline: cannot watch the camera block (${t.javaClass.simpleName})")
         }
     }
 

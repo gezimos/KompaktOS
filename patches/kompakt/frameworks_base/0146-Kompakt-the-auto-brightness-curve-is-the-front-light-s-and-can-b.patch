@@ -1,0 +1,393 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Tue, 27 Oct 2026 20:45:00 +0200
+Subject: [PATCH] Kompakt: the auto brightness curve is the front light's and
+ can be set and taught
+
+Auto brightness accepts a frontlight curve.
+
+A slider change in auto scales the frontlight curve.
+
+A slider change while auto brightness is on adds a user point, and stock
+inserts it into the curve and smooths everything above it so the curve
+never falls. 0146's frontlight curve falls to off in bright light, so
+after one slider change the light stayed at the user's level up to
+sunlight (812 lux measured at a window, light held at 41%).
+
+SimpleMappingStrategy now scales the whole curve by the ratio of the
+user's brightness to the curve at the user's lux, so it passes through
+the user's point and keeps its shape, including off. Where the curve is
+below its lowest step at that lux the scale would be huge, and the stock
+adjustment is used.
+
+Turning auto brightness off forgets the slider point.
+
+A slider change while auto brightness is on is kept as a user point in
+the short term model, which stock only invalidates five minutes after
+the screen goes off. Turning auto off and on again therefore came back
+at the adjusted curve, not the configured one. The point is now reset
+when the setting goes to manual, so auto on starts from the curve.
+
+The auto brightness curve can be set by the user.
+
+SimpleMappingStrategy ignored every brightness configuration, and
+BrightnessConfiguration.Builder refused a curve whose brightness ever
+falls, so the only way to change the frontlight curve (0146) was a new
+image.
+
+The strategy now takes a configuration as its curve. Its nits are the
+backlight steps of config_autoBrightnessLcdBacklightValues, 1 off, and
+null brings the overlay curve back. The Kompakt app saves the curve
+through DisplayManager.setBrightnessConfiguration, which the display
+manager keeps per user and applies again at boot.
+
+The front light fade runs with animations off.
+
+The automatic brightness moves the screen to a new level through
+RampAnimator, which walks the value a little each frame at the configured
+rate. Its step reads ValueAnimator.getDurationScale() and, at 0, sets the
+target at once ("Animation off"). This phone keeps every animation scale at
+0 (SettingsProvider defaults, 0161), so the ramp never ran here: a change
+of room set the front light from one row's number to the next in one frame,
+whatever config_brightness_ramp_rate_slow said.
+
+The ramp is not a screen animation. It fades the front light, which on
+e-ink repaints nothing, so the animator scale does not apply to it: the
+step now runs at scale 1. With kompakt_brightness.xml's slow rate a change
+of room walks every number between two rows over a few seconds, and the
+slider's fast rate stays the framework's.
+
+Brightness ramps with the colour fade off.
+
+DisplayPowerController skips the brightness ramp while "the display content
+is not visible", which it defines as the colour fade being enabled and
+fully faded in. This phone disables the colour fade
+(config_displayColorFadeDisabled, no fade animation on e-ink), so that test
+is false forever and every brightness change, automatic or not, is applied
+in one frame. The slow ramp rate (kompakt_brightness.xml) and 0164 could
+never run; the kernel log showed L:87 then L:31 with nothing between.
+
+With the colour fade off the content is always visible, so the test reads
+that way, and the automatic brightness walks the ramp: a change of room
+fades through every number between two rows.
+
+The ambient light is averaged over two seconds.
+
+AutomaticBrightnessController believes a change of light only once both
+its averages of the light sensor, over the last 2 and the last 10
+seconds, have crossed the hysteresis threshold. On this phone the sensor
+reports within a quarter of a second, but the ten-second average put 3
+to 4 seconds between a change of light and the first move of the front
+light (2026-11-10, the sensor's events against the brightness events).
+The horizons come only from a display device config, which a GSI has
+none of, so the constants are the phone's: 2 seconds and half a second.
+The light moves about half a second after the light changes, and the
+sensor's jitter of a lux at the dim end is still averaged out.
+
+The brightness slider teaches the auto brightness curve.
+
+With auto brightness on, a slider release gives AutomaticBrightnessController
+a user point: the ambient lux and the brightness chosen. Stock keeps it
+only as a short-term adjustment, and the long-term learning Pixels do lives
+in a Google app; BrightnessTracker, its source, never starts on a display
+without a nits table, which this one has none of. The controller now sends
+the point to the Kompakt app, which writes it into the saved brightness
+configuration; saving resets the short-term point, and the curve then
+gives the same level at that light every time.
+---
+ .../display/BrightnessConfiguration.java      |  2 +-
+ .../AutomaticBrightnessController.java        | 18 +++-
+ .../display/BrightnessMappingStrategy.java    | 86 +++++++++++++++++--
+ .../server/display/DisplayDeviceConfig.java   |  6 +-
+ .../display/DisplayPowerController.java       |  8 +-
+ .../android/server/display/RampAnimator.java  |  4 +-
+ 6 files changed, 109 insertions(+), 15 deletions(-)
+
+diff --git a/core/java/android/hardware/display/BrightnessConfiguration.java b/core/java/android/hardware/display/BrightnessConfiguration.java
+index 007b37f35d4b..3abeb59fb1d3 100644
+--- a/core/java/android/hardware/display/BrightnessConfiguration.java
++++ b/core/java/android/hardware/display/BrightnessConfiguration.java
+@@ -540,7 +540,7 @@ public final class BrightnessConfiguration implements Parcelable {
+             Preconditions.checkArrayElementsInRange(lux, 0, Float.MAX_VALUE, "lux");
+             Preconditions.checkArrayElementsInRange(nits, 0, Float.MAX_VALUE, "nits");
+             checkMonotonic(lux, true /*strictly increasing*/, "lux");
+-            checkMonotonic(nits, false /*strictly increasing*/, "nits");
++            // Kompakt: a frontlight curve falls again in bright light (BrightnessMappingStrategy).
+             mCurveLux = lux;
+             mCurveNits = nits;
+             mCorrectionsByPackageName = new HashMap<>();
+diff --git a/services/core/java/com/android/server/display/AutomaticBrightnessController.java b/services/core/java/com/android/server/display/AutomaticBrightnessController.java
+index b8b4758277b2..fb9ad9c9bb36 100644
+--- a/services/core/java/com/android/server/display/AutomaticBrightnessController.java
++++ b/services/core/java/com/android/server/display/AutomaticBrightnessController.java
+@@ -29,6 +29,7 @@ import android.app.ActivityTaskManager.RootTaskInfo;
+ import android.app.IActivityTaskManager;
+ import android.app.TaskStackListener;
+ import android.content.Context;
++import android.content.Intent;
+ import android.content.pm.ApplicationInfo;
+ import android.content.pm.PackageManager;
+ import android.hardware.Sensor;
+@@ -44,6 +45,7 @@ import android.os.PowerManager;
+ import android.os.RemoteException;
+ import android.os.SystemClock;
+ import android.os.Trace;
++import android.os.UserHandle;
+ import android.util.EventLog;
+ import android.util.IndentingPrintWriter;
+ import android.util.MathUtils;
+@@ -471,7 +473,11 @@ public class AutomaticBrightnessController {
+         if (userChangedBrightness && enable) {
+             // Update the brightness curve with the new user control point. It's critical this
+             // happens after we update the autobrightness adjustment since it may reset it.
+-            changed |= setScreenBrightnessByUser(brightness);
++            final boolean userPoint = setScreenBrightnessByUser(brightness);
++            changed |= userPoint;
++            if (userPoint) {
++                kompaktLearn(mAmbientLux, brightness);
++            }
+         }
+         final boolean userInitiatedChange =
+                 userChangedBrightness || userChangedAutoBrightnessAdjustment;
+@@ -583,6 +589,16 @@ public class AutomaticBrightnessController {
+         return true;
+     }
+ 
++    // Kompakt: a slider move with auto on is a point the Kompakt app writes into the saved curve.
++    private void kompaktLearn(float lux, float brightness) {
++        final Intent intent = new Intent("com.kompakt.service.action.BRIGHTNESS_LEARN")
++                .setPackage("com.kompakt.service")
++                .putExtra("lux", lux)
++                .putExtra("brightness", brightness)
++                .addFlags(Intent.FLAG_RECEIVER_FOREGROUND);
++        mHandler.post(() -> mContext.sendBroadcastAsUser(intent, UserHandle.CURRENT));
++    }
++
+     public void resetShortTermModel() {
+         mCurrentBrightnessMapper.clearUserDataPoints();
+         mShortTermModel.reset();
+diff --git a/services/core/java/com/android/server/display/BrightnessMappingStrategy.java b/services/core/java/com/android/server/display/BrightnessMappingStrategy.java
+index 2f74524db827..260a46859f76 100644
+--- a/services/core/java/com/android/server/display/BrightnessMappingStrategy.java
++++ b/services/core/java/com/android/server/display/BrightnessMappingStrategy.java
+@@ -39,6 +39,7 @@ import android.util.Slog;
+ import android.util.Spline;
+ 
+ import com.android.internal.annotations.VisibleForTesting;
++import com.android.internal.display.BrightnessSynchronizer;
+ import com.android.internal.display.BrightnessUtils;
+ import com.android.internal.util.Preconditions;
+ import com.android.server.display.utils.Plog;
+@@ -142,7 +143,8 @@ public abstract class BrightnessMappingStrategy {
+             builder.setShortTermModelUpperLuxMultiplier(SHORT_TERM_MODEL_THRESHOLD_RATIO);
+             return new PhysicalMappingStrategy(builder.build(), nitsRange, brightnessRange,
+                     autoBrightnessAdjustmentMaxGamma, mode, preset, displayWhiteBalanceController);
+-        } else if (isValidMapping(luxLevels, brightnessLevels)) {
++        } else if (isValidFrontlightCurve(luxLevels, brightnessLevels)) {
++            // Kompakt: a frontlight curve may fall again in bright light.
+             return new SimpleMappingStrategy(luxLevels, brightnessLevels,
+                     autoBrightnessAdjustmentMaxGamma, shortTermModelTimeout, mode, preset);
+         } else {
+@@ -175,6 +177,20 @@ public abstract class BrightnessMappingStrategy {
+         return vals;
+     }
+ 
++    // Kompakt: as isValidMapping, but the brightness may go down as the lux goes up.
++    private static boolean isValidFrontlightCurve(float[] x, float[] y) {
++        if (x == null || y == null || x.length == 0 || x.length != y.length) {
++            return false;
++        }
++        for (int i = 0; i < x.length; i++) {
++            if (Float.isNaN(x[i]) || Float.isNaN(y[i]) || x[i] < 0 || y[i] < 0
++                    || (i > 0 && x[i - 1] >= x[i])) {
++                return false;
++            }
++        }
++        return true;
++    }
++
+     private static boolean isValidMapping(float[] x, float[] y) {
+         if (x == null || y == null || x.length == 0 || y.length == 0) {
+             return false;
+@@ -607,9 +623,13 @@ public abstract class BrightnessMappingStrategy {
+      */
+     private static class SimpleMappingStrategy extends BrightnessMappingStrategy {
+         // Lux control points
+-        private final float[] mLux;
++        private float[] mLux;
+         // Brightness control points normalized to [0, 1]
+-        private final float[] mBrightness;
++        private float[] mBrightness;
++        // Kompakt: the overlay curve, and the configuration in its place, if any.
++        private final float[] mDefaultLux;
++        private final float[] mDefaultBrightness;
++        private BrightnessConfiguration mConfig;
+ 
+         @AutomaticBrightnessController.AutomaticBrightnessMode
+         private final int mMode;
+@@ -641,6 +661,8 @@ public abstract class BrightnessMappingStrategy {
+                 mLux[i] = lux[i];
+                 mBrightness[i] = brightness[i];
+             }
++            mDefaultLux = mLux;
++            mDefaultBrightness = mBrightness;
+ 
+             mMaxGamma = maxGamma;
+             mAutoBrightnessAdjustment = 0;
+@@ -662,12 +684,34 @@ public abstract class BrightnessMappingStrategy {
+ 
+         @Override
+         public boolean setBrightnessConfiguration(@Nullable BrightnessConfiguration config) {
+-            return false;
++            // Kompakt: the configuration's nits are backlight steps, as the overlay curve's.
++            if (Objects.equals(config, mConfig)) {
++                return false;
++            }
++            float[] lux = mDefaultLux;
++            float[] brightness = mDefaultBrightness;
++            if (config != null) {
++                final Pair<float[], float[]> curve = config.getCurve();
++                lux = curve.first;
++                brightness = new float[curve.second.length];
++                for (int i = 0; i < brightness.length; i++) {
++                    brightness[i] = BrightnessSynchronizer.brightnessIntToFloat(
++                            Math.round(curve.second[i]));
++                }
++                if (!isValidFrontlightCurve(lux, brightness)) {
++                    return false;
++                }
++            }
++            mConfig = config;
++            mLux = lux;
++            mBrightness = brightness;
++            computeSpline();
++            return true;
+         }
+ 
+         @Override
+         public BrightnessConfiguration getBrightnessConfiguration() {
+-            return null;
++            return mConfig;
+         }
+ 
+         @Override
+@@ -761,7 +805,7 @@ public abstract class BrightnessMappingStrategy {
+ 
+         @Override
+         public boolean isDefaultConfig() {
+-            return true;
++            return mConfig == null;
+         }
+ 
+         @Override
+@@ -778,6 +822,7 @@ public abstract class BrightnessMappingStrategy {
+         public void dump(PrintWriter pw, float hbmTransition) {
+             pw.println("SimpleMappingStrategy");
+             pw.println("  mSpline=" + mSpline);
++            pw.println("  mConfig=" + mConfig);
+             pw.println("  mMaxGamma=" + mMaxGamma);
+             pw.println("  mAutoBrightnessAdjustment=" + mAutoBrightnessAdjustment);
+             pw.println("  mUserLux=" + mUserLux);
+@@ -806,11 +851,36 @@ public abstract class BrightnessMappingStrategy {
+         }
+ 
+         private void computeSpline() {
+-            Pair<float[], float[]> curve = getAdjustedCurve(mLux, mBrightness, mUserLux,
+-                    mUserBrightness, mAutoBrightnessAdjustment, mMaxGamma);
++            Pair<float[], float[]> curve = kompaktScaleToUserPoint();
++            if (curve == null) {
++                curve = getAdjustedCurve(mLux, mBrightness, mUserLux,
++                        mUserBrightness, mAutoBrightnessAdjustment, mMaxGamma);
++            }
+             mSpline = Spline.createSpline(curve.first, curve.second);
+         }
+ 
++        // Kompakt: a user point scales the whole curve, so a frontlight curve still falls to off.
++        private Pair<float[], float[]> kompaktScaleToUserPoint() {
++            if (mUserLux == INVALID_LUX || !(mUserBrightness >= 0)) {
++                return null;
++            }
++            float lowest = Float.MAX_VALUE;
++            for (float b : mBrightness) {
++                if (b > 0) lowest = Math.min(lowest, b);
++            }
++            final float base = getUnadjustedBrightness(mUserLux);
++            // Where the curve is off or nearly so, a scale would be huge; stock handles it.
++            if (!(base >= lowest)) {
++                return null;
++            }
++            final float scale = mUserBrightness / base;
++            final float[] brightness = new float[mBrightness.length];
++            for (int i = 0; i < brightness.length; i++) {
++                brightness[i] = MathUtils.constrain(mBrightness[i] * scale, 0, 1);
++            }
++            return Pair.create(mLux, brightness);
++        }
++
+         private float getUnadjustedBrightness(float lux) {
+             Spline spline = Spline.createSpline(mLux, mBrightness);
+             return spline.interpolate(lux);
+diff --git a/services/core/java/com/android/server/display/DisplayDeviceConfig.java b/services/core/java/com/android/server/display/DisplayDeviceConfig.java
+index 5f92c98b5e09..88b3c04f36c8 100644
+--- a/services/core/java/com/android/server/display/DisplayDeviceConfig.java
++++ b/services/core/java/com/android/server/display/DisplayDeviceConfig.java
+@@ -692,11 +692,11 @@ public class DisplayDeviceConfig {
+     private static final int INTERPOLATION_LINEAR = 1;
+ 
+     // Length of the ambient light horizon used to calculate the long term estimate of ambient
+-    // light.
+-    private static final int AMBIENT_LIGHT_LONG_HORIZON_MILLIS = 10000;
++    // light. Kompakt: two seconds, not ten; the ten put 3 to 4 seconds before the front light moved.
++    private static final int AMBIENT_LIGHT_LONG_HORIZON_MILLIS = 2000;
+ 
+     // Length of the ambient light horizon used to calculate short-term estimate of ambient light.
+-    private static final int AMBIENT_LIGHT_SHORT_HORIZON_MILLIS = 2000;
++    private static final int AMBIENT_LIGHT_SHORT_HORIZON_MILLIS = 500;
+ 
+     // Invalid value of AutoBrightness brightening and darkening light debounce
+     private static final int INVALID_AUTO_BRIGHTNESS_LIGHT_DEBOUNCE = -1;
+diff --git a/services/core/java/com/android/server/display/DisplayPowerController.java b/services/core/java/com/android/server/display/DisplayPowerController.java
+index d2adb6f534eb..613b10edec41 100644
+--- a/services/core/java/com/android/server/display/DisplayPowerController.java
++++ b/services/core/java/com/android/server/display/DisplayPowerController.java
+@@ -1694,8 +1694,10 @@ final class DisplayPowerController implements AutomaticBrightnessController.Call
+                     Display.isDozeState(state) && mBrightnessBucketsInDozeConfig;
+             // If the color fade is totally covering the screen then we can change the backlight
+             // level without it being a noticeable jump since any actual content isn't yet visible.
++            // Kompakt: with the colour fade off (config_displayColorFadeDisabled) the content is
++            // always visible; stock read "off" as "never visible" and skipped every ramp.
+             final boolean isDisplayContentVisible =
+-                    mColorFadeEnabled && mPowerState.getColorFadeLevel() == 1.0f;
++                    !mColorFadeEnabled || mPowerState.getColorFadeLevel() == 1.0f;
+             // We only want to animate the brightness if it is between 0.0f and 1.0f.
+             // brightnessState can contain the values -1.0f and NaN, which we do not want to
+             // animate to. To avoid this, we check the value first.
+@@ -2574,6 +2576,10 @@ final class DisplayPowerController implements AutomaticBrightnessController.Call
+         if (screenBrightnessModeSetting == Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL) {
+             // In manual mode, all brightness changes should be saved immediately.
+             mDisplayBrightnessController.saveBrightnessIfNeeded();
++            // Kompakt: auto off forgets the slider point, so auto on starts from the curve.
++            if (mAutomaticBrightnessController != null) {
++                mAutomaticBrightnessController.resetShortTermModel();
++            }
+         }
+     }
+ 
+diff --git a/services/core/java/com/android/server/display/RampAnimator.java b/services/core/java/com/android/server/display/RampAnimator.java
+index e38c2c58f453..7a3dbcb4c2dc 100644
+--- a/services/core/java/com/android/server/display/RampAnimator.java
++++ b/services/core/java/com/android/server/display/RampAnimator.java
+@@ -175,7 +175,9 @@ class RampAnimator<T> {
+         // and clamp to the target. This gives us the new current value but
+         // we keep the animated value around to allow for fractional increments
+         // towards the target.
+-        final float scale = ValueAnimator.getDurationScale();
++        // Kompakt: the ramp fades the front light, which repaints nothing; it runs with animations
++        // off, which this phone keeps them (0161), so the animator scale does not apply to it.
++        final float scale = 1f;
+         if (scale == 0) {
+             // Animation off.
+             mAnimatedValue = mTargetHlgValue;
+-- 
+2.43.0
+

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Kompakt: no blur. Every SystemUI blur takes its strength from this, the notification list behind the PIN pad included, which could stay blurred after unlocking. -->
+    <dimen name="max_shade_window_blur_radius">0dp</dimen>
+</resources>

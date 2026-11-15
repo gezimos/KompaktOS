@@ -388,28 +388,18 @@ class KompaktActivity : Activity() {
             PAGE_ADVANCED -> {
                 // Every setting here is a row: its name, one line on what it does, the info glyph, then its chips.
                 page.add(section(getString(R.string.advanced_section)))
-                page.add(settingRow(getString(R.string.temperature_section),
-                    getString(R.string.temperature_short), R.drawable.ic_thermostat) { temperatureInfo() })
-                page.add(temperatureSteps())
-                page.add(settingRow(getString(R.string.speed_section),
-                    getString(R.string.speed_short), R.drawable.ic_speed) { speedInfo() })
-                page.add(speedSteps())
-                page.add(settingRow(getString(R.string.pattern_section),
-                    getString(R.string.pattern_short), R.drawable.ic_grain) { patternInfo() })
-                page.add(patternSteps())
-                // Normal is Mudita's own dither, which the brightness does not reach.
-                if (Prefs.pattern(this) != Eink.STOCK_PATTERN) {
-                    page.add(settingRow(getString(R.string.light_section),
-                        getString(R.string.light_short), R.drawable.ic_light) { lightInfo() })
-                    page.add(lightSteps())
-                }
-                page.add(settingRow(getString(R.string.clean_section),
-                    getString(R.string.clean_short), R.drawable.ic_clean) { cleanInfo() })
-                page.add(cleanSteps())
-                page.add(toggleRow(getString(R.string.refresh_on_app), Prefs.refreshOnApp(this),
-                    getString(R.string.refresh_on_app_note), R.drawable.ic_autorenew) { on ->
-                    Prefs.setRefreshOnApp(this, on)
-                })
+                page.add(settingRow(getString(R.string.fast_speed_section),
+                    getString(R.string.fast_speed_short), R.drawable.ic_speed) { fastSpeedInfo() })
+                page.add(fastSpeedSteps())
+                page.add(valueRow(getString(R.string.pattern_section),
+                    Eink.PATTERNS[Prefs.pattern(this)] ?: "",
+                    getString(R.string.pattern_short), R.drawable.ic_grain) { patternSheet() })
+                page.add(settingRow(getString(R.string.text_speed_section),
+                    getString(R.string.text_speed_short), R.drawable.ic_notes) { textSpeedInfo() })
+                page.add(textSpeedSteps())
+                page.add(valueRow(getString(R.string.clean_section),
+                    getString(CLEAN_LABELS.getValue(Prefs.cleanEvery(this))),
+                    getString(R.string.clean_short), R.drawable.ic_clean) { cleanSheet() })
                 page.add(valueRow(getString(R.string.frame_rate_row),
                     getString(R.string.frame_rate_fps, frameRateNow()),
                     getString(R.string.frame_rate_short), R.drawable.ic_timer) {
@@ -744,36 +734,29 @@ class KompaktActivity : Activity() {
         return row
     }
 
-    /** Temperature offset. A warmer claim means fewer waveform frames. */
-    private fun temperatureSteps(): View = chipRow(
-        Eink.TEMPS,
-        Prefs.temperature(this),
-        { if (it > 0) "+$it" else it.toString() },
-    ) { step ->
-        Prefs.setTemperature(this, step)
-        Eink.setTemperature(step)
-        Flash.show(applicationContext)  // as a mode change: flush what the old setting left
-    }
-
-    /** A2 steps in the fast modes, 9 to 5. Fewer steps: sooner, with more ghosting. */
-    private fun speedSteps(): View {
-        val keys = Eink.SPEEDS.keys.toList()
-        return StepSlider(this, Eink.SPEEDS.values.toList(),
-            keys.indexOf(Prefs.speed(this)).coerceAtLeast(0), INK, PAPER) { i ->
-            Prefs.setSpeed(this, keys[i])
-            Eink.setSpeed(keys[i])
-            Flash.show(applicationContext)  // as a mode change: flush what the old setting left
-        }.apply { setPadding(dp(GUTTER), dp(4), dp(GUTTER), dp(8)) }
-    }
-
-    /** Small updates before the whole frame is redrawn. Fewer: ghosts clear sooner, with more redraws. */
-    private fun cleanSteps(): View {
-        val keys = Eink.CLEAN_STEPS
+    /** Pushes per change in the fast modes, 11 to 5. Fewer: sooner, with more ghosting. */
+    private fun fastSpeedSteps(): View {
+        val keys = Eink.FAST_STEPS
         return StepSlider(this, keys.map { it.toString() },
-            keys.indexOf(Prefs.cleanEvery(this)).coerceAtLeast(0), INK, PAPER) { i ->
-            Prefs.setCleanEvery(this, keys[i])
-            Eink.setCleanEvery(keys[i])
+            keys.indexOf(Prefs.fastSteps(this)).coerceAtLeast(0), INK, PAPER) { i ->
+            Prefs.setFastSteps(this, keys[i])
+            applySpeeds()
         }.apply { setPadding(dp(GUTTER), dp(4), dp(GUTTER), dp(8)) }
+    }
+
+    /** Pushes per change in Text and Quality, 46 to 28. Fewer: sooner, less clean. */
+    private fun textSpeedSteps(): View {
+        val keys = Eink.TEXT_STEPS.keys.toList()
+        return StepSlider(this, keys.map { it.toString() },
+            keys.indexOf(Prefs.textSteps(this)).coerceAtLeast(0), INK, PAPER) { i ->
+            Prefs.setTextSteps(this, keys[i])
+            applySpeeds()
+        }.apply { setPadding(dp(GUTTER), dp(4), dp(GUTTER), dp(8)) }
+    }
+
+    private fun applySpeeds() {
+        Eink.setSpeeds(Prefs.fastSteps(this), Prefs.textSteps(this))
+        Flash.show(applicationContext)  // as a mode change: flush what the old setting left
     }
 
     /** How far the dithers lift dark greys. */
@@ -784,18 +767,6 @@ class KompaktActivity : Activity() {
     ) { v ->
         Prefs.setDitherLight(this, v)
         Eink.setDitherLight(v)
-    }
-
-    /** How Fast + dither places its dots. */
-    private fun patternSteps(): View = chipRow(
-        Eink.PATTERNS.keys.toList(),
-        Prefs.pattern(this),
-        { Eink.PATTERNS.getValue(it) },
-    ) { p ->
-        val brightnessShown = Prefs.pattern(this) != Eink.STOCK_PATTERN
-        Prefs.setPattern(this, p)
-        Eink.setPattern(p)
-        if (brightnessShown != (p != Eink.STOCK_PATTERN)) select(PAGE_ADVANCED)
     }
 
     // --------------------------------------------------------------- battery
@@ -1260,34 +1231,85 @@ class KompaktActivity : Activity() {
     private fun fingerNeeds() = needsSheet(getString(R.string.finger_section),
         getString(R.string.finger_note), Needs.VENDOR, FingerScroll.available())
 
-    private fun temperatureInfo() = resetSheet(getString(R.string.temperature_section),
-        getString(R.string.temperature_note)) {
-        Prefs.setTemperature(this, Eink.STOCK_TEMP)
-        Eink.setTemperature(Eink.STOCK_TEMP)
+    private fun fastSpeedInfo() = resetSheet(getString(R.string.fast_speed_section),
+        getString(R.string.fast_speed_note)) {
+        Prefs.setFastSteps(this, Eink.STOCK_FAST)
+        applySpeeds()
     }
 
-    private fun speedInfo() = resetSheet(getString(R.string.speed_section),
-        getString(R.string.speed_note)) {
-        Prefs.setSpeed(this, Eink.STOCK_SPEED)
-        Eink.setSpeed(Eink.STOCK_SPEED)
+    private fun textSpeedInfo() = resetSheet(getString(R.string.text_speed_section),
+        getString(R.string.text_speed_note)) {
+        Prefs.setTextSteps(this, Eink.STOCK_TEXT)
+        applySpeeds()
     }
 
-    private fun cleanInfo() = resetSheet(getString(R.string.clean_section),
-        getString(R.string.clean_note)) {
-        Prefs.setCleanEvery(this, Eink.CLEAN_STOCK)
-        Eink.setCleanEvery(Eink.CLEAN_STOCK)
+    /** One choice per row, then Reset to default; the page is redrawn when the sheet closes. */
+    private fun pickSheet(title: String, note: String, items: List<SheetItem>, onReset: () -> Unit) {
+        val column = sheetColumn(title, note)
+        val dialog = showSheet(column)
+        items.forEach { item ->
+            column.addView(choiceRow(item.label, item.sub, item.selected) {
+                item.action()
+                dialog.dismiss()
+            })
+        }
+        column.addView(buttonRow(getString(R.string.reset_default) to {
+            onReset()
+            dialog.dismiss()
+        }))
+        dialog.setOnDismissListener { if (current == PAGE_ADVANCED) select(PAGE_ADVANCED) }
     }
 
-    private fun patternInfo() = resetSheet(getString(R.string.pattern_section),
-        getString(R.string.pattern_note)) {
-        Prefs.setPattern(this, Eink.STOCK_PATTERN)
-        Eink.setPattern(Eink.STOCK_PATTERN)
+    private fun setCleanEvery(n: Int) {
+        Prefs.setCleanEvery(this, n)
+        Eink.setCleanEvery(n)
     }
 
-    private fun lightInfo() = resetSheet(getString(R.string.light_section),
-        getString(R.string.light_note)) {
-        Prefs.setDitherLight(this, Eink.STOCK_LIGHT)
-        Eink.setDitherLight(Eink.STOCK_LIGHT)
+    private fun cleanSheet() {
+        val now = Prefs.cleanEvery(this)
+        pickSheet(getString(R.string.clean_section), getString(R.string.clean_note),
+            Eink.CLEAN_STEPS.map { n ->
+                SheetItem(getString(CLEAN_LABELS.getValue(n)), getString(CLEAN_NOTES.getValue(n)), n == now) {
+                    setCleanEvery(n)
+                }
+            }) { setCleanEvery(Eink.CLEAN_STOCK) }
+    }
+
+    private fun setPattern(p: Int) {
+        Prefs.setPattern(this, p)
+        Eink.setPattern(p)
+    }
+
+    /** The patterns, then Dither brightness for the ones it reaches. A pick redraws the sheet, which stays open. */
+    private fun patternSheet() {
+        val column = sheetColumn(getString(R.string.pattern_section), getString(R.string.pattern_sheet_note))
+        val body = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        column.addView(body)
+        lateinit var dialog: android.app.Dialog
+        fun fill() {
+            body.removeAllViews()
+            val now = Prefs.pattern(this)
+            Eink.PATTERNS.forEach { (p, label) ->
+                body.addView(choiceRow(label, getString(PATTERN_NOTES.getValue(p)), p == now) {
+                    setPattern(p)
+                    fill()
+                })
+            }
+            // Normal is Mudita's own dither, which the brightness does not reach.
+            if (now != Eink.STOCK_PATTERN) {
+                body.addView(row(getString(R.string.light_section), getString(R.string.light_short)))
+                body.addView(lightSteps())
+            }
+            body.addView(buttonRow(getString(R.string.reset_default) to {
+                setPattern(Eink.STOCK_PATTERN)
+                Prefs.setDitherLight(this, Eink.STOCK_LIGHT)
+                Eink.setDitherLight(Eink.STOCK_LIGHT)
+                dialog.dismiss()
+            }))
+        }
+        fill()
+        dialog = showSheet(column)
+        dialog.setOnDismissListener { if (current == PAGE_ADVANCED) select(PAGE_ADVANCED) }
     }
 
     /** A setting's sheet: what it does, and a way back to its default. The page redraws with it. */
@@ -1824,6 +1846,12 @@ class KompaktActivity : Activity() {
     )
 
     companion object {
+        private val CLEAN_LABELS = mapOf(6 to R.string.clean_most, 12 to R.string.clean_more,
+            24 to R.string.clean_normal, 48 to R.string.clean_less)
+        private val CLEAN_NOTES = mapOf(6 to R.string.clean_most_note, 12 to R.string.clean_more_note,
+            24 to R.string.clean_normal_note, 48 to R.string.clean_less_note)
+        private val PATTERN_NOTES = mapOf(0 to R.string.pattern_normal_note, 1 to R.string.pattern_grid_note,
+            3 to R.string.pattern_hybrid_note, 4 to R.string.pattern_noise_note)
 
         private const val TAB_DISPLAY = 0
         private const val TAB_OFFLINE = 1

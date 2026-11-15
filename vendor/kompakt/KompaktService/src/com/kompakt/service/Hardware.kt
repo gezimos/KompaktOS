@@ -111,10 +111,6 @@ object Eink {
         val brightness: Float,
         val contrast: Float,
         val dither: Boolean,
-        /** How much of the image is dithered, 0 to 255. -1 leaves the preset's own choice. */
-        val ditherColors: Int = -1,
-        /** enum EInkDitheringType, read only when the amount is above zero. */
-        val ditherType: Int = DITHER_FS_OPT1,
         /** TCON timings, see TIMINGS. Defaults to clean: the register persists until rewritten. */
         val timings: String = "clean",
         /** GL16 leaves unchanged pixels undriven (gu16). */
@@ -129,10 +125,8 @@ object Eink {
     val MODES: LinkedHashMap<String, Mode> = linkedMapOf(
         "fast" to Mode("A2", 1, 1, 1.0f, 1.0f, false),
         // Kompakt: soft. Gamma 3 is the 1.25 curve.
-        "soft" to Mode("A2", 1, 3, 1.00f, 0.8f, false, 0),
-        // 96 dither levels, not 160: chosen on the panel as the point where the
-        // diffused dots stop crawling while scrolling.
-        "fastdither" to Mode("A2", 1, 1, 1.0f, 1.2f, true, 96, DITHER_FS_OPT1),
+        "soft" to Mode("A2", 1, 3, 1.00f, 0.8f, false),
+        "fastdither" to Mode("A2", 1, 1, 1.0f, 1.2f, true),
         "text" to Mode("GL16", 4, 1, 1.0f, 1.2f, false, faster = true),
         "quality" to Mode("GL16", 4, 2, 1.0f, 1.0f, false, faster = true),
     )
@@ -195,17 +189,11 @@ object Eink {
         write("gamma", m.gamma.toString())
         write("brightness", Math.round(m.brightness * 100f).toString())
         write("contrast", Math.round(m.contrast * 10f).toString())
-        val colors = if (m.ditherColors >= 0) m.ditherColors else if (m.dither) 96 else 0
-        // Never dither_colors: that shim forces FloydSteinbergOpt1 for any value.
         if (m.timings.isNotEmpty() && TIMINGS.containsKey(m.timings)) {
             write("timings_mode", m.timings)
         }
-        if (colors <= 0) {
-            write("dither_type", DITHER_OFF.toString())
-        } else {
-            write("dither_param", colors.toString())
-            write("dither_type", m.ditherType.toString())
-        }
+        // The type sets Mudita's own cut-off (160); dither_param is not written.
+        write("dither_type", (if (m.dither) DITHER_FS_OPT1 else DITHER_OFF).toString())
         setFaster(m.faster)
     }
 
@@ -233,24 +221,37 @@ object Eink {
     }
 
 
-    /** A2 steps in the fast modes, as the slider shows them; 0 is the waveform's own, 7 at room temperature. 8 and 9 are Caster's. */
-    val SPEEDS: LinkedHashMap<Int, String> = linkedMapOf(9 to "9", 8 to "8", 0 to "7", 6 to "6", 5 to "5")
-    const val STOCK_SPEED = 0
+    /** Pushes per change in the fast modes; 11 is Mudita's, its table at the +11 offset. */
+    val FAST_STEPS: List<Int> = listOf(11, 9, 8, 7, 6, 5)
+    const val STOCK_FAST = 11
 
-    fun setSpeed(steps: Int) = Sysfs.onIo {
-        write("kompakt_wf_a2frames", steps.toString())
+    /** Pushes per change in Text and Quality, and the temperature offset that picks each from the panel's table. */
+    val TEXT_STEPS: LinkedHashMap<Int, Int> = linkedMapOf(46 to 7, 38 to 11, 33 to 13, 28 to 18)
+    const val STOCK_TEXT = 38
+
+    /** For kompakt_wf_a2frames: 0, the table's own count, when both rows are on their defaults. */
+    private fun a2frames(fast: Int, text: Int): Int =
+        if (fast == STOCK_FAST && text == STOCK_TEXT) 0 else fast
+
+    /** Both speed rows. The offset goes first: the fast count uploads the waveform, which reads it. */
+    fun setSpeeds(fast: Int, text: Int) = Sysfs.onIo {
+        write("eink_temperature", (TEXT_STEPS[text] ?: TEXT_STEPS.getValue(STOCK_TEXT)).toString())
+        write("kompakt_wf_a2frames", a2frames(fast, text).toString())
+        // meink reads the offset only when it loads a waveform, so load the current one again.
+        val m = MODES[applied ?: return@onIo] ?: return@onIo
+        write("waveform_mode", m.waveform)
     }
 
     /**
-     * For Flash, on the IO thread: in a Fast mode set below Mudita's 7 steps, A2 at 7 (true) or back to
+     * For Flash, on the IO thread: in a Fast mode set below 7 pushes, A2 at 7 (true) or back to
      * the user's speed (false), so the flush's black is real black. Returns whether it changed anything.
      */
     fun flushSpeed(c: Context, on: Boolean): Boolean {
-        val speed = Prefs.speed(c)
-        if (!Ours.vendor() || speed == STOCK_SPEED || speed >= 7) return false
+        val fast = Prefs.fastSteps(c)
+        if (!Ours.vendor() || fast >= 7) return false
         // Boost only in a Fast mode; the way back always runs, the mode may have changed meanwhile.
         if (on && MODES[applied ?: ""]?.waveform != "A2") return false
-        write("kompakt_wf_a2frames", (if (on) STOCK_SPEED else speed).toString())
+        write("kompakt_wf_a2frames", (if (on) 7 else a2frames(fast, Prefs.textSteps(c))).toString())
         return true
     }
 
@@ -279,7 +280,7 @@ object Eink {
     /** Whether a mode shows a pattern: Fast + dither. */
     fun dithers(key: String): Boolean {
         val m = MODES[key] ?: return false
-        return m.ditherColors > 0 || (m.ditherColors < 0 && m.dither)
+        return m.dither
     }
 
     /** The pattern for the app in front, its own while its mode dithers; null is the lock screen. */
@@ -288,18 +289,6 @@ object Eink {
         val p = if (pkg != null && Prefs.perAppEnabled(c) && dithers(Prefs.appMode(c, pkg)))
             Prefs.appPattern(c, pkg) else Prefs.pattern(c)
         if (p != appliedPattern) setPattern(p)
-    }
-
-    /** Offset in degrees on the panel's reported temperature. */
-    val TEMPS: List<Int> = listOf(0, 5, 11, 20, 30, 40)
-    const val STOCK_TEMP = 11
-
-    /** eink_temperature, not temperature_offset: same labelling reason as update_mode. */
-    fun setTemperature(offset: Int) = Sysfs.onIo {
-        write("eink_temperature", offset.toString())
-        // meink reads the offset only when it loads a waveform, so load the current one again.
-        val m = MODES[applied ?: return@onIo] ?: return@onIo
-        write("waveform_mode", m.waveform)
     }
 
     /** Full-panel flush. A2 is 1bpp and never fully settles, so ghosting accumulates. */

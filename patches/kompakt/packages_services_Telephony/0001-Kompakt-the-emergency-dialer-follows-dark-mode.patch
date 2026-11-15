@@ -1,0 +1,289 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sat, 14 Nov 2026 12:00:00 +0300
+Subject: [PATCH] Kompakt: the emergency dialer follows dark mode, in two inks
+
+The emergency dialer took its colours from the lock screen wallpaper: the
+background from the wallpaper's main colour and the text from whether that
+colour is light or dark. A dark wallpaper in light mode gave a black
+dialer, a light one in dark mode a white dialer, while the emergency
+information screen it opens follows dark mode, so the two did not match.
+It is now white with black text in light mode and black with white text in
+dark mode, and the wallpaper is not read. The background is opaque; at
+90 percent over the wallpaper it showed as a dither on e-ink. The green
+dial button is an outlined circle in the two inks, with no shadow.
+
+The emergency information box took 155dp of a 576dp screen: an 80dp box
+with 35dp above and 40dp below (values-h535dp, the bucket this phone
+uses). The dialpad under it then lost the space kept for the dial button,
+and the button sat on the 0. The margins are now 12dp above and below in
+every height bucket. Its outline was white at 25 percent in light mode,
+invisible on white, and grey at 52 percent in dark mode over a #202124
+fill: it is now a 2dp border in the ink on the paper. The tap-again state
+was a solid red box with white text; it is the same box with a 4dp
+border, and the text is in the ink.
+---
+ .../btn_emergency_confirm_information.xml     |  5 +-
+ res/drawable/btn_emergency_information.xml    |  2 +-
+ res/values-h535dp/dimens.xml                  |  4 +-
+ res/values-h590dp/dimens.xml                  |  4 +-
+ res/values-h720dp/dimens.xml                  |  4 +-
+ res/values-night/colors.xml                   |  5 +-
+ res/values/colors.xml                         |  5 +-
+ res/values/dimens.xml                         |  4 +-
+ res/values/styles.xml                         |  3 +-
+ src/com/android/phone/EmergencyDialer.java    | 56 ++++++++++++-------
+ 10 files changed, 57 insertions(+), 35 deletions(-)
+
+diff --git a/res/drawable/btn_emergency_confirm_information.xml b/res/drawable/btn_emergency_confirm_information.xml
+index 22b3069..3f66549 100644
+--- a/res/drawable/btn_emergency_confirm_information.xml
++++ b/res/drawable/btn_emergency_confirm_information.xml
+@@ -16,5 +16,8 @@
+ <shape xmlns:android="http://schemas.android.com/apk/res/android"
+        android:shape="rectangle">
+     <corners android:radius="8dp"/>
+-    <solid android:color="@color/emergency_shortcut_confirm_button_background_color"/>
++    <!-- Kompakt: outlined, not filled red; the wider border marks the tap-again state. -->
++    <solid android:color="@color/emergency_info_btn_background_color"/>
++    <stroke android:width="4dp"
++            android:color="@color/emergency_info_btn_bolder"/>
+ </shape>
+\ No newline at end of file
+diff --git a/res/drawable/btn_emergency_information.xml b/res/drawable/btn_emergency_information.xml
+index cd57bd3..b038183 100644
+--- a/res/drawable/btn_emergency_information.xml
++++ b/res/drawable/btn_emergency_information.xml
+@@ -17,6 +17,6 @@
+        android:shape="rectangle">
+     <corners android:radius="8dp"/>
+     <solid android:color="@color/emergency_info_btn_background_color"/>
+-    <stroke android:width="1dp"
++    <stroke android:width="2dp"
+             android:color="@color/emergency_info_btn_bolder"/>
+ </shape>
+diff --git a/res/values-h535dp/dimens.xml b/res/values-h535dp/dimens.xml
+index c3b2341..69a41d3 100644
+--- a/res/values-h535dp/dimens.xml
++++ b/res/values-h535dp/dimens.xml
+@@ -17,8 +17,8 @@
+ <resources>
+     <!-- Height and vertical margin for the emergency information button. -->
+     <dimen name="emergency_info_button_height">80dp</dimen>
+-    <dimen name="emergency_info_button_margin_top">35dp</dimen>
+-    <dimen name="emergency_info_button_margin_bottom">40dp</dimen>
++    <dimen name="emergency_info_button_margin_top">12dp</dimen>
++    <dimen name="emergency_info_button_margin_bottom">12dp</dimen>
+ 
+     <!-- The text size of emergency info name and hint -->
+     <dimen name="emergency_info_name_text_size">18.3sp</dimen>
+diff --git a/res/values-h590dp/dimens.xml b/res/values-h590dp/dimens.xml
+index 3684f4c..872d04e 100644
+--- a/res/values-h590dp/dimens.xml
++++ b/res/values-h590dp/dimens.xml
+@@ -17,8 +17,8 @@
+ <resources>
+     <!-- Height and vertical margin for the emergency information button. -->
+     <dimen name="emergency_info_button_height">87dp</dimen>
+-    <dimen name="emergency_info_button_margin_top">44dp</dimen>
+-    <dimen name="emergency_info_button_margin_bottom">44dp</dimen>
++    <dimen name="emergency_info_button_margin_top">12dp</dimen>
++    <dimen name="emergency_info_button_margin_bottom">12dp</dimen>
+ 
+     <!-- The text size of emergency info name and hint -->
+     <dimen name="emergency_info_name_text_size">20sp</dimen>
+diff --git a/res/values-h720dp/dimens.xml b/res/values-h720dp/dimens.xml
+index 7bb1f27..6b900af 100644
+--- a/res/values-h720dp/dimens.xml
++++ b/res/values-h720dp/dimens.xml
+@@ -17,8 +17,8 @@
+ <resources>
+     <!-- Height and vertical margin for the emergency information button. -->
+     <dimen name="emergency_info_button_height">96dp</dimen>
+-    <dimen name="emergency_info_button_margin_top">72dp</dimen>
+-    <dimen name="emergency_info_button_margin_bottom">60dp</dimen>
++    <dimen name="emergency_info_button_margin_top">12dp</dimen>
++    <dimen name="emergency_info_button_margin_bottom">12dp</dimen>
+ 
+     <!-- The text size of emergency info name and hint -->
+     <dimen name="emergency_info_name_text_size">22sp</dimen>
+diff --git a/res/values-night/colors.xml b/res/values-night/colors.xml
+index 1f336b9..f4c9e08 100644
+--- a/res/values-night/colors.xml
++++ b/res/values-night/colors.xml
+@@ -17,8 +17,9 @@
+ <resources>
+ 
+     <!-- Colors for shortcut view -->
+-    <color name="emergency_info_btn_bolder">#85ffffff</color>
+-    <color name="emergency_info_btn_background_color">#202124</color>
++    <!-- Kompakt: the emergency information box is outlined in the ink, on paper. -->
++    <color name="emergency_info_btn_bolder">#ffffffff</color>
++    <color name="emergency_info_btn_background_color">#ff000000</color>
+     <color name="emergency_shortcut_button_background_color">#202124</color>
+     <color name="emergency_shortcut_phone_type_icon_color">#f28b82</color>
+     <color name="emergency_shortcut_confirm_button_background_color">#3c4043</color>
+diff --git a/res/values/colors.xml b/res/values/colors.xml
+index 2db3aa0..bdb354e 100644
+--- a/res/values/colors.xml
++++ b/res/values/colors.xml
+@@ -62,8 +62,9 @@
+     <color name="dialer_secondary_text_color">#5f6368</color>
+ 
+     <!-- Colors for shortcut view -->
+-    <color name="emergency_info_btn_bolder">#40ffffff</color>
+-    <color name="emergency_info_btn_background_color">@android:color/transparent</color>
++    <!-- Kompakt: the emergency information box is outlined in the ink, on paper. -->
++    <color name="emergency_info_btn_bolder">#ff000000</color>
++    <color name="emergency_info_btn_background_color">#ffffffff</color>
+     <color name="emergency_shortcut_button_background_color">#eae8e9</color>
+     <color name="emergency_shortcut_phone_type_icon_color">#e25142</color>
+     <color name="emergency_shortcut_confirm_button_background_color">#e25142</color>
+diff --git a/res/values/dimens.xml b/res/values/dimens.xml
+index e1742d8..c8d259b 100644
+--- a/res/values/dimens.xml
++++ b/res/values/dimens.xml
+@@ -181,8 +181,8 @@
+          height in values-h<height>dp/dimens.xml -->
+     <!-- Height and vertical margin for the emergency information button. -->
+     <dimen name="emergency_info_button_height">74dp</dimen>
+-    <dimen name="emergency_info_button_margin_top">32dp</dimen>
+-    <dimen name="emergency_info_button_margin_bottom">37dp</dimen>
++    <dimen name="emergency_info_button_margin_top">12dp</dimen>
++    <dimen name="emergency_info_button_margin_bottom">12dp</dimen>
+ 
+     <!-- The text size of emergency info name and hint -->
+     <dimen name="emergency_info_name_text_size">16.9sp</dimen>
+diff --git a/res/values/styles.xml b/res/values/styles.xml
+index 45d5edd..0a1795b 100644
+--- a/res/values/styles.xml
++++ b/res/values/styles.xml
+@@ -336,9 +336,10 @@
+         <item name="android:textSize">@dimen/emergency_info_hint_text_size</item>
+     </style>
+ 
++    <!-- Kompakt: black on the outlined box in light mode (was white on red). -->
+     <style name="EmergencyInfoTapHintTextAppearance"
+            parent="@android:style/TextAppearance.Material.Subhead">
+-        <item name="android:textColor">@android:color/white</item>
++        <item name="android:textColor">@android:color/black</item>
+         <item name="android:textSize">@dimen/emergency_info_tap_hint_text_size</item>
+     </style>
+ 
+diff --git a/src/com/android/phone/EmergencyDialer.java b/src/com/android/phone/EmergencyDialer.java
+index 59954f3..c5c4cb0 100644
+--- a/src/com/android/phone/EmergencyDialer.java
++++ b/src/com/android/phone/EmergencyDialer.java
+@@ -33,10 +33,13 @@ import android.content.BroadcastReceiver;
+ import android.content.Context;
+ import android.content.Intent;
+ import android.content.IntentFilter;
++import android.content.res.ColorStateList;
++import android.content.res.Configuration;
+ import android.database.DataSetObserver;
+ import android.graphics.Color;
+ import android.graphics.Point;
+ import android.graphics.drawable.ColorDrawable;
++import android.graphics.drawable.GradientDrawable;
+ import android.media.AudioManager;
+ import android.media.ToneGenerator;
+ import android.net.Uri;
+@@ -72,6 +75,7 @@ import android.view.ViewGroup;
+ import android.view.WindowInsetsController;
+ import android.view.WindowManager;
+ import android.view.accessibility.AccessibilityEvent;
++import android.widget.ImageButton;
+ import android.widget.TextView;
+ 
+ import com.android.phone.common.dialpad.DialpadKeyButton;
+@@ -150,11 +154,10 @@ public class EmergencyDialer extends Activity implements View.OnClickListener,
+ 
+     private static final int BAD_EMERGENCY_NUMBER_DIALOG = 0;
+ 
+-    /** 90% opacity, different from other gradients **/
+-    private static final int BACKGROUND_GRADIENT_ALPHA = 230;
++    // Kompakt: both opaque (were 90% and 85%); a wash over the wallpaper dithers on e-ink.
++    private static final int BACKGROUND_GRADIENT_ALPHA = 255;
+ 
+-    /** 85% opacity for black background **/
+-    private static final int BLACK_BACKGROUND_GRADIENT_ALPHA = 217;
++    private static final int BLACK_BACKGROUND_GRADIENT_ALPHA = 255;
+ 
+     /** Size limit of emergency shortcut buttons container. **/
+     private static final int SHORTCUT_SIZE_LIMIT = 3;
+@@ -286,9 +289,8 @@ public class EmergencyDialer extends Activity implements View.OnClickListener,
+             // Shortcut view doesn't support dark text theme.
+             updateTheme(false);
+         } else {
+-            WallpaperColors wallpaperColors =
+-                    getWallpaperManager().getWallpaperColors(WallpaperManager.FLAG_LOCK);
+-            updateTheme(supportsDarkText(wallpaperColors));
++            // Kompakt: colours follow dark mode, not the lock screen wallpaper.
++            updateTheme(!isNightMode());
+         }
+ 
+         setContentView(R.layout.emergency_dialer);
+@@ -337,6 +339,7 @@ public class EmergencyDialer extends Activity implements View.OnClickListener,
+         maybeShowWfcEmergencyCallingWarning();
+ 
+         ViewUtil.setupFloatingActionButton(mDialButton, getResources());
++        inkDialButton((ImageButton) mDialButton);
+ 
+         if (icicle != null) {
+             super.onRestoreInstanceState(icicle);
+@@ -630,15 +633,9 @@ public class EmergencyDialer extends Activity implements View.OnClickListener,
+             mBackgroundDrawable.setColor(Color.BLACK);
+             updateTheme(false);
+         } else {
+-            WallpaperManager wallpaperManager = getWallpaperManager();
+-            if (wallpaperManager.isWallpaperSupported()) {
+-                wallpaperManager.addOnColorsChangedListener(this, null);
+-            }
+-
+-            WallpaperColors wallpaperColors =
+-                    wallpaperManager.getWallpaperColors(WallpaperManager.FLAG_LOCK);
+-            mBackgroundDrawable.setColor(getPrimaryColor(wallpaperColors));
+-            updateTheme(supportsDarkText(wallpaperColors));
++            // Kompakt: white in light mode, black in dark mode; the wallpaper is not read.
++            mBackgroundDrawable.setColor(isNightMode() ? Color.BLACK : Color.WHITE);
++            updateTheme(!isNightMode());
+         }
+ 
+         if (mShortcutViewConfig.isEnabled()) {
+@@ -914,10 +911,29 @@ public class EmergencyDialer extends Activity implements View.OnClickListener,
+ 
+     @Override
+     public void onColorsChanged(WallpaperColors colors, int which) {
+-        if ((which & WallpaperManager.FLAG_LOCK) != 0) {
+-            mBackgroundDrawable.setColor(getPrimaryColor(colors));
+-            updateTheme(supportsDarkText(colors));
+-        }
++        // Kompakt: the wallpaper does not colour this screen.
++    }
++
++    // Kompakt: true when the system is in dark mode.
++    private boolean isNightMode() {
++        return (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)
++                == Configuration.UI_MODE_NIGHT_YES;
++    }
++
++    // Kompakt: the dial button in the two inks, an outlined circle instead of the green disc.
++    private void inkDialButton(ImageButton button) {
++        int ink = isNightMode() ? Color.WHITE : Color.BLACK;
++        int paper = isNightMode() ? Color.BLACK : Color.WHITE;
++        GradientDrawable disc = new GradientDrawable();
++        disc.setShape(GradientDrawable.OVAL);
++        disc.setColor(paper);
++        disc.setStroke((int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 2,
++                getResources().getDisplayMetrics()), ink);
++        button.setBackground(disc);
++        button.setImageTintList(ColorStateList.valueOf(ink));
++        button.setElevation(0);
++        button.setTranslationZ(0);
++        button.setStateListAnimator(null);
+     }
+ 
+     /**
+-- 
+2.56.0
+

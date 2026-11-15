@@ -57,6 +57,7 @@ class OfflineWatcherService : Service() {
             registerScreenOnWatcher()
             registerShutdownWatcher()
             EinkAppWatcher.start(this)
+            OfflineExtras.guardCamera(this)
             // Sync to the real position first.
             Sysfs.onIo { onFlipped(OfflineSwitch.engaged()) }
             startReader()
@@ -248,11 +249,10 @@ class BootReceiver : BroadcastReceiver() {
         LightCurve.migrate(context)
         context.startService(
             Intent(context, com.kompakt.service.link.LinkService::class.java))
-        // The temperature offset lives in meink and is back to its +11 after a boot; set it before the mode loads.
-        Prefs.migrateTemperature(context)
-        Eink.setTemperature(Prefs.temperature(context))
-        // The fast steps and the dither pattern are the loader's, reset at boot.
-        Eink.setSpeed(Prefs.speed(context))
+        // The offset lives in meink and the fast count in the loader; both reset at boot. Set before the mode loads.
+        Prefs.migrateSpeeds(context)
+        Eink.setSpeeds(Prefs.fastSteps(context), Prefs.textSteps(context))
+        // The dither pattern is the loader's, reset at boot.
         Eink.setPattern(Prefs.pattern(context))
         Eink.setDitherLight(Prefs.ditherLight(context))
         // The full refresh interval is a meink_hal parameter, reset at boot.
@@ -263,6 +263,7 @@ class BootReceiver : BroadcastReceiver() {
         Sysfs.onIo { SleepImage.restore(context) }
         // The clearing flash at every lock is a meink_hal module parameter, reset at boot.
         LockFlash.apply()
+        UnlockRefresh.sync(context)
         // The LEDs start off; the lock screen's warm flashlight shortcut reads this.
         Sysfs.onIo { Torch.publish(context) }
     }

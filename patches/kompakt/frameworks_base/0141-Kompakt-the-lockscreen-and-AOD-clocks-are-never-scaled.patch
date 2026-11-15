@@ -4,10 +4,11 @@ Date: Tue, 27 Oct 2026 17:00:00 +0200
 Subject: [PATCH] Kompakt: the lockscreen and AOD clocks are never scaled
 
 ---
- .../systemui/keyguard/ui/viewmodel/AodBurnInViewModel.kt        | 4 ++--
+ .../systemui/keyguard/ui/viewmodel/AodBurnInViewModel.kt      | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/AodBurnInViewModel.kt b/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/AodBurnInViewModel.kt
+index 6c31802ccf3b..e69bb1720fa5 100644
 --- a/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/AodBurnInViewModel.kt
 +++ b/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/AodBurnInViewModel.kt
 @@ -26,7 +26,6 @@ import com.android.systemui.keyguard.domain.interactor.BurnInInteractor
@@ -28,3 +29,6 @@ diff --git a/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/Ao
                  scaleClockOnly = useScaleOnly,
              )
          }
+-- 
+2.43.0
+

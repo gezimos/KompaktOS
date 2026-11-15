@@ -1,0 +1,42 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Thu, 19 Nov 2026 23:30:00 +0100
+Subject: [PATCH] Kompakt: turning auto-rotate off locks portrait
+
+LineageOS's configurable rotation angles made setRotationLock keep the
+angle the phone is at when that angle is allowed, and 90 and 270 are
+allowed by default. Turning auto-rotate off with the phone sideways (in a
+car mount) locked it in landscape; every tap of the tile while sideways
+locked landscape again, and the saved angle survived a reboot (tester
+report, build 460: user_rotation 90 under USER_ROTATION_LOCKED).
+
+The lock now goes to the natural orientation, as in AOSP, unless
+config_useCurrentRotationOnRotationLockChange asks for the current one;
+getRotationLockOrientation reports that orientation.
+---
+diff --git a/core/java/com/android/internal/view/RotationPolicy.java b/core/java/com/android/internal/view/RotationPolicy.java
+--- a/core/java/com/android/internal/view/RotationPolicy.java
++++ b/core/java/com/android/internal/view/RotationPolicy.java
+@@ -78,9 +78,6 @@
+      * otherwise Configuration.ORIENTATION_UNDEFINED if any orientation is lockable.
+      */
+     public static int getRotationLockOrientation(Context context) {
+-        if (isCurrentRotationAllowed(context)) {
+-            return Configuration.ORIENTATION_UNDEFINED;
+-        }
+         final DisplayMetrics metrics = context.getResources().getDisplayMetrics();
+         final int rotation =
+                 context.getResources().getConfiguration().windowConfiguration.getRotation();
+@@ -126,8 +123,8 @@
+      * Enables or disables rotation lock from the system UI toggle.
+      */
+     public static void setRotationLock(Context context, final boolean enabled, String caller) {
+-        final int rotation = isCurrentRotationAllowed(context)
+-                || useCurrentRotationOnRotationLockChange(context) ? CURRENT_ROTATION
++        // Kompakt: locking always returns to the natural orientation, not the angle the phone is at.
++        final int rotation = useCurrentRotationOnRotationLockChange(context) ? CURRENT_ROTATION
+                 : getNaturalRotation();
+         setRotationLockAtAngle(context, enabled, rotation, caller);
+     }
+-- 
+2.43.0

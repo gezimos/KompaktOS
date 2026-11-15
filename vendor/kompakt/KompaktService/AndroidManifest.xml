@@ -3,7 +3,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.kompakt.service"
     android:sharedUserId="android.uid.system"
-    android:versionCode="401"
+    android:versionCode="403"
     android:versionName="363">
 
     <!-- uid system is what makes the sysfs writes possible at all. -->

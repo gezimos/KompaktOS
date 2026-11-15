@@ -1,0 +1,164 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Thu, 19 Nov 2026 10:00:00 +0100
+Subject: [PATCH] Kompakt: the unlock refresh is drawn between the lock screen
+ and home
+
+The Kompakt app drew its unlock refresh after the framework said home was
+on screen, so the panel showed home, then black, then home again.
+KompaktUnlockHold now puts a solid colour layer over everything when the
+unlock starts, for the sources named in persist.sys.kompakt.unlock_flash,
+and takes it off 480 ms after the panel is on with home drawn under it.
+A colour layer, not a screenshot (see 0120): nothing waits on SurfaceFlinger.
+A wake-and-unlock from sleep, with the panel off, is now followed too.
+---
+diff --git a/services/core/java/com/android/server/wm/KompaktUnlockHold.java b/services/core/java/com/android/server/wm/KompaktUnlockHold.java
+index f328a2f..6ff6f37 100644
+--- a/services/core/java/com/android/server/wm/KompaktUnlockHold.java
++++ b/services/core/java/com/android/server/wm/KompaktUnlockHold.java
+@@ -17,19 +17,33 @@
+ package com.android.server.wm;
+ 
+ import android.content.Intent;
++import android.content.res.Configuration;
++import android.os.SystemProperties;
+ import android.os.UserHandle;
+ import android.util.Slog;
+ import android.view.Display;
++import android.view.SurfaceControl;
++
++import java.util.Arrays;
+ 
+ /** Kompakt: follows an unlock from the keyguard going away until home is drawn, and then
+  * tells the Kompakt app. The panel itself is held by the screen-on block (DisplayPowerController). */
+ class KompaktUnlockHold {
+     private static final String TAG = "KompaktUnlockHold";
+     private static final long TIMEOUT_MS = 1500;
++    // Kompakt: the unlock refresh sources the Kompakt app turned on, as "aod,sleep,lockscreen".
++    private static final String FLASH_PROP = "persist.sys.kompakt.unlock_flash";
++    // Kompakt: two panel paints, so one always catches the black.
++    private static final long FLASH_MS = 480;
++    private static final long FLASH_POLL_MS = 50;
++    private static final long FLASH_WAIT_MS = 3000;
+ 
+     private final WindowManagerService mWmService;
+     private boolean mHolding;
+     private String mHoldReason;
++    private DisplayContent mDc;
++    private SurfaceControl mFlash;
++    private long mFlashWaited;
+ 
+     private final Runnable mTimeout = () -> {
+         synchronized (KompaktUnlockHold.this.mWmService.mGlobalLock) {
+@@ -37,6 +51,30 @@ class KompaktUnlockHold {
+         }
+     };
+ 
++    // Kompakt: the flash comes off once the panel has been on for FLASH_MS.
++    private final Runnable mFlashCheck = new Runnable() {
++        @Override
++        public void run() {
++            synchronized (mWmService.mGlobalLock) {
++                if (mFlash == null) return;
++                if (mDc != null && mDc.getDisplayInfo().state == Display.STATE_ON) {
++                    mWmService.mH.postDelayed(mFlashRemove, FLASH_MS);
++                } else if (mFlashWaited < FLASH_WAIT_MS) {
++                    mFlashWaited += FLASH_POLL_MS;
++                    mWmService.mH.postDelayed(this, FLASH_POLL_MS);
++                } else {
++                    removeFlash("panel stayed off");
++                }
++            }
++        }
++    };
++
++    private final Runnable mFlashRemove = () -> {
++        synchronized (KompaktUnlockHold.this.mWmService.mGlobalLock) {
++            removeFlash("shown");
++        }
++    };
++
+     KompaktUnlockHold(WindowManagerService wmService) {
+         mWmService = wmService;
+     }
+@@ -48,12 +86,14 @@ class KompaktUnlockHold {
+     /** An unlock has started. Called with the global lock held. */
+     void hold(DisplayContent dc, String reason) {
+         if (mHolding || dc == null) return;
+-        // A dark panel is followed by the screen-on block instead.
+-        if (Display.isOffState(dc.getDisplayInfo().state)) return;
++        // A dark panel is a wake-and-unlock from sleep; SystemUI tells the Kompakt app about it.
++        final boolean off = Display.isOffState(dc.getDisplayInfo().state);
+         mHolding = true;
+-        mHoldReason = reason;
++        mHoldReason = off ? "sleep" : reason;
++        mDc = dc;
++        showFlash(dc, source());
+         mWmService.mH.postDelayed(mTimeout, TIMEOUT_MS);
+-        Slog.i(TAG, "hold: " + reason);
++        Slog.i(TAG, "hold: " + mHoldReason);
+     }
+ 
+     /** Ends the unlock after the next frame has placed every surface. */
+@@ -68,9 +108,56 @@ class KompaktUnlockHold {
+         mWmService.mH.removeCallbacks(mTimeout);
+         mHolding = false;
+         Slog.i(TAG, "release: " + reason);
+-        if (!"keyguard shown".equals(reason)) {
+-            sendUnlocked("keyguard hidden".equals(mHoldReason) ? "aod" : "lockscreen");
++        if ("keyguard shown".equals(reason)) {
++            removeFlash("keyguard shown");
++            return;
+         }
++        if (mFlash != null) {
++            mFlashWaited = 0;
++            mWmService.mH.post(mFlashCheck);
++        }
++        if (!"sleep".equals(mHoldReason)) sendUnlocked(source());
++    }
++
++    private String source() {
++        if ("sleep".equals(mHoldReason)) return "sleep";
++        return "keyguard hidden".equals(mHoldReason) ? "aod" : "lockscreen";
++    }
++
++    /** Kompakt: the unlock refresh, one solid layer over everything until home is on the panel. */
++    private void showFlash(DisplayContent dc, String from) {
++        if (mFlash != null) return;
++        if (!Arrays.asList(SystemProperties.get(FLASH_PROP, "").split(",")).contains(from)) return;
++        final boolean night = (mWmService.mAtmService.getGlobalConfiguration().uiMode
++                & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
++        final float ink = night ? 1f : 0f;
++        final SurfaceControl layer = dc.makeOverlay()
++                .setName("KompaktUnlockFlash")
++                .setColorLayer()
++                .setCallsite("KompaktUnlockHold")
++                .build();
++        final SurfaceControl.Transaction t = mWmService.mTransactionFactory.get();
++        t.setColor(layer, new float[] {ink, ink, ink});
++        t.setWindowCrop(layer, dc.getBounds().width(), dc.getBounds().height());
++        t.setAlpha(layer, 1);
++        t.setLayer(layer, Integer.MAX_VALUE);
++        t.show(layer);
++        t.apply();
++        t.close();
++        mFlash = layer;
++        Slog.i(TAG, "flash: " + from);
++    }
++
++    private void removeFlash(String why) {
++        if (mFlash == null) return;
++        mWmService.mH.removeCallbacks(mFlashCheck);
++        mWmService.mH.removeCallbacks(mFlashRemove);
++        final SurfaceControl.Transaction t = mWmService.mTransactionFactory.get();
++        t.remove(mFlash);
++        t.apply();
++        t.close();
++        mFlash = null;
++        Slog.i(TAG, "flash off: " + why);
+     }
+ 
+     /** Tells the Kompakt app that the unlocked screen is showing, for its optional refresh. */
+-- 
+2.43.0
+

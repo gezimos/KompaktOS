@@ -1,0 +1,29 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Fri, 13 Nov 2026 23:30:00 +0100
+Subject: [PATCH 15/15] Kompakt: no QcRilAm
+
+QcRilAm forwards in-call audio settings to Qualcomm's IQcRilAudio HAL. A
+MediaTek phone has no such HAL, so the app found nothing to talk to, but it
+is persistent: it ran from boot and could never be killed, holding 6 to 9 MB
+for nothing.
+---
+ base.mk | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/base.mk b/base.mk
+--- a/base.mk
++++ b/base.mk
+@@ -242,9 +242,7 @@ PRODUCT_PACKAGES += \
+ PRODUCT_PACKAGES += \
+     evgrab \
+
+-# QCOM in-call audio fix as a standalone app
+-PRODUCT_PACKAGES += \
+-    QcRilAm
++# Kompakt: no QcRilAm; it serves Qualcomm's in-call audio HAL, which a MediaTek phone does not have, and ran persistent for nothing.
+
+ PRODUCT_PACKAGES += \
+     slsi-booted \
+--
+2.43.0

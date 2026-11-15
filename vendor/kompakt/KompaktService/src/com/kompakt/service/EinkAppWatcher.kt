@@ -1,7 +1,6 @@
 package com.kompakt.service
 
 import android.app.ActivityManager
-import android.app.KeyguardManager
 import android.app.ActivityManager.RunningTaskInfo
 import android.app.ActivityTaskManager
 import android.app.TaskStackListener
@@ -9,8 +8,6 @@ import android.app.WindowConfiguration
 import android.content.Context
 import android.os.Handler
 import android.os.HandlerThread
-import android.os.PowerManager
-import android.os.SystemClock
 import android.util.Log
 
 /** Per-app e-ink modes, driven by the system's own task stack callback. */
@@ -24,10 +21,7 @@ object EinkAppWatcher {
     /** A burst of stack changes is one check. */
     private const val SETTLE_MS = 40L
 
-    /** Two app-change flashes never come closer than this. */
-    private const val REFRESH_GAP_MS = 2000L
-
-    private var lastRefresh = 0L
+    /** A flash still running: look again after this. */
 
     private var registered = false
     private var last: String? = null
@@ -68,13 +62,8 @@ object EinkAppWatcher {
         pending = false
         val pkg = top() ?: return
         if (pkg == last) return
-        val first = last == null
         last = pkg
         foreground = pkg
-
-        // At once, and before the mode writes below queue in front of it: Home and a running app
-        // are on screen within a frame or two, and a flash that waits shows them twice.
-        if (!first && Prefs.refreshOnApp(context)) refreshAfterSwitch()
 
         AppInvert.apply(context, pkg)
         // Before the mode: a mode change repaints the whole screen, in the new pattern.
@@ -89,17 +78,6 @@ object EinkAppWatcher {
         }
         Log.i(Sysfs.TAG, "eink: $pkg -> $mode")
         Eink.setMode(mode)
-    }
-
-    /** The app-change flash: only while the screen is on and unlocked. */
-    private fun refreshAfterSwitch() {
-        val now = SystemClock.elapsedRealtime()
-        if (Flash.active || now - lastRefresh < REFRESH_GAP_MS) return
-        if (context.getSystemService(PowerManager::class.java)?.isInteractive != true) return
-        if (context.getSystemService(KeyguardManager::class.java)?.isKeyguardLocked == true) return
-        lastRefresh = now
-        Log.i(Sysfs.TAG, "eink: app changed to $last, refreshing")
-        Flash.show(context)
     }
 
     private fun topTask(): RunningTaskInfo? = try {

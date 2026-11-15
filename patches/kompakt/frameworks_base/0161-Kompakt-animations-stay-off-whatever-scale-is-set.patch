@@ -4,7 +4,11 @@ Date: Wed, 4 Nov 2026 20:00:00 +0200
 Subject: [PATCH] Kompakt: animations stay off whatever scale is set
 
 ---
+ .../java/com/android/server/wm/WindowManagerService.java    | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
 diff --git a/services/core/java/com/android/server/wm/WindowManagerService.java b/services/core/java/com/android/server/wm/WindowManagerService.java
+index c4fd7cad4f8a..9b73cf98cb22 100644
 --- a/services/core/java/com/android/server/wm/WindowManagerService.java
 +++ b/services/core/java/com/android/server/wm/WindowManagerService.java
 @@ -100,7 +100,6 @@ import static android.view.WindowManager.LayoutParams.TYPE_WALLPAPER;

@@ -10,10 +10,14 @@ and go back to DOZE_SUSPEND, which turns the light off again, and ON
 then turns it back on: on, off, on. Brightness now waits while the
 screen-on block is pending, and is applied with ON.
 ---
+ .../com/android/server/display/DisplayPowerController.java  | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
 diff --git a/services/core/java/com/android/server/display/DisplayPowerController.java b/services/core/java/com/android/server/display/DisplayPowerController.java
+index 613b10edec41..169d47733543 100644
 --- a/services/core/java/com/android/server/display/DisplayPowerController.java
 +++ b/services/core/java/com/android/server/display/DisplayPowerController.java
-@@ -1665,7 +1665,11 @@
+@@ -1665,7 +1665,11 @@ final class DisplayPowerController implements AutomaticBrightnessController.Call
                          || mAutomaticBrightnessStrategy
                          .isTemporaryAutoBrightnessAdjustmentApplied();
          float rampSpeed = 0;
@@ -28,3 +32,4 @@ diff --git a/services/core/java/com/android/server/display/DisplayPowerControlle
                      if (mSkipRampState == RAMP_STATE_SKIP_NONE && mDozing) {
 -- 
 2.43.0
+

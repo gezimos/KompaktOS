@@ -21,7 +21,19 @@ the boot and vendor images from
   `vendor/kompakt/KompaktService` (`OfflineWatcherService.kt`),
   `patches/kompakt/frameworks_base/0149`.
 
+### Bluetooth
+
+- **Pairing with a car that starts the pairing no longer fails with "incorrect PIN".** Some cars ask for the PIN before the phone has finished connecting. The phone showed the PIN dialog and accepted the PIN, but never sent it to the radio, which gave up after 30 seconds. The PIN is now sent as soon as you enter it. `packages_modules_Bluetooth` (`0001`).
+
 ### Offline+
+
+- **Camera access in the Offline tab is a real block.** It only asked Android
+  to block the camera, and a tap on the "unblock" prompt undid it. With it on,
+  the camera now has no power while the switch is on, the prompt's unblock is
+  put back at once, and the camera works again as soon as you flip the switch
+  or turn the row off. With it off, the camera works in Offline+ as the page
+  says. Needs boot 284 and vendor 331 (KompaktDevice).
+  `vendor/kompakt/KompaktService` (`OfflineExtras.kt`, `OfflineWatcherService.kt`).
 
 - **Started with Offline+ on, the phone no longer spends its battery on a
   modem that cannot start.** With the switch engaged the modem fails its radio
@@ -54,6 +66,10 @@ the boot and vendor images from
 
 ### Lock screen
 
+- **The network name no longer reads "No service" while Wi-Fi calling
+  connects.** On Verizon the lock screen showed "No service" under full
+  bars until Wi-Fi calling was set up.
+  `patches/kompakt/frameworks_opt_telephony/0007`.
 - **The lock screen can no longer stay drawn on the always-on display.** A
   sleeping phone that ends up in the lock screen state is moved to the
   always-on state within half a second, whatever led there. Locking with the
@@ -84,10 +100,20 @@ the boot and vendor images from
   so there is one player everywhere; quick settings shows none. Off on the
   lock screen with Settings → Sound & vibration → Media → Show media on lock
   screen.
-  `patches/kompakt/frameworks_base/0134`, `0136`, `0142`.
+  `patches/kompakt/frameworks_base/0134`.
 - **Locking goes straight to the always-on display,** with no sleep picture
-  first and so no ghost of it under the clock. Needs the 1.3 kernel.
-  `patches/kompakt/frameworks_base/0139`.
+  first and so no ghost of it under the clock. The panel flashes clean once
+  as you lock, before the always-on display is drawn. Needs the 1.3 kernel
+  and vendor. `patches/kompakt/frameworks_base/0139`.
+- **Refresh on unlock flashes before home, not after.** The screen goes from
+  the lock screen, always-on display or sleep screen to black, then to home.
+  It used to show home, flash, and show home again. The window manager draws
+  the flash now; the Kompakt app only tells it which unlocks want one.
+  `patches/kompakt/frameworks_base/0165`, `KompaktService` `UnlockRefresh.kt`.
+- **Turning auto-rotate off always goes back to portrait.** Turned off while
+  the phone was sideways (in a car mount, for example), it stayed locked in
+  landscape, tapping it again did not help, and a restart kept it.
+  `patches/kompakt/frameworks_base/0166`.
 - **Quick settings can be kept off the lock screen.** Settings → Display →
   Lock screen → Quick settings on lock screen: off, quick settings open only
   after you unlock; notifications still open from the lock screen.
@@ -100,6 +126,12 @@ the boot and vendor images from
 
 ### Speed
 
+- **Apps open without a splash screen.** Android drew a blank page with the
+  app's icon before every app; the screen you were on now stays until the
+  app has drawn, which is one full redraw less on every launch. An app can
+  look slower to open. It isn't: the phone goes straight to the app instead
+  of showing the icon first.
+  `patches/kompakt/frameworks_base/0164`.
 - **The phone is usable straight after a restart.** Apps that do not need to
   start at boot (most downloaded apps and several system parts) are no longer
   all started at once: each starts when you first open it, or a couple of
@@ -108,7 +140,7 @@ the boot and vendor images from
 - **Fewer apps start at once after a restart.** Apps that wait for their boot
   message are no longer woken by anything else in the background either, until
   you open them or their turn comes. Calls, SMS, alarms and reminders are not
-  held. `patches/kompakt/frameworks_base/0124`.
+  held. `patches/kompakt/frameworks_base/0122`.
 - **Apps are closed far less often.** The kernel keeps a larger free-memory
   reserve, as LineageOS does on the Moto G Pure, and the memory manager no longer
   closes apps just because free memory dipped: idle apps are compressed into
@@ -116,23 +148,41 @@ the boot and vendor images from
   boot test, apps closed in the first three minutes went from 33-45 to 7, and
   Settings opened in about 2 s instead of 6-15. Each app may also grow a little
   less. `vendor/kompakt/overlay` (`config_extraFreeKbytesAbsolute`), `kompakt.mk`.
-- **Apps you leave are frozen and their memory compressed.** A few seconds after
-  you leave an app it is frozen: it uses no processor until you come back, and
-  its memory is compressed into zram rather than kept whole until the app has
-  to be closed. Android has done this since 12, but the feature switched
-  itself off at every boot ("Freezer disabled"): this phone's kernel lacked
-  the binder half of it and Mudita's vendor pointed Android's freezer profile
-  at a file this phone does not have; the compression itself used a system
-  call this kernel does not have. Needs boot 279 and vendor 322 (the freezer)
-  and this system image (the compression).
-  `patches/kompakt/frameworks_base/0163`, KompaktDevice `kernel/patches/0040`
-  and `vendor/scripts/apply-freezer-profiles.sh`.
+- **Apps you leave are frozen.** A few seconds after
+  you leave an app it is frozen: it uses no processor until you come back.
+  Android has done this since 12, but the feature switched itself off at
+  every boot ("Freezer disabled"): this phone's kernel lacked the binder half
+  of it and Mudita's vendor pointed Android's freezer profile at a file this
+  phone does not have. Needs boot 279 and vendor 322. KompaktDevice
+  `kernel/patches/0040` and `vendor/scripts/apply-freezer-profiles.sh`.
+- **One less app running for nothing.** QcRilAm, a Qualcomm in-call audio
+  helper that came with the GSI, ran from boot and could never be closed,
+  though a MediaTek phone has no Qualcomm audio to help.
+  `patches/kompakt/device_phh_treble/0015`.
 - **The SD card is scanned five minutes after boot,** not while you open your
   first apps. Files already on the card show as before; new ones appear after
   the scan. `patches/kompakt/packages_providers_MediaProvider/0001`.
 
 ### E-ink
 
+- **Advanced settings consolidated into fewer options that each make a
+  difference.** Kompakt app → ⋮ → Advanced. Two speed rows replace Temperature
+  offset and Fast speed. Each step is the number of times the panel pushes
+  the ink for one change; fewer is quicker and less clean.
+  - **Fast mode speed:** 11, 9, 8, 7, 6 or 5. 11 is what MuditaOS runs.
+  - **Text / Quality speed:** 46, 38, 33 or 28. 38 is the default.
+  - Every step now does something. The old +20, +30 and +40 offsets were one
+    speed, 0 and +5 were slower than MuditaOS, and Fast speed 9, 8 and 7 were
+    the same at +11.
+  - Saved settings carry over: +20 or more becomes 28, and Fast speed keeps
+    the count it really ran.
+  Needs the 1.3 vendor. `vendor/kompakt/KompaktService`.
+- **Dither pattern and Partial updates open a sheet.** One row each with its
+  current value; the sheet lists the choices with a line on each and Reset to
+  default. Partial updates is the old Updates per full refresh: 6, 12, 24 or
+  48 before a full refresh, 24 by default. Dither brightness is in the Dither
+  pattern sheet, shown only for Pattern, Hybrid and Noise. Dither pattern sits
+  under Fast mode speed, the mode it belongs to.
 - **An app's e-ink mode follows the app in front more reliably.** The
   per-app modes were switched by an accessibility service that saw window
   events, and a missed event left the previous app's mode on the screen. They
@@ -154,7 +204,7 @@ the boot and vendor images from
   curve shows what it has learned and what the light sensor sees now; Reset
   forgets it. It is kept per user and survives a restart.
   `KompaktService` (`LightCurve.kt`, `LearnReceiver.kt`),
-  `patches/kompakt/frameworks_base/0155`, `0167`.
+  `patches/kompakt/frameworks_base/0146`.
 - **A change of room fades, it does not jump.** The automatic brightness used
   to cross the front light's whole range in a fifth of a second, and the
   kernel had only five levels in the few percent the light runs at, so every
@@ -169,7 +219,7 @@ the boot and vendor images from
   see. The slider still answers at once. Needs boot
   280; a curve saved before it is replaced once at boot, since the old numbers
   would be near dark.
-  `patches/kompakt/frameworks_base/0164`, `0165`,
+  `patches/kompakt/frameworks_base/0146`,
   `vendor/kompakt/overlay/frameworks/base/core/res/res/values/kompakt_brightness.xml`,
   `KompaktService` (`LightCurve.kt`).
 - **The light answers in about half a second.** The automatic brightness
@@ -179,7 +229,7 @@ the boot and vendor images from
   level less than a tenth brighter or a fifth dimmer than the current one,
   so the light stuck on a row's number between rows and many taps on the
   curve page did nothing; every change now applies.
-  `patches/kompakt/frameworks_base/0166`,
+  `patches/kompakt/frameworks_base/0146`,
   `vendor/kompakt/overlay/frameworks/base/core/res/res/values/kompakt_brightness.xml`.
 - **The always-on display repaints as often as you choose.** Kompakt app,
   Display, Always-on display refresh: Auto, 1, 5, 10 or 60 minutes, on the
@@ -198,15 +248,12 @@ the boot and vendor images from
   tested best for reading. Text uses it too, so a small change no longer
   re-flashes the text around it.
   Needs our vendor. `KompaktService` (`Hardware.kt`).
-- **A mode, Fast speed or temperature offset changed in the Kompakt app gets
+- **A mode or a speed changed in the Kompakt app gets
   a black refresh,** as a mode picked on a tile does. `KompaktService`
   (`KompaktActivity.kt`).
-- **The manual refresh reaches full black at any Fast speed:** below 7 steps it
+- **The manual refresh reaches full black at any Fast mode speed:** below 7 it
   runs at 7 and the speed comes back after. `KompaktService` (`Flash.kt`).
-- **Fast speed and Dither pattern settings.** Kompakt app → ⋮ → Advanced.
-  - **Fast speed:** a slider from 9 steps down to 5 for the fast modes; 7 is
-    Mudita's. Fewer steps follow your finger sooner, with more ghosting and
-    lighter blacks; 8 and 9 give deeper blacks and fewer traces.
+- **Dither pattern settings.** Kompakt app → ⋮ → Advanced.
   - **Dither pattern:** Normal (Mudita's), Pattern, Hybrid or Noise (blue
     noise) for Fast + dither.
   - **Dither brightness:** 0 to +3, lightens the dark greys of Pattern,
@@ -216,8 +263,7 @@ the boot and vendor images from
     shown only for modes with dots. Default follows Advanced.
   - **The app's e-ink sheet** reads top to bottom: Follow master mode, the
     modes, Dither pattern, then Invert colours.
-  - Temperature offset, Fast speed and Dither pattern each have **Reset to
-    default** in their info sheet.
+  - The speed rows and Dither pattern each have **Reset to default**.
   - On Advanced the ⋮ button becomes **×**, which closes it, so the page no
     longer passes for the tab it was opened from.
   - Both need our vendor and come back after a restart.
@@ -235,7 +281,7 @@ the boot and vendor images from
   `patches/kompakt/packages_apps_Settings/0007`, `packages_apps_Contacts/0008`,
   `packages_apps_Dialer/0006`, `packages_apps_Etar/0009`, `packages_apps_Twelve/0014`,
   `packages_apps_DocumentsUI/0006`, `packages_apps_Aperture/0006`,
-  `frameworks_base/0125`, `0126`.
+  `frameworks_base/0125`.
 - **Frame rate cap:** Kompakt app → ⋮ → Advanced → Frame rate: 60, 30, 15 or 10 fps;
   60 by default.
   A lower rate makes apps draw no more often than that, which saves processor
@@ -244,14 +290,12 @@ the boot and vendor images from
   Scrolling a page at 10 fps took about a quarter less battery than at 60
   (235 against 317 mA) with the same 6 panel updates a second; 15 fps saved
   about a fifth.
-  `patches/kompakt/frameworks_base/0130`, `0131`, `KompaktService`.
-- **Updates per full refresh and Auto refresh:** Kompakt app → ⋮ → Advanced →
+  `patches/kompakt/frameworks_base/0130`, `KompaktService`.
+- **Updates per full refresh:** Kompakt app → ⋮ → Advanced →
   Updates per full refresh sets how many small updates the screen takes before it
   redraws the whole page once: 6, 12, 24 or 48. 24 by default, for every mode (Text
   and Quality used to run at 48). It clears ghosts in Text and Quality; the Fast
-  modes need the flash. Below it, Auto refresh flashes the screen the moment you
-  open an app, switch to one or go back to Home, to clear what the last one left.
-  Off by default.
+  modes need the flash.
   `KompaktService`.
 - **One row for every setting in the Kompakt app.** Every setting is an icon,
   its name in a heavier weight, one line under it saying what it does, and its
@@ -312,7 +356,7 @@ the boot and vendor images from
 
 - **Katapult 1.7 update:** Google's At a Glance weather shows again.
   `vendor/kompakt/prebuilt/Katapult.apk`.
-- **inkOS 0.7 update,** the 9 November build. `vendor/kompakt/prebuilt/inkOS.apk`.
+- **inkOS 0.7 update,** the 14 November build. `vendor/kompakt/prebuilt/inkOS.apk`.
 - **inkOS ships compiled,** as Katapult does. It ran from its APK, interpreted
   until Android compiled it overnight on the charger, so the home screen was slow
   after every update. Its two optional libraries are now declared, which lets the
@@ -329,6 +373,27 @@ the boot and vendor images from
   have a dashed outline where received ones are solid.
   `patches/kompakt/packages_apps_Messaging/0004`,
   `vendor/kompakt/overlay-static` (Messaging).
+- **Camera: the frame on screen matches the photo or video.** In 720p and
+  1080p video the screen showed a 4:3 picture while the file was 16:9, so the
+  video lost what the frame showed above and below. The preview now has the
+  shape of what is saved. `patches/kompakt/packages_apps_Aperture/0007`.
+- **Camera: photos are always full size.** A 16:9 photo was the camera's
+  largest native 16:9 size, 1920×1088 (2 MP), not the full photo cut down.
+  Photos are now always 4:3 at 3264×2448 and the aspect ratio button is gone.
+  `patches/kompakt/packages_apps_Aperture/0007`.
+- **Camera: video stabilization is off.** The camera has no optical
+  stabilization (OIS), and the processor cannot run electronic
+  stabilization (EIS) without dropping frames: videos with it jumped. Its
+  switch is gone from the settings. The recording timer also redraws once
+  a second instead of about 16 times.
+  `patches/kompakt/packages_apps_Aperture/0008`.
+- **The emergency dialer follows dark mode.** It took its colours from the
+  lock screen wallpaper, so a dark wallpaper made it black in light mode while
+  the emergency information it opens stayed white. It is now white in light
+  mode and black in dark mode, with a solid background and an outlined call
+  button instead of the green one. The emergency information box is outlined
+  in both modes, with no grey fill, and takes less height, so the call button
+  no longer sits on the 0. `patches/kompakt/packages_services_Telephony/0001`.
 
 ## 1.2 (2026-10-20)
 

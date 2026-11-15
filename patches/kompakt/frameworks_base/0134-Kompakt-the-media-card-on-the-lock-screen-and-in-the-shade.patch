@@ -1,0 +1,618 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Mon, 26 Oct 2026 22:00:00 +0200
+Subject: [PATCH] Kompakt: the media card on the lock screen and in the shade
+
+Lockscreen media card.
+
+Lockscreen media card as Katapult's.
+
+No media player in quick settings.
+
+The notifications shade shows the media card.
+
+The media card has a round open button.
+
+The shade media card paints with the notifications.
+
+The media card open dot and even slots.
+
+The media card open dot is the stop square's width.
+---
+ .../elements/MediaElementProvider.kt          | 197 +++++++++++++++++-
+ .../composable/NotificationsShadeOverlay.kt   |  27 ++-
+ .../qs/ui/composable/QuickSettingsContent.kt  |  17 +-
+ .../composable/QuickSettingsShadeOverlay.kt   |  16 +-
+ .../ui/viewmodel/MediaCardViewModel.kt        |  11 +
+ .../remedia/ui/viewmodel/MediaViewModel.kt    |  11 +
+ ...tificationsShadeOverlayContentViewModel.kt |  18 +-
+ .../dagger/QSFragmentComposeModule.kt         |   3 +-
+ .../QuickSettingsContainerViewModel.kt        |   7 +-
+ .../viewmodel/ShadeSceneContentViewModel.kt   |   8 +-
+ .../coordinator/MediaCoordinator.java         |  34 ++-
+ 11 files changed, 295 insertions(+), 54 deletions(-)
+
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/MediaElementProvider.kt b/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/MediaElementProvider.kt
+index f68d94155961..3f8112d18437 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/MediaElementProvider.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/keyguard/ui/composable/elements/MediaElementProvider.kt
+@@ -17,19 +17,64 @@
+ package com.android.systemui.keyguard.ui.composable.elements
+ 
+ import android.content.Context
+-import androidx.compose.animation.AnimatedVisibility
++import androidx.compose.foundation.Image
++import androidx.compose.foundation.background
++import androidx.compose.foundation.border
++import androidx.compose.foundation.clickable
++import androidx.compose.foundation.interaction.MutableInteractionSource
++import androidx.compose.foundation.isSystemInDarkTheme
++import androidx.compose.foundation.layout.Box
++import androidx.compose.foundation.layout.Column
++import androidx.compose.foundation.layout.Row
++import androidx.compose.foundation.layout.aspectRatio
++import androidx.compose.foundation.layout.fillMaxSize
++import androidx.compose.foundation.layout.fillMaxHeight
+ import androidx.compose.foundation.layout.fillMaxWidth
++import androidx.compose.foundation.layout.height
+ import androidx.compose.foundation.layout.padding
++import androidx.compose.foundation.layout.size
++import androidx.compose.foundation.layout.width
++import androidx.compose.foundation.shape.CircleShape
++import androidx.compose.foundation.shape.RoundedCornerShape
++import androidx.compose.material.icons.Icons
++import androidx.compose.material.icons.rounded.MusicNote
++import androidx.compose.material.icons.rounded.Pause
++import androidx.compose.material.icons.rounded.PlayArrow
++import androidx.compose.material.icons.rounded.SkipNext
++import androidx.compose.material.icons.rounded.SkipPrevious
++import androidx.compose.material.icons.rounded.Stop
++import androidx.compose.material3.Icon as MaterialIcon
++import androidx.compose.material3.Text
+ import androidx.compose.runtime.Composable
++import androidx.compose.runtime.remember
++import androidx.compose.ui.Alignment
+ import androidx.compose.ui.Modifier
++import androidx.compose.ui.draw.clip
++import androidx.compose.ui.graphics.Color
++import androidx.compose.ui.graphics.vector.ImageVector
++import androidx.compose.ui.layout.ContentScale
++import androidx.compose.ui.platform.LocalContext
++import androidx.compose.ui.platform.LocalDensity
++import androidx.compose.ui.res.colorResource
+ import androidx.compose.ui.res.dimensionResource
++import androidx.compose.ui.text.style.TextOverflow
++import androidx.compose.ui.unit.Dp
++import androidx.compose.ui.unit.dp
++import androidx.compose.ui.unit.sp
++import com.android.compose.animation.Expandable
++import com.android.compose.animation.rememberExpandableController
+ import com.android.compose.animation.scene.ElementContentScope
+ import com.android.systemui.keyguard.ui.composable.elements.LockscreenUpperRegionElementProvider.Companion.LayoutType
+ import com.android.systemui.keyguard.ui.composable.elements.LockscreenUpperRegionElementProvider.Companion.getLayoutType
+ import com.android.systemui.keyguard.ui.viewmodel.KeyguardMediaViewModel
+ import com.android.systemui.lifecycle.rememberViewModel
++import com.android.systemui.common.shared.model.Icon
++import com.android.systemui.common.shared.model.asImageBitmap
++import com.android.systemui.media.remedia.shared.model.MediaSessionState
+ import com.android.systemui.media.remedia.ui.compose.Media
+-import com.android.systemui.media.remedia.ui.compose.MediaPresentationStyle
++import com.android.systemui.media.remedia.ui.viewmodel.MediaCarouselVisibility
++import com.android.systemui.media.remedia.ui.viewmodel.MediaSecondaryActionViewModel
++import com.android.systemui.media.remedia.ui.viewmodel.MediaViewModel
+ import com.android.systemui.plugins.keyguard.ui.composable.elements.LockscreenElement
+ import com.android.systemui.plugins.keyguard.ui.composable.elements.LockscreenElementKeys
+ import com.android.systemui.plugins.keyguard.ui.composable.elements.LockscreenElementProvider
+@@ -64,19 +109,157 @@ constructor(
+             val viewModel =
+                 rememberViewModel("MediaCarouselElement") { mediaViewModelFactory.create() }
+ 
+-            AnimatedVisibility(viewModel.isMediaActive && !viewModel.isDozing) {
++            // Kompakt: no fade; the card is there or not.
++            if (viewModel.isMediaActive && !viewModel.isDozing) {
+                 Element(
+                     key = Media.Elements.mediaCarousel,
+                     modifier = Modifier.fillMaxWidth().padding(horizontal = horizontalPadding),
+                 ) {
+-                    Media(
++                    KompaktMediaCard(
+                         viewModelFactory = viewModel.mediaViewModelFactory,
+-                        presentationStyle = MediaPresentationStyle.Default,
+-                        behavior = viewModel.mediaUiBehavior,
+-                        onDismissed = viewModel::onSwipeToDismiss,
++                        carouselVisibility = viewModel.mediaUiBehavior.carouselVisibility,
+                     )
+                 }
+             }
+         }
+     }
+ }
++
++/**
++ * Kompakt: the first session as a notification-sized card, after Katapult's music widget: the
++ * track on top; the cover, square, in the bottom corner beside open, previous, play/pause, next and
++ * stop. Also the notifications shade's media.
++ */
++@Composable
++fun KompaktMediaCard(
++    viewModelFactory: MediaViewModel.Factory,
++    carouselVisibility: MediaCarouselVisibility,
++) {
++    val context = LocalContext.current
++    val media: MediaViewModel =
++        rememberViewModel("KompaktMediaCard") {
++            viewModelFactory.create(context = context, carouselVisibility = carouselVisibility)
++        }
++    val card = media.cards.firstOrNull() ?: return
++    val ink = colorResource(R.color.kompakt_notification_outline)
++    val paper = if (isSystemInDarkTheme()) Color.Black else Color.White
++    val line = with(LocalDensity.current) { 2.toDp() }
++    val corner = dimensionResource(R.dimen.notification_corner_radius)
++    val shape = RoundedCornerShape(corner)
++    val cover = (card.background as? Icon.Loaded)?.asImageBitmap()
++
++    Column(
++        modifier =
++            Modifier.fillMaxWidth()
++                .height(80.dp)
++                .clip(shape)
++                .background(paper)
++                .border(line, ink, shape)
++    ) {
++        Box(
++            contentAlignment = Alignment.Center,
++            // Kompakt: the border is drawn over the content, so its width is padding too.
++            modifier = Modifier.fillMaxWidth().weight(1.4f).padding(top = line).padding(horizontal = 12.dp),
++        ) {
++            Text(
++                text = listOf(card.title, card.subtitle).filter { it.isNotBlank() }.joinToString(" - "),
++                color = ink,
++                fontSize = 16.sp,
++                maxLines = 1,
++                overflow = TextOverflow.Ellipsis,
++            )
++        }
++        Box(Modifier.fillMaxWidth().height(line).background(ink))
++        Row(
++            verticalAlignment = Alignment.CenterVertically,
++            modifier = Modifier.fillMaxWidth().weight(2f),
++        ) {
++            Box(
++                contentAlignment = Alignment.Center,
++                modifier =
++                    Modifier.fillMaxHeight()
++                        .aspectRatio(1f)
++                        .clip(RoundedCornerShape(bottomStart = corner))
++                        .background(if (cover != null) ink else paper),
++            ) {
++                if (cover != null) {
++                    Image(
++                        bitmap = cover,
++                        contentDescription = null,
++                        contentScale = ContentScale.Crop,
++                        modifier = Modifier.fillMaxSize(),
++                    )
++                } else {
++                    MaterialIcon(Icons.Rounded.MusicNote, null, tint = ink, modifier = Modifier.size(28.dp))
++                }
++            }
++            Box(Modifier.fillMaxHeight().width(line).background(ink))
++            // Kompakt: one equal slot per control; bottom padding for the border drawn over it.
++            Row(
++                verticalAlignment = Alignment.CenterVertically,
++                modifier = Modifier.weight(1f).fillMaxHeight().padding(bottom = line),
++            ) {
++                val slot = Modifier.weight(1f)
++                Box(slot, contentAlignment = Alignment.Center) {
++                    // Kompakt: inkOS's open button, a solid record dot.
++                    Expandable(
++                        controller =
++                            rememberExpandableController(color = Color.Transparent, shape = CircleShape),
++                        useModifierBasedImplementation = true,
++                    ) { expandable ->
++                        Box(
++                            contentAlignment = Alignment.Center,
++                            modifier =
++                                Modifier.size(32.dp).clickable(
++                                    interactionSource = remember { MutableInteractionSource() },
++                                    indication = null,
++                                ) {
++                                    card.onClick(expandable)
++                                },
++                        ) {
++                            // Kompakt: as wide as the Stop glyph's square (12 of 24 units at 32dp).
++                            Box(Modifier.size(16.dp).background(ink, CircleShape))
++                        }
++                    }
++                }
++                Box(slot, contentAlignment = Alignment.Center) {
++                    KompaktMediaButton(Icons.Rounded.SkipPrevious, (card.previous as? MediaSecondaryActionViewModel.Action)?.onClick, ink, 32.dp)
++                }
++                val play = card.playPauseAction
++                Box(slot, contentAlignment = Alignment.Center) {
++                    KompaktMediaButton(
++                        if (play?.state == MediaSessionState.Playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
++                        play?.onClick,
++                        ink,
++                        40.dp,
++                    )
++                }
++                Box(slot, contentAlignment = Alignment.Center) {
++                    KompaktMediaButton(Icons.Rounded.SkipNext, (card.next as? MediaSecondaryActionViewModel.Action)?.onClick, ink, 32.dp)
++                }
++                Box(slot, contentAlignment = Alignment.Center) {
++                    KompaktMediaButton(Icons.Rounded.Stop, card.onStop, ink, 32.dp)
++                }
++            }
++        }
++    }
++}
++
++/** No ripple: the panel would repaint for it. */
++@Composable
++private fun KompaktMediaButton(icon: ImageVector, onClick: (() -> Unit)?, ink: Color, size: Dp) {
++    MaterialIcon(
++        icon,
++        contentDescription = null,
++        tint = if (onClick != null) ink else Color.Transparent,
++        modifier =
++            Modifier.size(size)
++                .clickable(
++                    interactionSource = remember { MutableInteractionSource() },
++                    indication = null,
++                    enabled = onClick != null,
++                ) {
++                    onClick?.invoke()
++                },
++    )
++}
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/notifications/ui/composable/NotificationsShadeOverlay.kt b/packages/SystemUI/compose/features/src/com/android/systemui/notifications/ui/composable/NotificationsShadeOverlay.kt
+index cf11afc0c8c4..a63edf27d9bd 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/notifications/ui/composable/NotificationsShadeOverlay.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/notifications/ui/composable/NotificationsShadeOverlay.kt
+@@ -24,12 +24,16 @@ import androidx.compose.foundation.layout.padding
+ import androidx.compose.runtime.Composable
+ import androidx.compose.runtime.derivedStateOf
+ import androidx.compose.runtime.getValue
++import androidx.compose.runtime.mutableStateOf
+ import androidx.compose.runtime.remember
++import androidx.compose.runtime.setValue
+ import androidx.compose.ui.Modifier
+ import androidx.compose.ui.draw.blur
+ import androidx.compose.ui.focus.FocusRequester
+ import androidx.compose.ui.focus.focusProperties
+ import androidx.compose.ui.focus.focusRequester
++import androidx.compose.ui.graphics.graphicsLayer
++import androidx.compose.ui.layout.onGloballyPositioned
+ import androidx.compose.ui.platform.LocalDensity
+ import androidx.compose.ui.res.dimensionResource
+ import com.android.compose.animation.scene.ContentScope
+@@ -40,9 +44,9 @@ import com.android.compose.lifecycle.DisposableEffectWithLifecycle
+ import com.android.compose.lifecycle.LaunchedEffectWithLifecycle
+ import com.android.internal.jank.InteractionJankMonitor
+ import com.android.systemui.dagger.SysUISingleton
++import com.android.systemui.keyguard.ui.composable.elements.KompaktMediaCard
+ import com.android.systemui.lifecycle.rememberViewModel
+ import com.android.systemui.media.remedia.ui.compose.Media
+-import com.android.systemui.media.remedia.ui.compose.MediaPresentationStyle
+ import com.android.systemui.notifications.ui.viewmodel.NotificationsShadeOverlayActionsViewModel
+ import com.android.systemui.notifications.ui.viewmodel.NotificationsShadeOverlayContentViewModel
+ import com.android.systemui.res.R
+@@ -142,21 +146,24 @@ constructor(
+             }
+ 
+             Column(modifier = Modifier.focusRequester(focusRequester).focusable()) {
++                // Kompakt: the card keeps its place but shows once the stack is placed, so the
++                // notifications, which draw a frame after that, and the card paint together.
++                var stackPlaced by remember { mutableStateOf(false) }
+                 if (viewModel.showMedia) {
+                     Element(
+                         key = Media.Elements.mediaCarousel,
+                         modifier =
+                             Modifier.padding(
+-                                top = notificationStackPadding,
+-                                start = notificationStackPadding,
+-                                end = notificationStackPadding,
+-                            ),
++                                    top = notificationStackPadding,
++                                    start = notificationStackPadding,
++                                    end = notificationStackPadding,
++                                )
++                                .graphicsLayer { alpha = if (stackPlaced) 1f else 0f },
+                     ) {
+-                        Media(
++                        // Kompakt: the lockscreen's card, not the carousel.
++                        KompaktMediaCard(
+                             viewModelFactory = viewModel.mediaViewModelFactory,
+-                            presentationStyle = MediaPresentationStyle.Default,
+-                            behavior = viewModel.mediaUiBehavior,
+-                            onDismissed = viewModel::onMediaSwipeToDismiss,
++                            carouselVisibility = viewModel.mediaUiBehavior.carouselVisibility,
+                         )
+                     }
+                 }
+@@ -176,7 +183,7 @@ constructor(
+                     shouldShowScrim = false,
+                     supportNestedScrolling = false,
+                     modifier =
+-                        Modifier.fillMaxWidth().focusProperties {
++                        Modifier.fillMaxWidth().onGloballyPositioned { stackPlaced = true }.focusProperties {
+                             // The `NotificationScrollingStack` is a compose placeholder. Therefore,
+                             // focus on the view that actually shows notifications.
+                             onEnter = { stackScrollView.asView().requestFocus() }
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/qs/ui/composable/QuickSettingsContent.kt b/packages/SystemUI/compose/features/src/com/android/systemui/qs/ui/composable/QuickSettingsContent.kt
+index defaad60b871..bfe493dd674f 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/qs/ui/composable/QuickSettingsContent.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/qs/ui/composable/QuickSettingsContent.kt
+@@ -82,13 +82,16 @@ fun ContentScope.QuickSettingsContent(
+             },
+         media =
+             @Composable {
+-                Element(key = Media.Elements.mediaCarousel, modifier = Modifier) {
+-                    Media(
+-                        viewModelFactory = viewModel.mediaViewModelFactory,
+-                        presentationStyle = MediaPresentationStyle.Default,
+-                        behavior = QuickSettingsContainerViewModel.mediaUiBehavior,
+-                        onDismissed = viewModel::onMediaSwipeToDismiss,
+-                    )
++                // Kompakt: the player is on the lockscreen only (showMedia is false).
++                if (viewModel.showMedia) {
++                    Element(key = Media.Elements.mediaCarousel, modifier = Modifier) {
++                        Media(
++                            viewModelFactory = viewModel.mediaViewModelFactory,
++                            presentationStyle = MediaPresentationStyle.Default,
++                            behavior = QuickSettingsContainerViewModel.mediaUiBehavior,
++                            onDismissed = viewModel::onMediaSwipeToDismiss,
++                        )
++                    }
+                 }
+             },
+         mediaInRow = mediaInRow,
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/qs/ui/composable/QuickSettingsShadeOverlay.kt b/packages/SystemUI/compose/features/src/com/android/systemui/qs/ui/composable/QuickSettingsShadeOverlay.kt
+index ad246ac90ace..7952318b9538 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/qs/ui/composable/QuickSettingsShadeOverlay.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/qs/ui/composable/QuickSettingsShadeOverlay.kt
+@@ -360,15 +360,15 @@ private fun ContentScope.QuickSettingsLayout(
+             modifier =
+                 Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState())
+         ) {
+-            Media(
+-                viewModelFactory = qsContainerViewModel.mediaViewModelFactory,
+-                presentationStyle = MediaPresentationStyle.Compact,
+-                behavior = QuickSettingsContainerViewModel.mediaUiBehavior,
+-                onDismissed = qsContainerViewModel::onMediaSwipeToDismiss,
+-                modifier = Modifier,
+-            )
+-
++            // Kompakt: the player is on the lockscreen only (showMedia is false).
+             if (qsContainerViewModel.showMedia) {
++                Media(
++                    viewModelFactory = qsContainerViewModel.mediaViewModelFactory,
++                    presentationStyle = MediaPresentationStyle.Compact,
++                    behavior = QuickSettingsContainerViewModel.mediaUiBehavior,
++                    onDismissed = qsContainerViewModel::onMediaSwipeToDismiss,
++                    modifier = Modifier,
++                )
+                 VerticalSeparator(QuickSettingsShade.Dimensions.Padding)
+             }
+ 
+diff --git a/packages/SystemUI/src/com/android/systemui/media/remedia/ui/viewmodel/MediaCardViewModel.kt b/packages/SystemUI/src/com/android/systemui/media/remedia/ui/viewmodel/MediaCardViewModel.kt
+index 3dd3309abc2a..90d8635e198d 100644
+--- a/packages/SystemUI/src/com/android/systemui/media/remedia/ui/viewmodel/MediaCardViewModel.kt
++++ b/packages/SystemUI/src/com/android/systemui/media/remedia/ui/viewmodel/MediaCardViewModel.kt
+@@ -64,4 +64,15 @@ interface MediaCardViewModel {
+     val onClickLabel: String?
+ 
+     val onLongClick: () -> Unit
++
++    /** Kompakt: stops the session and removes its card. */
++    val onStop: () -> Unit
++        get() = {}
++
++    /** Kompakt: previous and next, also while the seek bar is hidden. */
++    val previous: MediaSecondaryActionViewModel
++        get() = MediaSecondaryActionViewModel.None
++
++    val next: MediaSecondaryActionViewModel
++        get() = MediaSecondaryActionViewModel.None
+ }
+diff --git a/packages/SystemUI/src/com/android/systemui/media/remedia/ui/viewmodel/MediaViewModel.kt b/packages/SystemUI/src/com/android/systemui/media/remedia/ui/viewmodel/MediaViewModel.kt
+index f210aac6c751..4cee73881ddc 100644
+--- a/packages/SystemUI/src/com/android/systemui/media/remedia/ui/viewmodel/MediaViewModel.kt
++++ b/packages/SystemUI/src/com/android/systemui/media/remedia/ui/viewmodel/MediaViewModel.kt
+@@ -280,6 +280,17 @@ constructor(
+                 override val onClickLabel =
+                     context.getString(R.string.controls_media_playing_item_description)
+                 override val onLongClick = { isGutsVisible = true }
++                override val previous: MediaSecondaryActionViewModel
++                    get() = session.leftAction.toSecondaryActionViewModel()
++
++                override val next: MediaSecondaryActionViewModel
++                    get() = session.rightAction.toSecondaryActionViewModel()
++
++                override val onStop: () -> Unit = {
++                    falsingSystem.runIfNotFalseTap(FalsingManager.LOW_PENALTY) {
++                        interactor.hide(session.key, 0L)
++                    }
++                }
+             }
+         }
+     }
+diff --git a/packages/SystemUI/src/com/android/systemui/notifications/ui/viewmodel/NotificationsShadeOverlayContentViewModel.kt b/packages/SystemUI/src/com/android/systemui/notifications/ui/viewmodel/NotificationsShadeOverlayContentViewModel.kt
+index 9018ad54b20a..78bd1cc98ddc 100644
+--- a/packages/SystemUI/src/com/android/systemui/notifications/ui/viewmodel/NotificationsShadeOverlayContentViewModel.kt
++++ b/packages/SystemUI/src/com/android/systemui/notifications/ui/viewmodel/NotificationsShadeOverlayContentViewModel.kt
+@@ -51,6 +51,7 @@ import kotlin.math.roundToInt
+ import kotlinx.coroutines.CoroutineDispatcher
+ import kotlinx.coroutines.awaitCancellation
+ import kotlinx.coroutines.coroutineScope
++import kotlinx.coroutines.flow.combine
+ import kotlinx.coroutines.flow.distinctUntilChanged
+ import kotlinx.coroutines.flow.filter
+ import kotlinx.coroutines.flow.flowOf
+@@ -98,19 +99,18 @@ constructor(
+             mutableStateOf(true)
+         }
+ 
++    // Kompakt: the media card; on the lockscreen only while Show media on lock screen is on.
+     val showMedia: Boolean by
+         hydrator.hydratedStateOf(
+             traceName = "showMedia",
+-            initialValue =
+-                disableFlagsInteractor.disableFlags.value.isQuickSettingsEnabled() &&
+-                    mediaCarouselInteractor.hasActiveMedia.value,
++            initialValue = false,
+             source =
+-                disableFlagsInteractor.disableFlags.flatMapLatestConflated {
+-                    if (it.isQuickSettingsEnabled()) {
+-                        mediaCarouselInteractor.hasActiveMedia
+-                    } else {
+-                        flowOf(false)
+-                    }
++                combine(
++                    mediaCarouselInteractor.hasActiveMedia,
++                    mediaCarouselInteractor.allowMediaOnLockscreen,
++                    mediaCarouselInteractor.isOnLockscreen,
++                ) { active, allowed, onLockscreen ->
++                    active && (allowed || !onLockscreen)
+                 },
+         )
+ 
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/composefragment/dagger/QSFragmentComposeModule.kt b/packages/SystemUI/src/com/android/systemui/qs/composefragment/dagger/QSFragmentComposeModule.kt
+index 4c9df116bd97..068c3194e7a7 100644
+--- a/packages/SystemUI/src/com/android/systemui/qs/composefragment/dagger/QSFragmentComposeModule.kt
++++ b/packages/SystemUI/src/com/android/systemui/qs/composefragment/dagger/QSFragmentComposeModule.kt
+@@ -37,7 +37,8 @@ interface QSFragmentComposeModule {
+         @SysUISingleton
+         @Named(QS_USING_MEDIA_PLAYER)
+         fun providesUsingMedia(@ShadeDisplayAware context: Context): Boolean {
+-            return QSComposeFragment.isEnabled && Utils.useQsMediaPlayer(context)
++            // Kompakt: no player in quick settings; it is on the lockscreen only.
++            return false
+         }
+ 
+         @Provides
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/ui/viewmodel/QuickSettingsContainerViewModel.kt b/packages/SystemUI/src/com/android/systemui/qs/ui/viewmodel/QuickSettingsContainerViewModel.kt
+index 058b2ab298f5..670ddc370edc 100644
+--- a/packages/SystemUI/src/com/android/systemui/qs/ui/viewmodel/QuickSettingsContainerViewModel.kt
++++ b/packages/SystemUI/src/com/android/systemui/qs/ui/viewmodel/QuickSettingsContainerViewModel.kt
+@@ -84,11 +84,8 @@ constructor(
+ 
+     val tileGridViewModel = tileGridViewModelFactory.create()
+ 
+-    val showMedia: Boolean by
+-        hydrator.hydratedStateOf(
+-            traceName = "showMedia",
+-            source = mediaCarouselInteractor.hasAnyMedia,
+-        )
++    // Kompakt: media stays a notification in the shade; the player is on the lockscreen only.
++    val showMedia: Boolean = false
+ 
+     val showMediaInRow: Boolean
+         get() = qsMediaInRowViewModel.shouldMediaShowInRow
+diff --git a/packages/SystemUI/src/com/android/systemui/shade/ui/viewmodel/ShadeSceneContentViewModel.kt b/packages/SystemUI/src/com/android/systemui/shade/ui/viewmodel/ShadeSceneContentViewModel.kt
+index 86bb38ca07ab..b6974ba3e818 100644
+--- a/packages/SystemUI/src/com/android/systemui/shade/ui/viewmodel/ShadeSceneContentViewModel.kt
++++ b/packages/SystemUI/src/com/android/systemui/shade/ui/viewmodel/ShadeSceneContentViewModel.kt
+@@ -127,12 +127,8 @@ constructor(
+     val showMediaInRow: Boolean
+         get() = qqsMediaInRowViewModel.shouldMediaShowInRow
+ 
+-    val showMedia: Boolean by
+-        hydrator.hydratedStateOf(
+-            traceName = "isMediaVisible",
+-            // mediaCarouselInteractor.hasAnyMedia if in SplitShade.
+-            source = mediaCarouselInteractor.hasActiveMedia,
+-        )
++    // Kompakt: media stays a notification in the shade; the player is on the lockscreen only.
++    val showMedia: Boolean = false
+ 
+     val isQsEnabled: Boolean by
+         hydrator.hydratedStateOf(
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/notification/collection/coordinator/MediaCoordinator.java b/packages/SystemUI/src/com/android/systemui/statusbar/notification/collection/coordinator/MediaCoordinator.java
+index 82ce31bfee2d..5d4f975ff1fa 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/notification/collection/coordinator/MediaCoordinator.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/notification/collection/coordinator/MediaCoordinator.java
+@@ -18,7 +18,10 @@ package com.android.systemui.statusbar.notification.collection.coordinator;
+ 
+ import static com.android.systemui.media.controls.domain.pipeline.MediaDataManager.isMediaNotification;
+ 
++import android.content.Context;
+ import android.os.RemoteException;
++import android.os.UserHandle;
++import android.provider.Settings;
+ import android.service.notification.StatusBarNotification;
+ import android.util.ArrayMap;
+ 
+@@ -26,6 +29,9 @@ import androidx.annotation.NonNull;
+ 
+ import com.android.internal.statusbar.IStatusBarService;
+ import com.android.systemui.media.controls.util.MediaFeatureFlag;
++import com.android.systemui.plugins.statusbar.StatusBarStateController;
++import com.android.systemui.shade.domain.interactor.ShadeModeInteractor;
++import com.android.systemui.statusbar.StatusBarState;
+ import com.android.systemui.statusbar.notification.InflationException;
+ import com.android.systemui.statusbar.notification.collection.NotifPipeline;
+ import com.android.systemui.statusbar.notification.collection.NotificationEntry;
+@@ -46,6 +52,9 @@ public class MediaCoordinator implements Coordinator {
+     private final Boolean mIsMediaFeatureEnabled;
+     private final IStatusBarService mStatusBarService;
+     private final IconManager mIconManager;
++    private final StatusBarStateController mStatusBarStateController;
++    private final Context mContext;
++    private final ShadeModeInteractor mShadeModeInteractor;
+ 
+     private static final int STATE_ICONS_UNINFLATED = 0;
+     private static final int STATE_ICONS_INFLATED = 1;
+@@ -59,6 +68,10 @@ public class MediaCoordinator implements Coordinator {
+             if (!mIsMediaFeatureEnabled || !isMediaNotification(entry.getSbn())) {
+                 return false;
+             }
++            // Kompakt: hidden only where the media card shows it instead.
++            if (!isMediaCardShown()) {
++                return false;
++            }
+ 
+             switch (mIconsState.getOrDefault(entry, STATE_ICONS_UNINFLATED)) {
+                 case STATE_ICONS_UNINFLATED:
+@@ -129,17 +142,36 @@ public class MediaCoordinator implements Coordinator {
+         }
+     }
+ 
++    private boolean isMediaCardShown() {
++        if (mStatusBarStateController.getState() != StatusBarState.KEYGUARD) {
++            // Kompakt: unlocked, the card is in the Dual notifications shade only.
++            return mShadeModeInteractor.isDualShade();
++        }
++        return Settings.Secure.getIntForUser(mContext.getContentResolver(),
++                Settings.Secure.MEDIA_CONTROLS_LOCK_SCREEN, 1, UserHandle.USER_CURRENT) != 0;
++    }
++
+     @Inject
+     public MediaCoordinator(MediaFeatureFlag featureFlag, IStatusBarService statusBarService,
+-            IconManager iconManager) {
++            IconManager iconManager, StatusBarStateController statusBarStateController,
++            Context context, ShadeModeInteractor shadeModeInteractor) {
+         mIsMediaFeatureEnabled = featureFlag.getEnabled();
+         mStatusBarService = statusBarService;
+         mIconManager = iconManager;
++        mStatusBarStateController = statusBarStateController;
++        mContext = context;
++        mShadeModeInteractor = shadeModeInteractor;
+     }
+ 
+     @Override
+     public void attach(NotifPipeline pipeline) {
+         pipeline.addPreGroupFilter(mMediaFilter);
++        mStatusBarStateController.addCallback(new StatusBarStateController.StateListener() {
++            @Override
++            public void onStateChanged(int newState) {
++                mMediaFilter.invalidateList("keyguard state changed");
++            }
++        });
+         pipeline.addCollectionListener(mCollectionListener);
+     }
+ }
+-- 
+2.43.0
+

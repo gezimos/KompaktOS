@@ -3,11 +3,101 @@ From: Gezim <gezimos@users.noreply.github.com>
 Date: Tue, 27 Oct 2026 13:00:00 +0200
 Subject: [PATCH] Kompakt: locking goes straight to AOD
 
+Locking goes straight to AOD.
+
+Waking from AOD does not count as starting a dream.
+
+As a lock starts with AOD on, SystemUI writes 1 to the e-ink loader's
+kompakt_wf_lockclear (KompaktDevice kernel 0047), which clears the panel
+before the AOD is drawn; it writes 0 at the wake.
 ---
+ .../domain/interactor/DeviceUnlockedInteractor.kt    |  5 ++++-
+ .../systemui/statusbar/phone/DozeParameters.java     | 36 +++++++++++++++++++++-------
+ 2 files changed, 33 insertions(+), 8 deletions(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/deviceentry/domain/interactor/DeviceUnlockedInteractor.kt b/packages/SystemUI/src/com/android/systemui/deviceentry/domain/interactor/DeviceUnlockedInteractor.kt
+index 5a08dfb34032..b3b35a4a626d 100644
+--- a/packages/SystemUI/src/com/android/systemui/deviceentry/domain/interactor/DeviceUnlockedInteractor.kt
++++ b/packages/SystemUI/src/com/android/systemui/deviceentry/domain/interactor/DeviceUnlockedInteractor.kt
+@@ -59,6 +59,7 @@ import kotlinx.coroutines.flow.collectLatest
+ import kotlinx.coroutines.flow.combine
+ import kotlinx.coroutines.flow.distinctUntilChanged
+ import kotlinx.coroutines.flow.distinctUntilChangedBy
++import kotlinx.coroutines.flow.drop
+ import kotlinx.coroutines.flow.emptyFlow
+ import kotlinx.coroutines.flow.filter
+ import kotlinx.coroutines.flow.flatMapLatest
+@@ -347,7 +348,9 @@ constructor(
+                                 // Only respond to dream state changes while the device is
+                                 // interactive.
+                                 if (isInteractive) {
+-                                    keyguardInteractor.isDreamingAny.distinctUntilChanged().map {
++                                    // Kompakt: a dream still running at the wake is AOD ending, not a dream starting.
++                                    keyguardInteractor.isDreamingAny.distinctUntilChanged().drop(1)
++                                        .map {
+                                         isDreaming ->
+                                         if (isDreaming) {
+                                             LockWithDelay("started dreaming")
 diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/phone/DozeParameters.java b/packages/SystemUI/src/com/android/systemui/statusbar/phone/DozeParameters.java
+index 2b5813eca47d..21c8c505a843 100644
 --- a/packages/SystemUI/src/com/android/systemui/statusbar/phone/DozeParameters.java
 +++ b/packages/SystemUI/src/com/android/systemui/statusbar/phone/DozeParameters.java
-@@ -324,8 +324,9 @@ public class DozeParameters implements
+@@ -101,6 +101,9 @@ public class DozeParameters implements
+     private boolean mIsQuickPickupEnabled;
+ 
+     private boolean mKeyguardVisible;
++    // Kompakt: the e-ink loader clears the panel here as a lock starts, before the AOD is drawn.
++    private static final String EINK_LOCK_CLEAR = "/sys/einkinfo/kompakt_wf_lockclear";
++    private final Handler mBgHandler;
+     @VisibleForTesting
+     final KeyguardUpdateMonitorCallback mKeyguardVisibilityCallback =
+             new KeyguardUpdateMonitorCallback() {
+@@ -110,6 +113,18 @@ public class DozeParameters implements
+                     updateControlScreenOff();
+                 }
+ 
++                @Override
++                public void onStartedGoingToSleep(int why) {
++                    if (getAlwaysOn()) {
++                        writeEinkLockClear("1");
++                    }
++                }
++
++                @Override
++                public void onStartedWakingUp() {
++                    writeEinkLockClear("0");
++                }
++
+                 @Override
+                 public void onShadeExpandedChanged(boolean expanded) {
+                     updateControlScreenOff();
+@@ -144,6 +159,7 @@ public class DozeParameters implements
+             SecureSettings secureSettings,
+             Optional<MinModeManager> minModeManager) {
+         mResources = resources;
++        mBgHandler = handler;
+         mAmbientDisplayConfiguration = ambientDisplayConfiguration;
+         mAlwaysOnPolicy = alwaysOnDisplayPolicy;
+         mBatteryController = batteryController;
+@@ -187,6 +203,17 @@ public class DozeParameters implements
+             });
+     }
+ 
++    // Kompakt: 1 as a lock starts with AOD on, 0 at the wake; off the main thread.
++    private void writeEinkLockClear(String value) {
++        mBgHandler.post(() -> {
++            try (java.io.FileWriter w = new java.io.FileWriter(EINK_LOCK_CLEAR)) {
++                w.write(value);
++            } catch (java.io.IOException e) {
++                Log.w("DozeParameters", "e-ink lock clear: " + e.getMessage());
++            }
++        });
++    }
++
+     private void updateQuickPickupEnabled() {
+         mIsQuickPickupEnabled =
+                 mAmbientDisplayConfiguration.quickPickupSensorEnabled(mUserTracker.getUserId());
+@@ -324,8 +351,9 @@ public class DozeParameters implements
  
      public void updateControlScreenOff() {
          if (!getDisplayNeedsBlanking()) {
@@ -19,7 +109,7 @@ diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/phone/DozePara
              setControlScreenOffAnimation(controlScreenOff);
          }
      }
-@@ -376,11 +377,8 @@ public class DozeParameters implements
+@@ -376,11 +404,8 @@ public class DozeParameters implements
       * delayed for a few seconds. This might be useful to play animations without reducing FPS.
       */
      public boolean shouldDelayDisplayDozeTransition() {

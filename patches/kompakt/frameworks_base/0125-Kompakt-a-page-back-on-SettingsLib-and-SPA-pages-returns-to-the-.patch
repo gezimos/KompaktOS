@@ -1,7 +1,10 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Gezim <gezimos@users.noreply.github.com>
 Date: Sat, 24 Oct 2026 12:00:00 +0300
-Subject: [PATCH] Kompakt: a page back on SettingsLib pages returns to the page it came from
+Subject: [PATCH] Kompakt: a page back on SettingsLib and SPA pages returns to
+ the page it came from
+
+A page back on SettingsLib pages returns to the page it came from.
 
 A page forward moved the row cut by the bottom edge to the top, less
 than a screen; a page back moved a full screen and then pulled the row
@@ -14,11 +17,33 @@ landed, and back reverses the last one while the list is still there.
 When it is not (the list changed or scrolled otherwise), back moves a
 screen and pushes a row cut by the top edge off, so that page ends at
 the old top. The same fix as Settings 0007.
+
+A page back on SPA pages returns to the page it came from.
+
+A page forward moved the row cut by the bottom edge to the top, less
+than a screen; a page back moved a full screen and then pulled the row
+under the top edge down until it was whole. The back page therefore
+started above the page forward came from, and every back and forth
+moved the list one row.
+
+Each forward turn is remembered with the distance it moved and where it
+landed, and back reverses the last one while the list is still there.
+When it is not (the list changed or scrolled otherwise), back moves a
+screen and pushes a row cut by the top edge off, so that page ends at
+the old top. Forward scrolls by the cut row's offset instead of
+scrollToItem, so the distance consumed is known. The column pager
+(ScrollState) moves a viewport both ways and is unchanged. The same fix
+as Settings 0007.
 ---
+ .../collapsingtoolbar/KompaktPaging.java      | 38 ++++++++++++++-----
+ .../spa/framework/compose/KompaktPaging.kt    | 37 ++++++++++++++----
+ 2 files changed, 59 insertions(+), 16 deletions(-)
+
 diff --git a/packages/SettingsLib/CollapsingToolbarBaseActivity/src/com/android/settingslib/collapsingtoolbar/KompaktPaging.java b/packages/SettingsLib/CollapsingToolbarBaseActivity/src/com/android/settingslib/collapsingtoolbar/KompaktPaging.java
+index 854029a9bcdf..14381dfb175c 100644
 --- a/packages/SettingsLib/CollapsingToolbarBaseActivity/src/com/android/settingslib/collapsingtoolbar/KompaktPaging.java
 +++ b/packages/SettingsLib/CollapsingToolbarBaseActivity/src/com/android/settingslib/collapsingtoolbar/KompaktPaging.java
-@@ -21,6 +21,8 @@
+@@ -21,6 +21,8 @@ import androidx.fragment.app.FragmentManager;
  import androidx.recyclerview.widget.LinearLayoutManager;
  import androidx.recyclerview.widget.RecyclerView;
  
@@ -27,7 +52,7 @@ diff --git a/packages/SettingsLib/CollapsingToolbarBaseActivity/src/com/android/
  /**
   * Kompakt: every vertical list on a SettingsLib page turns a page per swipe, as Settings'
   * own pages do (Settings' com.kompakt.eink.PagedScroll and PageGestureListener, copied).
-@@ -96,10 +98,11 @@
+@@ -96,10 +98,11 @@ final class KompaktPaging {
              final long before = mark(lm);
              for (int i = Math.abs(delta); i > 0; i--) {
                  if (delta > 0) {
@@ -42,7 +67,7 @@ diff --git a/packages/SettingsLib/CollapsingToolbarBaseActivity/src/com/android/
                  }
              }
              // At either end nothing moves.
-@@ -110,32 +113,47 @@
+@@ -110,32 +113,47 @@ final class KompaktPaging {
      }
  
      /** Forward one page: to the top of the first row the bottom edge cuts. */
@@ -96,7 +121,7 @@ diff --git a/packages/SettingsLib/CollapsingToolbarBaseActivity/src/com/android/
                  return;
              }
          }
-@@ -153,6 +171,8 @@
+@@ -153,6 +171,8 @@ final class KompaktPaging {
      /** Reports "cannot scroll vertically" to touch handling, so a finger never drags the list. */
      static final class PagedLayoutManager extends LinearLayoutManager {
          boolean allowProgrammaticScroll = false;
@@ -105,6 +130,74 @@ diff --git a/packages/SettingsLib/CollapsingToolbarBaseActivity/src/com/android/
  
          PagedLayoutManager(Context context) {
              super(context);
+diff --git a/packages/SettingsLib/Spa/spa/src/com/android/settingslib/spa/framework/compose/KompaktPaging.kt b/packages/SettingsLib/Spa/spa/src/com/android/settingslib/spa/framework/compose/KompaktPaging.kt
+index 8a49182f211a..2a38c88f39ec 100644
+--- a/packages/SettingsLib/Spa/spa/src/com/android/settingslib/spa/framework/compose/KompaktPaging.kt
++++ b/packages/SettingsLib/Spa/spa/src/com/android/settingslib/spa/framework/compose/KompaktPaging.kt
+@@ -9,6 +9,7 @@ import androidx.compose.foundation.gestures.detectVerticalDragGestures
+ import androidx.compose.foundation.gestures.scrollBy
+ import androidx.compose.foundation.lazy.LazyListState
+ import androidx.compose.runtime.Composable
++import androidx.compose.runtime.remember
+ import androidx.compose.runtime.rememberCoroutineScope
+ import androidx.compose.ui.Modifier
+ import androidx.compose.ui.input.pointer.pointerInput
+@@ -25,7 +26,11 @@ private val KompaktPageDrag = 56.dp
+ fun Modifier.kompaktPaged(state: LazyListState): Modifier {
+     val scope = rememberCoroutineScope()
+     val threshold = with(LocalDensity.current) { KompaktPageDrag.toPx() }
+-    return kompaktPageGesture(threshold) { forward -> scope.launch { state.kompaktPage(forward) } }
++    // Each forward page turn, distance to where it landed.
++    val pages = remember(state) { ArrayDeque<Pair<Float, Long>>() }
++    return kompaktPageGesture(threshold) { forward ->
++        scope.launch { state.kompaktPage(forward, pages) }
++    }
+ }
+ 
+ /** A drag turns pages of a scrolling column (pair with verticalScroll(state, enabled = false)). */
+@@ -58,8 +63,11 @@ private fun Modifier.kompaktPageGesture(threshold: Float, page: (Boolean) -> Uni
+         )
+     }
+ 
+-/** Forward: to the first row the bottom edge cuts. Back: a viewport up, the top row whole. */
+-private suspend fun LazyListState.kompaktPage(forward: Boolean) {
++/** Forward: to the first row the bottom edge cuts. Back: to where that came from. */
++private suspend fun LazyListState.kompaktPage(
++    forward: Boolean,
++    pages: ArrayDeque<Pair<Float, Long>>,
++) {
+     val info = layoutInfo
+     val visible = info.visibleItemsInfo
+     if (visible.isEmpty()) return
+@@ -67,9 +75,24 @@ private suspend fun LazyListState.kompaktPage(forward: Boolean) {
+     if (forward) {
+         val end = info.viewportEndOffset - info.afterContentPadding
+         val cut = visible.firstOrNull { it.offset + it.size > end && it.index > firstVisibleItemIndex }
+-        if (cut != null) scrollToItem(cut.index) else scrollBy(viewport)
+-    } else {
+-        scrollBy(-viewport)
+-        if (firstVisibleItemScrollOffset > 0) scrollToItem(firstVisibleItemIndex)
++        // Scrolled by pixels, so what the list really moved (less at its end) is known.
++        val moved = scrollBy(cut?.offset?.toFloat()?.takeIf { it > 0f } ?: viewport)
++        // Remembered, so back returns to exactly this page.
++        if (moved > 0f) pages.addLast(moved to kompaktMark())
++        return
+     }
++    val last = pages.lastOrNull()
++    if (last != null && last.second == kompaktMark()) {
++        pages.removeLast()
++        scrollBy(-last.first)
++        return
++    }
++    pages.clear()
++    scrollBy(-viewport)
++    // Otherwise the page whose bottom is the old top: a row cut at the top goes up.
++    if (firstVisibleItemScrollOffset > 0) scrollToItem(firstVisibleItemIndex + 1)
+ }
++
++/** Which row is at the top and how far into it the list is. */
++private fun LazyListState.kompaktMark(): Long =
++    (firstVisibleItemIndex.toLong() shl 32) or (firstVisibleItemScrollOffset.toLong() and 0xffffffffL)
 -- 
 2.43.0
 
