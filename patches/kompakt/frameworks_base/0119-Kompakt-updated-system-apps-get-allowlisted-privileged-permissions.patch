@@ -1,0 +1,43 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Tue, 20 Oct 2026 15:00:00 +0300
+Subject: [PATCH] Kompakt: updated system apps get allowlisted privileged
+ permissions
+
+An updated system app was granted a privileged permission only if the
+copy in the image requested it. The image's Google Play services is
+MindTheGapps' 25.15, from April 2025; the Play Store replaces it with a
+current build that requests permissions 25.15 never did, among them
+GET_ROLE_HOLDERS. Its Google sign-in screen calls
+RoleManager.getRoleHolders, which needs that permission, and crashed on
+the SecurityException, so no Google account could be added.
+
+A permission the privileged permission allowlist names for the package
+is now granted to its update as well. Permissions the allowlist does not
+name keep the original rule.
+---
+ .../server/permission/access/permission/AppIdPermissionPolicy.kt     | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/services/permission/java/com/android/server/permission/access/permission/AppIdPermissionPolicy.kt b/services/permission/java/com/android/server/permission/access/permission/AppIdPermissionPolicy.kt
+--- a/services/permission/java/com/android/server/permission/access/permission/AppIdPermissionPolicy.kt
++++ b/services/permission/java/com/android/server/permission/access/permission/AppIdPermissionPolicy.kt
+@@ -1672,11 +1672,14 @@
+                 if (packageState.isUpdatedSystemApp) {
+                     // For updated system applications, a privileged/oem permission
+                     // is granted only if it had been defined by the original application.
++                    // Kompakt: or if the allowlist names it; the image's Google apps predate their updates.
+                     val disabledSystemPackageState =
+                         newState.externalState.disabledSystemPackageStates[packageState.packageName]
+                     val disabledSystemPackage = disabledSystemPackageState?.androidPackage
+                     disabledSystemPackage != null &&
+-                        permission.name in disabledSystemPackage.requestedPermissions &&
++                        (permission.name in disabledSystemPackage.requestedPermissions ||
++                            getPrivilegedPermissionAllowlistState(
++                                disabledSystemPackageState, permission.name) == true) &&
+                         shouldGrantPrivilegedOrOemPermission(disabledSystemPackageState, permission)
+                 } else {
+                     shouldGrantPrivilegedOrOemPermission(packageState, permission)
+--
+2.43.0
+

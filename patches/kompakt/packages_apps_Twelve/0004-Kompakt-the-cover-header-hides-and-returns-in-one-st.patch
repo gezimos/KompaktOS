@@ -1,7 +1,7 @@
-From 3136d1a885bab97b65fe6abafeed581993005cd8 Mon Sep 17 00:00:00 2001
-From: Gezim <25499045+gezimos@users.noreply.github.com>
+From 55397d2f16d4a5c03ea1a480afed2d27cf966a73 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
 Date: Sun, 11 Oct 2026 13:32:29 +0200
-Subject: [PATCH 4/4] Kompakt: the cover header hides and returns in one step
+Subject: [PATCH 04/14] Kompakt: the cover header hides and returns in one step
 
 Album and playlist pages put the cover in a collapsing header that followed
 the finger pixel by pixel, which on e-ink is a laggy smear of repaints. The

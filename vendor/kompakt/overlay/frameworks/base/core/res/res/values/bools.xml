@@ -22,9 +22,9 @@
          false hides the feature rather than protecting it. -->
     <bool name="config_intrusiveNotificationLed">true</bool>
 
-    <!-- No media player anywhere: media keeps its notification, with its controls.
-         Settings hides the Media switches with it. -->
-    <bool name="config_quickSettingsShowMediaPlayer">false</bool>
+    <!-- The media player runs for the lockscreen card only (frameworks_base 0134);
+         quick settings and the shade keep the media notification. -->
+    <bool name="config_quickSettingsShowMediaPlayer">true</bool>
 
     <!-- Do not wake the panel for a notification. -->
     <bool name="config_pulseOnNotificationsAvailable">false</bool>

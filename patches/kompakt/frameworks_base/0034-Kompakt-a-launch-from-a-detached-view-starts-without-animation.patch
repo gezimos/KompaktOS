@@ -1,5 +1,5 @@
 From eafa8e620c03cd57719b862f90d6c953444a25d0 Mon Sep 17 00:00:00 2001
-From: gezimos <>
+From: Gezim <gezimos@users.noreply.github.com>
 Date: Sat, 26 Sep 2026 03:10:00 +0200
 Subject: [PATCH 34/99] Kompakt: a launch from a detached view starts without
  animation

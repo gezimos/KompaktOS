@@ -1,5 +1,5 @@
 From abbd371ca9ebb4bdd8dcbdae76a01a870e0915ad Mon Sep 17 00:00:00 2001
-From: gezimos <>
+From: Gezim <gezimos@users.noreply.github.com>
 Date: Wed, 9 Sep 2026 20:19:58 +0200
 Subject: [PATCH 14/99] SystemUI: an active QS tile inverts instead of changing
  hue

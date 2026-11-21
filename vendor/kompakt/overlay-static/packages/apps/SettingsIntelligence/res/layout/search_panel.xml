@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Kompakt: copy of the stock layout with the two shadows removed (4dp on the container, 2dp on the card) and a 2dp. -->
+<!-- Kompakt: copy of the stock layout; the card has the Settings search bar edge, 2px in the ink, and its 48dp height, fixed so the toolbar buttons cannot make it taller and tapping the home page bar does not resize it. -->
 <!-- Copyright (C) 2016 The Android Open Source Project
+     Copyright (C) The LineageOS Project
 
      Licensed under the Apache License, Version 2.0 (the "License");
      you may not use this file except in compliance with the License.
@@ -17,6 +18,7 @@
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:androidprv="http://schemas.android.com/apk/prv/res/android"
     android:id="@+id/search_panel"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -26,20 +28,25 @@
         android:id="@+id/search_bar_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:elevation="0dp">
-        <androidx.cardview.widget.CardView
+        android:paddingStart="?android:attr/listPreferredItemPaddingStart"
+        android:paddingEnd="?android:attr/listPreferredItemPaddingEnd"
+        android:paddingTop="@dimen/search_bar_container_top_padding">
+        <com.google.android.material.card.MaterialCardView
             android:id="@+id/search_bar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_margin="@dimen/search_bar_margin"
-            app:cardCornerRadius="24dp"
+            android:theme="@style/Theme.MaterialComponents.DayNight"
+            app:cardBackgroundColor="@color/kompakt_search_bar_ground"
+            app:cardCornerRadius="@dimen/search_bar_corner_radius"
             app:cardElevation="0dp"
-                android:foreground="@drawable/kompakt_search_card_outline">
+            app:strokeColor="@color/kompakt_search_bar_ink"
+            app:strokeWidth="2px">
             <Toolbar
                 android:id="@+id/search_toolbar"
                 android:layout_width="match_parent"
-                android:layout_height="@dimen/search_bar_height"
-                android:background="?android:attr/selectableItemBackground"
+                android:layout_height="48dp"
+                android:paddingStart="@dimen/search_bar_padding_start"
+                android:paddingEnd="@dimen/search_bar_padding_start"
                 android:contentInsetStart="0dp"
                 android:contentInsetStartWithNavigation="0dp"
                 android:theme="?android:attr/actionBarTheme">
@@ -49,9 +56,11 @@
                     android:layout_height="match_parent"
                     android:iconifiedByDefault="false"
                     android:imeOptions="actionSearch|flagNoExtractUi"
+                    android:queryBackground="@null"
+                    android:submitBackground="@null"
                     android:searchIcon="@null"/>
             </Toolbar>
-        </androidx.cardview.widget.CardView>
+        </com.google.android.material.card.MaterialCardView>
     </FrameLayout>
 
     <FrameLayout
@@ -66,6 +75,7 @@
             android:id="@+id/list_results"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:clipToPadding="false"
             android:paddingStart="@dimen/dashboard_padding_start"
             android:paddingEnd="@dimen/dashboard_padding_end"
             android:paddingTop="@dimen/dashboard_padding_top"

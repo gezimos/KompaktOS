@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest>
+    <!-- Kompakt: Twelve stays on the commit our patch series and overlay-static layouts are
+         ported to. Move it with the series: upstream rewrites the screens we restyle. -->
+    <extend-project name="LineageOS/android_packages_apps_Twelve" revision="c5769bd97d54fbe9b67056d0fdb05fdfed733902" />
+
+    <!-- Kompakt: the GSI projects track moving branches; these are the commits the
+         TrebleDroid layer and our series are tested on. Move them together with the series. -->
+    <extend-project name="MisterZtr/LineageOS_gsi" revision="7bf212f449d1aa253ebc97b1ab3c4924be88effa" />
+    <extend-project name="TrebleDroid/device_phh_treble" revision="ad694645eb591f00b3acced10b546397812435ec" />
+    <extend-project name="TrebleDroid/treble_app" revision="96acf04e74d42a08cc841688686ad3c5d8bd5790" />
+    <extend-project name="MisterZtr/vendor_hardware_overlay" revision="fcd3782f7262b82ff3a34115d45a540f63d42508" />
+    <extend-project name="phhusson/vendor_vndk-tests" revision="533390a1d6bc98d86de6b9aab56825c1f03fddcb" />
+    <extend-project name="TrebleDroid/vendor_interfaces" revision="a2271d260e226e8de5cb1e8c15a229dc90c007dd" />
+    <extend-project name="phhusson/vendor_lptools" revision="c8be7de57b80eab61a6f94ec86464a01fb9056f2" />
+    <extend-project name="phhusson/vendor_magisk" revision="d8056f8032a0f60f365ddfe5e9fccd7eaf3a655d" />
+    <extend-project name="AndyCGYan/android_packages_apps_QcRilAm" revision="dc599b67cc1e7e9a62ca15eef605e3b2546d0d42" />
+    <extend-project name="naz664/prebuilts_vndk_v28" revision="507526a5b27a170aea338ff747c7d6ecc9bb91bb" />
+    <extend-project name="MindTheGapps/vendor_gapps" revision="f8cdcffc2fb9181b8cc5a9b02d4b5908b64e5cdd" />
+</manifest>

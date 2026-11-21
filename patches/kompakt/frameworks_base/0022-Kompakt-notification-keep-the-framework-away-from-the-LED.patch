@@ -1,5 +1,5 @@
 From 39873b0bc3f433a97fea3704f76423eb0ebbcce8 Mon Sep 17 00:00:00 2001
-From: gezimos <>
+From: Gezim <gezimos@users.noreply.github.com>
 Date: Fri, 18 Sep 2026 18:56:27 +0200
 Subject: [PATCH 22/99] Kompakt: notification: keep the framework away from the
  LED

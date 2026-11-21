@@ -1,0 +1,29 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Wed, 18 Nov 2026 21:40:00 +0200
+Subject: [PATCH] Kompakt: apps open without a splash screen
+
+An app that starts no longer gets Android's splash screen (the icon on a
+blank page). The screen before stays until the app has drawn, which is one
+full-panel repaint less on every launch. Task snapshots are kept.
+---
+ .../core/java/com/android/server/wm/ActivityRecord.java       | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/services/core/java/com/android/server/wm/ActivityRecord.java b/services/core/java/com/android/server/wm/ActivityRecord.java
+index bd9ed05f97ab..11db3939e3a9 100644
+--- a/services/core/java/com/android/server/wm/ActivityRecord.java
++++ b/services/core/java/com/android/server/wm/ActivityRecord.java
+@@ -2314,6 +2314,10 @@ final class ActivityRecord extends WindowToken {
+         }
+         final int type = getStartingWindowType(newTask, taskSwitch, processRunning,
+                 allowTaskSnapshot, activityCreated, activityAllDrawn, snapshot);
++        // Kompakt: no splash screen; the screen before stays until the app has drawn.
++        if (type == STARTING_WINDOW_TYPE_SPLASH_SCREEN) {
++            return false;
++        }
+ 
+         //TODO(191787740) Remove for V+
+         final boolean useLegacy = type == STARTING_WINDOW_TYPE_SPLASH_SCREEN
+-- 
+2.43.0

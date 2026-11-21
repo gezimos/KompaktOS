@@ -1,5 +1,5 @@
 From 0d6c76db6abde9d6e88e3e9b0b4239147520fe8d Mon Sep 17 00:00:00 2001
-From: gezimos <>
+From: Gezim <gezimos@users.noreply.github.com>
 Date: Wed, 9 Sep 2026 17:44:35 +0200
 Subject: [PATCH 12/99] SystemUI: monochrome status bar icons, and a battery on
  the keyguard

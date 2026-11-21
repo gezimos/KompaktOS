@@ -1,5 +1,5 @@
 From 3bec83065aff831bd100b330bd8fdb05cec09fbe Mon Sep 17 00:00:00 2001
-From: gezimos <>
+From: Gezim <gezimos@users.noreply.github.com>
 Date: Wed, 9 Sep 2026 20:19:59 +0200
 Subject: [PATCH 15/99] SystemUI: the PIN dots stop animating
 

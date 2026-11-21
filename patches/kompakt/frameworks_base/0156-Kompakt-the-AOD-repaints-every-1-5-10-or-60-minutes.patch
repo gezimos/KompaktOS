@@ -1,0 +1,96 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sun, 1 Nov 2026 20:30:00 +0200
+Subject: [PATCH] Kompakt: the AOD repaints every 1, 5, 10 or 60 minutes
+
+The alarm that repaints the AOD is scheduled in DozeUi, at the next minute. kompakt_aod_refresh (Settings.Secure, set in Kompakt's Display tab) now picks the interval: 1, 5, 10 or 60 minutes, on the wall clock, so 5 ticks at 6:05 and 6:10. 0 is auto, and auto is as before: every minute, and a content change repaints at once (0063).
+
+With 1, 5, 10 or 60, a content change no longer asks for its own repaint; it is drawn at the next one, which redraws the whole shade (0062). Every repaint holds the display in DOZE for AOD_PAINT_MS, so fewer repaints are fewer wakeups.
+---
+ .../src/com/android/systemui/doze/DozeUi.java | 28 ++++++++++++++++---
+ 1 file changed, 24 insertions(+), 4 deletions(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/doze/DozeUi.java b/packages/SystemUI/src/com/android/systemui/doze/DozeUi.java
+index 650f8bb4cdc9..33c93ee843be 100644
+--- a/packages/SystemUI/src/com/android/systemui/doze/DozeUi.java
++++ b/packages/SystemUI/src/com/android/systemui/doze/DozeUi.java
+@@ -23,6 +23,8 @@ import android.app.AlarmManager;
+ import android.content.Context;
+ import android.os.Handler;
+ import android.os.SystemClock;
++import android.os.UserHandle;
++import android.provider.Settings;
+ import android.text.format.Formatter;
+ import android.util.Log;
+ 
+@@ -73,6 +75,8 @@ public class DozeUi implements DozeMachine.Part {
+             requestAodRepaint();
+         }
+     };
++    // Kompakt: minutes between AOD repaints, set in Display, on the clock: 6:05, 6:10. 0 is auto.
++    private static final String KOMPAKT_AOD_REFRESH = "kompakt_aod_refresh";
+     private final Runnable mCancelTimeTickerRunnable =  new Runnable() {
+         @Override
+         public void run() {
+@@ -204,7 +208,7 @@ public class DozeUi implements DozeMachine.Part {
+         mTimeTickScheduled = true;
+ 
+         long time = System.currentTimeMillis();
+-        long delta = roundToNextMinute(time) - time;
++        long delta = roundToNextRefresh(time, aodRefreshMinutes()) - time;
+         boolean scheduled = mTimeTicker.schedule(delta, AlarmTimeout.MODE_RESCHEDULE_IF_SCHEDULED);
+         if (scheduled) {
+             mDozeLog.traceTimeTickScheduled(time, time + delta);
+@@ -223,23 +227,37 @@ public class DozeUi implements DozeMachine.Part {
+ 
+     private void verifyLastTimeTick() {
+         long millisSinceLastTick = SystemClock.elapsedRealtime() - mLastTimeTickElapsed;
+-        if (millisSinceLastTick > TIME_TICK_DEADLINE_MILLIS) {
++        if (millisSinceLastTick
++                > TIME_TICK_DEADLINE_MILLIS + (aodRefreshMinutes() - 1) * 60 * 1000L) {
+             String delay = Formatter.formatShortElapsedTime(mContext, millisSinceLastTick);
+             mDozeLog.traceMissedTick(delay);
+             Log.e(DozeMachine.TAG, "Missed AOD time tick by " + delay);
+         }
+     }
+ 
+-    private long roundToNextMinute(long timeInMillis) {
++    // Kompakt: the next multiple of the interval on the wall clock, so 5 ticks at 6:05, 6:10.
++    private long roundToNextRefresh(long timeInMillis, int minutes) {
+         Calendar calendar = Calendar.getInstance();
+         calendar.setTimeInMillis(timeInMillis);
+         calendar.set(Calendar.MILLISECOND, 0);
+         calendar.set(Calendar.SECOND, 0);
+-        calendar.add(Calendar.MINUTE, 1);
++        calendar.add(Calendar.MINUTE, minutes - calendar.get(Calendar.MINUTE) % minutes);
+ 
+         return calendar.getTimeInMillis();
+     }
+ 
++    // Kompakt: 0 is auto, 1, 5, 10 or 60 are minutes.
++    private int aodRefreshSetting() {
++        return Settings.Secure.getIntForUser(mContext.getContentResolver(),
++                KOMPAKT_AOD_REFRESH, 0, UserHandle.USER_CURRENT);
++    }
++
++    // Kompakt: the minutes between repaints; auto is every minute.
++    private int aodRefreshMinutes() {
++        int set = aodRefreshSetting();
++        return set == 5 || set == 10 || set == 60 ? set : 1;
++    }
++
+     private DozeScreenState suspendedAodScreen() {
+         if (mMachine == null) return null;
+         final DozeMachine.State s = mMachine.getState();
+@@ -249,6 +267,8 @@ public class DozeUi implements DozeMachine.Part {
+     }
+ 
+     private void requestAodRepaint() {
++        // Kompakt: unless auto, what changed waits for the next refresh.
++        if (aodRefreshSetting() != 0) return;
+         // Frames drawn while the panel is painting need nothing; our own pushes land there too.
+         if (mAodRepaintPending || suspendedAodScreen() == null) return;
+         mAodRepaintPending = true;
+-- 
+2.43.0
+

@@ -1,0 +1,34 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Tue, 27 Oct 2026 17:00:00 +0200
+Subject: [PATCH] Kompakt: the lockscreen and AOD clocks are never scaled
+
+---
+ .../systemui/keyguard/ui/viewmodel/AodBurnInViewModel.kt      | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/AodBurnInViewModel.kt b/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/AodBurnInViewModel.kt
+index 6c31802ccf3b..e69bb1720fa5 100644
+--- a/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/AodBurnInViewModel.kt
++++ b/packages/SystemUI/src/com/android/systemui/keyguard/ui/viewmodel/AodBurnInViewModel.kt
+@@ -26,7 +26,6 @@ import com.android.systemui.keyguard.domain.interactor.BurnInInteractor
+ import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor
+ import com.android.systemui.keyguard.domain.interactor.KeyguardTransitionInteractor
+ import com.android.systemui.keyguard.shared.model.BurnInModel
+-import com.android.systemui.keyguard.shared.model.BurnInModel.Companion.MAX_LARGE_CLOCK_SCALE
+ import com.android.systemui.keyguard.shared.model.Edge
+ import com.android.systemui.keyguard.shared.model.KeyguardState
+ import com.android.systemui.keyguard.ui.StateToValue
+@@ -195,7 +194,8 @@ constructor(
+             BurnInModel(
+                 translationX = MathUtils.lerp(0, burnIn.translationX, interpolated).toInt(),
+                 translationY = translationY,
+-                scale = MathUtils.lerp(burnIn.scale, MAX_LARGE_CLOCK_SCALE, 1f - interpolated),
++                // Kompakt: no 0.9 scale; it was applied or not by a stale isLargeClockVisible.
++                scale = 1f,
+                 scaleClockOnly = useScaleOnly,
+             )
+         }
+-- 
+2.43.0
+

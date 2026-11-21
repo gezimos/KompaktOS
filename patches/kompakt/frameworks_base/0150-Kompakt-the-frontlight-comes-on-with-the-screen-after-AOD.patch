@@ -1,0 +1,35 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Thu, 29 Oct 2026 10:00:00 +0100
+Subject: [PATCH] Kompakt: the frontlight comes on with the screen after AOD
+
+0121 holds a wake from AOD in its doze state until the policy unblocks
+the screen, but the brightness was applied at once. Setting brightness
+in DOZE_SUSPEND makes LocalDisplayAdapter step to DOZE, set the light
+and go back to DOZE_SUSPEND, which turns the light off again, and ON
+then turns it back on: on, off, on. Brightness now waits while the
+screen-on block is pending, and is applied with ON.
+---
+ .../com/android/server/display/DisplayPowerController.java  | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/services/core/java/com/android/server/display/DisplayPowerController.java b/services/core/java/com/android/server/display/DisplayPowerController.java
+index 613b10edec41..169d47733543 100644
+--- a/services/core/java/com/android/server/display/DisplayPowerController.java
++++ b/services/core/java/com/android/server/display/DisplayPowerController.java
+@@ -1665,7 +1665,11 @@ final class DisplayPowerController implements AutomaticBrightnessController.Call
+                         || mAutomaticBrightnessStrategy
+                         .isTemporaryAutoBrightnessAdjustmentApplied();
+         float rampSpeed = 0;
+-        if (!mPendingScreenOff && mPendingScreenOnUnblockerByDisplayOffload == null) {
++        // Kompakt: no brightness while ON waits for the policy, so the frontlight comes on with ON.
++        final boolean kompaktHoldBrightness = mPendingScreenOnUnblocker != null
++                && state != Display.STATE_ON;
++        if (!mPendingScreenOff && mPendingScreenOnUnblockerByDisplayOffload == null
++                && !kompaktHoldBrightness) {
+             if (mSkipScreenOnBrightnessRamp) {
+                 if (state == Display.STATE_ON) {
+                     if (mSkipRampState == RAMP_STATE_SKIP_NONE && mDozing) {
+-- 
+2.43.0
+

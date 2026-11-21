@@ -1,0 +1,248 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sun, 9 Nov 2026 12:00:00 +0000
+Subject: [PATCH] Kompakt: the phone process does not wait for a radio HAL that
+ is away
+
+RIL and RadioConfig looked the radio HAL up with a getService() that waits
+until it is registered. On this phone the HAL only appears once the modem has
+booted, and with Offline+ engaged the modem never does, so the phone process
+blocked in its constructor until Android killed it at the start-up timeout,
+then started it again, for as long as the switch stayed on. The lookups no
+longer wait: a HAL that is not registered is looked for again every 3 s, the
+same path Android takes when the RIL daemon dies at runtime, and telephony
+comes up with the radio unavailable until it appears. A per-service proxy
+whose HIDL radio is not there yet is left empty, not marked disabled:
+isRadioServiceSupported only says whether an AIDL service is declared.
+---
+diff --git a/src/java/com/android/internal/telephony/RIL.java b/src/java/com/android/internal/telephony/RIL.java
+--- a/src/java/com/android/internal/telephony/RIL.java
++++ b/src/java/com/android/internal/telephony/RIL.java
+@@ -285,6 +285,10 @@
+     static final int EVENT_BLOCKING_RESPONSE_TIMEOUT = 5;
+     static final int EVENT_RADIO_PROXY_DEAD = 6;
+     static final int EVENT_AIDL_PROXY_DEAD = 7;
++    // Kompakt: the radio HAL was not registered when last looked for.
++    static final int EVENT_RADIO_PROXY_RETRY = 8;
++    // Kompakt: how long to wait before looking for the radio HAL again.
++    static final long RADIO_PROXY_RETRY_MS = 3000;
+ 
+     //***** Constants
+ 
+@@ -374,6 +378,11 @@
+ 
+                     decrementWakeLock(rr);
+                     rr.release();
++                    break;
++
++                case EVENT_RADIO_PROXY_RETRY:
++                    // Kompakt: look again; getRadioProxy schedules the next try if it is still away.
++                    getRadioProxy();
+                     break;
+ 
+                 case EVENT_RADIO_PROXY_DEAD:
+@@ -655,6 +664,18 @@
+     @VisibleForTesting
+     public @Nullable HalVersion getCompatVersion(int rilRequest) {
+         return mCompatOverrides.getOrDefault(rilRequest, null);
++    }
++
++    /**
++     * Kompakt: the radio HAL is not registered (the modem is off or still booting). Waiting for
++     * it in getService() blocked the phone process's start until Android killed it, so look again
++     * in a moment instead.
++     */
++    private void retryRadioProxyLater() {
++        if (mRilHandler.hasMessages(EVENT_RADIO_PROXY_RETRY)) return;
++        riljLog("retryRadioProxyLater: IRadio " + HIDL_SERVICE_NAME[mPhoneId]
++                + " is not registered yet; looking again in " + RADIO_PROXY_RETRY_MS + " ms");
++        mRilHandler.sendEmptyMessageDelayed(EVENT_RADIO_PROXY_RETRY, RADIO_PROXY_RETRY_MS);
+     }
+ 
+     /** Returns a {@link IRadio} instance or null if the service is not available. */
+@@ -680,9 +701,10 @@
+                         + " is disabled");
+                 return null;
+             } else {
++                // Kompakt: no waiting in getService(); a HAL that is away is looked for again later.
+                 try {
+                     mRadioProxy = android.hardware.radio.V1_6.IRadio.getService(
+-                            HIDL_SERVICE_NAME[mPhoneId], true);
++                            HIDL_SERVICE_NAME[mPhoneId], false);
+                     mHalVersion.put(HAL_SERVICE_RADIO, RADIO_HAL_VERSION_1_6);
+                 } catch (NoSuchElementException e) {
+                 }
+@@ -690,7 +712,7 @@
+                 if (mRadioProxy == null) {
+                     try {
+                         mRadioProxy = android.hardware.radio.V1_5.IRadio.getService(
+-                                HIDL_SERVICE_NAME[mPhoneId], true);
++                                HIDL_SERVICE_NAME[mPhoneId], false);
+                         mHalVersion.put(HAL_SERVICE_RADIO, RADIO_HAL_VERSION_1_5);
+                     } catch (NoSuchElementException e) {
+                     }
+@@ -699,14 +721,10 @@
+                 if (mRadioProxy == null) {
+                     try {
+                         mRadioProxy = android.hardware.radio.V1_4.IRadio.getService(
+-                                HIDL_SERVICE_NAME[mPhoneId], true);
++                                HIDL_SERVICE_NAME[mPhoneId], false);
+                         mHalVersion.put(HAL_SERVICE_RADIO, RADIO_HAL_VERSION_1_4);
+                     } catch (NoSuchElementException e) {
+                     }
+-                }
+-
+-                if (mRadioProxy == null) {
+-                    riljLoge("IRadio <1.4 is no longer supported.");
+                 }
+ 
+                 if (mRadioProxy != null) {
+@@ -717,9 +735,7 @@
+                         mRadioProxy.setResponseFunctions(mRadioResponse, mRadioIndication);
+                     }
+                 } else {
+-                    mDisabledRadioServices.get(HAL_SERVICE_RADIO).add(mPhoneId);
+-                    riljLoge("getRadioProxy: set mRadioProxy for "
+-                            + HIDL_SERVICE_NAME[mPhoneId] + " as disabled");
++                    retryRadioProxyLater();
+                     return null;
+                 }
+             }
+@@ -912,13 +928,14 @@
+                         break;
+                 }
+ 
++                // Kompakt: no waiting in getService(); a HAL that is away is looked for again later.
+                 if (serviceProxy.isEmpty()
+                         && mHalVersion.get(service).less(RADIO_HAL_VERSION_2_0)) {
+                     try {
+                         mHalVersion.put(service, RADIO_HAL_VERSION_1_6);
+                         serviceProxy.setHidl(mHalVersion.get(service),
+                                 android.hardware.radio.V1_6.IRadio.getService(
+-                                        HIDL_SERVICE_NAME[mPhoneId], true));
++                                        HIDL_SERVICE_NAME[mPhoneId], false));
+                     } catch (NoSuchElementException e) {
+                     }
+                 }
+@@ -929,7 +946,7 @@
+                         mHalVersion.put(service, RADIO_HAL_VERSION_1_5);
+                         serviceProxy.setHidl(mHalVersion.get(service),
+                                 android.hardware.radio.V1_5.IRadio.getService(
+-                                        HIDL_SERVICE_NAME[mPhoneId], true));
++                                        HIDL_SERVICE_NAME[mPhoneId], false));
+                     } catch (NoSuchElementException e) {
+                     }
+                 }
+@@ -940,14 +957,9 @@
+                         mHalVersion.put(service, RADIO_HAL_VERSION_1_4);
+                         serviceProxy.setHidl(mHalVersion.get(service),
+                                 android.hardware.radio.V1_4.IRadio.getService(
+-                                        HIDL_SERVICE_NAME[mPhoneId], true));
++                                        HIDL_SERVICE_NAME[mPhoneId], false));
+                     } catch (NoSuchElementException e) {
+                     }
+-                }
+-
+-                if (serviceProxy.isEmpty()
+-                        && mHalVersion.get(service).less(RADIO_HAL_VERSION_2_0)) {
+-                    riljLoge("IRadio <1.4 is no longer supported.");
+                 }
+ 
+                 if (!serviceProxy.isEmpty()) {
+@@ -1009,13 +1021,13 @@
+                         }
+                     }
+                 } else {
+-                    mDisabledRadioServices.get(service).add(mPhoneId);
+-                    if (isRadioServiceSupported(service)) {
+-                        mHalVersion.put(service, RADIO_HAL_VERSION_UNKNOWN);
+-                        riljLoge("getRadioServiceProxy: set " + serviceToString(service) + " for "
+-                                + HIDL_SERVICE_NAME[mPhoneId] + " as disabled\n"
+-                                + android.util.Log.getStackTraceString(new RuntimeException()));
++                    // Kompakt: a HIDL radio not registered yet is not disabled; the next request looks again.
++                    // isRadioServiceSupported only says whether an AIDL service is declared.
++                    if (mHalVersion.get(service).less(RADIO_HAL_VERSION_2_0)) {
++                        mHalVersion.put(service, RADIO_HAL_VERSION_UNKNOWN);
++                        retryRadioProxyLater();
+                     } else {
++                        mDisabledRadioServices.get(service).add(mPhoneId);
+                         mHalVersion.put(service, RADIO_HAL_VERSION_UNSUPPORTED);
+                         riljLog("getRadioServiceProxy: set " + serviceToString(service) + " for "
+                                 + HIDL_SERVICE_NAME[mPhoneId] + " as disabled (unsupported)");
+@@ -1028,7 +1040,7 @@
+         }
+ 
+         if (serviceProxy.isEmpty()) {
+-            // getService() is a blocking call, so this should never happen
++            // Kompakt: expected while the radio HAL is not registered yet.
+             riljLoge("getRadioServiceProxy: serviceProxy == null");
+         }
+ 
+diff --git a/src/java/com/android/internal/telephony/RadioConfig.java b/src/java/com/android/internal/telephony/RadioConfig.java
+--- a/src/java/com/android/internal/telephony/RadioConfig.java
++++ b/src/java/com/android/internal/telephony/RadioConfig.java
+@@ -65,6 +65,8 @@
+ 
+     static final int EVENT_HIDL_SERVICE_DEAD = 1;
+     static final int EVENT_AIDL_SERVICE_DEAD = 2;
++    // Kompakt: the radio config HAL was not registered when last looked for.
++    static final int EVENT_HIDL_SERVICE_RETRY = 3;
+ 
+     private final boolean mIsMobileNetworkSupported;
+     private final SparseArray<RILRequest> mRequestList = new SparseArray<>();
+@@ -151,6 +153,9 @@
+             logd("handleMessage: EVENT_AIDL_SERVICE_DEAD mRadioConfigProxyCookie = "
+                     + mRadioConfigProxyCookie.get());
+             resetProxyAndRequestList("EVENT_AIDL_SERVICE_DEAD", null);
++        } else if (message.what == EVENT_HIDL_SERVICE_RETRY) {
++            // Kompakt: look again; updateRadioConfigProxy schedules the next try if it is still away.
++            getRadioConfigProxy(null);
+         }
+     }
+ 
+@@ -297,10 +302,11 @@
+                     android.hardware.radio.config.IRadioConfig.Stub.asInterface(service));
+         }
+ 
++        // Kompakt: no waiting in getService(); a HAL that is away is looked for again later.
+         if (mRadioConfigProxy.isEmpty()) {
+             try {
+                 mRadioConfigProxy.setHidl(RIL.RADIO_HAL_VERSION_1_3,
+-                        android.hardware.radio.config.V1_3.IRadioConfig.getService(true));
++                        android.hardware.radio.config.V1_3.IRadioConfig.getService(false));
+             } catch (RemoteException | NoSuchElementException e) {
+                 mRadioConfigProxy.clear();
+                 loge("getHidlRadioConfigProxy1_3: RadioConfigProxy getService: " + e);
+@@ -310,17 +316,13 @@
+         if (mRadioConfigProxy.isEmpty()) {
+             try {
+                 mRadioConfigProxy.setHidl(RIL.RADIO_HAL_VERSION_1_1,
+-                        android.hardware.radio.config.V1_1.IRadioConfig.getService(true));
++                        android.hardware.radio.config.V1_1.IRadioConfig.getService(false));
+             } catch (RemoteException | NoSuchElementException e) {
+                 mRadioConfigProxy.clear();
+                 loge("getHidlRadioConfigProxy1_1: RadioConfigProxy getService | linkToDeath: " + e);
+             }
+         }
+ 
+-        if (mRadioConfigProxy.isEmpty()) {
+-            loge("IRadioConfig <1.1 is no longer supported.");
+-        }
+-
+         if (!mRadioConfigProxy.isEmpty()) {
+             try {
+                 mRadioConfigProxy.linkToDeath(mRadioConfigProxyCookie.incrementAndGet());
+@@ -332,7 +334,12 @@
+             }
+         }
+ 
+-        loge("getRadioConfigProxy: mRadioConfigProxy == null");
++        // Kompakt: the modem is off or still booting; the phone process must not wait for it.
++        if (!hasMessages(EVENT_HIDL_SERVICE_RETRY)) {
++            logd("updateRadioConfigProxy: IRadioConfig is not registered yet; looking again in "
++                    + RIL.RADIO_PROXY_RETRY_MS + " ms");
++            sendEmptyMessageDelayed(EVENT_HIDL_SERVICE_RETRY, RIL.RADIO_PROXY_RETRY_MS);
++        }
+     }
+ 
+     private RILRequest obtainRequest(int request, Message result, WorkSource workSource) {

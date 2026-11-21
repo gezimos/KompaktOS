@@ -1,7 +1,7 @@
-From d44f58efdecaacbeeb880c7175da5a9249f671d8 Mon Sep 17 00:00:00 2001
-From: Gezim <25499045+gezimos@users.noreply.github.com>
+From 3b5a121b60c3d6a15beb8e9c6f509221b2d717cd Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
 Date: Sun, 11 Oct 2026 18:04:25 +0200
-Subject: [PATCH] Kompakt: holding play closes the mini player
+Subject: [PATCH 07/14] Kompakt: holding play closes the mini player
 
 The mini player stays as long as anything is loaded, and nothing but closing
 the app unloaded it. Holding its play or pause button now stops playback
@@ -46,10 +46,10 @@ index 5f6600a..24c9b0f 100644
          playPauseMaterialButton.setIconResource(
              when (isPlaying) {
 diff --git a/app/src/main/java/org/lineageos/twelve/viewmodels/NowPlayingViewModel.kt b/app/src/main/java/org/lineageos/twelve/viewmodels/NowPlayingViewModel.kt
-index 6a40ae7..55c8e8a 100644
+index e2f3731..b81e6b7 100644
 --- a/app/src/main/java/org/lineageos/twelve/viewmodels/NowPlayingViewModel.kt
 +++ b/app/src/main/java/org/lineageos/twelve/viewmodels/NowPlayingViewModel.kt
-@@ -431,6 +431,14 @@ open class NowPlayingViewModel(application: Application) : TwelveViewModel(appli
+@@ -433,6 +433,14 @@ open class NowPlayingViewModel(application: Application) : TwelveViewModel(appli
              initialValue = null
          )
  

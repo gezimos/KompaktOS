@@ -1,7 +1,8 @@
-From 3f0df77bd0338d89d5215010b08e0f8327002225 Mon Sep 17 00:00:00 2001
-From: gezimos <>
+From 6348b3642995fd9f0622f72140e059a4bd1c9418 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
 Date: Mon, 21 Sep 2026 21:32:03 +0200
-Subject: [PATCH 19/99] Kompakt: lights: the framework must not drive this LED
+Subject: [PATCH 019/144] Kompakt: lights: the framework must not drive this
+ LED
 
 ---
  core/res/res/values/config.xml                             | 3 +++
@@ -50,10 +51,10 @@ index 58a894100569..fb8e7ba30460 100644
              } finally {
                  Trace.traceEnd(Trace.TRACE_TAG_POWER);
 diff --git a/services/core/java/com/android/server/notification/NotificationAttentionHelper.java b/services/core/java/com/android/server/notification/NotificationAttentionHelper.java
-index 89abfcd6ffdc..14a2fa00f3c4 100644
+index deda139c840d..38fbbf1eff01 100644
 --- a/services/core/java/com/android/server/notification/NotificationAttentionHelper.java
 +++ b/services/core/java/com/android/server/notification/NotificationAttentionHelper.java
-@@ -234,10 +234,13 @@ public final class NotificationAttentionHelper {
+@@ -236,14 +236,17 @@ public final class NotificationAttentionHelper {
          mVibratorHelper = new VibratorHelper(context);
          mVibrationStatsWriter = vibrationStatsWriter;
  
@@ -64,6 +65,10 @@ index 89abfcd6ffdc..14a2fa00f3c4 100644
 +                ? null
 +                : lightsManager.getLight(LightsManager.LIGHT_ID_NOTIFICATIONS);
          mAttentionLight = lightsManager.getLight(LightsManager.LIGHT_ID_ATTENTION);
+         mFlashMode = LightsCapabilities.supports(context,
+                 LightsCapabilities.LIGHTS_BREATHING_LED)
+                         ? LogicalLight.LIGHT_FLASH_HARDWARE
+                         : LogicalLight.LIGHT_FLASH_TIMED;
  
 -        Resources resources = context.getResources();
          mUseAttentionLight = resources.getBoolean(R.bool.config_useAttentionLight);

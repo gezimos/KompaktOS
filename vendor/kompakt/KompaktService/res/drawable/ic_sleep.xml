@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Material "bedtime", in the 24dp viewBox. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24"
+    android:tint="?android:attr/colorControlNormal">
+    <path android:fillColor="@android:color/white"
+        android:pathData="M 12.34 2.02 C 6.59 1.82 2 6.42 2 12 c 0 5.52 4.48 10 10 10 3.71 0 6.93 -2.02 8.66 -5.02 -7.51 -.25 -12.09 -8.43 -8.32 -14.96 z"/>
+</vector>

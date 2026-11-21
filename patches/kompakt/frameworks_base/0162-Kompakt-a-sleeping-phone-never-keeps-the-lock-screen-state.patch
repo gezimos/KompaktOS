@@ -1,0 +1,113 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Wed, 4 Nov 2026 21:00:00 +0200
+Subject: [PATCH] Kompakt: a sleeping phone never keeps the lock screen state
+
+---
+ .../LockscreenSceneTransitionInteractor.kt    | 43 +++++++++++++++++++
+ 1 file changed, 43 insertions(+)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/keyguard/domain/interactor/scenetransition/LockscreenSceneTransitionInteractor.kt b/packages/SystemUI/src/com/android/systemui/keyguard/domain/interactor/scenetransition/LockscreenSceneTransitionInteractor.kt
+index bb1009f7aafc..103450cfa428 100644
+--- a/packages/SystemUI/src/com/android/systemui/keyguard/domain/interactor/scenetransition/LockscreenSceneTransitionInteractor.kt
++++ b/packages/SystemUI/src/com/android/systemui/keyguard/domain/interactor/scenetransition/LockscreenSceneTransitionInteractor.kt
+@@ -18,6 +18,7 @@ package com.android.systemui.keyguard.domain.interactor.scenetransition
+ 
+ import com.android.app.tracing.coroutines.launchTraced as launch
+ import com.android.compose.animation.scene.ObservableTransitionState
++import android.util.Log
+ import com.android.compose.animation.scene.SceneKey
+ import com.android.systemui.CoreStartable
+ import com.android.systemui.dagger.SysUISingleton
+@@ -25,13 +26,16 @@ import com.android.systemui.dagger.qualifiers.Application
+ import com.android.systemui.keyguard.data.repository.LockscreenSceneTransitionRepository
+ import com.android.systemui.keyguard.data.repository.LockscreenSceneTransitionRepository.Companion.DEFAULT_STATE
+ import com.android.systemui.keyguard.domain.interactor.InternalKeyguardTransitionInteractor
++import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor
+ import com.android.systemui.keyguard.domain.interactor.KeyguardTransitionInteractor
+ import com.android.systemui.keyguard.shared.model.KeyguardState
++import com.android.systemui.keyguard.shared.model.KeyguardState.LOCKSCREEN
+ import com.android.systemui.keyguard.shared.model.KeyguardState.UNDEFINED
+ import com.android.systemui.keyguard.shared.model.TransitionInfo
+ import com.android.systemui.keyguard.shared.model.TransitionModeOnCanceled
+ import com.android.systemui.keyguard.shared.model.TransitionState.FINISHED
+ import com.android.systemui.keyguard.shared.model.TransitionState.RUNNING
++import com.android.systemui.power.domain.interactor.PowerInteractor
+ import com.android.systemui.scene.domain.interactor.SceneInteractor
+ import com.android.systemui.scene.shared.model.Scenes
+ import com.android.systemui.util.kotlin.pairwise
+@@ -39,6 +43,9 @@ import java.util.UUID
+ import javax.inject.Inject
+ import kotlinx.coroutines.CoroutineScope
+ import kotlinx.coroutines.Job
++import kotlinx.coroutines.delay
++import kotlinx.coroutines.flow.collectLatest
++import kotlinx.coroutines.flow.combine
+ 
+ /**
+  * This class listens to scene framework scene transitions and manages keyguard transition framework
+@@ -73,6 +80,8 @@ constructor(
+     @Application private val applicationScope: CoroutineScope,
+     private val sceneInteractor: SceneInteractor,
+     private val repository: LockscreenSceneTransitionRepository,
++    private val powerInteractor: PowerInteractor,
++    private val keyguardInteractor: KeyguardInteractor,
+ ) : CoreStartable, SceneInteractor.OnSceneAboutToChangeListener {
+ 
+     private var currentTransitionId: UUID? = null
+@@ -81,6 +90,7 @@ constructor(
+     override fun start() {
+         sceneInteractor.registerSceneStateProcessor(this)
+         listenForSceneTransitionProgress()
++        listenForSleepStateMismatch()
+     }
+ 
+     override fun onSceneAboutToChange(toScene: SceneKey, sceneState: Any?) {
+@@ -104,6 +114,34 @@ constructor(
+         }
+     }
+ 
++    /**
++     * Kompakt: a sleeping phone never keeps the LOCKSCREEN keyguard state, whatever order the scene
++     * transitions arrived in. Once nothing has moved for a moment, it goes to the asleep state.
++     */
++    private fun listenForSleepStateMismatch() {
++        applicationScope.launch {
++            combine(
++                    powerInteractor.isAsleep,
++                    sceneInteractor.transitionState,
++                    transitionInteractor.currentKeyguardState,
++                ) { asleep, scene, state ->
++                    Triple(asleep, scene, state)
++                }
++                .collectLatest { (asleep, scene, state) ->
++                    val idleOnLockscreen =
++                        scene is ObservableTransitionState.Idle &&
++                            scene.currentScene == Scenes.Lockscreen &&
++                            scene.currentOverlays.isEmpty()
++                    if (!asleep || !idleOnLockscreen || state != LOCKSCREEN) return@collectLatest
++                    delay(SLEEP_SETTLE_MS)
++                    if (currentTransitionId != null) return@collectLatest
++                    val target = keyguardInteractor.asleepKeyguardState.value
++                    Log.w(TAG, "asleep in LOCKSCREEN, moving to $target")
++                    finishReversedTransitionTo(target)
++                }
++        }
++    }
++
+     private suspend fun handleIdle(
+         prevTransition: ObservableTransitionState,
+         idle: ObservableTransitionState.Idle,
+@@ -244,4 +282,9 @@ constructor(
+             RUNNING,
+         )
+     }
++
++    private companion object {
++        const val TAG = "KompaktKeyguard"
++        const val SLEEP_SETTLE_MS = 400L
++    }
+ }
+-- 
+2.43.0
+

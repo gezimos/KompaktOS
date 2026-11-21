@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Material "vibration", in the 24dp viewBox. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24"
+    android:tint="?android:attr/colorControlNormal">
+    <path android:fillColor="@android:color/white"
+        android:pathData="M 0 15 h 2 V 9 H 0 v 6 z m 3 2 h 2 V 7 H 3 v 10 z m 19 -8 v 6 h 2 V 9 h -2 z m -3 8 h 2 V 7 h -2 v 10 z M 16.5 3 h -9 C 6.67 3 6 3.67 6 4.5 v 15 c 0 .83 .67 1.5 1.5 1.5 h 9 c .83 0 1.5 -.67 1.5 -1.5 v -15 c 0 -.83 -.67 -1.5 -1.5 -1.5 z M 16 19 H 8 V 5 h 8 v 14 z"/>
+</vector>

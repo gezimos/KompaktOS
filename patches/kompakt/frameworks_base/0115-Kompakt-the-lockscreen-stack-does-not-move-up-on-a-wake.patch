@@ -1,5 +1,5 @@
 From fe516e7800bc933d6f5496e1be060580caae4874 Mon Sep 17 00:00:00 2001
-From: Gezim <25499045+gezimos@users.noreply.github.com>
+From: Gezim <gezimos@users.noreply.github.com>
 Date: Sun, 18 Oct 2026 22:40:00 +0200
 Subject: [PATCH] Kompakt: the lockscreen stack does not move up on a wake
 

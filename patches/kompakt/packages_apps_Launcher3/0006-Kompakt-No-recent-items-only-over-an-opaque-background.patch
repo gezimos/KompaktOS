@@ -1,0 +1,60 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Tue, 20 Oct 2026 20:30:00 +0300
+Subject: [PATCH] Kompakt: "No recent items" only over an opaque background
+
+RecentsView draws the empty message itself, while the white background
+behind Recents is the container's ScrimView, whose colour is set by the
+state transition. The message could therefore reach the panel before the
+background did, over the home screen, and when the transition stopped
+short it stayed there with no background at all.
+
+The message is now drawn only while the scrim is fully opaque, and an
+opaqueness listener on the scrim redraws it when it becomes so.
+---
+diff --git a/quickstep/src/com/android/quickstep/views/RecentsView.java b/quickstep/src/com/android/quickstep/views/RecentsView.java
+--- a/quickstep/src/com/android/quickstep/views/RecentsView.java
++++ b/quickstep/src/com/android/quickstep/views/RecentsView.java
+@@ -736,6 +736,8 @@
+     private int mAppliedTaskListChangeId = -1;
+     // Kompakt: a task list arrived since the last reset, empty or not.
+     private boolean mKompaktTasksLoaded;
++    // Kompakt: redraws the empty message once the background behind it turns opaque.
++    private final Runnable mKompaktScrimOpaqueListener = this::invalidate;
+ 
+     // Only valid until the launcher state changes to NORMAL
+     /**
+@@ -1286,12 +1288,18 @@
+         mSplitSelectStateController.registerSplitListener(mSplitSelectionListener);
+         if (mDesktopVisibilityController != null) {
+             mDesktopVisibilityController.registerDesktopVisibilityListener(mUtils);
++        }
++        if (mContainer.getScrimView() != null) {
++            mContainer.getScrimView().addOpaquenessListener(mKompaktScrimOpaqueListener);
+         }
+     }
+ 
+     @Override
+     protected void onDetachedFromWindow() {
+         super.onDetachedFromWindow();
++        if (mContainer.getScrimView() != null) {
++            mContainer.getScrimView().removeOpaquenessListener(mKompaktScrimOpaqueListener);
++        }
+ 
+         updateTaskStackListenerState();
+         mModel.getThumbnailCache().getHighResLoadingState().removeCallback(this);
+@@ -5784,7 +5792,10 @@
+     }
+ 
+     protected void maybeDrawEmptyMessage(Canvas canvas) {
+-        if (mShowEmptyMessage && mEmptyTextLayout != null) {
++        // Kompakt: only over an opaque background, never over the app or home screen behind it.
++        if (mShowEmptyMessage && mEmptyTextLayout != null
++                && (mContainer.getScrimView() == null
++                        || mContainer.getScrimView().isFullyOpaque())) {
+             // Offsets icon and text up so that the vertical center of screen (accounting for
+             // insets) is between icon and text.
+             int offset = (mEmptyIcon.getIntrinsicHeight() + mEmptyMessagePadding) / 2;
+-- 
+2.43.0
+

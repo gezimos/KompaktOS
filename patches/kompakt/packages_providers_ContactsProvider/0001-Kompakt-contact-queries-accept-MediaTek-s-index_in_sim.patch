@@ -1,0 +1,59 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Fri, 20 Nov 2026 22:00:00 +0100
+Subject: [PATCH] Kompakt: contact queries accept MediaTek's index_in_sim
+
+The Phone app of MuditaOS 2.0 asks for index_in_sim with every contact and
+number query. It is a column of MediaTek's contacts provider, the slot index
+of a contact stored on the SIM, and the AOSP provider rejects the query with
+"Invalid column index_in_sim", so the app crashes as it lists or searches
+contacts.
+
+The data projections (plain, restricted, distinct) answer it with the
+constant -1, MediaTek's value for a contact stored on the phone. Nothing is
+added to the database, it cannot be written, and queries that do not name it
+get the same result as before.
+---
+ src/com/android/providers/contacts/ContactsProvider2.java | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/src/com/android/providers/contacts/ContactsProvider2.java b/src/com/android/providers/contacts/ContactsProvider2.java
+index 6f2f2c9..d9577a4 100644
+--- a/src/com/android/providers/contacts/ContactsProvider2.java
++++ b/src/com/android/providers/contacts/ContactsProvider2.java
+@@ -919,6 +919,11 @@ public class ContactsProvider2 extends AbstractContactsProvider
+             .add(PhoneLookup.NORMALIZED_NUMBER, "NULL")
+             .build();
+ 
++    /** Kompakt: MediaTek's SIM contact index, which MuditaOS apps ask for; -1 is a phone contact. */
++    private static final ProjectionMap sKompaktSimColumns = ProjectionMap.builder()
++            .add("index_in_sim", "-1")
++            .build();
++
+     /** Contains columns from the data view */
+     private static final ProjectionMap sDataProjectionMap = ProjectionMap.builder()
+             .add(Data._ID)
+@@ -933,6 +938,7 @@ public class ContactsProvider2 extends AbstractContactsProvider
+             .addAll(sContactsColumns)
+             .addAll(sContactPresenceColumns)
+             .addAll(sDataUsageColumns)
++            .addAll(sKompaktSimColumns)
+             .build();
+ 
+     private static final ProjectionMap sDataProjectionMapRestricted = ProjectionMap.builder()
+@@ -948,6 +954,7 @@ public class ContactsProvider2 extends AbstractContactsProvider
+             .addAll(sContactsColumns)
+             .addAll(sContactPresenceColumns)
+             .addAll(sDataUsageColumns)
++            .addAll(sKompaktSimColumns)
+             .build();
+ 
+     /** Contains columns from the data view used for SIP address lookup. */
+@@ -974,6 +981,7 @@ public class ContactsProvider2 extends AbstractContactsProvider
+             .addAll(sContactsColumns)
+             .addAll(sContactPresenceColumns)
+             .addAll(sDataUsageColumns)
++            .addAll(sKompaktSimColumns)
+             .build();
+ 
+     /** Contains columns from the data view used for SIP address lookup. */

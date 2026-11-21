@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Material "emoji_emotions", in the 24dp viewBox. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24"
+    android:tint="?android:attr/colorControlNormal">
+    <path android:fillColor="@android:color/white"
+        android:pathData="M 11.99 2 C 6.47 2 2 6.48 2 12 s 4.47 10 9.99 10 C 17.52 22 22 17.52 22 12 S 17.52 2 11.99 2 z M 8.5 8 c .83 0 1.5 .67 1.5 1.5 S 9.33 11 8.5 11 7 10.33 7 9.5 7.67 8 8.5 8 z M 12 18 c -2.28 0 -4.22 -1.66 -5 -4 h 10 c -.78 2.34 -2.72 4 -5 4 z m 3.5 -7 c -.83 0 -1.5 -.67 -1.5 -1.5 S 14.67 8 15.5 8 s 1.5 .67 1.5 1.5 -.67 1.5 -1.5 1.5 z"/>
+</vector>

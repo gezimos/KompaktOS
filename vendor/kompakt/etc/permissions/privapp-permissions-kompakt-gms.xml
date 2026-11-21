@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kompakt: privileged permissions that Play Store builds of Google Play services request and the image's older copy does not. Granted to the update by frameworks_base 0119. -->
+<permissions>
+    <privapp-permissions package="com.google.android.gms">
+        <permission name="android.permission.ACCESS_COMPANION_INFO"/>
+        <permission name="android.permission.GET_ROLE_HOLDERS"/>
+        <permission name="android.permission.INSTALL_LOCATION_PROVIDER"/>
+        <permission name="android.permission.LOG_COMPAT_CHANGE"/>
+        <permission name="android.permission.MANAGE_SECURE_LOCK_DEVICE"/>
+        <permission name="android.permission.PACKET_KEEPALIVE_OFFLOAD"/>
+        <permission name="android.permission.READ_COMPAT_CHANGE_CONFIG"/>
+    </privapp-permissions>
+</permissions>

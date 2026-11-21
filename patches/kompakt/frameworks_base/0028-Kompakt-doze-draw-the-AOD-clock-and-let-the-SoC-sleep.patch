@@ -1,5 +1,5 @@
 From 06fa87d924d6f3ffca72bb45ffe2d5606ab42939 Mon Sep 17 00:00:00 2001
-From: gezimos <>
+From: Gezim <gezimos@users.noreply.github.com>
 Date: Thu, 24 Sep 2026 01:00:00 +0200
 Subject: [PATCH 28/99] Kompakt: doze: draw the AOD clock and let the SoC sleep
 

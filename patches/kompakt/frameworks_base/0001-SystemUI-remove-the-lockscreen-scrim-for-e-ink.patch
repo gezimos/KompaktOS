@@ -1,5 +1,5 @@
 From 9733cbac675d845fc892d7d71fe2744b58bd8368 Mon Sep 17 00:00:00 2001
-From: gezimos <>
+From: Gezim <gezimos@users.noreply.github.com>
 Date: Tue, 8 Sep 2026 14:18:04 +0200
 Subject: [PATCH 01/99] SystemUI: remove the lockscreen scrim for e-ink
 

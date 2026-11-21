@@ -1,0 +1,83 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Tue, 27 Oct 2026 10:30:00 +0200
+Subject: [PATCH] Kompakt: quick settings on lock screen switch
+
+Lock screen settings get a switch for Settings.Global
+kompakt_lockscreen_qs (on by default). Off, SystemUI disables quick
+settings while the lock screen shows; notifications still open.
+
+---
+diff --git a/res/values/kompakt_strings.xml b/res/values/kompakt_strings.xml
+new file mode 100644
+--- /dev/null
++++ b/res/values/kompakt_strings.xml
+@@ -0,0 +1,5 @@
++<?xml version="1.0" encoding="utf-8"?>
++<resources>
++    <string name="kompakt_lockscreen_qs_title">Quick settings on lock screen</string>
++    <string name="kompakt_lockscreen_qs_summary">Swipe down for quick settings while locked</string>
++</resources>
+diff --git a/res/xml/security_lockscreen_settings.xml b/res/xml/security_lockscreen_settings.xml
+--- a/res/xml/security_lockscreen_settings.xml
++++ b/res/xml/security_lockscreen_settings.xml
+@@ -94,6 +94,12 @@
+             android:title="@string/lockscreen_double_line_clock_setting_toggle"
+             android:summary="@string/lockscreen_double_line_clock_summary"
+             settings:controller="com.android.settings.display.LockscreenClockPreferenceController" />
++
++        <SwitchPreferenceCompat
++            android:key="kompakt_lockscreen_qs"
++            android:title="@string/kompakt_lockscreen_qs_title"
++            android:summary="@string/kompakt_lockscreen_qs_summary"
++            settings:controller="com.android.settings.display.LockscreenQsPreferenceController" />
+     </PreferenceCategory>
+ 
+     <PreferenceCategory
+diff --git a/src/com/android/settings/display/LockscreenQsPreferenceController.java b/src/com/android/settings/display/LockscreenQsPreferenceController.java
+new file mode 100644
+--- /dev/null
++++ b/src/com/android/settings/display/LockscreenQsPreferenceController.java
+@@ -0,0 +1,39 @@
++package com.android.settings.display;
++
++import android.content.Context;
++import android.provider.Settings;
++
++import com.android.settings.R;
++import com.android.settings.core.TogglePreferenceController;
++
++/** Kompakt: whether quick settings open from the lock screen. */
++public class LockscreenQsPreferenceController extends TogglePreferenceController {
++
++    /** Read by SystemUI's StatusBarStartable, which disables quick settings on the lock screen. */
++    private static final String SETTING_KEY = "kompakt_lockscreen_qs";
++
++    public LockscreenQsPreferenceController(Context context, String preferenceKey) {
++        super(context, preferenceKey);
++    }
++
++    @Override
++    public boolean isChecked() {
++        return Settings.Global.getInt(mContext.getContentResolver(), SETTING_KEY, 1) != 0;
++    }
++
++    @Override
++    public boolean setChecked(boolean isChecked) {
++        return Settings.Global.putInt(mContext.getContentResolver(), SETTING_KEY,
++                isChecked ? 1 : 0);
++    }
++
++    @Override
++    public int getAvailabilityStatus() {
++        return AVAILABLE;
++    }
++
++    @Override
++    public int getSliceHighlightMenuRes() {
++        return R.string.menu_key_display;
++    }
++}
+-- 
+2.43.0
+

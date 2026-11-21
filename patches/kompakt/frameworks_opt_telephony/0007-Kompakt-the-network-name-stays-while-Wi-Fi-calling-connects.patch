@@ -1,0 +1,30 @@
+From 5cb33698f5cdc8c83c350fbb7397a310bf3378f0 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Tue, 17 Nov 2026 21:00:00 +0100
+Subject: [PATCH 7/7] Kompakt: the network name stays while Wi-Fi calling connects
+
+---
+ .../android/internal/telephony/ServiceStateTracker.java    | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/java/com/android/internal/telephony/ServiceStateTracker.java b/src/java/com/android/internal/telephony/ServiceStateTracker.java
+index df582d3267..263a1a608b 100644
+--- a/src/java/com/android/internal/telephony/ServiceStateTracker.java
++++ b/src/java/com/android/internal/telephony/ServiceStateTracker.java
+@@ -4661,7 +4661,12 @@ public class ServiceStateTracker extends Handler {
+                 || regState == ServiceState.STATE_POWER_OFF)
+                 && (dataRegState == ServiceState.STATE_IN_SERVICE)) {
+             if (ss.getDataNetworkType() == TelephonyManager.NETWORK_TYPE_IWLAN) {
+-                if (mPhone.getImsPhone() != null && mPhone.getImsPhone().isWifiCallingEnabled()) {
++                // Kompakt: cellular data still in service while Wi-Fi calling connects.
++                NetworkRegistrationInfo wwanPs = ss.getNetworkRegistrationInfo(
++                        NetworkRegistrationInfo.DOMAIN_PS,
++                        AccessNetworkConstants.TRANSPORT_TYPE_WWAN);
++                if ((mPhone.getImsPhone() != null && mPhone.getImsPhone().isWifiCallingEnabled())
++                        || (wwanPs != null && wwanPs.isInService())) {
+                     log("getCombinedRegState: return STATE_IN_SERVICE for IWLAN as "
+                             + "Data is in service and WFC is enabled");
+                     regState = dataRegState;
+-- 
+2.43.0
+

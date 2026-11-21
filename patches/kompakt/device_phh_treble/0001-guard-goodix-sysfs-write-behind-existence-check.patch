@@ -1,5 +1,5 @@
 From 073fc54601d51b496ede83e77faa7007b58334f1 Mon Sep 17 00:00:00 2001
-From: gezimos <>
+From: Gezim <gezimos@users.noreply.github.com>
 Date: Tue, 8 Sep 2026 14:14:21 +0200
 Subject: [PATCH 01/12] guard goodix sysfs write behind existence check
 

@@ -1,5 +1,5 @@
 From 1c0a5d67fadd745adb144c1813e573f3e3f3c3e0 Mon Sep 17 00:00:00 2001
-From: gezimos <>
+From: Gezim <gezimos@users.noreply.github.com>
 Date: Thu, 17 Sep 2026 21:26:36 +0200
 Subject: [PATCH] Kompakt: release config: Kompakt flag values
 
@@ -32,5 +32,33 @@ index 000000000..fffed8181
 +  state: ENABLED
 +  permission: READ_ONLY
 +}
+diff --git a/aconfig/bp4a/com.android.launcher3/enable_expressive_dismiss_task_motion_flag_values.textproto b/aconfig/bp4a/com.android.launcher3/enable_expressive_dismiss_task_motion_flag_values.textproto
+new file mode 100644
+index 000000000..000000002
+--- /dev/null
++++ b/aconfig/bp4a/com.android.launcher3/enable_expressive_dismiss_task_motion_flag_values.textproto
+@@ -0,0 +1,8 @@
++
++# Kompakt: no spring and zoom-out motion when a task card is swiped away in Recents.
++flag_value {
++  package: "com.android.launcher3"
++  name: "enable_expressive_dismiss_task_motion"
++  state: DISABLED
++  permission: READ_ONLY
++}
+diff --git a/aconfig/bp4a/com.android.documentsui.flags/use_material3_flag_values.textproto b/aconfig/bp4a/com.android.documentsui.flags/use_material3_flag_values.textproto
+index 000000000..000000001 100644
+--- a/aconfig/bp4a/com.android.documentsui.flags/use_material3_flag_values.textproto
++++ b/aconfig/bp4a/com.android.documentsui.flags/use_material3_flag_values.textproto
+@@ -1,6 +1,8 @@
++
++# Kompakt: Files keeps the layouts the patches edit; the Material 3 copies stay out of the build.
+ flag_value {
+   package: "com.android.documentsui.flags"
+   name: "use_material3"
+-  state: ENABLED
++  state: DISABLED
+   permission: READ_ONLY
+ }
 -- 
 2.43.0

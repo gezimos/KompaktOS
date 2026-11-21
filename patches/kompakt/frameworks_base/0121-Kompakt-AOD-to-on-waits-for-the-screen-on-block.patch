@@ -1,0 +1,58 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Fri, 23 Oct 2026 12:50:00 +0300
+Subject: [PATCH] Kompakt: AOD to on waits for the screen-on block
+
+0020 applies OFF to ON only once the window manager policy unblocks the
+screen, so a wake from the sleep screen shows the first real frame. A
+wake from AOD went DOZE or DOZE_SUSPEND to ON at once: the policy is
+never told, because it was already told ON when AOD started, and the
+panel painted the moment between the keyguard going and home being
+drawn as a black page.
+
+That wake now goes through the same steps: the policy is told the screen
+is turning on, the screen-on block waits for the keyguard (and, on a
+wake-and-unlock, 0020's wait for Gone) and for every window to be drawn,
+with the policy's own timeouts, and only then is ON applied. Until then
+the panel stays in its AOD state.
+---
+diff --git a/services/core/java/com/android/server/display/DisplayPowerController.java b/services/core/java/com/android/server/display/DisplayPowerController.java
+--- a/services/core/java/com/android/server/display/DisplayPowerController.java
++++ b/services/core/java/com/android/server/display/DisplayPowerController.java
+@@ -2224,6 +2224,10 @@
+         final boolean changed = mPowerState.getScreenState() != state;
+         // Kompakt: see applyScreenStateLocked().
+         boolean kompaktApplyAfterPolicy = false;
++        // Kompakt: AOD to ON waits for the policy too, so the panel keeps AOD over the unlock gap.
++        final boolean kompaktFromDoze = isOn && changed
++                && Display.isDozeState(mPowerState.getScreenState())
++                && mReportedScreenStateToPolicy == REPORTED_TO_POLICY_SCREEN_ON;
+ 
+         // If the screen is turning on, give displayoffload a chance to do something before the
+         // screen actually turns on.
+@@ -2259,7 +2263,8 @@
+                 if (isOn
+                         && !mDisplayPowerProximityStateController.isScreenOffBecauseOfProximity()
+                         && (mPendingScreenOnUnblocker != null
+-                                || mReportedScreenStateToPolicy == REPORTED_TO_POLICY_SCREEN_OFF)) {
++                                || mReportedScreenStateToPolicy == REPORTED_TO_POLICY_SCREEN_OFF
++                                || kompaktFromDoze)) {
+                     // Kompakt: OFF to ON is applied once the policy unblocks the screen.
+                     kompaktApplyAfterPolicy = true;
+                 } else {
+@@ -2290,9 +2295,10 @@
+         }
+         if (!isOff
+                 && (mReportedScreenStateToPolicy == REPORTED_TO_POLICY_SCREEN_OFF
+-                || mReportedScreenStateToPolicy == REPORTED_TO_POLICY_UNREPORTED)) {
++                || mReportedScreenStateToPolicy == REPORTED_TO_POLICY_UNREPORTED
++                || kompaktFromDoze)) {
+             setReportedScreenState(REPORTED_TO_POLICY_SCREEN_TURNING_ON);
+-            if (mPowerState.getColorFadeLevel() == 0.0f) {
++            if (mPowerState.getColorFadeLevel() == 0.0f || kompaktFromDoze) {
+                 blockScreenOn();
+             } else {
+                 unblockScreenOn();
+-- 
+2.43.0
+

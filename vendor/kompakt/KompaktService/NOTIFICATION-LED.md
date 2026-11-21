@@ -22,17 +22,22 @@ LineageOS's settings, once) and the read-only LED rows on the Diagnostics page.
   KompaktDevice's `apply-lights-hal.sh`. It scales each channel to
   `max_brightness` and uses the timed (QCOM LPG) nodes when they exist.
 - **Kernel** (boot image): `mt6370_pmu_rgbled.c`, KompaktDevice kernel patch
-  0027. The red, green and blue sinks take levels 1 to 6 (4 to 24 mA), and
-  carry `blink start_idx duty_pcts pause_lo pause_hi ramp_step_ms`. blink=1
-  turns the pattern into the PMIC's breath timing and breathes with no CPU and
-  no wakelock; blink=0 is a solid light (constant current). Vendor init chowns
-  the nodes to system.
+  0027. The red, green and blue sinks report `max_brightness` 32 and carry
+  `blink start_idx duty_pcts pause_lo pause_hi ramp_step_ms`. blink=1 turns the
+  pattern into the PMIC's breath timing and breathes with no CPU and no
+  wakelock, always at full brightness (breath ramps current, which makes no
+  visible difference on this board, and ignores PWM); blink=0 is a solid light
+  dimmed by 1 kHz PWM duty (32 steps) at full current. Vendor init chowns the
+  nodes to system.
 
 ## Behaviour worth knowing
 
-- **Colours mix.** Each channel has six levels, so orange and the other
-  in-between colours show as themselves. A dark app colour comes out dim, and a
-  channel below about a sixth of full is off in a solid light.
+- **Colours mix.** A solid light has 32 steps per channel, so orange and the
+  other in-between colours show as themselves. LineageOS
+  dims by scaling the colour, and the HAL rounds each channel up (hardware_lineage_interfaces
+  0002), so at a low brightness every lit channel is on the lowest step and the
+  in-between colours merge: at a few percent only red, yellow, green, cyan,
+  blue, magenta and white remain.
 - **Channels breathe in phase.** The HAL writes brightness 0 to every channel
   before a new pattern, which disables it at once; the driver's shared enable
   work then switches all lit channels on in one register write. A channel lit

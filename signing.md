@@ -2,7 +2,7 @@
 
 The keys are **not** in this repository and never will be. `.gitignore` blocks
 `vendor/lineage-priv/`, `vendor/kompakt/security/`, `*.pk8`, `*.pem`,
-`*.keystore` and `*.jks`. Without keys the tree builds and falls back to the
+`*.keystore`, `*.jks` and `*.p12`. Without keys the tree builds and falls back to the
 AOSP test keys, which is how a clone of this repo behaves.
 
 Keep the master copy outside any git working tree. `git clean -xdf` deletes

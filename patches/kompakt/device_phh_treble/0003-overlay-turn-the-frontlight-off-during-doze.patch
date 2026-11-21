@@ -1,5 +1,5 @@
 From aa282660153c5f88bcd8245c1625552dc4e3f61a Mon Sep 17 00:00:00 2001
-From: gezimos <>
+From: Gezim <gezimos@users.noreply.github.com>
 Date: Tue, 8 Sep 2026 14:35:16 +0200
 Subject: [PATCH 03/12] overlay: turn the frontlight off during doze
 

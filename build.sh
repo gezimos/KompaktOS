@@ -20,12 +20,18 @@ if [ ! -d .repo ]; then
   repo init -u https://github.com/LineageOS/android.git -b "$BRANCH" --git-lfs
 fi
 
-# Device projects come from MisterZtr's manifest, used unforked.
+# Device projects come from MisterZtr's manifest, used unforked, at the commit we build on.
 if [ ! -d .repo/local_manifests ]; then
   git clone https://github.com/MisterZtr/treble_manifest.git .repo/local_manifests -b "$BRANCH"
+  git -C .repo/local_manifests checkout -q 565a797840c5aace0a7c6e3d52773af80fee2802
 fi
+# Ours on top: project pins (local_manifests/README.md).
+cp "$HERE"/local_manifests/*.xml .repo/local_manifests/
 
 repo sync --force-sync --optimized-fetch --no-tags --no-clone-bundle --prune -j"$JOBS"
+
+# The TrebleDroid layer first: our series is written on top of it.
+bash LineageOS_gsi/patches/apply-patches.sh .
 
 bash "$HERE/patches/apply-patches.sh" "$TREE"
 

@@ -1,5 +1,5 @@
 From 94024300148e4ed353246e741c35e91e0756e12f Mon Sep 17 00:00:00 2001
-From: gezimos <>
+From: Gezim <gezimos@users.noreply.github.com>
 Date: Fri, 18 Sep 2026 18:56:28 +0200
 Subject: [PATCH 23/99] Kompakt: keyguard: unlock without showing the frames in
  between

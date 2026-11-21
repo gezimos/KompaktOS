@@ -1,5 +1,5 @@
 From 53b5b1f67fe1eb8301ed7eea07634c564b2888e8 Mon Sep 17 00:00:00 2001
-From: gezimos <>
+From: Gezim <gezimos@users.noreply.github.com>
 Date: Tue, 8 Sep 2026 15:11:58 +0200
 Subject: [PATCH 09/99] SystemUI: fall back to right-side QS pulldown
 

@@ -3,30 +3,60 @@ From: Gezim <gezimos@users.noreply.github.com>
 Date: Wed, 7 Oct 2026 12:00:00 +0000
 Subject: [PATCH] Kompakt: Orange France attaches dual stack, as on MuditaOS
 
----
-diff --git a/FR.xml b/FR.xml
---- a/FR.xml
-+++ b/FR.xml
-@@ -305,7 +305,8 @@
-         mnc="01"
-         carrier="Orange World"
-         apn=""
--        protocol="IPV6"
-+        protocol="IPV4V6"
-+        roaming_protocol="IPV4V6"
-         type="ia"
-     />
-     <apn
-@@ -317,7 +318,8 @@
-         bearer_bitmask="1|2|3|9|10|11|13|14|15|20"
-         mmsc="http://mms.orange.fr"
-         password="orange"
--        protocol="IPV6"
-+        protocol="IPV4V6"
-+        roaming_protocol="IPV4V6"
-         type="default,dun,supl,xcap,mms"
-         user="orange"
-     />
+
+diff --git a/merge-apns-conf.yaml b/merge-apns-conf.yaml
+index 56d3fa2..21c28ca 100644
+--- a/merge-apns-conf.yaml
++++ b/merge-apns-conf.yaml
+@@ -199,3 +199,48 @@ overrides:
+     mvno_match_data: null
+   set:
+     roaming_protocol: IPV4V6
++# Kompakt: Orange France attaches dual stack, as on MuditaOS.
++- match:
++    carrier: Orange World
++    mcc: '208'
++    mnc: '01'
++    apn: ''
++    type: ia
++    mvno_type: gid
++    mvno_match_data: '01'
++  set:
++    protocol: IPV4V6
++    roaming_protocol: IPV4V6
++- match:
++    carrier: Orange World
++    mcc: '208'
++    mnc: '01'
++    apn: ''
++    type: ia
++    mvno_type: null
++    mvno_match_data: null
++  set:
++    protocol: IPV4V6
++    roaming_protocol: IPV4V6
++- match:
++    carrier: Orange World
++    mcc: '208'
++    mnc: '01'
++    apn: orange
++    type: default,dun,supl,xcap,mms
++    mvno_type: gid
++    mvno_match_data: '01'
++  set:
++    protocol: IPV4V6
++    roaming_protocol: IPV4V6
++- match:
++    carrier: Orange World
++    mcc: '208'
++    mnc: '01'
++    apn: orange
++    type: default,dun,supl,xcap,mms
++    mvno_type: null
++    mvno_match_data: null
++  set:
++    protocol: IPV4V6
++    roaming_protocol: IPV4V6
 -- 
 2.43.0
 

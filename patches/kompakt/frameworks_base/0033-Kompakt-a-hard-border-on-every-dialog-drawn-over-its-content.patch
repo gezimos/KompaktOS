@@ -1,5 +1,5 @@
 From 7392db4e123e2b80cac6cf6ed0e362f56cefbd70 Mon Sep 17 00:00:00 2001
-From: gezimos <>
+From: Gezim <gezimos@users.noreply.github.com>
 Date: Sat, 26 Sep 2026 02:10:00 +0200
 Subject: [PATCH 33/99] Kompakt: a hard border on every dialog, drawn over its
  content

@@ -1,0 +1,21 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sun, 25 Oct 2026 11:00:00 +0200
+Subject: [PATCH 1/1] Kompakt: the settings icon is inked in light mode
+
+The toolbar's settings icon is drawn in white with no tint, so it vanished
+on the white header. It takes the clock's ink: black in light, white in dark.
+---
+diff --git a/res/drawable/ic_settings.xml b/res/drawable/ic_settings.xml
+--- a/res/drawable/ic_settings.xml
++++ b/res/drawable/ic_settings.xml
+@@ -7,7 +7,8 @@
+     android:width="24dp"
+     android:height="24dp"
+     android:viewportWidth="960"
+-    android:viewportHeight="960">
++    android:viewportHeight="960"
++    android:tint="@color/kompakt_alarm_ink">
+
+     <path
+         android:fillColor="@android:color/white"

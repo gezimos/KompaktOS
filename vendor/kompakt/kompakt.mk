@@ -32,11 +32,25 @@ PRODUCT_DEXPREOPT_SPEED_APPS += \
     Jelly \
     KompaktFMRadio \
     TeleService \
-    Katapult
+    Katapult \
+    inkOS
 
 # Securize on by default: see etc/init/kompakt-securize.rc.
 PRODUCT_COPY_FILES += \
     vendor/kompakt/etc/init/kompakt-securize.rc:$(TARGET_COPY_OUT_SYSTEM)/etc/init/kompakt-securize.rc
+
+# Memory: the heap limit of AOSP's 2 GB phone preset (the vendor's 256m is meant for
+# bigger phones). The kernel reserve is config_extraFreeKbytesAbsolute. See README.md.
+PRODUCT_PRODUCT_PROPERTIES += dalvik.vm.heapgrowthlimit=192m
+# lmkd kills only for thrashing, low swap or stalls, not whenever free memory dips below
+# the high watermark; idle apps go to zram instead. See README.md.
+PRODUCT_SYSTEM_PROPERTIES += ro.lmk.lowmem_min_oom_score=1001
+# Apps draw at the panel's own 60 fps, divisor 1; the Kompakt app's Frame rate row overrides it (frameworks_base 0130).
+PRODUCT_SYSTEM_PROPERTIES += persist.sys.kompakt.fps_divisor=1
+
+# Play services updates get the privileged permissions the image's older copy never asked for (frameworks_base 0119).
+PRODUCT_COPY_FILES += \
+    vendor/kompakt/etc/permissions/privapp-permissions-kompakt-gms.xml:$(TARGET_COPY_OUT_PRODUCT)/etc/permissions/privapp-permissions-kompakt-gms.xml
 
 # Signing: vendor/lineage-priv/keys/keys.mk. Set the cert in one place only.
 
@@ -47,6 +61,9 @@ PRODUCT_ENFORCE_RRO_EXCLUDED_OVERLAYS += vendor/kompakt/overlay-static
 PRODUCT_PACKAGES += \
     Katapult \
     inkOS
+
+# The chess engine of MuditaOS's Chess app.
+PRODUCT_PACKAGES += stockfish
 
 # The userspace half of the Kompakt's hardware, replacing com.mudita.service.
 PRODUCT_PACKAGES += KompaktService
@@ -168,7 +185,7 @@ PRODUCT_PACKAGES += OpenEUICC
 
 # Release version: About phone shows BP4A.251205.006.<version>. The build
 # number stays in ro.build.version.incremental, which Diagnostics reads.
-KOMPAKT_VERSION := 1.2
+KOMPAKT_VERSION := 1.3
 # The product build.prop repeats the build info and is read last, so it needs
 # the version too.
 PRODUCT_SYSTEM_PROPERTIES += ro.build.display.id=$(BUILD_ID).$(KOMPAKT_VERSION)

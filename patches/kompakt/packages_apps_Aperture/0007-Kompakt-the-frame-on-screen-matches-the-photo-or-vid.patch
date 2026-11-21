@@ -1,0 +1,75 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sat, 14 Nov 2026 13:00:00 +0300
+Subject: [PATCH 7/8] Kompakt: the frame on screen matches the photo or video
+
+Photos are always full 4:3. Aperture's 16:9 picked the camera's largest
+native 16:9 size rather than cropping the full photo, and this phone's
+largest is 1920x1088: a 2 megapixel photo where 4:3 gives the full
+3264x2448. The Photo configuration is built at 4:3 whatever was saved,
+and the aspect ratio button is gone.
+
+The preview has the shape of what is saved. Aperture never set a size
+for the preview, so CameraX gave it its default 4:3 whatever was being
+saved: in 720p and 1080p video the screen showed a 4:3 picture (640x480)
+while the file was 16:9 (1920x1080), and the video lost what the frame
+showed above and below. The preview now asks for 16:9 for 720p and 1080p
+video and 4:3 for photos, 480p video and the QR scanner.
+---
+ .../org/lineageos/aperture/CameraActivity.kt   | 18 +++++++++++++++++-
+ .../aperture/viewmodels/CameraViewModel.kt     |  3 ++-
+ 2 files changed, 19 insertions(+), 2 deletions(-)
+
+diff --git a/app/src/main/java/org/lineageos/aperture/CameraActivity.kt b/app/src/main/java/org/lineageos/aperture/CameraActivity.kt
+index f2f4a7c..de88b2b 100644
+--- a/app/src/main/java/org/lineageos/aperture/CameraActivity.kt
++++ b/app/src/main/java/org/lineageos/aperture/CameraActivity.kt
+@@ -729,7 +729,8 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
+                 secondaryTopBarLayout.isVisible = false
+ 
+                 // Update secondary top bar buttons
+-                aspectRatioButton.isVisible = cameraMode != CameraMode.VIDEO
++                // Kompakt: photos are always 4:3, so there is no aspect ratio to pick.
++                aspectRatioButton.isVisible = false
+                 videoQualityButton.isVisible = cameraMode == CameraMode.VIDEO
+                 videoFrameRateButton.isVisible = cameraMode == CameraMode.VIDEO
+                 videoDynamicRangeButton.isVisible = cameraMode == CameraMode.VIDEO
+@@ -1518,6 +1519,21 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
+             }) not supported by camera ${cameraConfiguration.camera.cameraId}"
+         }
+ 
++        // Kompakt: the preview has the shape of what is saved; CameraX's default is 4:3 for all.
++        val previewAspectRatio = when (cameraConfiguration) {
++            is CameraConfiguration.Video -> when (cameraConfiguration.videoQuality) {
++                Quality.SD -> AspectRatio.RATIO_4_3
++                else -> AspectRatio.RATIO_16_9
++            }
++
++            else -> AspectRatio.RATIO_4_3
++        }
++        viewModel.cameraController.previewResolutionSelector = ResolutionSelector.Builder()
++            .setAspectRatioStrategy(
++                AspectRatioStrategy(previewAspectRatio, AspectRatioStrategy.FALLBACK_RULE_AUTO)
++            )
++            .build()
++
+         // Initialize the use case we want and set its properties
+         val cameraUseCases = when (cameraConfiguration) {
+             is CameraConfiguration.Photo -> {
+diff --git a/app/src/main/java/org/lineageos/aperture/viewmodels/CameraViewModel.kt b/app/src/main/java/org/lineageos/aperture/viewmodels/CameraViewModel.kt
+index f7324af..a8242ba 100644
+--- a/app/src/main/java/org/lineageos/aperture/viewmodels/CameraViewModel.kt
++++ b/app/src/main/java/org/lineageos/aperture/viewmodels/CameraViewModel.kt
+@@ -1761,7 +1761,8 @@ class CameraViewModel(application: Application) : ApertureViewModel(application)
+                 extensionMode = preferencesRepository.photoEffect.value,
+                 camera2Options = buildPhotoCamera2Options(camera, photoCaptureMode),
+                 photoCaptureMode = photoCaptureMode,
+-                photoAspectRatio = preferencesRepository.photoAspectRatio.value,
++                // Kompakt: always 4:3; the largest 16:9 photo this camera offers is 1920x1088.
++                photoAspectRatio = AspectRatio.RATIO_4_3,
+                 enableHighResolution = overlaysRepository.enableHighResolution,
+                 photoOutputFormat = photoOutputFormat,
+             )
+-- 
+2.56.0
+

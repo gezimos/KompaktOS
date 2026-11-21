@@ -1,0 +1,140 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sun, 25 Oct 2026 23:00:00 +0300
+Subject: [PATCH] Kompakt: the notification expand arrow has no pill
+
+The notification expand arrow has no pill.
+
+The 2025 notification templates draw the expand arrow in a 26 x 18 dp
+pill with 16 dp padding all round, which 0065 outlined, and reserve
+60 dp at the end of the top line for it. The arrow now stands alone: no
+outline, the pill is the card colour with no padding or minimum size,
+no padding at its start, and the content's own 16 dp at its end. The
+top line reserves 36 dp. A conversation's unread count is ink beside
+the arrow like any other count, not a filled accent pill.
+
+Expand arrow start padding.
+---
+ core/java/android/app/Notification.java        | 18 ++++--------------
+ .../widget/NotificationExpandButton.java       |  5 ++---
+ .../layout/notification_2025_expand_button.xml | 10 +++++++---
+ core/res/res/values/dimens.xml                 |  9 +++++----
+ 4 files changed, 18 insertions(+), 24 deletions(-)
+
+diff --git a/core/java/android/app/Notification.java b/core/java/android/app/Notification.java
+index f36c23f1c76c..d7d3c9fbeabf 100644
+--- a/core/java/android/app/Notification.java
++++ b/core/java/android/app/Notification.java
+@@ -6425,12 +6425,8 @@ public class Notification implements Parcelable
+ 
+         private void adjustExpandButtonPadding(RemoteViews contentView, boolean rightIconVisible) {
+             if (notificationsRedesignTemplates()) {
+-                final Resources res = mContext.getResources();
+-                int normalPadding = res.getDimensionPixelSize(R.dimen.notification_2025_margin);
+-                int iconSpacing = res.getDimensionPixelSize(
+-                        R.dimen.notification_2025_expand_button_right_icon_spacing);
+-                contentView.setInt(R.id.expand_button, "setStartPadding",
+-                        rightIconVisible ? iconSpacing : normalPadding);
++                // Kompakt: no start padding; the bare arrow sits against the content.
++                contentView.setInt(R.id.expand_button, "setStartPadding", 0);
+             }
+         }
+ 
+@@ -6594,18 +6590,12 @@ public class Notification implements Parcelable
+         private void bindExpandButton(RemoteViews contentView, StandardTemplateParams p) {
+             // set default colors
+             int bgColor = getBackgroundColor(p);
+-            // Kompakt: the pill is the card colour; NotificationExpandButton outlines it.
++            // Kompakt: the pill is the card colour, so only the arrow shows.
+             int pillColor = bgColor;
+             int textColor = Colors.flattenAlpha(getPrimaryTextColor(p), pillColor);
+             contentView.setInt(R.id.expand_button, "setDefaultTextColor", textColor);
+             contentView.setInt(R.id.expand_button, "setDefaultPillColor", pillColor);
+-            // Use different highlighted colors for conversations' unread count
+-            if (p.mHighlightExpander) {
+-                pillColor = Colors.flattenAlpha(
+-                        getColors(p).getTertiaryFixedDimAccentColor(), bgColor);
+-                textColor = Colors.flattenAlpha(
+-                        getColors(p).getOnTertiaryFixedAccentTextColor(), pillColor);
+-            }
++            // Kompakt: conversations' unread count is ink beside the arrow too, not a filled accent pill.
+             contentView.setInt(R.id.expand_button, "setHighlightTextColor", textColor);
+             contentView.setInt(R.id.expand_button, "setHighlightPillColor", pillColor);
+         }
+diff --git a/core/java/com/android/internal/widget/NotificationExpandButton.java b/core/java/com/android/internal/widget/NotificationExpandButton.java
+index 206231f3e791..d51e0f482130 100644
+--- a/core/java/com/android/internal/widget/NotificationExpandButton.java
++++ b/core/java/com/android/internal/widget/NotificationExpandButton.java
+@@ -223,9 +223,8 @@ public class NotificationExpandButton extends FrameLayout {
+                 mNumberView.setTextColor(mDefaultTextColor);
+             }
+         }
+-        // Kompakt: a 2px outline in the text colour, the weight of the card's own outline.
+-        final int ink = shouldShowNumber() ? mHighlightTextColor : mDefaultTextColor;
+-        mPillOutline.setStroke(2, ink);
++        // Kompakt: no pill outline; the pill is the card colour, so only the arrow shows.
++        mPillOutline.setStroke(0, 0);
+     }
+ 
+     private boolean shouldShowNumber() {
+diff --git a/core/res/res/layout/notification_2025_expand_button.xml b/core/res/res/layout/notification_2025_expand_button.xml
+index 6327c01f6049..5be7e8394d30 100644
+--- a/core/res/res/layout/notification_2025_expand_button.xml
++++ b/core/res/res/layout/notification_2025_expand_button.xml
+@@ -23,15 +23,19 @@
+     android:layout_height="wrap_content"
+     android:layout_gravity="top|end"
+     android:contentDescription="@string/expand_button_content_description_collapsed"
+-    android:padding="@dimen/notification_2025_margin"
++    android:paddingTop="@dimen/notification_2025_margin"
++    android:paddingBottom="@dimen/notification_2025_margin"
++    android:paddingStart="0dp"
++    android:paddingEnd="@dimen/notification_content_margin_end"
+     >
++    <!-- Kompakt: the arrow alone, no pill and no side padding; the end margin matches the content. -->
+ 
+     <LinearLayout
+         android:id="@+id/expand_button_pill"
+         android:layout_width="wrap_content"
+         android:layout_height="wrap_content"
+-        android:minHeight="@dimen/notification_2025_expand_button_pill_height"
+-        android:minWidth="@dimen/notification_2025_expand_button_pill_width"
++        android:minHeight="0dp"
++        android:minWidth="0dp"
+         android:paddingVertical="@dimen/notification_2025_expand_button_vertical_icon_padding"
+         android:paddingHorizontal="@dimen/notification_2025_expand_button_horizontal_icon_padding"
+         android:orientation="horizontal"
+diff --git a/core/res/res/values/dimens.xml b/core/res/res/values/dimens.xml
+index b85e158a6cd9..7b3d5a04a694 100644
+--- a/core/res/res/values/dimens.xml
++++ b/core/res/res/values/dimens.xml
+@@ -284,7 +284,8 @@
+ 
+     <!-- The margin at the end of the top line in collapsed notifications to accommodate the expader.
+      28dp (notification_2025_expand_button_pill_width) + 2 * 16dp (notification_2025_margin) -->
+-    <dimen name="notification_2025_content_margin_end">60dp</dimen>
++    <!-- Kompakt: the bare arrow, 16dp, plus a 4dp gap and the 16dp end margin. -->
++    <dimen name="notification_2025_content_margin_end">36dp</dimen>
+ 
+     <!-- The margin on the end of most content views (ignores the expander) -->
+     <dimen name="notification_content_margin_end">16dp</dimen>
+@@ -453,13 +454,13 @@
+     <dimen name="notification_expand_button_icon_padding">2dp</dimen>
+ 
+     <!-- the padding of the expand icon in the notification header -->
+-    <dimen name="notification_2025_expand_button_vertical_icon_padding">1dp</dimen>
++    <dimen name="notification_2025_expand_button_vertical_icon_padding">0dp</dimen>
+ 
+     <!-- the padding of the expand icon in the notification header -->
+-    <dimen name="notification_2025_expand_button_horizontal_icon_padding">5dp</dimen>
++    <dimen name="notification_2025_expand_button_horizontal_icon_padding">0dp</dimen>
+ 
+     <!-- smaller padding for the end of the expand icon, for use when showing the number -->
+-    <dimen name="notification_2025_expand_button_reduced_end_padding">3dp</dimen>
++    <dimen name="notification_2025_expand_button_reduced_end_padding">0dp</dimen>
+ 
+     <!-- the space needed between the expander pill and the large icon when visible -->
+     <dimen name="notification_2025_expand_button_right_icon_spacing">8dp</dimen>
+-- 
+2.43.0
+

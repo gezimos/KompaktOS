@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Kompakt: the search card, as the Settings homepage search bar. -->
+    <color name="kompakt_search_bar_ground">#ff000000</color>
+    <color name="kompakt_search_bar_ink">#fffffffe</color>
+</resources>

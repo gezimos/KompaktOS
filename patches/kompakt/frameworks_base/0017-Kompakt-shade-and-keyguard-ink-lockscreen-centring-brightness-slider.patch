@@ -1,5 +1,5 @@
 From 1df735dfd618d864bbdc950d046d2aa5ca3c9047 Mon Sep 17 00:00:00 2001
-From: gezimos <>
+From: Gezim <gezimos@users.noreply.github.com>
 Date: Fri, 11 Sep 2026 19:44:38 +0200
 Subject: [PATCH 017/107] Kompakt: shade and keyguard ink, lockscreen centring,
  brightness slider, MTP as the unlocked USB default

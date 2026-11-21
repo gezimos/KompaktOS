@@ -12,7 +12,6 @@ import android.service.quicksettings.TileService
 internal const val PREFS = "kompakt"
 private const val KEY_MODE = "eink_mode"
 private const val KEY_CARD = "sim_card"
-private const val KEY_PENDING_ESIM = "pending_esim"
 
 object Prefs {
     /** The master mode. */
@@ -31,22 +30,75 @@ object Prefs {
     fun setWidth(c: Context, v: String) =
         c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("width", v).apply()
 
-    /** Temperature offset; 11 is meink's own (CONFIG_MUDITA_EINK_TCORR), what stock runs. */
-    fun temperature(c: Context): Int =
-        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt("temp_offset", Eink.STOCK_TEMP)
-
-    /** Once: a saved 0 is the old default, not a choice, so it becomes the driver's +11. */
-    fun migrateTemperature(c: Context) {
+    /** Once: the old Temperature offset and Fast speed rows become the two speed rows. */
+    fun migrateSpeeds(c: Context) {
         val p = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        if (p.getBoolean("temp_offset_stock", false)) return
-        p.edit().apply {
-            if (p.getInt("temp_offset", Eink.STOCK_TEMP) == 0) putInt("temp_offset", Eink.STOCK_TEMP)
-            putBoolean("temp_offset_stock", true)
-        }.apply()
+        if (p.contains("fast_steps")) return
+        val warm = p.getInt("temp_offset", 11) >= 20
+        val old = p.getInt("fast_speed", 0)
+        val fast = when {
+            old == 5 || old == 6 -> old
+            !warm -> Eink.STOCK_FAST            // at +11 the old 9, 8 and 7 all ran 11
+            old == 8 || old == 9 -> old
+            else -> 7
+        }
+        p.edit().putInt("fast_steps", fast)
+            .putInt("text_steps", if (warm) 28 else Eink.STOCK_TEXT).apply()
     }
 
-    fun setTemperature(c: Context, v: Int) =
-        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putInt("temp_offset", v).apply()
+    /** Pushes per change in the fast modes, one of Eink.FAST_STEPS. */
+    fun fastSteps(c: Context): Int =
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt("fast_steps", Eink.STOCK_FAST)
+            .takeIf { Eink.FAST_STEPS.contains(it) } ?: Eink.STOCK_FAST
+
+    fun setFastSteps(c: Context, v: Int) =
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putInt("fast_steps", v).apply()
+
+    /** Pushes per change in Text and Quality, a key of Eink.TEXT_STEPS. */
+    fun textSteps(c: Context): Int =
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt("text_steps", Eink.STOCK_TEXT)
+            .takeIf { Eink.TEXT_STEPS.containsKey(it) } ?: Eink.STOCK_TEXT
+
+    fun setTextSteps(c: Context, v: Int) =
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putInt("text_steps", v).apply()
+
+    /** Small updates between full refreshes, one of Eink.CLEAN_STEPS. */
+    fun cleanEvery(c: Context): Int =
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt("clean_every", Eink.CLEAN_STOCK)
+            .takeIf { Eink.CLEAN_STEPS.contains(it) } ?: Eink.CLEAN_STOCK
+
+    fun setCleanEvery(c: Context, v: Int) =
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putInt("clean_every", v).apply()
+
+    /** The dither pattern, see Eink.PATTERNS. */
+    fun pattern(c: Context): Int =
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt("dither_pattern", Eink.STOCK_PATTERN)
+            .takeIf { Eink.PATTERNS.containsKey(it) } ?: Eink.STOCK_PATTERN
+
+    fun setPattern(c: Context, v: Int) =
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putInt("dither_pattern", v).apply()
+
+    /** How far the dithers' greys are lifted, see Eink.LIGHTS. */
+    fun ditherLight(c: Context): Int =
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt("dither_light", Eink.STOCK_LIGHT)
+
+    fun setDitherLight(c: Context, v: Int) =
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putInt("dither_light", v).apply()
+
+    private fun patternKey(pkg: String) = "app_pattern_" + pkg
+
+    /** The package's own dither pattern, or null while it follows the master one. */
+    fun appPatternOwn(c: Context, pkg: String): Int? =
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt(patternKey(pkg), -1)
+            .takeIf { Eink.PATTERNS.containsKey(it) }
+
+    fun appPattern(c: Context, pkg: String): Int = appPatternOwn(c, pkg) ?: pattern(c)
+
+
+    fun setAppPattern(c: Context, pkg: String, v: Int?) =
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().apply {
+            if (v == null) remove(patternKey(pkg)) else putInt(patternKey(pkg), v)
+        }.apply()
 
     private fun appKey(pkg: String) = "app_mode_" + pkg
 
@@ -83,13 +135,6 @@ object Prefs {
 
     fun setCard(c: Context, v: String) =
         c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY_CARD, v).apply()
-
-    /* Set when we write the mux to esim, cleared once the eSIM add flow has been opened after the reboot that. */
-    fun pendingEsim(c: Context): Boolean =
-        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_PENDING_ESIM, false)
-
-    fun setPendingEsim(c: Context, v: Boolean) =
-        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(KEY_PENDING_ESIM, v).apply()
 }
 
 /** Tap cycles Fast, Fast + dither, Text, Quality. The icon is the mode's own. */
@@ -99,7 +144,7 @@ class EinkTileService : TileService() {
 
     override fun onClick() {
         val cur = Prefs.mode(this)
-        // Only the modes this phone can do: on Mudita's vendor, auto would just be quality again.
+        // Only the modes this phone can do.
         val modes = Eink.ORDER.filter { Eink.usable(it) }
         val idx = modes.indexOf(cur).coerceAtLeast(0)
         val next = modes[(idx + 1) % modes.size]
@@ -159,7 +204,6 @@ class EinkSoftTileService : EinkModeTileService() { override val mode = "soft" }
 class EinkDitherTileService : EinkModeTileService() { override val mode = "fastdither" }
 class EinkTextTileService : EinkModeTileService() { override val mode = "text" }
 class EinkQualityTileService : EinkModeTileService() { override val mode = "quality" }
-class EinkAutoTileService : EinkModeTileService() { override val mode = "auto" }
 
 /** One tile per flash LED. */
 abstract class TorchTileService : TileService() {
@@ -271,6 +315,19 @@ object Width {
             Log.i(Sysfs.TAG, "width: $step dp (density $density)")
         } catch (t: Throwable) {
             Log.e(Sysfs.TAG, "width: cannot set density", t)
+        }
+    }
+
+    /** Drop the forced density altogether: the phone's own again, whoever set one. */
+    fun clear() {
+        try {
+            val wm = android.view.IWindowManager.Stub.asInterface(
+                android.os.ServiceManager.getService(Context.WINDOW_SERVICE))
+            wm.clearForcedDisplayDensityForUser(
+                android.view.Display.DEFAULT_DISPLAY, android.os.UserHandle.myUserId())
+            Log.i(Sysfs.TAG, "width: forced density cleared")
+        } catch (t: Throwable) {
+            Log.e(Sysfs.TAG, "width: cannot clear density", t)
         }
     }
 }

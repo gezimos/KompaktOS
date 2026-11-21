@@ -1,0 +1,52 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Fri, 20 Nov 2026 19:30:00 +0100
+Subject: [PATCH] Kompakt: label the kompakt_aux service
+
+The kompakt_aux service that system_server now publishes needs a label and
+a type. Apps find it (app_api_service) and system_server adds it
+(system_server_service). The type is private, so the vendor policy is not
+affected. The fuzzer table lists it as having no fuzzer, as for the other
+framework services without one.
+---
+ build/soong/service_fuzzer_bindings.go | 1 +
+ private/service.te                     | 1 +
+ private/service_contexts               | 1 +
+ 3 files changed, 3 insertions(+)
+
+diff --git a/build/soong/service_fuzzer_bindings.go b/build/soong/service_fuzzer_bindings.go
+index cb5e61f..9716638 100644
+--- a/build/soong/service_fuzzer_bindings.go
++++ b/build/soong/service_fuzzer_bindings.go
+@@ -340,6 +340,7 @@ var (
+ 		"isms":                                   EXCEPTION_NO_FUZZER,
+ 		"isub":                                   EXCEPTION_NO_FUZZER,
+ 		"jobscheduler":                           EXCEPTION_NO_FUZZER,
++		"kompakt_aux":                            EXCEPTION_NO_FUZZER,
+ 		"launcherapps":                           EXCEPTION_NO_FUZZER,
+ 		"legacy_permission":                      EXCEPTION_NO_FUZZER,
+ 		"lights":                                 EXCEPTION_NO_FUZZER,
+diff --git a/private/service.te b/private/service.te
+index 101a969..a78e392 100644
+--- a/private/service.te
++++ b/private/service.te
+@@ -12,6 +12,7 @@ type feature_flags_service,          app_api_service, system_server_service, ser
+ type fwk_devicestate_service, system_server_service, service_manager_type;
+ type gsi_service,                    service_manager_type;
+ type incidentcompanion_service,      app_api_service, system_api_service, system_server_service, service_manager_type;
++type kompakt_aux_service,            app_api_service, system_server_service, service_manager_type;
+ type logcat_service,                 system_server_service, service_manager_type;
+ type logd_service,                   service_manager_type;
+ type mediatuner_service,             app_api_service, service_manager_type;
+diff --git a/private/service_contexts b/private/service_contexts
+index 84304c0..fa461a6 100644
+--- a/private/service_contexts
++++ b/private/service_contexts
+@@ -330,6 +330,7 @@ isms2                                     u:object_r:radio_service:s0
+ isms                                      u:object_r:radio_service:s0
+ isub                                      u:object_r:radio_service:s0
+ jobscheduler                              u:object_r:jobscheduler_service:s0
++kompakt_aux                               u:object_r:kompakt_aux_service:s0
+ launcherapps                              u:object_r:launcherapps_service:s0
+ legacy_permission                         u:object_r:legacy_permission_service:s0
+ lights                                    u:object_r:light_service:s0

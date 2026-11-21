@@ -74,8 +74,6 @@ class SimModeActivity : Activity() {
             Log.i(Sysfs.TAG, "sim mux -> $next (ok=$ok)")
             if (ok) {
                 Prefs.setCard(this@SimModeActivity, next)
-                // Picked up by OfflineWatcherService after the reboot.
-                Prefs.setPendingEsim(this@SimModeActivity, next == ESim.ESIM)
                 power.reboot(null)
             } else {
                 Handler(Looper.getMainLooper()).post { toast(R.string.sim_mode_failed) }

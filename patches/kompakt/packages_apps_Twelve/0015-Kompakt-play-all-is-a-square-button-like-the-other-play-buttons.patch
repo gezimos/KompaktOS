@@ -1,0 +1,42 @@
+From d8da174820ffbfe77678be2a06716248ae9cbf92 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Wed, 28 Oct 2026 09:35:43 +0100
+Subject: [PATCH 14/14] Kompakt: play all is a square button like the other
+ play buttons
+
+---
+ .../main/java/org/lineageos/twelve/fragments/AlbumFragment.kt  | 3 ++-
+ .../java/org/lineageos/twelve/fragments/PlaylistFragment.kt    | 3 ++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/app/src/main/java/org/lineageos/twelve/fragments/AlbumFragment.kt b/app/src/main/java/org/lineageos/twelve/fragments/AlbumFragment.kt
+index f412e32..e3f4ed1 100644
+--- a/app/src/main/java/org/lineageos/twelve/fragments/AlbumFragment.kt
++++ b/app/src/main/java/org/lineageos/twelve/fragments/AlbumFragment.kt
+@@ -71,7 +71,8 @@ class AlbumFragment : CollapsingToolbarLayoutFragment(R.layout.fragment_album) {
+     private val infoNestedScrollView by getViewProperty<NestedScrollView?>(R.id.infoNestedScrollView)
+     private val linearProgressIndicator by getViewProperty<LinearProgressIndicator>(R.id.linearProgressIndicator)
+     private val noElementsNestedScrollView by getViewProperty<NestedScrollView>(R.id.noElementsNestedScrollView)
+-    private val playAllButton by getViewProperty<FloatingActionButton>(R.id.playAllButton)
++    // Kompakt: a square outlined button like the others, which a FloatingActionButton cannot be.
++    private val playAllButton by getViewProperty<MaterialButton>(R.id.playAllButton)
+     private val playButtonsLinearLayout by getViewProperty<LinearLayout>(R.id.playButtonsLinearLayout)
+     private val playNextButton by getViewProperty<MaterialButton>(R.id.playNextButton)
+     private val recyclerView by getViewProperty<RecyclerView>(R.id.recyclerView)
+diff --git a/app/src/main/java/org/lineageos/twelve/fragments/PlaylistFragment.kt b/app/src/main/java/org/lineageos/twelve/fragments/PlaylistFragment.kt
+index 590faa5..ce4f4f0 100644
+--- a/app/src/main/java/org/lineageos/twelve/fragments/PlaylistFragment.kt
++++ b/app/src/main/java/org/lineageos/twelve/fragments/PlaylistFragment.kt
+@@ -72,7 +72,8 @@ class PlaylistFragment : CollapsingToolbarLayoutFragment(R.layout.fragment_playl
+     private val infoNestedScrollView by getViewProperty<NestedScrollView?>(R.id.infoNestedScrollView)
+     private val linearProgressIndicator by getViewProperty<LinearProgressIndicator>(R.id.linearProgressIndicator)
+     private val noElementsNestedScrollView by getViewProperty<NestedScrollView>(R.id.noElementsNestedScrollView)
+-    private val playAllButton by getViewProperty<FloatingActionButton>(R.id.playAllButton)
++    // Kompakt: a square outlined button like the others, which a FloatingActionButton cannot be.
++    private val playAllButton by getViewProperty<MaterialButton>(R.id.playAllButton)
+     private val playlistNameTextView by getViewProperty<TextView>(R.id.playlistNameTextView)
+     private val playButtonsLinearLayout by getViewProperty<LinearLayout>(R.id.playButtonsLinearLayout)
+     private val playNextButton by getViewProperty<MaterialButton>(R.id.playNextButton)
+-- 
+2.43.0
+

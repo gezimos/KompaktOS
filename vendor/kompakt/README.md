@@ -30,6 +30,31 @@ comments in these files are short titles; the reasons behind them are here.
   smears into grey; ours is its frames redrawn black on white at 10 fps around the
   boot logo. Mudita's vendor sets `debug.sf.nobootanimation=1`; product
   properties load after the vendor's, so our `=0` turns it back on.
+- **Memory** (1.3): the framework overlay sets `config_extraFreeKbytesAbsolute`
+  to 131072. ActivityManager passes it as `sys.sysctl.extra_free_kbytes`, and
+  AOSP's `extra_free_kbytes.sh` writes it to this kernel's `extra_free_kbytes`,
+  which lifts the low and high watermarks to about 131 and 134 MB. The default
+  (4500, from the screen size) left them about 13 and 16 MB, so nearly every short
+  stall became a lowmemorykiller kill ("low watermark is breached") while zram
+  stayed almost empty: the 382 boot trace never had less than 800 MB available or
+  1.2 GB of free swap and still killed 42 apps. Set live on 383 the watermarks
+  moved at once, free memory rose from 17 to 237 MB and memory PSI "some" fell from
+  about 20 % to under 1 %. LineageOS's Moto G Pure tree (MT6762, 3 GB) gets a
+  similar reserve with `min_free_kbytes 90000` and `watermark_scale_factor 200`
+  from its vendor init, but on this vendor init may not write either
+  (`proc_min_free_kbytes` and `proc_watermark_scale_factor` have no init rule;
+  383 shipped that as `kompakt-memory.rc` and it silently did nothing).
+  `dalvik.vm.heapgrowthlimit=192m` is AOSP's 2 GB phone preset and the Moto G
+  Pure's; the vendor's 256m is a large-phone value, and product properties load
+  after the vendor's. `ro.lmk.lowmem_min_oom_score=1001` turns off lmkd's last
+  rule ("low watermark is breached"), which killed a cached app whenever free
+  memory was under the high watermark during a PSI event; with the raised
+  watermarks it fired more (35 such kills in the 384 boot trace). Kills remain
+  for thrashing, low swap and full stalls. Tested live through
+  `persist.device_config.lmkd_native.lowmem_min_oom_score`: a boot went from 45
+  kills to 7 (all "device is not responding"), Settings opened in 2.3 s seven
+  seconds after the PIN, and zram held about 425 MB. Back out: delete the overlay
+  integer and both properties.
 - **Calls over 4G**: the three `persist.dbg` properties are what PHH Settings'
   "Force the presence of 4G Calling setting" writes. They make the 4G Calling
   switch appear for carriers the carrier config does not list. The user still
@@ -59,6 +84,13 @@ comments in these files are short titles; the reasons behind them are here.
 - **BootReceiver**: installing a new APK kills the process and nothing else
   restarts it; the watcher is the only reader of the offline switch and the
   fingerprint sensor.
+- **Offline+ and the modem**: on every flip, and once at start, the watcher
+  writes `vendor.kompakt.modem` (0 engaged, 1 released) after the radio call.
+  Vendor init starts the modem daemon on 1, which is how a phone booted with the
+  switch on gets its modem the moment the switch is released; with it engaged
+  the modem fails its radio self-check as it boots and would reset without end
+  (KompaktDevice `vendor/scripts/apply-offline-modem-gate.sh`, telephony patch
+  0006 for the phone process).
 
 ### Detecting our images (`Hardware.kt`)
 
@@ -72,9 +104,7 @@ comments in these files are short titles; the reasons behind them are here.
 
 ### E-ink (`Hardware.kt`, `EinkAppWatcher.kt`)
 
-- **Auto mode detection**: stock meink does not know the `KAUTO` waveform name
-  and ignores the write, so reading `waveform_mode` back tells the kernels apart
-  without a dedicated node. On failure the mode falls back to Quality.
+- **Per-app watcher**: `EinkAppWatcher` registers a `TaskStackListener` with `ActivityTaskManager` (`MANAGE_ACTIVITY_TASKS`, signature) from `OfflineWatcherService`, and reads the top task after every stack change, 40 ms later so a burst is one read. Recents is not an app. It replaced an accessibility service that depended on window events and missed switches.
 - **Gamma**: enum EInkGammaCorrectionLevel: -1 is 1.00, then 0 to 6 are 0.25,
   0.50, 0.75, 1.25, 1.50, 2.00, 2.20.
 - **Dithering**: EInkDitheringType comes from Mudita's `eink_types.h`; 0 turns
@@ -136,11 +166,36 @@ comments in these files are short titles; the reasons behind them are here.
   driver sees the frame, so it lives in the per-app sheet.
 - **Battery on Mudita's kernel**: health and capacity divide by its 294 mAh design
   figure and would read about 1000%, so they are hidden there.
-- **E-ink UI**: disabled is a dashed outline, since the panel cannot show grey;
-  sheets have no window animation and pages scroll with scrollTo, never
-  smoothScrollTo.
-- **inkOS parity**: headings, sheets, radio marks and the toggle follow inkOS so
-  both apps read as one system.
+- **One row** (`row()` in `KompaktActivity.kt`): every setting, on a page or in a
+  sheet, is a title (16 sp, medium), one line of note (13 sp, cut with an
+  ellipsis) and a control at the right (switch, bold 14 sp value, chevron, or
+  the info glyph for a setting whose chips sit below). Nothing is drawn around
+  a row. Outlines belong only to what is picked or pressed: the mode circles,
+  chips, buttons and the sleep picture frame. A mode this phone cannot do is a
+  dashed circle, since the panel cannot show grey.
+- **One icon slot**: rows on the four tabs and the Offline page lead with a
+  Material glyph (`res/drawable/ic_*.xml`, 24 dp, tinted ink) in a 32 dp slot;
+  the per-app list puts the app's own symbol there: its monochrome layer in ink
+  when it has one, drawn as a launcher draws it (`IconLayer`: grown by the
+  extra inset, cut to the icon mask), else its foreground layer pushed to two
+  inks by a colour matrix (`MONO`), the whole icon only for legacy icons. Inner
+  pages (battery, gestures, sleep picture, curve, diagnostics) have no icons,
+  as Settings' inner pages have none.
+- **One size of circle**: the mode circles are `CIRCLE` (48 dp) across, the
+  first and last on the gutters and the gap computed from the screen width; they
+  only shrink when a row cannot hold them. The title bar's ⋮ ends on the
+  gutter like the info glyphs: the row gives up the 8 dp its 40 dp button adds
+  around the 24 dp glyph.
+- **One gutter**: `GUTTER` (20 dp) is where every row, heading, chip and circle
+  starts and ends; rows are 8 dp top and bottom and at least `ROW_HEIGHT`
+  (48 dp); headings are small bold capitals, 16 dp above and below, with inkOS's
+  dashes (4 px on, 4 px off) running from the title to the right edge or to the
+  info glyph. Explanations longer than a line live behind the info glyph, in
+  the sheet; a short note never says "requires restart".
+- **E-ink UI**: sheets have no window animation and pages scroll with scrollTo,
+  never smoothScrollTo.
+- **inkOS parity**: sheets, radio marks and the toggle follow inkOS so both apps
+  read as one system.
 
 ### Other services
 
@@ -198,6 +253,13 @@ comments in these files are short titles; the reasons behind them are here.
 - **Text size** (SettingsProvider defaults): the third stop makes status bar
   icons overflow 480 px.
 - **AOD icons**: 18 dp in doze only; the status bar keeps 15 dp.
+- **No blur** (`kompakt_blur.xml`): `max_shade_window_blur_radius` 0. Android 16
+  blurs the notification list (a view RenderEffect, so the vendor's missing
+  window blur does not stop it) while the PIN pad opens over an expanded
+  shade. With the scene container the unlock leaves through LOCKSCREEN →
+  UNDEFINED, which no transition resets, so the list stayed blurred at 34 dp
+  (seen at 45 px in a 1.3 beta report). Every SystemUI blur reads its strength
+  from this one value. Back out: delete the file.
 - **Setup wizard**: Google's is prebuilt, so product overlays never reach it;
   `KompaktGoogleSetupWizardOverlay` gives its dark mode buttons the light ink.
 - **Colours** (`overlay/.../values/colors.xml`): generated by gen-colors.py, which
@@ -205,3 +267,10 @@ comments in these files are short titles; the reasons behind them are here.
 - **Toasts**: a border in the text ink, since e-ink has no elevation shadow.
 - **Cycle count**: LineageOS hides the Settings row; our kernel publishes the
   count through the vendor health HAL.
+
+## Stockfish
+
+`prebuilt/stockfish` is the chess engine of MuditaOS's Chess app, installed as `/system/bin/stockfish`,
+where the app starts it. It is an unmodified copy of the binary in MuditaOS 2.0.0 (md5 `5ca89a018d2d64ea21b9399e42eb4771`,
+arm64). Stockfish is free software under the GNU General Public License version 3; its source is at
+https://github.com/official-stockfish/Stockfish. The app brings its own network file, `nn-3475407dc199.nnue`.

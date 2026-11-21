@@ -1,0 +1,37 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Tue, 3 Nov 2026 17:45:00 +0200
+Subject: [PATCH] Kompakt: no screenshot chime
+
+ScreenshotSoundController played the file named by config_cameraShutterSound on every screenshot, and stock has no setting to turn it off. playScreenshotSound now does nothing; the screenshot itself is unchanged.
+---
+ .../screenshot/ScreenshotSoundController.kt         | 13 +------------
+ 1 file changed, 1 insertion(+), 12 deletions(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/screenshot/ScreenshotSoundController.kt b/packages/SystemUI/src/com/android/systemui/screenshot/ScreenshotSoundController.kt
+index 203c544a529b..fc6bf9539e10 100644
+--- a/packages/SystemUI/src/com/android/systemui/screenshot/ScreenshotSoundController.kt
++++ b/packages/SystemUI/src/com/android/systemui/screenshot/ScreenshotSoundController.kt
+@@ -77,18 +77,7 @@ constructor(
+         }
+ 
+     override suspend fun playScreenshotSound() {
+-        withContext(bgDispatcher) {
+-            try {
+-                if (soundPolicy.shouldForceShutterSound()) {
+-                    forcedShutterSound.await()?.play(MediaActionSound.SHUTTER_CLICK)
+-                } else {
+-                    player.await()?.start()
+-                }
+-            } catch (e: IllegalStateException) {
+-                Log.w(TAG, "Screenshot sound failed to play", e)
+-                releaseScreenshotSound()
+-            }
+-        }
++        // Kompakt: no screenshot chime.
+     }
+ 
+     override suspend fun releaseScreenshotSound() {
+-- 
+2.43.0
+

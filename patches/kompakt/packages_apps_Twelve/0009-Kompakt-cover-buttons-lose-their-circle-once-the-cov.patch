@@ -1,7 +1,7 @@
-From 5b8486417c54abc1d5f091b1976b7a8758a0ebd2 Mon Sep 17 00:00:00 2001
-From: Gezim <25499045+gezimos@users.noreply.github.com>
+From 60ca328575d82e514f3a95c03861155ab4770ff7 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
 Date: Sun, 11 Oct 2026 20:56:08 +0200
-Subject: [PATCH 09/10] Kompakt: cover buttons lose their circle once the cover
+Subject: [PATCH 09/14] Kompakt: cover buttons lose their circle once the cover
  is hidden
 
 Change-Id: I8f59da61d773c91453b3fd5eca143fbf483b196f

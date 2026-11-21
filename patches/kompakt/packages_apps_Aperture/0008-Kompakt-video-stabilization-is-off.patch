@@ -1,0 +1,86 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sat, 14 Nov 2026 13:20:00 +0300
+Subject: [PATCH 8/8] Kompakt: video stabilization is off
+
+The camera has no optical stabilization (OIS), and MediaTek's electronic
+stabilization (EIS) drops frames on the MT6761: in Aperture and in Open
+Camera alike, a 1080p video with it dropped a frame every second or so
+and the picture jumped at each drop, while the same video without it
+recorded clean. Stabilization is off and its switch is hidden; a switch
+turned on before is ignored.
+
+The recording timer set its text on every recorder status, about 16
+times a second, and each redraw is an e-ink refresh. It now redraws
+once a second.
+---
+ .../aperture/repositories/PreferencesRepository.kt          | 2 +-
+ .../lineageos/aperture/ui/views/CameraModeSelectorLayout.kt | 6 +++++-
+ .../org/lineageos/aperture/viewmodels/CameraViewModel.kt    | 3 ++-
+ app/src/main/res/xml/root_preferences.xml                   | 4 +++-
+ 4 files changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/app/src/main/java/org/lineageos/aperture/repositories/PreferencesRepository.kt b/app/src/main/java/org/lineageos/aperture/repositories/PreferencesRepository.kt
+index 5cabc85..d125be1 100644
+--- a/app/src/main/java/org/lineageos/aperture/repositories/PreferencesRepository.kt
++++ b/app/src/main/java/org/lineageos/aperture/repositories/PreferencesRepository.kt
+@@ -302,7 +302,7 @@ class PreferencesRepository(
+      */
+     val videoStabilization = primitivePreference(
+         key = "video_stabilization",
+-        defaultValue = true,
++        defaultValue = false,
+     ).asPreferenceHolder()
+ 
+     /**
+diff --git a/app/src/main/java/org/lineageos/aperture/ui/views/CameraModeSelectorLayout.kt b/app/src/main/java/org/lineageos/aperture/ui/views/CameraModeSelectorLayout.kt
+index a32f3df..6f8c5ee 100644
+--- a/app/src/main/java/org/lineageos/aperture/ui/views/CameraModeSelectorLayout.kt
++++ b/app/src/main/java/org/lineageos/aperture/ui/views/CameraModeSelectorLayout.kt
+@@ -109,7 +109,11 @@ class CameraModeSelectorLayout @JvmOverloads constructor(
+     }
+ 
+     fun setVideoRecordingDuration(duration: Long) {
+-        videoDurationButton.text = TimeUtils.convertNanosToString(duration)
++        // Kompakt: redraw once a second, not on every recorder status (an e-ink refresh each)
++        val text = TimeUtils.convertNanosToString(duration)
++        if (videoDurationButton.text.toString() != text) {
++            videoDurationButton.text = text
++        }
+     }
+ 
+     private fun updateButtons() {
+diff --git a/app/src/main/java/org/lineageos/aperture/viewmodels/CameraViewModel.kt b/app/src/main/java/org/lineageos/aperture/viewmodels/CameraViewModel.kt
+index a8242ba..3184d5c 100644
+--- a/app/src/main/java/org/lineageos/aperture/viewmodels/CameraViewModel.kt
++++ b/app/src/main/java/org/lineageos/aperture/viewmodels/CameraViewModel.kt
+@@ -1799,7 +1799,8 @@ class CameraViewModel(application: Application) : ApertureViewModel(application)
+                 videoFrameRate = videoFrameRate,
+                 videoDynamicRange = videoDynamicRange,
+                 videoMirrorMode = preferencesRepository.videoMirrorMode.value,
+-                enableVideoStabilization = preferencesRepository.videoStabilization.value,
++                // Kompakt: off; MediaTek EIS drops frames on the MT6761 (no OIS on this camera)
++                enableVideoStabilization = false,
+             )
+         }
+ 
+diff --git a/app/src/main/res/xml/root_preferences.xml b/app/src/main/res/xml/root_preferences.xml
+index 6c3b526..664b8ff 100644
+--- a/app/src/main/res/xml/root_preferences.xml
++++ b/app/src/main/res/xml/root_preferences.xml
+@@ -107,9 +107,11 @@
+         app:iconSpaceReserved="false"
+         app:title="@string/video_header">
+ 
++        <!-- Kompakt: stabilization is off; the MT6761 drops frames with MediaTek EIS. -->
+         <SwitchPreference
+-            app:defaultValue="true"
++            app:defaultValue="false"
+             app:iconSpaceReserved="false"
++            app:isPreferenceVisible="false"
+             app:key="video_stabilization"
+             app:summary="@string/video_stabilization_summary"
+             app:title="@string/video_stabilization_title" />
+-- 
+2.56.0
+

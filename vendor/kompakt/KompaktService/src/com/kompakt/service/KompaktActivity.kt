@@ -30,16 +30,19 @@ import android.widget.TextView
 import android.widget.Toast
 import java.io.File
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 /** Settings.Secure key the framework reads before vibrating for the keys under the screen. */
 private const val KEY_VIBRATION = "kompakt_key_vibration"
+/** Settings.Secure key DozeUi reads: minutes between always-on display repaints, 0 for auto. */
+private const val KEY_AOD_REFRESH = "kompakt_aod_refresh"
 private const val RECENTS_LONG_PRESS_QS = "kompakt_recents_long_press_qs"
 private const val POWER_TORCH = "kompakt_power_torch"
 // Read by SystemFonts at boot: "color" drops the monochrome emoji font.
 private const val EMOJI_PROP = "persist.sys.kompakt.emoji"
 // Read by SystemFonts at boot: the picked family replaces Roboto and Google Sans everywhere.
 private const val FONT_PROP = "persist.sys.kompakt.font"
-// Read by Choreographer in every app as it starts: a divisor of the panel's frame rate.
+// Read by Choreographer in every app as it starts: a divisor of the panel's frame rate (frameworks_base 0130).
 private const val FPS_PROP = "persist.sys.kompakt.fps_divisor"
 // Google Sans is the default, so nothing picked reads as it (SystemFonts does the same).
 private val FONTS = listOf("google-sans", "roboto", "manrope", "serif", "source-serif", "lato", "jetbrains-mono")
@@ -61,6 +64,7 @@ class KompaktActivity : Activity() {
     private var sleepStatus: String? = null
     private var sleepBusy = false
     private lateinit var body: FrameLayout
+    private lateinit var menuButton: ImageView
     private val tabs = ArrayList<View>()
     private val tabPills = ArrayList<View>()
     private val tabIcons = ArrayList<ImageView>()
@@ -78,6 +82,22 @@ class KompaktActivity : Activity() {
     }
     private val INK by lazy { if (night) Color.WHITE else Color.BLACK }
     private val PAPER by lazy { if (night) Color.BLACK else Color.WHITE }
+    /** App icons in the two inks: greys pushed to black or white, and the inks swapped at night. */
+    private val MONO by lazy {
+        val m = android.graphics.ColorMatrix().apply { setSaturation(0f) }
+        val c = 3f
+        m.postConcat(android.graphics.ColorMatrix(floatArrayOf(
+            c, 0f, 0f, 0f, 128f * (1 - c),
+            0f, c, 0f, 0f, 128f * (1 - c),
+            0f, 0f, c, 0f, 128f * (1 - c),
+            0f, 0f, 0f, 1f, 0f)))
+        if (night) m.postConcat(android.graphics.ColorMatrix(floatArrayOf(
+            -1f, 0f, 0f, 0f, 255f,
+            0f, -1f, 0f, 0f, 255f,
+            0f, 0f, -1f, 0f, 255f,
+            0f, 0f, 0f, 1f, 0f)))
+        android.graphics.ColorMatrixColorFilter(m)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -126,6 +146,11 @@ class KompaktActivity : Activity() {
         shownOnce = true
     }
 
+    override fun onPause() {
+        super.onPause()
+        unwatchLux()
+    }
+
     // ------------------------------------------------------------------ chrome
 
     /** The app's own title, since the action bar is gone. */
@@ -133,7 +158,8 @@ class KompaktActivity : Activity() {
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(16), dp(14), dp(16), 0)
+            // The right gutter gives up the 8 dp the 40 dp button adds around its 24 dp glyph, so the glyph ends on the gutter as the info glyphs do.
+            setPadding(dp(GUTTER), dp(4), dp(GUTTER) - dp(8), 0)
         }
         // As the system apps head a page: the name, plain and large.
         row.addView(TextView(this).apply {
@@ -141,26 +167,38 @@ class KompaktActivity : Activity() {
             textSize = 26f
             setTextColor(INK)
         }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
-        // The overflow menu, as the system apps carry one: Advanced.
-        row.addView(ImageView(this).apply {
-            setImageResource(R.drawable.ic_more_vert)
+        // The overflow menu, as the system apps carry one: Advanced. On Advanced it is a close button.
+        menuButton = ImageView(this).apply {
             imageTintList = ColorStateList.valueOf(INK)
-            contentDescription = getString(R.string.more_options)
             scaleType = ImageView.ScaleType.CENTER_INSIDE
-            setOnClickListener { anchor ->
-                android.widget.PopupMenu(this@KompaktActivity, anchor).apply {
-                    menu.add(R.string.advanced_section).setOnMenuItemClickListener {
-                        // From Advanced or Diagnostics, keep the tab it was first opened from.
-                        if (current != PAGE_ADVANCED && current != PAGE_DIAGNOSTICS) {
-                            advancedFrom = if (current < tabs.size) current else parentOf(current)
-                        }
-                        select(PAGE_ADVANCED)
-                        true
-                    }
-                }.show()
-            }
-        }, LinearLayout.LayoutParams(dp(40), dp(40)))
+        }
+        row.addView(menuButton, LinearLayout.LayoutParams(dp(40), dp(40)))
         return row
+    }
+
+    /** ⋮ on a tab, × on Advanced and Diagnostics, so those never pass for the tab they came from. */
+    private fun setMenuButton() {
+        val inAdvanced = current == PAGE_ADVANCED || current == PAGE_DIAGNOSTICS
+        menuButton.setImageResource(if (inAdvanced) R.drawable.ic_close else R.drawable.ic_more_vert)
+        menuButton.contentDescription = getString(if (inAdvanced) R.string.close else R.string.more_options)
+        if (inAdvanced) {
+            menuButton.setOnClickListener { select(advancedFrom) }
+        } else {
+            // Kompakt: the app's own sheet, which has a frame; a PopupMenu is a borderless box on this panel.
+            menuButton.setOnClickListener {
+                val column = sheetColumn(getString(R.string.more_options), "")
+                val dialog = showSheet(column)
+                column.addView(valueRow(getString(R.string.advanced_section), "›",
+                    getString(R.string.advanced_short), R.drawable.ic_tune) {
+                    dialog.dismiss()
+                    // From Advanced or Diagnostics, keep the tab it was first opened from.
+                    if (current != PAGE_ADVANCED && current != PAGE_DIAGNOSTICS) {
+                        advancedFrom = if (current < tabs.size) current else parentOf(current)
+                    }
+                    select(PAGE_ADVANCED)
+                })
+            }
+        }
     }
 
     /** Bottom tabs as the system apps draw them: an icon over a label, the current one in an ink pill. */
@@ -214,6 +252,7 @@ class KompaktActivity : Activity() {
         PAGE_BATTERY -> TAB_SETTINGS
         PAGE_APP_MODES -> TAB_DISPLAY
         PAGE_SLEEP -> TAB_DISPLAY
+        PAGE_LIGHT_CURVE -> TAB_DISPLAY
         PAGE_FINGER -> TAB_SETTINGS
         else -> -1
     }
@@ -233,7 +272,9 @@ class KompaktActivity : Activity() {
 
     private fun select(index: Int) {
         if (index != PAGE_SLEEP) sleepStatus = null
+        unwatchLux()
         current = index
+        setMenuButton()
         // A page marks the tab it came from, so the app never looks tab-less.
         val marked = if (index < tabs.size) index else parentOf(index)
         tabs.indices.forEach { i ->
@@ -260,26 +301,36 @@ class KompaktActivity : Activity() {
                     Prefs.setMode(this, key)
                     Eink.setMode(key)
                     select(TAB_DISPLAY)
+                    // As the e-ink tiles: flush what the previous mode left.
+                    Flash.show(applicationContext)
                 })
-                page.add(valueRow(getString(R.string.unlock_refresh_row), unlockRefreshValue()) {
-                    unlockRefreshSheet()
-                })
-                page.add(section(getString(R.string.per_app_section)))
-                page.add(valueRow(getString(R.string.display_app_modes), "›") {
+                page.add(valueRow(getString(R.string.display_app_modes), "›",
+                    getString(R.string.app_modes_short), R.drawable.ic_apps) {
                     select(PAGE_APP_MODES)
                 })
-                page.add(sectionWithInfo(getString(R.string.sleep_section)) { sleepNeeds() })
+                page.add(valueRow(getString(R.string.unlock_refresh_row), unlockRefreshValue(),
+                    getString(R.string.unlock_refresh_short), R.drawable.ic_lock_open) {
+                    unlockRefreshSheet()
+                })
+                page.add(sectionWithInfo(getString(R.string.sleep_light_section)) { sleepNeeds() })
                 page.add(if (SleepImage.available())
-                             valueRow(getString(R.string.sleep_row), "›") { select(PAGE_SLEEP) }
-                         else blockedRow(getString(R.string.sleep_row), Needs.BOTH) {
+                             valueRow(getString(R.string.sleep_row), "›",
+                                 getString(R.string.sleep_short), R.drawable.ic_sleep) { select(PAGE_SLEEP) }
+                         else blockedRow(getString(R.string.sleep_row), Needs.BOTH, R.drawable.ic_sleep) {
                              sleepNeeds()
                          })
-                page.add(valueRow(getString(R.string.frame_rate_row),
-                    getString(R.string.frame_rate_fps, frameRateNow())) {
-                    frameRateSheet()
+                page.add(valueRow(getString(R.string.aod_refresh_row),
+                    aodRefreshLabel(aodRefresh()), getString(R.string.aod_refresh_short),
+                    R.drawable.ic_update) {
+                    aodRefreshSheet()
+                })
+                page.add(valueRow(getString(R.string.light_curve_row), "›",
+                    getString(R.string.light_curve_short), R.drawable.ic_brightness_auto) {
+                    select(PAGE_LIGHT_CURVE)
                 })
             }
             PAGE_SLEEP -> sleepPage().forEach { page.add(it) }
+            PAGE_LIGHT_CURVE -> lightCurvePage().forEach { page.add(it) }
             TAB_LOOK -> {
                 page.add(sectionWithInfo(getString(R.string.look_section)) {
                     showSheet(sheetColumn(getString(R.string.look_section),
@@ -287,55 +338,75 @@ class KompaktActivity : Activity() {
                 })
                 // No font here covers the language's letters, so there is nothing to choose.
                 if (script() in FONT_SCRIPTS) {
-                    page.add(valueRow(getString(R.string.font_row), fontLabel(font())) {
+                    page.add(valueRow(getString(R.string.font_row), fontLabel(font()),
+                        getString(R.string.font_short), R.drawable.ic_font) {
                         fontSheet()
                     })
                 }
                 page.add(valueRow(getString(R.string.emoji_row), getString(
-                    if (emojiColour()) R.string.emoji_colour else R.string.emoji_mono)) {
+                    if (emojiColour()) R.string.emoji_colour else R.string.emoji_mono),
+                    getString(R.string.emoji_short), R.drawable.ic_emoji) {
                     emojiSheet()
                 })
-                page.add(section(getString(R.string.width_section)))
-                page.add(widthSteps())
+                page.add(valueRow(getString(R.string.width_section), Prefs.width(this),
+                    getString(R.string.width_short), R.drawable.ic_width) {
+                    widthSheet()
+                })
             }
             TAB_SETTINGS -> {
-                page.add(sectionWithInfo(getString(R.string.settings_section)) {
-                    showSheet(sheetColumn(getString(R.string.settings_section),
-                        getString(R.string.settings_note)))
-                })
+                page.add(section(getString(R.string.settings_section)))
                 page.add(if (FingerScroll.available())
-                             valueRow(getString(R.string.finger_section), "›") { select(PAGE_FINGER) }
-                         else blockedRow(getString(R.string.finger_section), Needs.VENDOR) {
+                             valueRow(getString(R.string.finger_section), "›",
+                                 getString(R.string.finger_short), R.drawable.ic_fingerprint) {
+                                 select(PAGE_FINGER)
+                             }
+                         else blockedRow(getString(R.string.finger_section), Needs.VENDOR,
+                                 R.drawable.ic_fingerprint) {
                              fingerNeeds()
                          })
                 // Read by the framework (PhoneWindowManager): 0 stops the keys under the screen vibrating.
                 page.add(toggleRow(getString(R.string.key_vibration),
-                    Settings.Secure.getInt(contentResolver, KEY_VIBRATION, 1) != 0) { on ->
+                    Settings.Secure.getInt(contentResolver, KEY_VIBRATION, 1) != 0,
+                    getString(R.string.key_vibration_note), R.drawable.ic_vibration) { on ->
                     Settings.Secure.putInt(contentResolver, KEY_VIBRATION, if (on) 1 else 0)
                 })
                 // Read by the framework (PhoneWindowManager): holding Recents opens quick settings.
                 page.add(toggleRow(getString(R.string.recents_long_press_qs),
-                    Settings.Secure.getInt(contentResolver, RECENTS_LONG_PRESS_QS, 0) != 0) { on ->
+                    Settings.Secure.getInt(contentResolver, RECENTS_LONG_PRESS_QS, 0) != 0,
+                    getString(R.string.recents_long_press_qs_note), R.drawable.ic_recents) { on ->
                     Settings.Secure.putInt(contentResolver, RECENTS_LONG_PRESS_QS, if (on) 1 else 0)
                 })
-                page.add(valueRow(getString(R.string.power_torch_row), getString(
-                    if (powerTorchWarm()) R.string.power_torch_warm else R.string.power_torch_cold)) {
+                page.add(valueRow(getString(R.string.power_torch_row), powerTorchLabel(),
+                    getString(R.string.power_torch_short), R.drawable.ic_torch) {
                     powerTorchSheet()
                 })
-                page.add(valueRow(getString(R.string.battery_section), "›") {
+                page.add(valueRow(getString(R.string.battery_section), "›",
+                    getString(R.string.battery_short), R.drawable.ic_battery) {
                     select(PAGE_BATTERY)
                 })
             }
             PAGE_ADVANCED -> {
-                page.add(sectionWithInfo(getString(R.string.temperature_section)) {
-                    temperatureNeeds()
+                // Every setting here is a row: its name, one line on what it does, the info glyph, then its chips.
+                page.add(section(getString(R.string.advanced_section)))
+                page.add(settingRow(getString(R.string.fast_speed_section),
+                    getString(R.string.fast_speed_short), R.drawable.ic_speed) { fastSpeedInfo() })
+                page.add(fastSpeedSteps())
+                page.add(valueRow(getString(R.string.pattern_section),
+                    Eink.PATTERNS[Prefs.pattern(this)] ?: "",
+                    getString(R.string.pattern_short), R.drawable.ic_grain) { patternSheet() })
+                page.add(settingRow(getString(R.string.text_speed_section),
+                    getString(R.string.text_speed_short), R.drawable.ic_notes) { textSpeedInfo() })
+                page.add(textSpeedSteps())
+                page.add(valueRow(getString(R.string.clean_section),
+                    getString(CLEAN_LABELS.getValue(Prefs.cleanEvery(this))),
+                    getString(R.string.clean_short), R.drawable.ic_clean) { cleanSheet() })
+                page.add(valueRow(getString(R.string.frame_rate_row),
+                    getString(R.string.frame_rate_fps, frameRateNow()),
+                    getString(R.string.frame_rate_short), R.drawable.ic_timer) {
+                    frameRateSheet()
                 })
-                page.add(if (Ours.vendor()) temperatureSteps()
-                         else blockedRow(getString(R.string.temperature_row), Needs.VENDOR) {
-                             temperatureNeeds()
-                         })
-                page.add(section(getString(R.string.diagnostics_section)))
-                page.add(valueRow(getString(R.string.diagnostics_section), "›") {
+                page.add(valueRow(getString(R.string.diagnostics_section), "›",
+                    getString(R.string.diagnostics_short), R.drawable.ic_bug) {
                     select(PAGE_DIAGNOSTICS)
                 })
             }
@@ -349,6 +420,8 @@ class KompaktActivity : Activity() {
                 page.add(toggleRow(
                     getString(R.string.per_app_enable),
                     Prefs.perAppEnabled(this),
+                    getString(R.string.per_app_enable_note),
+                    R.drawable.ic_apps,
                 ) { on ->
                     Prefs.setPerAppEnabled(this, on)
                     if (!on) Eink.setMode(Prefs.mode(this))
@@ -362,11 +435,16 @@ class KompaktActivity : Activity() {
                     showSheet(sheetColumn(getString(R.string.offline_info_title),
                         getString(R.string.offline_info_note)))
                 })
-                page.add(lockedRow(getString(R.string.offline_modem)))
-                page.add(lockedRow(getString(R.string.offline_mic)))
-                page.add(offlineRow(OfflineExtras.Extra.WIFI, R.string.offline_wifi))
-                page.add(offlineRow(OfflineExtras.Extra.BLUETOOTH, R.string.offline_bt))
-                page.add(offlineRow(OfflineExtras.Extra.CAMERA, R.string.offline_camera))
+                page.add(lockedRow(getString(R.string.offline_modem), getString(R.string.offline_locked_note),
+                    R.drawable.ic_sim))
+                page.add(lockedRow(getString(R.string.offline_mic), getString(R.string.offline_locked_note),
+                    R.drawable.ic_mic))
+                page.add(offlineRow(OfflineExtras.Extra.WIFI, R.string.offline_wifi, R.string.offline_extra_note,
+                    R.drawable.ic_wifi))
+                page.add(offlineRow(OfflineExtras.Extra.BLUETOOTH, R.string.offline_bt, R.string.offline_extra_note,
+                    R.drawable.ic_bluetooth))
+                page.add(offlineRow(OfflineExtras.Extra.CAMERA, R.string.offline_camera, R.string.offline_camera_note,
+                    R.drawable.ic_camera))
             }
             PAGE_DIAGNOSTICS -> {
                 page.add(section(getString(R.string.diagnostics_section)))
@@ -433,10 +511,11 @@ class KompaktActivity : Activity() {
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(16), dp(2), dp(16), dp(8))
+            setPadding(dp(GUTTER), dp(4), dp(GUTTER), dp(8))
         }
-        // Equal shares of the row, each made square by SquareCell, so they fit a page or a sheet.
-        val gap = dp(10)
+        // Circles of one size, the first and last on the gutters; they only shrink when the row cannot hold them.
+        val content = resources.displayMetrics.widthPixels - 2 * dp(GUTTER)
+        val gap = maxOf(dp(8), (content - keys.size * dp(CIRCLE)) / (keys.size - 1).coerceAtLeast(1))
         keys.forEachIndexed { i, key ->
             val on = key == chosen
             // A mode this phone cannot do is dashed, and explains itself instead of being picked.
@@ -467,14 +546,9 @@ class KompaktActivity : Activity() {
         keys.forEach { key ->
             val lines = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
-                setPadding(dp(16), dp(6), dp(16), dp(6))
+                setPadding(dp(GUTTER), dp(8), dp(GUTTER), dp(8))
             }
-            lines.addView(TextView(this).apply {
-                text = Eink.label(key)
-                textSize = 15f
-                setTextColor(INK)
-                setTypeface(Typeface.DEFAULT_BOLD)
-            })
+            lines.addView(titleView(Eink.label(key)))
             lines.addView(TextView(this).apply {
                 text = einkNote(key)
                 textSize = 13f
@@ -501,7 +575,6 @@ class KompaktActivity : Activity() {
         "soft" -> R.string.eink_note_soft
         "fastdither" -> R.string.eink_note_dither
         "text" -> R.string.eink_note_text
-        "auto" -> R.string.eink_note_auto
         else -> R.string.eink_note_quality
     })
 
@@ -536,12 +609,12 @@ class KompaktActivity : Activity() {
         val column = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             background = SheetFrame(PAPER, INK, dp(SHEET_RADIUS).toFloat(), dp(2).toFloat())
-            setPadding(dp(8), 0, dp(8), dp(16))
+            setPadding(0, 0, 0, dp(16))
         }
         val titleRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(16), dp(24), dp(16), dp(8))
+            setPadding(dp(GUTTER), dp(24), dp(GUTTER), dp(8))
         }
         titleRow.addView(heading, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
         if (onInfo != null) {
@@ -591,19 +664,31 @@ class KompaktActivity : Activity() {
     // --------------------------------------------------------------- offline
 
     /** A choice for the offline switch. Applied at once if the switch is engaged. */
-    private fun offlineRow(extra: OfflineExtras.Extra, label: Int): View =
-        toggleRow(getString(label), OfflineExtras.enabled(this, extra)) { on ->
+    private fun offlineRow(extra: OfflineExtras.Extra, label: Int, note: Int, glyph: Int): View =
+        toggleRow(getString(label), OfflineExtras.enabled(this, extra), getString(note), glyph) { on ->
             OfflineExtras.setEnabled(this, extra, on)
         }
 
-    /** Smallest width, in the steps the tile cycles through. */
-    private fun widthSteps(): View = chipRow(
-        Width.ORDER,
-        Prefs.width(this),
-        { it.toString() },
-    ) { step ->
-        Prefs.setWidth(this, step)
-        Width.apply(step)
+    /** Smallest width: the steps the tile cycles through, and a way back to the phone's own. */
+    private fun widthSheet() {
+        val now = Prefs.width(this)
+        val column = sheetColumn(getString(R.string.width_section), getString(R.string.width_note))
+        val dialog = showSheet(column)
+        Width.ORDER.forEach { step ->
+            column.addView(choiceRow(step,
+                if (step == Width.DEFAULT) getString(R.string.width_default) else "", step == now) {
+                Prefs.setWidth(this, step)
+                Width.apply(step)
+                dialog.dismiss()
+            })
+        }
+        // Clears the forced density itself, so the phone is back to its own whatever set one.
+        column.addView(buttonRow(getString(R.string.width_reset) to {
+            Prefs.setWidth(this, Width.DEFAULT)
+            Width.clear()
+            dialog.dismiss()
+        }))
+        dialog.setOnDismissListener { if (current == TAB_LOOK) select(TAB_LOOK) }
     }
 
     /** Equal-share chips. Restyled in place; a reread would race the IO write. */
@@ -617,7 +702,7 @@ class KompaktActivity : Activity() {
             orientation = LinearLayout.HORIZONTAL
             // Baselines would drop the regular chips 1 px below the bold one, past the clip.
             isBaselineAligned = false
-            setPadding(dp(16), dp(4), dp(16), dp(4))
+            setPadding(dp(GUTTER), dp(4), dp(GUTTER), dp(8))
         }
         val chips = ArrayList<Pair<T, TextView>>()
         val mark = { picked: T ->
@@ -649,14 +734,39 @@ class KompaktActivity : Activity() {
         return row
     }
 
-    /** Temperature offset. A warmer claim means fewer waveform frames. */
-    private fun temperatureSteps(): View = chipRow(
-        Eink.TEMPS,
-        Prefs.temperature(this),
+    /** Pushes per change in the fast modes, 11 to 5. Fewer: sooner, with more ghosting. */
+    private fun fastSpeedSteps(): View {
+        val keys = Eink.FAST_STEPS
+        return StepSlider(this, keys.map { it.toString() },
+            keys.indexOf(Prefs.fastSteps(this)).coerceAtLeast(0), INK, PAPER) { i ->
+            Prefs.setFastSteps(this, keys[i])
+            applySpeeds()
+        }.apply { setPadding(dp(GUTTER), dp(4), dp(GUTTER), dp(8)) }
+    }
+
+    /** Pushes per change in Text and Quality, 46 to 28. Fewer: sooner, less clean. */
+    private fun textSpeedSteps(): View {
+        val keys = Eink.TEXT_STEPS.keys.toList()
+        return StepSlider(this, keys.map { it.toString() },
+            keys.indexOf(Prefs.textSteps(this)).coerceAtLeast(0), INK, PAPER) { i ->
+            Prefs.setTextSteps(this, keys[i])
+            applySpeeds()
+        }.apply { setPadding(dp(GUTTER), dp(4), dp(GUTTER), dp(8)) }
+    }
+
+    private fun applySpeeds() {
+        Eink.setSpeeds(Prefs.fastSteps(this), Prefs.textSteps(this))
+        Flash.show(applicationContext)  // as a mode change: flush what the old setting left
+    }
+
+    /** How far the dithers lift dark greys. */
+    private fun lightSteps(): View = chipRow(
+        Eink.LIGHTS,
+        Prefs.ditherLight(this),
         { if (it > 0) "+$it" else it.toString() },
-    ) { step ->
-        Prefs.setTemperature(this, step)
-        Eink.setTemperature(step)
+    ) { v ->
+        Prefs.setDitherLight(this, v)
+        Eink.setDitherLight(v)
     }
 
     // --------------------------------------------------------------- battery
@@ -672,26 +782,27 @@ class KompaktActivity : Activity() {
         }
         out.add(sectionWithInfo(getString(R.string.battery_section)) { healthNeeds() })
         if (Ours.kernel()) {
-            out.add(dualRow(
-                getString(R.string.battery_cycles),
-                s.cycles?.takeIf { it >= 0 }?.toString() ?: unknown,
-                getString(R.string.battery_health),
-                Battery.healthPercent(s)?.let { getString(R.string.battery_percent, it) } ?: unknown))
+            out.add(factRow(getString(R.string.battery_cycles),
+                s.cycles?.takeIf { it >= 0 }?.toString() ?: unknown, getString(R.string.battery_cycles_short)))
+            out.add(factRow(getString(R.string.battery_health),
+                Battery.healthPercent(s)?.let { getString(R.string.battery_percent, it) } ?: unknown,
+                getString(R.string.battery_health_short)))
             out.add(factRow(getString(R.string.battery_capacity),
                 if (s.chargeFull != null && s.chargeFullDesign != null)
                     getString(R.string.battery_capacity_pair,
                         s.chargeFull / 1000, s.chargeFullDesign / 1000)
-                else unknown))
+                else unknown, getString(R.string.battery_capacity_short)))
         } else {
             // The cycle count is the vendor HAL's and holds on either kernel; health
             // and capacity divide by Mudita's 294 mAh and would read about 1000%.
             out.add(factRow(getString(R.string.battery_cycles),
-                s.cycles?.takeIf { it >= 0 }?.toString() ?: unknown))
+                s.cycles?.takeIf { it >= 0 }?.toString() ?: unknown, getString(R.string.battery_cycles_short)))
             out.add(blockedRow(getString(R.string.battery_health_title), Needs.KERNEL) {
                 healthNeeds()
             })
         }
-        out.add(factRow(getString(R.string.battery_first_use), s.firstUse ?: unknown))
+        out.add(factRow(getString(R.string.battery_first_use), s.firstUse ?: unknown,
+            getString(R.string.battery_first_use_short)))
 
         // The write lands on either vendor. Only ours lets the HAL act on it: see
         // docs/Battery.md section 5 in KompaktDevice, the orphaned proc_battery_cmd type.
@@ -699,12 +810,13 @@ class KompaktActivity : Activity() {
             needsSheet(getString(R.string.battery_limit_section),
                 getString(R.string.battery_limit_note), Needs.VENDOR)
         }
-        out.add(sectionWithInfo(getString(R.string.battery_limit_section)) { limitNeeds() })
         if (!Ours.vendor()) {
-            out.add(blockedRow(getString(R.string.battery_limit_row), Needs.VENDOR) {
+            out.add(blockedRow(getString(R.string.battery_limit_section), Needs.VENDOR) {
                 limitNeeds()
             })
         } else if (Battery.writable()) {
+            out.add(settingRow(getString(R.string.battery_limit_section),
+                getString(R.string.battery_limit_short)) { limitNeeds() })
             out.add(limitSteps(s.limit))
             out.add(factRow(getString(R.string.battery_now),
                 when {
@@ -712,55 +824,15 @@ class KompaktActivity : Activity() {
                     s.status == "Charging" -> getString(R.string.battery_now_charging)
                     s.status == "Full" -> getString(R.string.battery_now_full)
                     else -> getString(R.string.battery_now_unplugged)
-                }))
-            out.add(toggleRow(getString(R.string.battery_hysteresis), s.hysteresis) { on ->
+                }, getString(R.string.battery_now_short)))
+            out.add(toggleRow(getString(R.string.battery_hysteresis), s.hysteresis,
+                getString(R.string.battery_hysteresis_note)) { on ->
                 Battery.setHysteresis(on)
             })
         } else {
             out.add(lockedRow(getString(R.string.battery_limit_unavailable)))
         }
         return out
-    }
-
-    /** Two facts on one line, half-width boxes that line up with the rows around them. */
-    private fun dualRow(nameA: String, valueA: String, nameB: String, valueB: String): View {
-        val row = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setPadding(dp(16), dp(4), dp(16), dp(4))
-        }
-        listOf(nameA to valueA, nameB to valueB).forEachIndexed { i, (name, value) ->
-            val lp = LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f)
-            if (i == 0) lp.marginEnd = dp(8)
-            row.addView(factBox(name, value), lp)
-        }
-        return row
-    }
-
-    /** A row that only reports. No outline change, no tap target. */
-    private fun factRow(name: String, value: String): View = pad(factBox(name, value))
-
-    /** The box itself: the name on the left, the value against the right. */
-    private fun factBox(name: String, value: String): View {
-        val row = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            background = outline(2)
-            setPadding(dp(16), dp(14), dp(16), dp(14))
-        }
-        row.addView(TextView(this).apply {
-            text = name
-            textSize = 15f
-            maxLines = 1
-            setTextColor(INK)
-        }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
-        row.addView(TextView(this).apply {
-            text = value
-            textSize = 13f
-            maxLines = 1
-            setTextColor(INK)
-            setTypeface(Typeface.DEFAULT_BOLD)
-        })
-        return row
     }
 
     private fun limitSteps(chosen: Int?): View = chipRow(
@@ -792,6 +864,7 @@ class KompaktActivity : Activity() {
             holder.addView(shot, FrameLayout.LayoutParams(dp(156), dp(260), Gravity.CENTER_HORIZONTAL))
             out.add(holder)
         }
+        // Fit and Fill say it themselves; a row over them pushed the buttons off the screen.
         out.add(chipRow(listOf(false, true), SleepImage.fill(this),
             { getString(if (it) R.string.sleep_fill else R.string.sleep_fit) }) { fill ->
             SleepImage.setFill(this, fill)
@@ -817,7 +890,7 @@ class KompaktActivity : Activity() {
         // The explanation lives behind the info glyph; the page is only controls.
         out.add(sectionWithInfo(getString(R.string.finger_section)) { fingerNeeds() })
         val on = FingerScroll.enabled(this)
-        out.add(toggleRow(getString(R.string.finger_row), on) { checked ->
+        out.add(toggleRow(getString(R.string.finger_row), on, getString(R.string.finger_row_note)) { checked ->
             FingerScroll.setEnabled(this, checked)
             select(PAGE_FINGER)
         })
@@ -825,34 +898,40 @@ class KompaktActivity : Activity() {
         val modes = FingerScroll.cycle(this)
         out.add(section(getString(R.string.finger_swipe_section)))
         out.add(valueRow(getString(R.string.finger_cycle_row),
-            resources.getQuantityString(R.plurals.finger_modes_count, modes.size, modes.size)) {
+            resources.getQuantityString(R.plurals.finger_modes_count, modes.size, modes.size),
+            getString(R.string.finger_cycle_short)) {
             fingerCycleSheet()
         })
         out.add(section(getString(R.string.finger_gestures_section)))
-        out.add(gestureRow(R.string.finger_tap_row, FingerScroll.tapAction(this), Buttons.TAP) {
+        out.add(gestureRow(R.string.finger_tap_row, R.string.finger_tap_short,
+            FingerScroll.tapAction(this), Buttons.TAP) {
             FingerScroll.setTapAction(this, it)
         })
-        out.add(gestureRow(R.string.finger_triple_row, FingerScroll.tripleAction(this), Buttons.TRIPLE) {
+        out.add(gestureRow(R.string.finger_triple_row, R.string.finger_triple_short,
+            FingerScroll.tripleAction(this), Buttons.TRIPLE) {
             FingerScroll.setTripleAction(this, it)
         })
-        out.add(gestureRow(R.string.finger_hold_row, FingerScroll.holdAction(this), Buttons.HOLD) {
+        out.add(gestureRow(R.string.finger_hold_row, R.string.finger_hold_short,
+            FingerScroll.holdAction(this), Buttons.HOLD) {
             FingerScroll.setHoldAction(this, it)
         })
         // Natural and Sideways steer scrolling and the D-pad; nothing else reads them.
         if ("swipe" in modes || "dpad" in modes) {
             out.add(section(getString(R.string.finger_scroll_section)))
-            out.add(toggleRow(getString(R.string.finger_natural), FingerScroll.natural(this)) {
+            out.add(toggleRow(getString(R.string.finger_natural), FingerScroll.natural(this),
+                getString(R.string.finger_natural_note)) {
                 FingerScroll.setNatural(this, it)
             })
-            out.add(toggleRow(getString(R.string.finger_horizontal), FingerScroll.horizontal(this)) {
+            out.add(toggleRow(getString(R.string.finger_horizontal), FingerScroll.horizontal(this),
+                getString(R.string.finger_horizontal_note)) {
                 FingerScroll.setHorizontal(this, it)
             })
         }
         return out
     }
 
-    private fun gestureRow(title: Int, action: String, button: Int, onPick: (String) -> Unit) =
-        valueRow(getString(title), actionLabel(action, button)) {
+    private fun gestureRow(title: Int, note: Int, action: String, button: Int, onPick: (String) -> Unit) =
+        valueRow(getString(title), actionLabel(action, button), getString(note)) {
             pickAction(getString(title), action, button, onPick)
         }
 
@@ -916,8 +995,8 @@ class KompaktActivity : Activity() {
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, dp(6), dp(12), dp(6))
-            minimumHeight = dp(56)
+            setPadding(0, dp(8), dp(GUTTER), dp(8))
+            minimumHeight = dp(ROW_HEIGHT)
             setOnClickListener { switch.toggle() }
         }
         row.addView(TextView(this).apply {
@@ -928,11 +1007,7 @@ class KompaktActivity : Activity() {
             contentDescription = getString(R.string.finger_drag)
         }, LinearLayout.LayoutParams(dp(DragList.HANDLE_DP), WRAP_CONTENT))
         val lines = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        lines.addView(TextView(this).apply {
-            text = styleLabel(style)
-            textSize = 16f
-            setTextColor(INK)
-        })
+        lines.addView(titleView(styleLabel(style)))
         lines.addView(sub)
         row.addView(lines, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
         row.addView(switch)
@@ -963,9 +1038,27 @@ class KompaktActivity : Activity() {
             column.addView(switchRow(unlockLabel(source, short = false),
                 UnlockRefresh.enabled(this, source), { on ->
                     UnlockRefresh.setEnabled(this, source, on)
-                }, emptyList(), framed = false))
+                }))
         }
         dialog.setOnDismissListener { if (current == TAB_DISPLAY) select(TAB_DISPLAY) }
+    }
+
+    private fun aodRefresh() = Settings.Secure.getInt(contentResolver, KEY_AOD_REFRESH, 0)
+
+    private fun aodRefreshLabel(minutes: Int) =
+        if (minutes in AOD_REFRESH_MINUTES) getString(R.string.aod_refresh_min, minutes)
+        else getString(R.string.aod_refresh_auto)
+
+    /** How often the always-on display repaints; DozeUi reads the setting at each repaint. */
+    private fun aodRefreshSheet() {
+        val now = aodRefresh()
+        sheet(getString(R.string.aod_refresh_row), getString(R.string.aod_refresh_note),
+            (listOf(0) + AOD_REFRESH_MINUTES).map { minutes ->
+                SheetItem(aodRefreshLabel(minutes), "", minutes == now) {
+                    Settings.Secure.putInt(contentResolver, KEY_AOD_REFRESH, minutes)
+                    select(TAB_DISPLAY)
+                }
+            })
     }
 
     /** What the stored divisor works out to in frames a second. */
@@ -977,11 +1070,8 @@ class KompaktActivity : Activity() {
     private fun frameRateSheet() {
         val now = frameRateNow()
         sheet(getString(R.string.frame_rate_row), getString(R.string.frame_rate_note),
-            // TODO(jacksongoode): each e-ink mode has its own maximum; these are one list until measured.
             listOf(60, 30, 15, 10).map { fps ->
-                SheetItem(getString(R.string.frame_rate_fps, fps), "", fps == now) {
-                    setFrameRate(fps)
-                }
+                SheetItem(getString(R.string.frame_rate_fps, fps), "", fps == now) { setFrameRate(fps) }
             })
     }
 
@@ -1000,17 +1090,28 @@ class KompaktActivity : Activity() {
     private fun emojiColour() = android.os.SystemProperties.get(EMOJI_PROP, "") == "color"
 
     // Read by the framework (PhoneWindowManager): which LED a long press of the power button switches.
-    private fun powerTorchWarm() = Settings.Global.getString(contentResolver, POWER_TORCH) == "warm"
+    private fun powerTorch() = when (Settings.Global.getString(contentResolver, POWER_TORCH)) {
+        "warm" -> "warm"
+        "both" -> "both"
+        else -> "cold"
+    }
+
+    private fun powerTorchLabel() = getString(when (powerTorch()) {
+        "warm" -> R.string.power_torch_warm
+        "both" -> R.string.power_torch_both
+        else -> R.string.power_torch_cold
+    })
 
     private fun powerTorchSheet() {
-        val warm = powerTorchWarm()
+        val now = powerTorch()
         val pick = { value: String ->
             Settings.Global.putString(contentResolver, POWER_TORCH, value)
             select(TAB_SETTINGS)
         }
         sheet(getString(R.string.power_torch_row), getString(R.string.power_torch_note), listOf(
-            SheetItem(getString(R.string.power_torch_cold), "", !warm) { pick("cold") },
-            SheetItem(getString(R.string.power_torch_warm), "", warm) { pick("warm") },
+            SheetItem(getString(R.string.power_torch_cold), "", now == "cold") { pick("cold") },
+            SheetItem(getString(R.string.power_torch_warm), "", now == "warm") { pick("warm") },
+            SheetItem(getString(R.string.power_torch_both), "", now == "both") { pick("both") },
         ))
     }
 
@@ -1110,6 +1211,7 @@ class KompaktActivity : Activity() {
             "light" -> R.string.finger_act_light
             "torch_warm" -> R.string.finger_act_torch_warm
             "torch_cold" -> R.string.finger_act_torch_cold
+            "torch_both" -> R.string.finger_act_torch_both
             "orient" -> R.string.finger_act_orient
             "mode" -> R.string.finger_act_mode
             else -> R.string.finger_act_off
@@ -1129,9 +1231,98 @@ class KompaktActivity : Activity() {
     private fun fingerNeeds() = needsSheet(getString(R.string.finger_section),
         getString(R.string.finger_note), Needs.VENDOR, FingerScroll.available())
 
-    /** eink_temperature is root's and read-only on Mudita's vendor; ours adds the store and the chmod. */
-    private fun temperatureNeeds() = needsSheet(getString(R.string.temperature_section),
-        getString(R.string.temperature_note), Needs.VENDOR)
+    private fun fastSpeedInfo() = resetSheet(getString(R.string.fast_speed_section),
+        getString(R.string.fast_speed_note)) {
+        Prefs.setFastSteps(this, Eink.STOCK_FAST)
+        applySpeeds()
+    }
+
+    private fun textSpeedInfo() = resetSheet(getString(R.string.text_speed_section),
+        getString(R.string.text_speed_note)) {
+        Prefs.setTextSteps(this, Eink.STOCK_TEXT)
+        applySpeeds()
+    }
+
+    /** One choice per row, then Reset to default; the page is redrawn when the sheet closes. */
+    private fun pickSheet(title: String, note: String, items: List<SheetItem>, onReset: () -> Unit) {
+        val column = sheetColumn(title, note)
+        val dialog = showSheet(column)
+        items.forEach { item ->
+            column.addView(choiceRow(item.label, item.sub, item.selected) {
+                item.action()
+                dialog.dismiss()
+            })
+        }
+        column.addView(buttonRow(getString(R.string.reset_default) to {
+            onReset()
+            dialog.dismiss()
+        }))
+        dialog.setOnDismissListener { if (current == PAGE_ADVANCED) select(PAGE_ADVANCED) }
+    }
+
+    private fun setCleanEvery(n: Int) {
+        Prefs.setCleanEvery(this, n)
+        Eink.setCleanEvery(n)
+    }
+
+    private fun cleanSheet() {
+        val now = Prefs.cleanEvery(this)
+        pickSheet(getString(R.string.clean_section), getString(R.string.clean_note),
+            Eink.CLEAN_STEPS.map { n ->
+                SheetItem(getString(CLEAN_LABELS.getValue(n)), getString(CLEAN_NOTES.getValue(n)), n == now) {
+                    setCleanEvery(n)
+                }
+            }) { setCleanEvery(Eink.CLEAN_STOCK) }
+    }
+
+    private fun setPattern(p: Int) {
+        Prefs.setPattern(this, p)
+        Eink.setPattern(p)
+    }
+
+    /** The patterns, then Dither brightness for the ones it reaches. A pick redraws the sheet, which stays open. */
+    private fun patternSheet() {
+        val column = sheetColumn(getString(R.string.pattern_section), getString(R.string.pattern_sheet_note))
+        val body = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        column.addView(body)
+        lateinit var dialog: android.app.Dialog
+        fun fill() {
+            body.removeAllViews()
+            val now = Prefs.pattern(this)
+            Eink.PATTERNS.forEach { (p, label) ->
+                body.addView(choiceRow(label, getString(PATTERN_NOTES.getValue(p)), p == now) {
+                    setPattern(p)
+                    fill()
+                })
+            }
+            // Normal is Mudita's own dither, which the brightness does not reach.
+            if (now != Eink.STOCK_PATTERN) {
+                body.addView(row(getString(R.string.light_section), getString(R.string.light_short)))
+                body.addView(lightSteps())
+            }
+            body.addView(buttonRow(getString(R.string.reset_default) to {
+                setPattern(Eink.STOCK_PATTERN)
+                Prefs.setDitherLight(this, Eink.STOCK_LIGHT)
+                Eink.setDitherLight(Eink.STOCK_LIGHT)
+                dialog.dismiss()
+            }))
+        }
+        fill()
+        dialog = showSheet(column)
+        dialog.setOnDismissListener { if (current == PAGE_ADVANCED) select(PAGE_ADVANCED) }
+    }
+
+    /** A setting's sheet: what it does, and a way back to its default. The page redraws with it. */
+    private fun resetSheet(title: String, note: String, onReset: () -> Unit) {
+        val column = sheetColumn(title, note)
+        lateinit var dialog: android.app.Dialog
+        column.addView(buttonRow(getString(R.string.reset_default) to {
+            onReset()
+            dialog.dismiss()
+            select(current)
+        }))
+        dialog = showSheet(column)
+    }
 
     private fun chooseSleepImage() {
         // OPEN_DOCUMENT, not GET_CONTENT: the photo picker can serve a stale copy.
@@ -1169,6 +1360,62 @@ class KompaktActivity : Activity() {
         }
     }
 
+    // ----------------------------------------------------------- front light
+
+    private var luxWatch: android.hardware.SensorEventListener? = null
+
+    /** The auto brightness curve: a front light number per kind of light, and what the sensor sees now. */
+    private fun lightCurvePage(): List<View> {
+        val out = ArrayList<View>()
+        // The note and Reset to default live in the info sheet; Reset forgets what the slider taught.
+        out.add(sectionWithInfo(getString(R.string.light_curve_row)) {
+            val column = sheetColumn(getString(R.string.light_curve_row),
+                getString(R.string.light_curve_note))
+            lateinit var dialog: android.app.Dialog
+            column.addView(buttonRow(getString(R.string.reset_default) to {
+                LightCurve.reset(this)
+                dialog.dismiss()
+                select(PAGE_LIGHT_CURVE)
+            }))
+            dialog = showSheet(column)
+        })
+        val now = note(getString(R.string.diag_reading))
+        out.add(now)
+        // What the slider has taught it: the light at each point, read only; the slider is how it changes.
+        val (x, y) = LightCurve.points(this)
+        x.indices.forEach { i ->
+            out.add(factRow(getString(R.string.light_curve_lux, x[i].roundToInt()),
+                LightCurve.label(this, y[i].roundToInt())))
+        }
+        watchLux { value ->
+            now.text = getString(R.string.light_curve_now, value,
+                LightCurve.label(this, LightCurve.at(this, value.toFloat())))
+        }
+        return out
+    }
+
+    /** Follows the light sensor while a page shows its reading; select and onPause stop it. */
+    private fun watchLux(onLux: (Int) -> Unit) {
+        unwatchLux()
+        val sm = getSystemService(android.hardware.SensorManager::class.java) ?: return
+        val sensor = sm.getDefaultSensor(android.hardware.Sensor.TYPE_LIGHT) ?: return
+        val watch = object : android.hardware.SensorEventListener {
+            override fun onSensorChanged(e: android.hardware.SensorEvent) {
+                onLux(e.values[0].toInt())
+            }
+            override fun onAccuracyChanged(s: android.hardware.Sensor?, accuracy: Int) {}
+        }
+        sm.registerListener(watch, sensor, android.hardware.SensorManager.SENSOR_DELAY_NORMAL)
+        luxWatch = watch
+    }
+
+    private fun unwatchLux() {
+        luxWatch?.let {
+            getSystemService(android.hardware.SensorManager::class.java)?.unregisterListener(it)
+        }
+        luxWatch = null
+    }
+
     // --------------------------------------------------------------- per app
 
     /** A row per launchable app, showing the value it will get: its e-ink mode, invert or light colour. */
@@ -1184,30 +1431,33 @@ class KompaktActivity : Activity() {
                 val pkg = app.packageName
                 val name = app.loadLabel(pm).toString()
                 // The row updates itself: rebuilding the page would throw the list back to the top.
-                val value = TextView(this).apply {
-                    text = valueOf(pkg)
-                    textSize = 13f
-                    maxLines = 1
-                    setTextColor(INK)
-                    setTypeface(Typeface.DEFAULT_BOLD)
-                }
-                valueRow(name, value) { onPick(pkg, name) { value.text = valueOf(pkg) } }
+                val mode = noteView(valueOf(pkg))
+                row(name, null, null, { onPick(pkg, name) { mode.text = valueOf(pkg) } },
+                    appIcon(app.loadIcon(pm)), mode)
             }
     }
 
-    /** Mode chooser for one package; invert lives here because it is not a panel mode. */
+    /** An app's icon as its symbol in ink: the monochrome layer when it has one, else the foreground layer, else the whole icon, in two inks. */
+    private fun appIcon(icon: android.graphics.drawable.Drawable): android.graphics.drawable.Drawable {
+        val adaptive = icon as? android.graphics.drawable.AdaptiveIconDrawable
+        val mono = adaptive?.monochrome
+        return when {
+            mono != null -> IconLayer(mono.mutate()).apply { setTint(INK) }
+            adaptive?.foreground != null -> IconLayer(adaptive.foreground.mutate()).apply { colorFilter = MONO }
+            else -> icon.mutate().apply { colorFilter = MONO }
+        }
+    }
+
+    /** Mode chooser for one package; invert lives here, last, because it is not a panel mode. */
     private fun pickMode(pkg: String, name: String, refresh: () -> Unit) {
         // The heading says which mode is on, the way the Display heading does --
         // the circles are icons, so without it the sheet never names the choice.
         val heading = sheetLabel(
             getString(R.string.app_mode_title, name, Eink.label(Prefs.appMode(this, pkg))))
         val column = sheetColumnOf(heading, onInfo = { einkInfo(Eink.APP_ORDER) })
-        // The circles are redrawn in place when one is tapped, so the sheet stays
-        // up and the invert row below it is still reachable.
-        val holder = FrameLayout(this)
-        // Follow master mode is marked while the app has no mode of its own.
-        val follow = FrameLayout(this)
         lateinit var dialog: android.app.Dialog
+        // Follow master mode first, with the modes: it is the choice of no mode of its own.
+        val follow = FrameLayout(this)
         fun drawFollow() {
             follow.removeAllViews()
             follow.addView(choiceRow(getString(R.string.per_app_default), "",
@@ -1215,6 +1465,19 @@ class KompaktActivity : Activity() {
                 Prefs.setAppMode(this, pkg, null)
                 refresh()
                 dialog.dismiss()
+            })
+        }
+        // The circles are redrawn in place when one is tapped, so the sheet stays up.
+        val holder = FrameLayout(this)
+        // The pattern row, only while the app's mode has dots to place.
+        val pattern = FrameLayout(this)
+        fun drawPattern() {
+            pattern.removeAllViews()
+            if (!Ours.vendor() || !Eink.dithers(Prefs.appMode(this, pkg))) return
+            val own = Prefs.appPatternOwn(this, pkg)
+            pattern.addView(valueRow(getString(R.string.pattern_section),
+                own?.let { Eink.PATTERNS[it] } ?: getString(R.string.app_pattern_default)) {
+                pickPattern(pkg) { drawPattern() }
             })
         }
         fun drawCircles() {
@@ -1226,18 +1489,37 @@ class KompaktActivity : Activity() {
                 refresh()
                 drawCircles()
                 drawFollow()
+                drawPattern()
             })
         }
+        drawFollow()
+        column.addView(follow)
         drawCircles()
         column.addView(holder)
+        drawPattern()
+        column.addView(pattern)
+        // A rule between the e-ink choices and invert, which is not one of them.
+        column.addView(View(this).apply { setBackgroundColor(INK) },
+            LinearLayout.LayoutParams(MATCH_PARENT, dp(1)).apply { setMargins(dp(GUTTER), dp(8), dp(GUTTER), dp(8)) })
         column.addView(switchRow(getString(R.string.app_invert_row),
             AppInvert.wanted(this, pkg), { on ->
                 AppInvert.setWanted(this, pkg, on)
                 refresh()
-            }, emptyList(), framed = false))
+            }))
         dialog = showSheet(column)
-        drawFollow()
-        column.addView(follow)
+    }
+
+    /** One app's dither pattern: its own, or the master one's. */
+    private fun pickPattern(pkg: String, done: () -> Unit) {
+        val own = Prefs.appPatternOwn(this, pkg)
+        val pick = { p: Int? ->
+            Prefs.setAppPattern(this, pkg, p)
+            done()
+        }
+        sheet(getString(R.string.pattern_section), getString(R.string.pattern_note),
+            listOf(SheetItem(getString(R.string.app_pattern_default),
+                Eink.PATTERNS[Prefs.pattern(this)] ?: "", own == null) { pick(null) }) +
+            Eink.PATTERNS.map { (p, label) -> SheetItem(label, "", own == p) { pick(p) } })
     }
 
     /** What one app's row reads: its mode, and whether it is flipped. */
@@ -1290,42 +1572,41 @@ class KompaktActivity : Activity() {
 
     // ------------------------------------------------------------- the parts
 
-    /** What a feature does, in one paragraph under its heading. */
+    /** Words under a heading or at the end of a page; the one place text may wrap. */
     private fun note(text: String) = TextView(this).apply {
         this.text = text
         textSize = 13f
         setTextColor(INK)
-        setPadding(dp(16), 0, dp(16), dp(8))
+        setPadding(dp(GUTTER), 0, dp(GUTTER), dp(8))
     }
 
-    /** A section heading as AOSP apps draw one: the words, medium weight, nothing around them. */
+    /** A section heading as AOSP Settings draws one: small capitals in bold, nothing around them. */
     private fun section(text: String): View = sectionRow(sectionLabel(text), null)
 
     /** The heading's own text view, kept when a caller needs to rewrite it. */
     private fun sectionLabel(text: String) = TextView(this).apply {
-        this.text = text
-        textSize = 14f
+        this.text = text.uppercase()
+        textSize = 13f
         setTextColor(INK)
-        setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL))
+        setTypeface(Typeface.DEFAULT_BOLD)
     }
 
-    /** Label, and optionally the info glyph against the right margin. */
+    /** The heading as inkOS draws one: the title, then dashes to the right edge, or to the info glyph when it has a sheet. */
     private fun sectionRow(label: TextView, onInfo: (() -> Unit)?): View {
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(20), dp(16), dp(16), dp(8))
+            setPadding(dp(GUTTER), dp(16), dp(GUTTER), dp(16))
         }
-        row.addView(label, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
-        if (onInfo != null) {
-            row.addView(ImageView(this).apply {
-                setImageResource(R.drawable.ic_info)
-                imageTintList = ColorStateList.valueOf(INK)
-                contentDescription = getString(R.string.eink_info)
-                scaleType = ImageView.ScaleType.CENTER_INSIDE
-                setOnClickListener { onInfo() }
-            }, LinearLayout.LayoutParams(dp(28), dp(24)).apply { marginStart = dp(8) })
-        }
+        row.addView(label)
+        // inkOS's separator: 4 px dash, 4 px gap, 1 px thick; dp(3) is 4 px on this panel.
+        row.addView(View(this).apply {
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.LINE
+                setStroke(dp(1), INK, dp(3).toFloat(), dp(3).toFloat())
+            }
+        }, LinearLayout.LayoutParams(0, dp(3), 1f).apply { marginStart = dp(16) })
+        if (onInfo != null) row.addView(infoGlyph(onInfo), glyphParams())
         return row
     }
 
@@ -1333,176 +1614,149 @@ class KompaktActivity : Activity() {
     private fun sectionWithInfo(text: String, onInfo: () -> Unit): View =
         sectionRow(sectionLabel(text), onInfo)
 
+    private fun infoGlyph(onInfo: () -> Unit) = ImageView(this).apply {
+        setImageResource(R.drawable.ic_info)
+        imageTintList = ColorStateList.valueOf(INK)
+        contentDescription = getString(R.string.eink_info)
+        scaleType = ImageView.ScaleType.CENTER_INSIDE
+        setOnClickListener { onInfo() }
+    }
+
+    private fun glyphParams() = LinearLayout.LayoutParams(dp(28), dp(24)).apply { marginStart = dp(8) }
+
+    /** A setting's name: one weight up from the body, so it leads the row. */
+    private fun titleView(text: String) = TextView(this).apply {
+        this.text = text
+        textSize = 16f
+        setTextColor(INK)
+        setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL))
+    }
+
+    /** What a setting does, in one line; a longer story belongs behind the info glyph. */
+    private fun noteView(text: String) = TextView(this).apply {
+        this.text = text
+        textSize = 13f
+        maxLines = 1
+        ellipsize = android.text.TextUtils.TruncateAt.END
+        setTextColor(INK)
+        setPadding(0, dp(2), 0, 0)
+    }
+
+    /** A row's value, at the right, in bold. */
+    private fun valueView(text: String) = TextView(this).apply {
+        textSize = 14f
+        maxLines = 1
+        setTextColor(INK)
+        setTypeface(Typeface.DEFAULT_BOLD)
+        this.text = text
+    }
+
+    private fun chevron() = ImageView(this).apply {
+        setImageResource(R.drawable.ic_chevron)
+        imageTintList = ColorStateList.valueOf(INK)
+        scaleType = ImageView.ScaleType.FIT_CENTER
+        val s = dp(28)
+        layoutParams = LinearLayout.LayoutParams(s, s)
+    }
+
+    /**
+     * The one row every setting is drawn as, on a page or in a sheet: the name over its note
+     * at the left, a control at the right, nothing drawn around them.
+     */
+    private fun row(title: String, note: String? = null, control: View? = null,
+                    onClick: (() -> Unit)? = null, icon: android.graphics.drawable.Drawable? = null,
+                    noteLine: TextView? = null, glyph: Int = 0): View {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(GUTTER), dp(8), dp(GUTTER), dp(8))
+            minimumHeight = dp(ROW_HEIGHT)
+            if (onClick != null) setOnClickListener { onClick() }
+        }
+        if (icon != null || glyph != 0) {
+            // One slot for both: an app's symbol already in ink (appIcon), or a Material glyph in ink.
+            row.addView(ImageView(this).apply {
+                if (icon != null) {
+                    setImageDrawable(icon)
+                } else {
+                    setImageResource(glyph)
+                    imageTintList = ColorStateList.valueOf(INK)
+                    scaleType = ImageView.ScaleType.CENTER
+                }
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            }, LinearLayout.LayoutParams(dp(32), dp(32)).apply { marginEnd = dp(16) })
+        }
+        val lines = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        lines.addView(titleView(title))
+        (noteLine ?: note?.let { noteView(it) })?.let { lines.addView(it) }
+        row.addView(lines, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f).apply {
+            if (control != null) marginEnd = dp(16)
+        })
+        if (control != null) row.addView(control)
+        return row
+    }
+
     /** One choice in a sheet, as inkOS's SingleChoiceSheet: radio ring, label, whole row the target. */
     private fun choiceRow(label: String, sub: String, selected: Boolean,
                           face: android.graphics.Typeface? = null, onClick: () -> Unit): View {
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(16), dp(12), dp(16), dp(12))
+            setPadding(dp(GUTTER), dp(8), dp(GUTTER), dp(8))
+            minimumHeight = dp(ROW_HEIGHT)
             setOnClickListener { onClick() }
         }
         row.addView(RadioMark(this, INK, selected))
         val lines = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        lines.addView(TextView(this).apply {
-            text = label
-            textSize = 18f
-            setTextColor(INK)
-            if (face != null) typeface = face
-        })
-        if (sub.isNotEmpty()) {
-            lines.addView(TextView(this).apply {
-                text = sub
-                textSize = 13f
-                setTextColor(INK)
-            })
-        }
+        lines.addView(titleView(label).apply { if (face != null) typeface = face })
+        if (sub.isNotEmpty()) lines.addView(noteView(sub))
         row.addView(lines, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f).apply {
             marginStart = dp(16)
         })
         return row
     }
 
-    /** A fact inside a sheet: name and value, without the page rows' box. */
-    private fun sheetFactRow(name: String, value: String): View {
-        val row = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(16), dp(10), dp(16), dp(10))
-        }
-        row.addView(TextView(this).apply {
-            text = name
-            textSize = 16f
-            setTextColor(INK)
-        }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
-        row.addView(TextView(this).apply {
-            text = value
-            textSize = 14f
-            setTextColor(INK)
-            setTypeface(Typeface.DEFAULT_BOLD)
-        })
-        return row
-    }
-
-    /** An outlined row with a name on the left and its current value on the right. */
-    private fun valueRow(name: String, value: String, onClick: () -> Unit): View =
-        valueRow(name, TextView(this).apply {
-            text = value
-            textSize = 13f
-            maxLines = 1
-            setTextColor(INK)
-            setTypeface(Typeface.DEFAULT_BOLD)
-        }, onClick)
+    /** A name on the left and its current value on the right; "›" draws the chevron instead. */
+    private fun valueRow(name: String, value: String, note: String? = null, glyph: Int = 0,
+                         onClick: () -> Unit): View =
+        row(name, note, if (value == "›") chevron() else valueView(value), onClick, glyph = glyph)
 
     /** The same row, with a value view the caller keeps so it can update it in place. */
-    private fun valueRow(name: String, value: TextView, onClick: () -> Unit): View {
-        val row = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            background = outline(2)
-            setPadding(dp(16), dp(6), dp(16), dp(6))
-            minimumHeight = dp(ROW_HEIGHT)
-            setOnClickListener { onClick() }
-        }
-        row.addView(TextView(this).apply {
-            text = name
-            textSize = 15f
-            maxLines = 1
-            setTextColor(INK)
-        }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
-        if (value.text == "›") {
-            value.text = ""
-            row.addView(ImageView(this).apply {
-                setImageResource(R.drawable.ic_chevron)
-                imageTintList = ColorStateList.valueOf(INK)
-                val s = dp(20)
-                layoutParams = LinearLayout.LayoutParams(s, s)
-            })
-        } else {
-            row.addView(value)
-        }
-        return pad(row)
-    }
+    private fun valueRow(name: String, value: TextView, onClick: () -> Unit): View =
+        row(name, null, value, onClick)
 
-    /** A toggle row with buttons before the switch; the row itself still toggles. */
-    private fun toggleRowWith(label: String, on: Boolean, onChange: (Boolean) -> Unit,
-                              vararg buttons: Pair<String, () -> Unit>): View =
-        switchRow(label, on, onChange, buttons.toList())
+    /** A row that only reports: name and value, no tap target. */
+    private fun factRow(name: String, value: String, note: String? = null): View =
+        row(name, note, valueView(value))
+
+    /** A setting whose control sits below it (chips, a slider): the name, its note and the info glyph. */
+    private fun settingRow(title: String, note: String, glyph: Int = 0, onInfo: () -> Unit): View =
+        row(title, note, infoGlyph(onInfo).apply { layoutParams = glyphParams() }, glyph = glyph)
 
     /** Callers pass the change as a trailing lambda, so it stays the last parameter here. */
-    private fun toggleRow(label: String, on: Boolean, onChange: (Boolean) -> Unit): View =
-        switchRow(label, on, onChange, emptyList())
+    private fun toggleRow(label: String, on: Boolean, note: String? = null, glyph: Int = 0,
+                          onChange: (Boolean) -> Unit): View =
+        switchRow(label, on, onChange, note, glyph)
 
-    /** Switch at the right, label filling the rest, buttons between; framed = false inside a sheet. */
+    /** A switch as inkOS draws one: the row, with the switch at the right. */
     private fun switchRow(label: String, on: Boolean, onChange: (Boolean) -> Unit,
-                          buttons: List<Pair<String, () -> Unit>>, framed: Boolean = true): View {
+                          note: String? = null, glyph: Int = 0): View {
         val switch = InkToggle(this, INK).apply {
             preset(on)
             this.onChange = onChange
         }
-        val row = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            if (framed) background = outline(2)
-            setPadding(dp(16), dp(6), dp(12), dp(6))
-            if (framed) minimumHeight = dp(ROW_HEIGHT)
-            setOnClickListener { switch.toggle() }
-        }
-        row.addView(TextView(this).apply {
-            text = label
-            textSize = 15f
-            setTextColor(INK)
-        }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
-        buttons.forEach { (text, action) ->
-            row.addView(TextView(this).apply {
-                this.text = text
-                textSize = 13f
-                gravity = Gravity.CENTER
-                setTextColor(INK)
-                setTypeface(Typeface.DEFAULT_BOLD)
-                background = outline(2, BUTTON_RADIUS)
-                setPadding(dp(10), dp(6), dp(10), dp(6))
-                layoutParams = LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply {
-                    marginEnd = dp(6)
-                }
-                setOnClickListener { action() }
-            })
-        }
-        row.addView(switch)
-        return if (framed) pad(row) else row
+        return row(label, note, switch, onClick = { switch.toggle() }, glyph = glyph)
     }
 
-    /** A switch that cannot be cleared: the thing is always switched off. */
-    private fun lockedRow(label: String): View {
-        val row = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            background = outline(2)
-            setPadding(dp(16), dp(6), dp(12), dp(6))
-            minimumHeight = dp(ROW_HEIGHT)
-        }
-        row.addView(TextView(this).apply {
-            text = label
-            textSize = 15f
-            setTextColor(INK)
-        }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
-        row.addView(TextView(this).apply {
-            text = getString(R.string.offline_always)
-            textSize = 13f
-            setTextColor(INK)
-            setTypeface(Typeface.DEFAULT_BOLD)
-            setPadding(0, 0, dp(8), 0)
-        })
+    /** A switch that cannot be cleared: the thing is always switched off, and the note says so. */
+    private fun lockedRow(label: String, note: String? = null, glyph: Int = 0): View =
         // Checked and unreachable: enabled so it draws in ink, not clickable so it stays.
-        row.addView(InkToggle(this, INK).apply { preset(true) })
-        return pad(row)
-    }
-
+        row(label, note, InkToggle(this, INK).apply { preset(true) }, glyph = glyph)
 
     private fun buttonRow(vararg items: Pair<String, () -> Unit>): View {
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            setPadding(dp(16), dp(4), dp(16), dp(4))
+            setPadding(dp(GUTTER), dp(8), dp(GUTTER), dp(8))
         }
         items.forEachIndexed { i, (label, action) ->
             val b = TextView(this).apply {
@@ -1522,17 +1776,8 @@ class KompaktActivity : Activity() {
         return row
     }
 
-    /** Side margins and a gap, applied outside the border so rows do not touch. */
-    private fun pad(v: View): View {
-        val holder = FrameLayout(this).apply {
-            setPadding(dp(16), dp(4), dp(16), dp(4))
-        }
-        holder.addView(v, FrameLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
-        return holder
-    }
-
-    /** Paper fill, ink border, rounded; dashed marks a control this phone cannot use. */
-    private fun outline(strokeDp: Int = 2, radiusDp: Int = ROW_RADIUS,
+    /** Paper fill, ink border, rounded: a chip, a button, a picture frame; dashed marks one this phone cannot use. */
+    private fun outline(strokeDp: Int = 2, radiusDp: Int = BUTTON_RADIUS,
                         dashed: Boolean = false): GradientDrawable =
         GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
@@ -1558,14 +1803,14 @@ class KompaktActivity : Activity() {
                            vendorOk: Boolean = Ours.vendor()) {
         val column = sheetColumn(title, note)
         if (needs.vendor) {
-            column.addView(sheetFactRow(getString(R.string.needs_vendor), getString(when {
+            column.addView(factRow(getString(R.string.needs_vendor), getString(when {
                 vendorOk -> R.string.needs_installed
                 Ours.vendor() -> R.string.needs_older
                 else -> R.string.needs_missing
             })))
         }
         if (needs.kernel) {
-            column.addView(sheetFactRow(getString(R.string.needs_boot), getString(
+            column.addView(factRow(getString(R.string.needs_boot), getString(
                 if (Ours.kernel()) R.string.needs_installed else R.string.needs_missing)))
         }
         showSheet(column)
@@ -1578,36 +1823,15 @@ class KompaktActivity : Activity() {
         Needs.BOTH -> R.string.needs_value_both
     })
 
-    /** A feature this phone cannot use: dashed, names what it needs, explains on tap. */
-    private fun blockedRow(name: String, needs: Needs, onTap: () -> Unit): View {
-        val row = LinearLayout(this).apply {
+    /** A feature this phone cannot use: the same row, naming what it needs, and the sheet on tap. */
+    private fun blockedRow(name: String, needs: Needs, glyph: Int = 0, onTap: () -> Unit): View {
+        val control = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            background = outline(2, dashed = true)
-            setPadding(dp(16), dp(6), dp(12), dp(6))
-            minimumHeight = dp(ROW_HEIGHT)
-            setOnClickListener { onTap() }
         }
-        row.addView(TextView(this).apply {
-            text = name
-            textSize = 15f
-            maxLines = 1
-            setTextColor(INK)
-        }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
-        row.addView(TextView(this).apply {
-            text = needsValue(needs)
-            textSize = 13f
-            maxLines = 1
-            setTextColor(INK)
-            setTypeface(Typeface.DEFAULT_BOLD)
-        })
-        row.addView(ImageView(this).apply {
-            setImageResource(R.drawable.ic_info)
-            imageTintList = ColorStateList.valueOf(INK)
-            contentDescription = getString(R.string.eink_info)
-            scaleType = ImageView.ScaleType.CENTER_INSIDE
-        }, LinearLayout.LayoutParams(dp(28), dp(24)).apply { marginStart = dp(6) })
-        return pad(row)
+        control.addView(valueView(needsValue(needs)))
+        control.addView(infoGlyph(onTap), glyphParams())
+        return row(name, null, control, onTap, glyph = glyph)
     }
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
@@ -1622,6 +1846,12 @@ class KompaktActivity : Activity() {
     )
 
     companion object {
+        private val CLEAN_LABELS = mapOf(6 to R.string.clean_most, 12 to R.string.clean_more,
+            24 to R.string.clean_normal, 48 to R.string.clean_less)
+        private val CLEAN_NOTES = mapOf(6 to R.string.clean_most_note, 12 to R.string.clean_more_note,
+            24 to R.string.clean_normal_note, 48 to R.string.clean_less_note)
+        private val PATTERN_NOTES = mapOf(0 to R.string.pattern_normal_note, 1 to R.string.pattern_grid_note,
+            3 to R.string.pattern_hybrid_note, 4 to R.string.pattern_noise_note)
 
         private const val TAB_DISPLAY = 0
         private const val TAB_OFFLINE = 1
@@ -1635,19 +1865,40 @@ class KompaktActivity : Activity() {
         private const val PAGE_SLEEP = 7
         private const val PAGE_FINGER = 8
         private const val PAGE_ADVANCED = 9
+        private const val PAGE_LIGHT_CURVE = 10
 
         private const val REQ_SLEEP_IMAGE = 1
 
-        /** Every tab head is this tall, so the rules under them form one line. */
+        /** Where every row, heading, chip and circle starts and ends, in dp from the edge. */
+        private const val GUTTER = 20
 
-        /** Every page row is at least this tall, whatever it ends in: switch, value or chevron. */
-        private const val ROW_HEIGHT = 52
+        /** Every row is at least this tall, whatever it ends in: switch, value or chevron. */
+        private const val ROW_HEIGHT = 48
 
-        /** Corner radii, in dp: rows and boxes, pill-shaped buttons, and the sheet's top edge. */
-        private const val ROW_RADIUS = 28
+        /** A mode circle's diameter, in dp. */
+        private const val CIRCLE = 48
+
+        /** Minutes the always-on display can repaint every, besides auto (0). */
+        private val AOD_REFRESH_MINUTES = listOf(1, 5, 10, 60)
+
+        /** Corner radii, in dp: the picture frame, pill-shaped chips and buttons, and the sheet's top edge. */
         private const val BOX_RADIUS = 8
         private const val BUTTON_RADIUS = 24
         private const val SHEET_RADIUS = 28
+    }
+}
+
+/** One layer of an adaptive icon, drawn as a launcher draws it: grown by the extra inset and cut to the icon mask. */
+class IconLayer(layer: android.graphics.drawable.Drawable) : android.graphics.drawable.InsetDrawable(
+    layer, -android.graphics.drawable.AdaptiveIconDrawable.getExtraInsetFraction()) {
+    private val mask = android.graphics.drawable.AdaptiveIconDrawable(
+        android.graphics.drawable.ColorDrawable(Color.BLACK), null)
+    override fun draw(canvas: android.graphics.Canvas) {
+        mask.bounds = bounds
+        val saved = canvas.save()
+        canvas.clipPath(mask.iconMask)
+        super.draw(canvas)
+        canvas.restoreToCount(saved)
     }
 }
 

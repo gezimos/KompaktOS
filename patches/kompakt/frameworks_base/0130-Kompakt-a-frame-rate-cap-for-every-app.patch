@@ -1,0 +1,125 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: jacksongoode <jacksongoode@users.noreply.github.com>
+Date: Mon, 26 Oct 2026 12:00:00 +0200
+Subject: [PATCH] Kompakt: a frame rate cap for every app
+
+Frame rate divisor from persist.sys.kompakt.fps_divisor.
+
+Choreographer can already skip frames -- setFPSDivisor, which AOSP uses for its
+own low FPS experiments -- but only debug.hwui.fps_divisor reaches it, and no
+setting can write that.
+
+The divisor now also comes from persist.sys.kompakt.fps_divisor, which the
+Kompakt app can set. Unset, it falls back to the debug property, so a build
+without the app behaves as stock.
+
+Input is not affected: ViewRootImpl runs a touch on the UI thread as it arrives,
+not through the Choreographer, so the cap only holds back the draw. The
+batched-motion path does divide, which samples a drag at the capped rate.
+
+The frame rate cap leaves touch at the panel rate.
+
+0130's divisor skips whole frames, input included: ViewRootImpl consumes
+batched touch in Choreographer's CALLBACK_INPUT, so at 15 fps a drag
+reached the app 15 times a second and a quick swipe (about 120 ms) came
+through as a press, a move or two and a lift. inkOS took swipes up for
+taps.
+
+A frame the divisor skips now still runs CALLBACK_INPUT, and only the
+drawing waits. getFrameTimeNanos() returns that vsync's time during the
+input-only pass (not the last drawn frame's, which would leave the new
+samples unconsumed), while mLastFrameTimeNanos, which the divisor counts
+from, is untouched.
+---
+ core/java/android/view/Choreographer.java | 44 +++++++++++++++++------
+ 1 file changed, 33 insertions(+), 11 deletions(-)
+
+diff --git a/core/java/android/view/Choreographer.java b/core/java/android/view/Choreographer.java
+index 37782ac7f2f2..b69761fe0f57 100644
+--- a/core/java/android/view/Choreographer.java
++++ b/core/java/android/view/Choreographer.java
+@@ -213,6 +213,8 @@ public final class Choreographer {
+     private boolean mCallbacksRunning;
+     @UnsupportedAppUsage
+     private long mLastFrameTimeNanos;
++    // Kompakt: the frame time of an input-only pass on a frame the divisor skips; 0 otherwise.
++    private long mKompaktInputFrameTimeNanos;
+ 
+     // Keeps track of the last scheduled frame time without additional offsets
+     // added from buffer stuffing recovery. Used to compare timing of vsyncs to
+@@ -373,7 +375,9 @@ public final class Choreographer {
+             mCallbackQueues[i] = new CallbackQueue();
+         }
+         // b/68769804: For low FPS experiments.
+-        setFPSDivisor(SystemProperties.getInt(ThreadedRenderer.DEBUG_FPS_DIVISOR, 1));
++        // Kompakt: the Display tab's frame rate cap is this same divisor.
++        setFPSDivisor(SystemProperties.getInt("persist.sys.kompakt.fps_divisor",
++                SystemProperties.getInt(ThreadedRenderer.DEBUG_FPS_DIVISOR, 1)));
+     }
+ 
+     @RavenwoodReplace(blockedBy = DisplayManagerGlobal.class,
+@@ -802,7 +806,9 @@ public final class Choreographer {
+                 throw new IllegalStateException("This method must only be called as "
+                         + "part of a callback while a frame is in progress.");
+             }
+-            return USE_FRAME_TIME ? mLastFrameTimeNanos : System.nanoTime();
++            if (!USE_FRAME_TIME) return System.nanoTime();
++            // Kompakt: an input-only pass reads the batch up to this vsync, not the last drawn frame.
++            return mKompaktInputFrameTimeNanos != 0 ? mKompaktInputFrameTimeNanos : mLastFrameTimeNanos;
+         }
+     }
+ 
+@@ -1051,6 +1057,7 @@ public final class Choreographer {
+             }
+         }
+ 
++        boolean kompaktInputOnly = false;
+         try {
+             FrameTimeline timeline = mFrameData.update(offsetFrameTimeNanos, vsyncEventData);
+             if (Trace.isTagEnabled(Trace.TRACE_TAG_VIEW)) {
+@@ -1130,18 +1137,33 @@ public final class Choreographer {
+                             mBufferStuffingState.numberWaitsForNextVsync++;
+                         }
+                         scheduleVsyncLocked();
+-                        return;
++                        // Kompakt: the divisor holds back drawing only; touch is read at the panel's rate.
++                        mKompaktInputFrameTimeNanos = frameTimeNanos;
++                        kompaktInputOnly = true;
+                     }
+                 }
+ 
+-                mFrameInfo.setVsync(intendedFrameTimeNanos, frameTimeNanos,
+-                        vsyncEventData.preferredFrameTimeline().vsyncId,
+-                        vsyncEventData.preferredFrameTimeline().deadline, startNanos,
+-                        vsyncEventData.frameInterval);
+-                mFrameScheduled = false;
+-                mLastFrameTimeNanos = frameTimeNanos;
+-                mLastFrameIntervalNanos = frameIntervalNanos;
+-                mLastVsyncEventData.copyFrom(vsyncEventData);
++                if (!kompaktInputOnly) {
++                    mFrameInfo.setVsync(intendedFrameTimeNanos, frameTimeNanos,
++                            vsyncEventData.preferredFrameTimeline().vsyncId,
++                            vsyncEventData.preferredFrameTimeline().deadline, startNanos,
++                            vsyncEventData.frameInterval);
++                    mFrameScheduled = false;
++                    mLastFrameTimeNanos = frameTimeNanos;
++                    mLastFrameIntervalNanos = frameIntervalNanos;
++                    mLastVsyncEventData.copyFrom(vsyncEventData);
++                }
++            }
++
++            if (kompaktInputOnly) {
++                try {
++                    doCallbacks(Choreographer.CALLBACK_INPUT, frameIntervalNanos);
++                } finally {
++                    synchronized (mLock) {
++                        mKompaktInputFrameTimeNanos = 0;
++                    }
++                }
++                return;
+             }
+ 
+             if (resynced && Trace.isTagEnabled(Trace.TRACE_TAG_VIEW)) {
+-- 
+2.43.0
+

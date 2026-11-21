@@ -1,0 +1,180 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Wed, 28 Oct 2026 09:22:52 +0100
+Subject: [PATCH] Kompakt: a both flashlights lock screen shortcut and power
+ button choice
+
+---
+ .../SystemUI/res/values/kompakt_torch.xml     |  1 +
+ .../BothFlashlightsQuickAffordanceConfig.kt   | 94 +++++++++++++++++++
+ .../KeyguardDataQuickAffordanceModule.kt      |  2 +
+ .../server/policy/PhoneWindowManager.java     | 14 ++-
+ 4 files changed, 107 insertions(+), 4 deletions(-)
+ create mode 100644 packages/SystemUI/src/com/android/systemui/keyguard/data/quickaffordance/BothFlashlightsQuickAffordanceConfig.kt
+
+diff --git a/packages/SystemUI/res/values/kompakt_torch.xml b/packages/SystemUI/res/values/kompakt_torch.xml
+index e605883a7733..da8503a3330e 100644
+--- a/packages/SystemUI/res/values/kompakt_torch.xml
++++ b/packages/SystemUI/res/values/kompakt_torch.xml
+@@ -2,4 +2,5 @@
+ <!-- Kompakt: the warm flash LED's lock screen shortcut. -->
+ <resources>
+     <string name="kompakt_warm_flashlight_label">Warm flashlight</string>
++    <string name="kompakt_both_flashlights_label">Both flashlights</string>
+ </resources>
+diff --git a/packages/SystemUI/src/com/android/systemui/keyguard/data/quickaffordance/BothFlashlightsQuickAffordanceConfig.kt b/packages/SystemUI/src/com/android/systemui/keyguard/data/quickaffordance/BothFlashlightsQuickAffordanceConfig.kt
+new file mode 100644
+index 000000000000..8a1e8f9f4a0e
+--- /dev/null
++++ b/packages/SystemUI/src/com/android/systemui/keyguard/data/quickaffordance/BothFlashlightsQuickAffordanceConfig.kt
+@@ -0,0 +1,94 @@
++/*
++ * SPDX-FileCopyrightText: KompaktOS
++ * SPDX-License-Identifier: Apache-2.0
++ */
++
++package com.android.systemui.keyguard.data.quickaffordance
++
++import android.content.Context
++import android.content.Intent
++import android.database.ContentObserver
++import android.provider.Settings
++import com.android.systemui.animation.Expandable
++import com.android.systemui.common.coroutine.ChannelExt.trySendWithFailureLogging
++import com.android.systemui.common.shared.model.ContentDescription
++import com.android.systemui.common.shared.model.Icon
++import com.android.systemui.dagger.SysUISingleton
++import com.android.systemui.keyguard.shared.quickaffordance.ActivationState
++import com.android.systemui.res.R
++import com.android.systemui.shade.ShadeDisplayAware
++import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
++import javax.inject.Inject
++import kotlinx.coroutines.channels.awaitClose
++import kotlinx.coroutines.flow.Flow
++
++/**
++ * Kompakt: a lock screen shortcut for both flash LEDs at once. The Kompakt app switches them; it is
++ * on while either light is, from its warm setting and Android's flashlight setting.
++ */
++@SysUISingleton
++class BothFlashlightsQuickAffordanceConfig
++@Inject
++constructor(@ShadeDisplayAware private val context: Context) : KeyguardQuickAffordanceConfig {
++
++    override val key: String
++        get() = KEY
++
++    override fun pickerName(): String =
++        context.getString(R.string.kompakt_both_flashlights_label)
++
++    override val pickerIconResourceId: Int
++        get() = R.drawable.ic_flashlight_off
++
++    override val lockScreenState: Flow<KeyguardQuickAffordanceConfig.LockScreenState> =
++        conflatedCallbackFlow {
++            val resolver = context.contentResolver
++            val send = {
++                val on = Settings.Global.getInt(resolver, SETTING, 0) == 1 ||
++                    Settings.Secure.getInt(resolver, Settings.Secure.FLASHLIGHT_ENABLED, 0) == 1
++                trySendWithFailureLogging(state(on), TAG)
++            }
++            val observer =
++                object : ContentObserver(null) {
++                    override fun onChange(selfChange: Boolean) {
++                        send()
++                    }
++                }
++            resolver.registerContentObserver(Settings.Global.getUriFor(SETTING), false, observer)
++            resolver.registerContentObserver(
++                Settings.Secure.getUriFor(Settings.Secure.FLASHLIGHT_ENABLED), false, observer)
++            send()
++            awaitClose { resolver.unregisterContentObserver(observer) }
++        }
++
++    private fun state(on: Boolean) =
++        KeyguardQuickAffordanceConfig.LockScreenState.Visible(
++            Icon.Resource(
++                if (on) R.drawable.qs_flashlight_icon_on else R.drawable.qs_flashlight_icon_off,
++                ContentDescription.Resource(R.string.kompakt_both_flashlights_label),
++            ),
++            if (on) ActivationState.Active else ActivationState.Inactive,
++        )
++
++    override fun onTriggered(
++        expandable: Expandable?
++    ): KeyguardQuickAffordanceConfig.OnTriggeredResult {
++        context.sendBroadcast(
++            Intent(ACTION_TOGGLE)
++                .setPackage(KOMPAKT_PACKAGE)
++                .addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
++        )
++        return KeyguardQuickAffordanceConfig.OnTriggeredResult.Handled(false)
++    }
++
++    override suspend fun getPickerScreenState(): KeyguardQuickAffordanceConfig.PickerScreenState =
++        KeyguardQuickAffordanceConfig.PickerScreenState.Default()
++
++    companion object {
++        private const val TAG = "BothFlashlightsQuickAffordanceConfig"
++        const val KEY = "kompakt_both_flashlights"
++        private const val SETTING = "kompakt_torch_warm"
++        private const val ACTION_TOGGLE = "com.kompakt.service.action.TORCH_BOTH"
++        private const val KOMPAKT_PACKAGE = "com.kompakt.service"
++    }
++}
+diff --git a/packages/SystemUI/src/com/android/systemui/keyguard/data/quickaffordance/KeyguardDataQuickAffordanceModule.kt b/packages/SystemUI/src/com/android/systemui/keyguard/data/quickaffordance/KeyguardDataQuickAffordanceModule.kt
+index 4c757c9aaec8..82f6f67822ee 100644
+--- a/packages/SystemUI/src/com/android/systemui/keyguard/data/quickaffordance/KeyguardDataQuickAffordanceModule.kt
++++ b/packages/SystemUI/src/com/android/systemui/keyguard/data/quickaffordance/KeyguardDataQuickAffordanceModule.kt
+@@ -43,6 +43,7 @@ interface KeyguardDataQuickAffordanceModule {
+             videoCamera: VideoCameraQuickAffordanceConfig,
+             // Kompakt: the warm flash LED, beside Android's flashlight (the cold one).
+             warmFlashlight: WarmFlashlightQuickAffordanceConfig,
++            bothFlashlights: BothFlashlightsQuickAffordanceConfig,
+         ): Set<KeyguardQuickAffordanceConfig> {
+             return setOf(
+                 camera,
+@@ -54,6 +55,7 @@ interface KeyguardDataQuickAffordanceModule {
+                 qrCodeScanner,
+                 videoCamera,
+                 warmFlashlight,
++                bothFlashlights,
+             )
+         }
+     }
+diff --git a/services/core/java/com/android/server/policy/PhoneWindowManager.java b/services/core/java/com/android/server/policy/PhoneWindowManager.java
+index 5b25b97a9ba9..71b0ec33a1a7 100644
+--- a/services/core/java/com/android/server/policy/PhoneWindowManager.java
++++ b/services/core/java/com/android/server/policy/PhoneWindowManager.java
+@@ -7542,10 +7542,14 @@ public class PhoneWindowManager implements WindowManagerPolicy {
+         }
+     }
+ 
+-    // Kompakt: the power button may switch the warm flash LED, which the Kompakt app owns.
++    // Kompakt: the power button may switch the warm flash LED, or both, which the Kompakt app owns.
++    private String kompaktPowerTorch() {
++        return Settings.Global.getString(mContext.getContentResolver(), "kompakt_power_torch");
++    }
++
+     private boolean kompaktWarmTorch() {
+-        return "warm".equals(Settings.Global.getString(mContext.getContentResolver(),
+-                "kompakt_power_torch"));
++        final String torch = kompaktPowerTorch();
++        return "warm".equals(torch) || "both".equals(torch);
+     }
+ 
+     private boolean kompaktWarmTorchOn() {
+@@ -7555,7 +7559,9 @@ public class PhoneWindowManager implements WindowManagerPolicy {
+     private void toggleTorch() {
+         cancelTorchOff();
+         if (kompaktWarmTorch()) {
+-            mContext.sendBroadcastAsUser(new Intent("com.kompakt.service.action.TORCH_WARM")
++            final String action = "both".equals(kompaktPowerTorch())
++                    ? "com.kompakt.service.action.TORCH_BOTH" : "com.kompakt.service.action.TORCH_WARM";
++            mContext.sendBroadcastAsUser(new Intent(action)
+                     .setPackage("com.kompakt.service")
+                     .addFlags(Intent.FLAG_RECEIVER_FOREGROUND), UserHandle.SYSTEM);
+             return;
+-- 
+2.43.0
+

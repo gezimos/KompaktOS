@@ -1,0 +1,37 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Wed, 4 Nov 2026 18:30:00 +0200
+Subject: [PATCH] Kompakt: a heads-up space that loses its pair in a lock
+ transition no longer crashes SystemUI
+
+---
+ .../com/android/compose/animation/scene/Element.kt  | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/packages/SystemUI/compose/scene/src/com/android/compose/animation/scene/Element.kt b/packages/SystemUI/compose/scene/src/com/android/compose/animation/scene/Element.kt
+index a9c03b94f881..5479160acaf8 100644
+--- a/packages/SystemUI/compose/scene/src/com/android/compose/animation/scene/Element.kt
++++ b/packages/SystemUI/compose/scene/src/com/android/compose/animation/scene/Element.kt
+@@ -1541,12 +1541,13 @@ private fun getTransformationContentKey(
+             ) {
+                 transition.toContent
+             } else {
+-                throw IllegalStateException(
+-                    "Ancestor transition $transition is active but no transformation for element " +
+-                        "${element.key} spec was found. The ancestor transition should have only " +
+-                        "been selected when a transformation for that element and content was " +
+-                        "defined."
+-                )
++                // Kompakt: the element lost its shared pair while the transition ran, so it is
++                // drawn untouched this frame; this used to throw and restart SystemUI.
++                if (element.stateByContent[transition.fromContent] != null) {
++                    transition.fromContent
++                } else {
++                    transition.toContent
++                }
+             }
+         }
+         currentSceneState != null && currentContent == transition.currentScene -> {
+-- 
+2.43.0
+

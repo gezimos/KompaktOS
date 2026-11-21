@@ -1,0 +1,29 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sun, 9 Nov 2026 12:00:00 +0000
+Subject: [PATCH] Kompakt: per-app data accounting on the 4.19 kernel
+
+netd attaches the per-app traffic accounting, the per-app firewall and the
+socket hooks to the cgroup root in BpfHandler::initPrograms. Android 16 (25Q2)
+returns from it before attaching anything when the kernel is older than 5.4,
+so on this phone no app ever had data usage and the per-app restrictions were
+never enforced; the 4.19 variants of those programs are still built and the
+loader still loads them. Attach them on a 4.19 kernel instead of giving up.
+---
+diff --git a/bpf/netd/BpfHandler.cpp b/bpf/netd/BpfHandler.cpp
+--- a/bpf/netd/BpfHandler.cpp
++++ b/bpf/netd/BpfHandler.cpp
+@@ -92,8 +92,12 @@
+     }
+ 
+     // 25Q2 bumps the kernel requirement up to 5.4
++    // Kompakt: the 4.19 programs are still built and loaded; on this 4.19 kernel attach them.
+     if (isAtLeast25Q2 && !isAtLeastKernelVersion(5, 4)) {
+-        return Status("25Q2+ platform with kernel version < 5.4.0 is unsupported");
++        if (!isAtLeastKernelVersion(4, 19)) {
++            return Status("25Q2+ platform with kernel version < 4.19.0 is unsupported");
++        }
++        ALOGW("Kompakt: 25Q2+ platform on a 4.19 kernel, attaching the 4.19 programs");
+     }
+ 
+     unique_fd cg_fd(open(cg2_path, O_DIRECTORY | O_RDONLY | O_CLOEXEC));

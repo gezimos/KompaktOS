@@ -1,5 +1,5 @@
 From b29185ac2961a6fbfac26bd407a8b262ce952dea Mon Sep 17 00:00:00 2001
-From: Gezim <25499045+gezimos@users.noreply.github.com>
+From: Gezim <gezimos@users.noreply.github.com>
 Date: Sun, 18 Oct 2026 21:45:00 +0200
 Subject: [PATCH] Kompakt: the shade over the lockscreen keeps its own stack
  top

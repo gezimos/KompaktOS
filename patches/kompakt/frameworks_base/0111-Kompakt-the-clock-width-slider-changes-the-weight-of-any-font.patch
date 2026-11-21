@@ -1,8 +1,8 @@
-From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From 8536060f74ada6b4c4faad3e25e2b23e363dcf09 Mon Sep 17 00:00:00 2001
 From: Gezim <gezimos@users.noreply.github.com>
 Date: Sat, 17 Oct 2026 19:00:00 +0200
-Subject: [PATCH] Kompakt: the clock width slider changes the weight of any
- font
+Subject: [PATCH 111/144] Kompakt: the clock width slider changes the weight of
+ any font
 
 The Clock face width presets move Google Sans Flex's wght and wdth axes.
 A font picked in the Kompakt app is a set of fixed-weight files with no
@@ -11,12 +11,16 @@ come from different files, the clock now asks for the file nearest the
 preset's weight ("w<weight>" in its typeface cache) and rebuilds its text
 animator on it, since the animator can only morph within one file. Google
 Sans Flex keeps the stock path.
-
 ---
+ .../clocks/view/DigitalClockTextView.kt       | 52 ++++++++++++++++++-
+ .../shared/clocks/DefaultClockProvider.kt     |  7 ++-
+ 2 files changed, 55 insertions(+), 4 deletions(-)
+
 diff --git a/packages/SystemUI/customization/clocks/common/src/com/android/systemui/customization/clocks/view/DigitalClockTextView.kt b/packages/SystemUI/customization/clocks/common/src/com/android/systemui/customization/clocks/view/DigitalClockTextView.kt
+index d3e4b1f508f3..76c084b53341 100644
 --- a/packages/SystemUI/customization/clocks/common/src/com/android/systemui/customization/clocks/view/DigitalClockTextView.kt
 +++ b/packages/SystemUI/customization/clocks/common/src/com/android/systemui/customization/clocks/view/DigitalClockTextView.kt
-@@ -22,6 +22,7 @@
+@@ -22,6 +22,7 @@ import android.graphics.Color
  import android.graphics.Paint
  import android.graphics.PorterDuff
  import android.graphics.PorterDuffXfermode
@@ -24,7 +28,7 @@ diff --git a/packages/SystemUI/customization/clocks/common/src/com/android/syste
  import android.os.VibrationEffect
  import android.text.TextPaint
  import android.util.AttributeSet
-@@ -143,7 +144,19 @@
+@@ -143,7 +144,19 @@ abstract class DigitalClockTextView(
  
      @VisibleForTesting lateinit var textAnimator: TextAnimator
  
@@ -45,7 +49,7 @@ diff --git a/packages/SystemUI/customization/clocks/common/src/com/android/syste
  
      var verticalAlignment: VerticalAlignment = VerticalAlignment.BASELINE
      var horizontalAlignment: HorizontalAlignment = HorizontalAlignment.CENTER
-@@ -204,6 +217,7 @@
+@@ -204,6 +217,7 @@ abstract class DigitalClockTextView(
      fun updateAxes(lsAxes: ClockAxisStyle, isAnimated: Boolean) {
          fontVariations = updateFontVariations(lsAxes)
          logger.updateAxes(fontVariations.lockscreen, fontVariations.doze, isAnimated)
@@ -53,12 +57,10 @@ diff --git a/packages/SystemUI/customization/clocks/common/src/com/android/syste
  
          lockScreenPaint.typeface = typefaceCache.getTypefaceForVariant(fontVariations.lockscreen)
          typeface = lockScreenPaint.typeface
-@@ -223,6 +237,32 @@
-         recomputeMaxTextSize()
-         requestLayout()
+@@ -225,6 +239,32 @@ abstract class DigitalClockTextView(
          invalidate()
-+    }
-+
+     }
+ 
 +    /** Kompakt: moves to the file nearest the slider's weight when the font has no wght axis. */
 +    private fun kompaktUseWeightFile(lsAxes: ClockAxisStyle) {
 +        val weight = lsAxes[GSFAxes.WEIGHT.tag]?.roundToInt()
@@ -83,10 +85,12 @@ diff --git a/packages/SystemUI/customization/clocks/common/src/com/android/syste
 +        // The animator only morphs within one file, so it starts again on the new one.
 +        kompaktRebuildAnimator = this::textAnimator.isInitialized
 +        if (kompaktRebuildAnimator) measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED)
-     }
- 
++    }
++
      data class AxisAnimation(val axisKey: String, val distance: Float, val midpoint: Float) {
-@@ -257,8 +297,16 @@
+         constructor(
+             axis: AxisDefinition,
+@@ -257,8 +297,16 @@ abstract class DigitalClockTextView(
  
          val layout = this.layout
          if (layout != null) {
@@ -105,9 +109,10 @@ diff --git a/packages/SystemUI/customization/clocks/common/src/com/android/syste
              } else {
                  textAnimator.updateLayout(layout)
 diff --git a/packages/SystemUI/customization/src/com/android/systemui/shared/clocks/DefaultClockProvider.kt b/packages/SystemUI/customization/src/com/android/systemui/shared/clocks/DefaultClockProvider.kt
+index 25ace9736c1f..5112cb900f36 100644
 --- a/packages/SystemUI/customization/src/com/android/systemui/shared/clocks/DefaultClockProvider.kt
 +++ b/packages/SystemUI/customization/src/com/android/systemui/shared/clocks/DefaultClockProvider.kt
-@@ -81,9 +81,12 @@
+@@ -81,9 +81,12 @@ constructor(
              // Kompakt: sharp digits even if a rounder setting was saved before 0091.
              val clockSettings =
                  settings.copy(axes = ClockAxisStyle(fontAxes).copy { put(GSFAxes.ROUND.tag, 0f) })
@@ -124,3 +129,4 @@ diff --git a/packages/SystemUI/customization/src/com/android/systemui/shared/clo
                  ClockContext(
 -- 
 2.43.0
+

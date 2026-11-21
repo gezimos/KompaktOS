@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Material "tune", in the 24dp viewBox. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24"
+    android:tint="?android:attr/colorControlNormal">
+    <path android:fillColor="@android:color/white"
+        android:pathData="M 3 17 v 2 h 6 v -2 H 3 z M 3 5 v 2 h 10 V 5 H 3 z m 10 16 v -2 h 8 v -2 h -8 v -2 h -2 v 6 h 2 z M 7 9 v 2 H 3 v 2 h 4 v 2 h 2 V 9 H 7 z m 14 4 v -2 H 11 v 2 h 10 z m -6 -4 h 2 V 7 h 4 V 5 h -4 V 3 h -2 v 6 z"/>
+</vector>

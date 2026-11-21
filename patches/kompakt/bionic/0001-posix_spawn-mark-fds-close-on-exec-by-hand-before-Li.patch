@@ -1,5 +1,5 @@
 From ab360d275caec580daa9ae2b53f7fe3e027ab094 Mon Sep 17 00:00:00 2001
-From: gezimos <>
+From: Gezim <gezimos@users.noreply.github.com>
 Date: Fri, 25 Sep 2026 19:54:57 +0200
 Subject: [PATCH] posix_spawn: mark fds close-on-exec by hand before Linux 5.11
 

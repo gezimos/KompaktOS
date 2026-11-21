@@ -1,0 +1,178 @@
+From 055c1d20e317a783e72fb11cf3963f39855ebb06 Mon Sep 17 00:00:00 2001
+From: Gezim <gezimos@users.noreply.github.com>
+Date: Sat, 24 Oct 2026 12:00:00 +0300
+Subject: [PATCH 13/14] Kompakt: a page back returns to the page it came from
+
+A page forward moved the row cut by the bottom edge to the top, less
+than a screen; a page back moved a full screen and then pulled the row
+under the top edge down until it was whole. The back page therefore
+started above the page forward came from, and every back and forth
+moved the list one row. The sideways Activity rows did the same with
+covers.
+
+Each forward turn is remembered with the distance it moved and where it
+landed, and back reverses the last one while the list is still there.
+When it is not (the list changed or scrolled otherwise), back moves a
+screen and pushes a row (or cover) cut by the edge off, so that page
+ends at the old edge. The same fix as Settings 0007.
+---
+ .../java/com/kompakt/eink/PagedScroll.java    | 59 +++++++++++++++----
+ 1 file changed, 47 insertions(+), 12 deletions(-)
+
+diff --git a/app/src/main/java/com/kompakt/eink/PagedScroll.java b/app/src/main/java/com/kompakt/eink/PagedScroll.java
+index 66cbab0..0435bf6 100644
+--- a/app/src/main/java/com/kompakt/eink/PagedScroll.java
++++ b/app/src/main/java/com/kompakt/eink/PagedScroll.java
+@@ -16,6 +16,8 @@ import androidx.viewpager2.widget.ViewPager2;
+ 
+ import com.google.android.material.appbar.AppBarLayout;
+ 
++import java.util.ArrayDeque;
++
+ /** Paged scrolling for Twelve's lists: Settings' PagedScroll, with the grid the Albums tab uses. */
+ public final class PagedScroll {
+ 
+@@ -115,7 +117,7 @@ public final class PagedScroll {
+         });
+     }
+ 
+-    /** Sideways by whole pages: forward to the first cover the right edge cuts, back by a width. */
++    /** Sideways by whole pages: forward to the first cover the right edge cuts, back to where that came from. */
+     private static boolean pageRow(RecyclerView rv, PagedRowLayoutManager lm, int delta) {
+         if (delta == 0) return false;
+         final int start = rv.getPaddingLeft();
+@@ -126,26 +128,39 @@ public final class PagedScroll {
+         try {
+             final long before = mark(rv, lm);
+             for (int i = Math.abs(delta); i > 0; i--) {
++                final long[] last = lm.pages.peek();
+                 if (delta > 0) {
+                     int next = Integer.MAX_VALUE;
++                    View anchor = null;
+                     for (int c = 0, n = lm.getChildCount(); c < n; c++) {
+                         final View item = lm.getChildAt(c);
+                         if (item == null) continue;
+                         if (lm.getDecoratedRight(item) > end && lm.getDecoratedLeft(item) < next) {
+                             next = lm.getDecoratedLeft(item);
++                            anchor = item;
+                         }
+                     }
+                     int dx = (next == Integer.MAX_VALUE) ? viewport : next - start;
+                     if (dx <= 0) dx = viewport;
++                    final int anchorPos = anchor == null ? RecyclerView.NO_POSITION : lm.getPosition(anchor);
+                     rv.scrollBy(dx, 0);
++                    // What the row really moved, remembered so back returns to exactly these covers.
++                    final View after = anchorPos == RecyclerView.NO_POSITION ? null
++                            : lm.findViewByPosition(anchorPos);
++                    final int moved = after == null ? dx : next - lm.getDecoratedLeft(after);
++                    if (moved > 0) lm.pages.push(new long[] {moved, mark(rv, lm)});
++                } else if (last != null && last[1] == mark(rv, lm)) {
++                    lm.pages.pop();
++                    rv.scrollBy((int) -last[0], 0);
+                 } else {
++                    lm.pages.clear();
+                     rv.scrollBy(-viewport, 0);
+-                    // The cover under the left edge comes in whole.
++                    // Otherwise the covers that end at the old left edge: a cover cut by it goes out.
+                     for (int c = 0, n = lm.getChildCount(); c < n; c++) {
+                         final View item = lm.getChildAt(c);
+                         if (item == null) continue;
+                         if (lm.getDecoratedLeft(item) < start && lm.getDecoratedRight(item) > start) {
+-                            rv.scrollBy(lm.getDecoratedLeft(item) - start, 0);
++                            rv.scrollBy(lm.getDecoratedRight(item) - start, 0);
+                             break;
+                         }
+                     }
+@@ -289,10 +304,11 @@ public final class PagedScroll {
+             final long before = mark(rv, lm);
+             for (int i = Math.abs(delta); i > 0; i--) {
+                 if (delta > 0) {
+-                    forward(rv, lm, viewport);
++                    final int moved = forward(rv, lm, viewport);
++                    // Remembered, so back returns to exactly this page.
++                    if (moved > 0) lm.pages.push(new long[] {moved, mark(rv, lm)});
+                 } else {
+-                    rv.scrollBy(0, -viewport);
+-                    snapTopRowWhole(rv, lm);
++                    back(rv, lm, viewport);
+                 }
+             }
+             // Ask the screen whether anything moved; at either end nothing does.
+@@ -303,35 +319,50 @@ public final class PagedScroll {
+     }
+ 
+     /** Forward one page: to the top of the first row the bottom edge cuts. */
+-    private static void forward(RecyclerView rv, PagedLayoutManager lm, int viewport) {
++    private static int forward(RecyclerView rv, PagedLayoutManager lm, int viewport) {
+         final int topEdge = rv.getPaddingTop();
+         final int bottomEdge = rv.getHeight() - rv.getPaddingBottom();
+ 
+         // Child order is not guaranteed, so take the smallest qualifying top rather than the first one found.
+         int next = Integer.MAX_VALUE;
++        View anchor = null;
+         for (int i = 0, n = lm.getChildCount(); i < n; i++) {
+             final View row = lm.getChildAt(i);
+             if (row == null) continue;
+             if (lm.getDecoratedBottom(row) > bottomEdge && lm.getDecoratedTop(row) < next) {
+                 next = lm.getDecoratedTop(row);
++                anchor = row;
+             }
+         }
+ 
+         int dy = (next == Integer.MAX_VALUE) ? viewport : next - topEdge;
+         // A row taller than the whole page would stand still forever.
+         if (dy <= 0) dy = viewport;
++        final int anchorPos = anchor == null ? RecyclerView.NO_POSITION : lm.getPosition(anchor);
+         rv.scrollBy(0, dy);
++        // What the list really moved: less than dy at its end.
++        final View after = anchorPos == RecyclerView.NO_POSITION ? null
++                : lm.findViewByPosition(anchorPos);
++        return after == null ? dy : next - lm.getDecoratedTop(after);
+     }
+ 
+-    /** Pull the row under the top edge down until it is whole. */
+-    private static void snapTopRowWhole(RecyclerView rv, PagedLayoutManager lm) {
++    /** Back one page: to where the last page turn came from, if the list has not moved since. */
++    private static void back(RecyclerView rv, PagedLayoutManager lm, int viewport) {
++        final long[] last = lm.pages.peek();
++        if (last != null && last[1] == mark(rv, lm)) {
++            lm.pages.pop();
++            rv.scrollBy(0, (int) -last[0]);
++            return;
++        }
++        lm.pages.clear();
++        rv.scrollBy(0, -viewport);
++        // Otherwise the page whose bottom is the old top: a row cut at the top goes up.
+         final int topEdge = rv.getPaddingTop();
+         for (int i = 0, n = lm.getChildCount(); i < n; i++) {
+             final View row = lm.getChildAt(i);
+             if (row == null) continue;
+-            if (lm.getDecoratedTop(row) <= topEdge && lm.getDecoratedBottom(row) > topEdge) {
+-                final int dy = lm.getDecoratedTop(row) - topEdge;
+-                if (dy < 0) rv.scrollBy(0, dy);
++            if (lm.getDecoratedTop(row) < topEdge && lm.getDecoratedBottom(row) > topEdge) {
++                rv.scrollBy(0, lm.getDecoratedBottom(row) - topEdge);
+                 return;
+             }
+         }
+@@ -350,6 +381,8 @@ public final class PagedScroll {
+     /** Kompakt: the sideways row's manager reports "cannot scroll" to touch, so the finger never drags it. */
+     static final class PagedRowLayoutManager extends LinearLayoutManager {
+         boolean allowProgrammaticScroll = false;
++        // Each forward page turn, {distance, where it landed}.
++        final ArrayDeque<long[]> pages = new ArrayDeque<>();
+ 
+         PagedRowLayoutManager(android.content.Context context) {
+             super(context, RecyclerView.HORIZONTAL, false);
+@@ -370,6 +403,8 @@ public final class PagedScroll {
+     /** Reports "cannot scroll vertically" to touch handling, which is what stops the finger dragging the list at all. */
+     static final class PagedLayoutManager extends GridLayoutManager {
+         boolean allowProgrammaticScroll = false;
++        // Each forward page turn, {distance, where it landed}.
++        final ArrayDeque<long[]> pages = new ArrayDeque<>();
+ 
+         PagedLayoutManager(android.content.Context context, int span) {
+             super(context, span);
+-- 
+2.43.0
+
