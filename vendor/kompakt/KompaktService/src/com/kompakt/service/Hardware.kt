@@ -195,6 +195,7 @@ object Eink {
         // The type sets Mudita's own cut-off (160); dither_param is not written.
         write("dither_type", (if (m.dither) DITHER_FS_OPT1 else DITHER_OFF).toString())
         setFaster(m.faster)
+        SleepImage.follow(m.bpp == 1)
     }
 
     /** Our modules only; each gu16 write uploads the waveform again, so only on a change. */

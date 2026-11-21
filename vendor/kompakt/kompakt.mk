@@ -62,6 +62,9 @@ PRODUCT_PACKAGES += \
     Katapult \
     inkOS
 
+# The chess engine of MuditaOS's Chess app.
+PRODUCT_PACKAGES += stockfish
+
 # The userspace half of the Kompakt's hardware, replacing com.mudita.service.
 PRODUCT_PACKAGES += KompaktService
 

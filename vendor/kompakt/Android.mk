@@ -29,5 +29,14 @@ LOCAL_ENFORCE_USES_LIBRARIES := true
 LOCAL_OPTIONAL_USES_LIBRARIES := androidx.window.extensions androidx.window.sidecar
 include $(BUILD_PREBUILT)
 
+# Mudita's Chess app runs this engine from /system/bin. Stockfish is GPLv3: see README.md.
+include $(CLEAR_VARS)
+LOCAL_MODULE := stockfish
+LOCAL_MODULE_CLASS := EXECUTABLES
+LOCAL_MODULE_TAGS := optional
+LOCAL_SRC_FILES := prebuilt/stockfish
+include $(BUILD_PREBUILT)
+
+
 # The module-path scan stops descending as soon as it finds an Android.mk, so this file has to pull in the.
 include $(call all-makefiles-under,$(LOCAL_PATH))

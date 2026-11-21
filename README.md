@@ -20,8 +20,8 @@ update package tooling live in
 
 - **E-ink interface**: black and white, with no greys, translucency or
   animations.
-- **E-ink modes**, including Auto (fast while moving, clean when still), for the
-  whole phone or per app, with per-app colour inversion.
+- **E-ink modes** for the whole phone or per app, with dither patterns and
+  per-app colour inversion.
 - **Always-on display** that lets the phone sleep.
 - **Sleep screen** with a picture of your own.
 - **Fingerprint gestures**: scrolling, taps and holds, and keys for Key Mapper.

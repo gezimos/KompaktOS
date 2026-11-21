@@ -29,3 +29,4 @@ vendor/kompakt/charger/libshowlogo.so
 *.swp
 *~
 .idea/
+__pycache__/

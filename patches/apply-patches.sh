@@ -40,6 +40,7 @@ declare -A PROJECT=(
   [packages_inputmethods_LatinIME]=packages/inputmethods/LatinIME
   [packages_modules_Bluetooth]=packages/modules/Bluetooth
   [packages_modules_Connectivity]=packages/modules/Connectivity
+  [packages_providers_ContactsProvider]=packages/providers/ContactsProvider
   [packages_providers_MediaProvider]=packages/providers/MediaProvider
   [packages_services_Telephony]=packages/services/Telephony
   [system_sepolicy]=system/sepolicy

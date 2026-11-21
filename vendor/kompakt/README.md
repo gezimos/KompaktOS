@@ -267,3 +267,10 @@ comments in these files are short titles; the reasons behind them are here.
 - **Toasts**: a border in the text ink, since e-ink has no elevation shadow.
 - **Cycle count**: LineageOS hides the Settings row; our kernel publishes the
   count through the vendor health HAL.
+
+## Stockfish
+
+`prebuilt/stockfish` is the chess engine of MuditaOS's Chess app, installed as `/system/bin/stockfish`,
+where the app starts it. It is an unmodified copy of the binary in MuditaOS 2.0.0 (md5 `5ca89a018d2d64ea21b9399e42eb4771`,
+arm64). Stockfish is free software under the GNU General Public License version 3; its source is at
+https://github.com/official-stockfish/Stockfish. The app brings its own network file, `nn-3475407dc199.nnue`.

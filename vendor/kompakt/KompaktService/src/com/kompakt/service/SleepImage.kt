@@ -59,11 +59,47 @@ object SleepImage {
     fun setFill(c: Context, v: Boolean) =
         c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(KEY_FILL, v).apply()
 
+    /** The 16-grey picture in use: the user's frame or the built-in one. */
+    @Volatile
+    private var base: ByteArray? = null
+
+    /** Whether the panel runs at 1 bit (the Fast modes); null until a mode or boot says. */
+    @Volatile
+    private var oneBit: Boolean? = null
+
+    /** Which copy the node holds: true the two-ink one. */
+    private var onNode: Boolean? = null
+
+    private val lock = Any()
+
     /** BootReceiver: meink has just loaded Mudita's picture again. */
     fun restore(c: Context) {
+        if (!available()) return
         val f = File(dir(c), FRAME)
-        if (!available() || f.length() != BYTES.toLong()) return
-        if (write(f.readBytes())) Log.i(Sysfs.TAG, "sleep: picture restored")
+        val frame = if (f.length() == BYTES.toLong()) f.readBytes() else read(STOCK_NODE) ?: return
+        if (oneBit == null) oneBit = Sysfs.read("/sys/einkinfo/pixelbits") == "1"
+        if (show(frame)) Log.i(Sysfs.TAG, "sleep: picture restored")
+    }
+
+    /**
+     * Eink.setMode, on the IO thread: at 1 bit a grey picture is cut to black and white whenever
+     * meink paints it undithered, so the Fast modes get a copy already in two inks.
+     */
+    fun follow(oneBitMode: Boolean) {
+        oneBit = oneBitMode
+        val b = base ?: return
+        synchronized(lock) {
+            if (onNode != oneBitMode) show(b)
+        }
+    }
+
+    /** Write the picture, or its two-ink copy in a Fast mode. */
+    private fun show(frame: ByteArray): Boolean = synchronized(lock) {
+        base = frame
+        val two = oneBit == true
+        if (!write(if (two) twoInk(frame) else frame)) return false
+        onNode = two
+        true
     }
 
     /** A new picture from the chooser. Blocking: decodes and dithers. */
@@ -84,7 +120,7 @@ object SleepImage {
         val src = BitmapFactory.decodeFile(File(dir(c), SOURCE).path) ?: return false
         val frame = render(src, fill(c))
         src.recycle()
-        if (!write(frame)) return false
+        if (!show(frame)) return false
         save(File(dir(c), FRAME)) { it.write(frame) }
         return true
     }
@@ -94,12 +130,12 @@ object SleepImage {
         File(dir(c), FRAME).delete()
         File(dir(c), SOURCE).delete()
         val stock = read(STOCK_NODE) ?: return false
-        return write(stock)
+        return show(stock)
     }
 
-    /** What the phone shows when it sleeps, upright, or null if unreadable. */
+    /** The sleep picture in its greys, upright, or null if unreadable. */
     fun current(): Bitmap? {
-        val frame = read(NODE) ?: return null
+        val frame = base ?: read(NODE) ?: return null
         val px = IntArray(W * H) { i ->
             // Rotated 180 degrees: the first pixel of the picture is the last in the frame.
             val g = frame[(W * H - 1 - i) * 4].toInt() and 0xff
@@ -169,6 +205,32 @@ object SleepImage {
             }
         }
         return frame
+    }
+
+    /** Floyd-Steinberg from the 16 greys down to black and white; a 1-bit paint then has nothing to cut. */
+    private fun twoInk(frame: ByteArray): ByteArray {
+        val grey = FloatArray(W * H) { i -> (frame[i * 4].toInt() and 0xff).toFloat() }
+        val out = ByteArray(BYTES)
+        for (y in 0 until H) {
+            for (x in 0 until W) {
+                val i = y * W + x
+                val old = grey[i]
+                val level = if (old >= 128f) 255 else 0
+                val err = old - level
+                if (x + 1 < W) grey[i + 1] += err * 7f / 16f
+                if (y + 1 < H) {
+                    if (x > 0) grey[i + W - 1] += err * 3f / 16f
+                    grey[i + W] += err * 5f / 16f
+                    if (x + 1 < W) grey[i + W + 1] += err / 16f
+                }
+                val b = level.toByte()
+                out[i * 4] = b
+                out[i * 4 + 1] = b
+                out[i * 4 + 2] = b
+                out[i * 4 + 3] = 0xff.toByte()
+            }
+        }
+        return out
     }
 
     // ------------------------------------------------------------- the node

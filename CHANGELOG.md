@@ -4,7 +4,7 @@ The system image. Each release ships as one full update package together with
 the boot and vendor images from
 [KompaktDevice](https://github.com/gezimos/KompaktDevice), listed per release.
 
-## 1.3 (unreleased)
+## 1.3 (2026-11-21)
 
 ### Security
 
@@ -26,6 +26,22 @@ the boot and vendor images from
 - **Pairing with a car that starts the pairing no longer fails with "incorrect PIN".** Some cars ask for the PIN before the phone has finished connecting. The phone showed the PIN dialog and accepted the PIN, but never sent it to the radio, which gave up after 30 seconds. The PIN is now sent as soon as you enter it. `packages_modules_Bluetooth` (`0001`).
 
 ### Offline+
+
+- **MuditaOS 2.0 apps can ask the phone about the Offline+ switch.** Its Weather,
+  Phone, SMS, Recorder, InkApps and other apps look up a service named
+  `kompakt_aux` and read the switch from it. KompaktOS had none, so they
+  crashed: Weather on every network request, Recorder at start, Phone at the
+  call button. The service now exists with their interface and reports the
+  switch, the battery counters and the region. It only answers; the Kompakt
+  app still switches Wi-Fi, Bluetooth and the camera.
+  `patches/kompakt/frameworks_base/0167`, `system_sepolicy/0002`.
+- **The MuditaOS 2.0 Phone app can list and search contacts.** It asks for a
+  SIM column that only MediaTek's contacts database has, and crashed when the
+  query was refused. Every contact now answers it as stored on the phone.
+  `patches/kompakt/packages_providers_ContactsProvider/0001`.
+- **Mudita's Chess app can play against the phone.** It runs the Stockfish
+  engine from `/system/bin`, which KompaktOS did not have. MuditaOS's own
+  binary, unmodified. `vendor/kompakt/prebuilt/stockfish`.
 
 - **Camera access in the Offline tab is a real block.** It only asked Android
   to block the camera, and a tap on the "unblock" prompt undid it. With it on,
@@ -165,6 +181,13 @@ the boot and vendor images from
 
 ### E-ink
 
+- **The sleep picture no longer turns into black shapes now and then in the
+  Fast modes.** A Fast mode draws in black and white only, and some of the
+  panel's own redraws cut the picture's greys instead of dithering them,
+  about one lock in twenty. In a Fast mode the phone now hands the panel a
+  copy of the picture already dithered to black and white, so every redraw
+  shows the same dots; Text and Quality keep all 16 greys.
+  `vendor/kompakt/KompaktService` (`SleepImage.kt`, `Hardware.kt`).
 - **Advanced settings consolidated into fewer options that each make a
   difference.** Kompakt app → ⋮ → Advanced. Two speed rows replace Temperature
   offset and Fast speed. Each step is the number of times the panel pushes
